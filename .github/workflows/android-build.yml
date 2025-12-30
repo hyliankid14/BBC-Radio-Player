@@ -8,9 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: "Android Auto Radio Player"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,10 +19,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v2
-        with:
-          api-level: 34
-          build-tools: 34.0.0
+        uses: android-actions/setup-android@v3
 
       - name: Grant execute for gradlew
         run: chmod +x ./gradlew
