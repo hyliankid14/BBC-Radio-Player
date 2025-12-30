@@ -1,0 +1,8 @@
+R_DEF: Internal format may change without notice
+local
+id btn_radio2
+id btn_radio4
+id btn_radio6
+layout activity_main
+string app_name
+style Theme.AndroidAutoRadioPlayer

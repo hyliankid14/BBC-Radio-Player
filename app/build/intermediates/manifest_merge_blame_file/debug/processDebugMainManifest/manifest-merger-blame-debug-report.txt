@@ -1,0 +1,103 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.androidautoradioplayer"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:3:5-67
+11-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:3:22-64
+12    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+12-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:4:5-77
+12-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:4:22-74
+13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+13-->[com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:24:5-79
+13-->[com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:24:22-76
+14
+15    <permission
+15-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
+16        android:name="com.example.androidautoradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+16-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
+17        android:protectionLevel="signature" />
+17-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+18
+19    <uses-permission android:name="com.example.androidautoradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+19-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+19-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
+20
+21    <application
+21-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:6:5-28:19
+22        android:allowBackup="true"
+22-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:7:9-35
+23        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+23-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:28:18-86
+24        android:debuggable="true"
+25        android:extractNativeLibs="true"
+26        android:label="@string/app_name"
+26-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:8:9-41
+27        android:supportsRtl="true"
+27-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:9:9-35
+28        android:theme="@style/Theme.AndroidAutoRadioPlayer" >
+28-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:10:9-60
+29        <activity
+29-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:9-17:20
+30            android:name="com.example.androidautoradioplayer.MainActivity"
+30-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:19-47
+31            android:exported="true" >
+31-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:48-71
+32            <intent-filter>
+32-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:13:13-16:29
+33                <action android:name="android.intent.action.MAIN" />
+33-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:14:17-69
+33-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:14:25-66
+34
+35                <category android:name="android.intent.category.LAUNCHER" />
+35-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:15:17-77
+35-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:15:27-74
+36            </intent-filter>
+37        </activity>
+38
+39        <service
+39-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:19:9-26:19
+40            android:name="com.example.androidautoradioplayer.RadioService"
+40-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:20:13-41
+41            android:exported="true"
+41-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:21:13-36
+42            android:permission="android.permission.BIND_MEDIA_BROWSER_SERVICE" >
+42-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:22:13-79
+43            <intent-filter>
+43-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:23:13-25:29
+44                <action android:name="android.media.browse.MediaBrowserService" />
+44-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:24:17-83
+44-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:24:25-80
+45            </intent-filter>
+46        </service>
+47
+48        <provider
+48-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+49            android:name="androidx.startup.InitializationProvider"
+49-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+50            android:authorities="com.example.androidautoradioplayer.androidx-startup"
+50-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+51            android:exported="false" >
+51-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+52            <meta-data
+52-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+53                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+53-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+54                android:value="androidx.startup" />
+54-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+55            <meta-data
+55-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:31:13-33:52
+56                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+56-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:32:17-78
+57                android:value="androidx.startup" />
+57-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:33:17-49
+58        </provider>
+59    </application>
+60
+61</manifest>

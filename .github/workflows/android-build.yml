@@ -1,0 +1,53 @@
+name: Android Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "Android Auto Radio Player"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 34
+          build-tools: 34.0.0
+
+      - name: Grant execute for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build debug APK
+        run: |
+          GRADLE_VER=9.2.1
+          DIST="gradle-${GRADLE_VER}-bin.zip"
+          wget -q "https://services.gradle.org/distributions/${DIST}" -O /tmp/${DIST}
+          unzip -q /tmp/${DIST} -d /tmp
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Show build outputs
+        run: |
+          echo "Listing app/build and outputs"
+          ls -la app/build || true
+          ls -la app/build/outputs || true
+          find app/build -type f -name '*.apk' -print || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/**/*.apk
+          if-no-files-found: warn
