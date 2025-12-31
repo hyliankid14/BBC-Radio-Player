@@ -5,7 +5,6 @@ set -e # Exit immediately if a command exits with a non-zero status.
 WORKFLOW_FILE="android-build.yml"
 PACKAGE_NAME="com.example.androidautoradioplayer"
 ARTIFACT_NAME="app-debug-apk"
-APK_PATH="artifacts/apk/debug/app-debug.apk"
 BRANCH="main"
 
 # Get commit message from argument
@@ -58,14 +57,21 @@ rm -rf artifacts
 echo "⬇️ Downloading artifact..."
 gh run download "$BUILD_ID" --name "$ARTIFACT_NAME" -D artifacts
 
+echo "🧐 Searching for APK file..."
+APK_FILE=$(find artifacts -name "*.apk" -type f | head -1)
+
+if [ -z "$APK_FILE" ]; then
+    echo "❌ No APK file found in artifacts"
+    echo "Artifact contents:"
+    find artifacts -type f
+    exit 1
+fi
+
+echo "Found APK: $APK_FILE"
+
 echo "🗑️ Uninstalling old app ($PACKAGE_NAME)..."
 adb uninstall "$PACKAGE_NAME" || true
 
 echo "📲 Installing new APK..."
-if [ -f "$APK_PATH" ]; then
-    adb install "$APK_PATH"
-    echo "✅ Deployment Complete!"
-else
-    echo "❌ APK file not found at $APK_PATH"
-    exit 1
-fi
+adb install "$APK_FILE"
+echo "✅ Deployment Complete!"
