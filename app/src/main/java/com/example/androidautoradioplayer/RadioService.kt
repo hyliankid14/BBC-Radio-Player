@@ -112,12 +112,18 @@ class RadioService : MediaBrowserServiceCompat() {
         mediaSession.setPlaybackState(pbState)
     }
 
-    override fun onGetRoot(clientName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot {
+    override fun onGetRoot(clientName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot? {
         Log.d(TAG, "onGetRoot called for client: $clientName")
+        
+        // Check if this is Android Auto or Android Automotive
+        val isAutomotiveClient = clientName?.contains("com.google.android.gms.car") == true ||
+                                 clientName?.contains("android.media.MediaBrowser") == true
+        
+        Log.d(TAG, "Client: $clientName, isAutomotiveClient: $isAutomotiveClient")
+        
         val extras = Bundle().apply {
             putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
             putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1) // 1 = LIST
-            putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 1) // 1 = LIST
         }
         return BrowserRoot("root", extras)
     }
@@ -125,18 +131,31 @@ class RadioService : MediaBrowserServiceCompat() {
     override fun onLoadChildren(parentId: String, result: Result<List<MediaItem>>) {
         Log.d(TAG, "onLoadChildren called for parentId: $parentId")
         
-        if (parentId == "root") {
-            val items = StationRepository.getStations().map { station ->
-                val desc = MediaDescriptionCompat.Builder()
-                    .setMediaId(station.id)
-                    .setTitle(station.title)
-                    .setSubtitle("BBC Radio")
-                    .setDescription("Live Stream")
-                    .build()
-                MediaItem(desc, MediaItem.FLAG_PLAYABLE)
+        try {
+            if (parentId == "root") {
+                val items = StationRepository.getStations().map { station ->
+                    try {
+                        val desc = MediaDescriptionCompat.Builder()
+                            .setMediaId(station.id)
+                            .setTitle(station.title)
+                            .setSubtitle("BBC Radio")
+                            .setDescription("Live Stream")
+                            .build()
+                        MediaItem(desc, MediaItem.FLAG_PLAYABLE)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error creating media item for station: ${station.id}", e)
+                        null
+                    }
+                }.filterNotNull()
+                
+                Log.d(TAG, "Returning ${items.size} items for root")
+                result.sendResult(items)
+            } else {
+                Log.d(TAG, "Returning empty list for parentId: $parentId")
+                result.sendResult(emptyList())
             }
-            result.sendResult(items)
-        } else {
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in onLoadChildren", e)
             result.sendResult(emptyList())
         }
     }

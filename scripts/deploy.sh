@@ -1,0 +1,71 @@
+#!/bin/bash
+set -e # Exit immediately if a command exits with a non-zero status.
+
+# Configuration Variables - Change these for other projects
+WORKFLOW_FILE="android-build.yml"
+PACKAGE_NAME="com.example.androidautoradioplayer"
+ARTIFACT_NAME="app-debug-apk"
+APK_PATH="artifacts/apk/debug/app-debug.apk"
+BRANCH="main"
+
+# Get commit message from argument
+COMMIT_MSG="$1"
+
+if [ -z "$COMMIT_MSG" ]; then
+  echo "Error: Commit message is required."
+  echo "Usage: $0 \"Commit message\""
+  exit 1
+fi
+
+echo "--------------------------------------------------"
+echo "🚀 Starting Deployment Script"
+echo "--------------------------------------------------"
+
+echo "📦 Staging all changes..."
+git add -A
+
+# Check if there are changes to commit
+if ! git diff-index --quiet HEAD; then
+    echo "💾 Committing with message: \"$COMMIT_MSG\""
+    git commit -m "$COMMIT_MSG"
+    
+    echo "⬆️ Pushing to $BRANCH..."
+    git push origin "$BRANCH"
+else
+    echo "⚠️ No changes to commit. Proceeding with existing code..."
+fi
+
+echo "triggering GitHub Workflow: $WORKFLOW_FILE..."
+gh workflow run "$WORKFLOW_FILE" --ref "$BRANCH"
+
+echo "⏳ Waiting for workflow to initialize..."
+sleep 10
+
+# Get the latest run ID for this workflow
+BUILD_ID=$(gh run list --workflow="$WORKFLOW_FILE" --limit=1 --json databaseId --jq '.[0].databaseId')
+
+if [ -z "$BUILD_ID" ]; then
+    echo "❌ Could not find build ID."
+    exit 1
+fi
+
+echo "👀 Watching build ID: $BUILD_ID"
+gh run watch "$BUILD_ID"
+
+echo "🧹 Cleaning up old artifacts..."
+rm -rf artifacts
+
+echo "⬇️ Downloading artifact..."
+gh run download "$BUILD_ID" --name "$ARTIFACT_NAME" -D artifacts
+
+echo "🗑️ Uninstalling old app ($PACKAGE_NAME)..."
+adb uninstall "$PACKAGE_NAME" || true
+
+echo "📲 Installing new APK..."
+if [ -f "$APK_PATH" ]; then
+    adb install "$APK_PATH"
+    echo "✅ Deployment Complete!"
+else
+    echo "❌ APK file not found at $APK_PATH"
+    exit 1
+fi
