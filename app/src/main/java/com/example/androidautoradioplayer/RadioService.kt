@@ -164,10 +164,6 @@ class RadioService : MediaBrowserServiceCompat() {
                         }
                         updatePlaybackState(state)
                     }
-                    
-                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        updatePlaybackState(if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED)
-                    }
                 })
             }
         }
@@ -235,6 +231,8 @@ class RadioService : MediaBrowserServiceCompat() {
         updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
 
         player?.apply {
+            stop()
+            clearMediaItems()
             playWhenReady = true
             setMediaItem(ExoMediaItem.fromUri(station.uri))
             prepare()
