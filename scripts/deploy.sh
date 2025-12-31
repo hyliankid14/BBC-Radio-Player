@@ -70,8 +70,12 @@ fi
 echo "Found APK: $APK_FILE"
 
 echo "🗑️ Uninstalling old app ($PACKAGE_NAME)..."
-adb uninstall "$PACKAGE_NAME" || true
+adb uninstall "$PACKAGE_NAME" || echo "⚠️ App was not installed, skipping uninstall"
 
 echo "📲 Installing new APK..."
-adb install "$APK_FILE"
-echo "✅ Deployment Complete!"
+if adb install "$APK_FILE"; then
+    echo "✅ Deployment Complete!"
+else
+    echo "❌ Failed to install APK"
+    exit 1
+fi
