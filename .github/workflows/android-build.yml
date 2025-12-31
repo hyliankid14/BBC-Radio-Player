@@ -15,6 +15,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: 'gradle'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -24,10 +25,6 @@ jobs:
 
       - name: Build debug APK
         run: |
-          GRADLE_VER=9.2.1
-          DIST="gradle-${GRADLE_VER}-bin.zip"
-          wget -q "https://services.gradle.org/distributions/${DIST}" -O /tmp/${DIST}
-          unzip -q /tmp/${DIST} -d /tmp
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Show build outputs
