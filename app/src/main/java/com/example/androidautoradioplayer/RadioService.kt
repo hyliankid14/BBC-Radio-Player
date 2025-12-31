@@ -256,12 +256,14 @@ class RadioService : MediaBrowserServiceCompat() {
         requestAudioFocus()
         startForegroundNotification()
         
-        // Set metadata for Android Auto display
+        // Set metadata for Android Auto display with album art
         val metadata = android.support.v4.media.MediaMetadataCompat.Builder()
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, station.id)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, station.title)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, "BBC Radio")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, station.logoUrl)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, station.logoUrl)
             .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1)
             .build()
         mediaSession.setMetadata(metadata)

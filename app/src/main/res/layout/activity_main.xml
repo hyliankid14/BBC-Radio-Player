@@ -12,34 +12,90 @@
         android:textSize="24sp"
         android:textStyle="bold"
         android:gravity="center"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="24dp" />
 
-    <Button
-        android:id="@+id/btn_radio2"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Play BBC Radio 2" />
-
-    <Button
-        android:id="@+id/btn_radio4"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Play BBC Radio 4"
-        android:layout_marginTop="12dp" />
-
-    <Button
-        android:id="@+id/btn_radio6"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Play BBC Radio 6 Music"
-        android:layout_marginTop="12dp" />
+        android:orientation="horizontal"
+        android:layout_marginBottom="24dp"
+        android:gravity="center">
+        
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:layout_marginEnd="8dp">
+            
+            <ImageView
+                android:id="@+id/img_radio2"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:contentDescription="BBC Radio 2"
+                android:scaleType="centerInside" />
+            
+            <Button
+                android:id="@+id/btn_radio2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="BBC Radio 2"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+        
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:layout_marginHorizontal="8dp">
+            
+            <ImageView
+                android:id="@+id/img_radio4"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:contentDescription="BBC Radio 4"
+                android:scaleType="centerInside" />
+            
+            <Button
+                android:id="@+id/btn_radio4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="BBC Radio 4"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+        
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:layout_marginStart="8dp">
+            
+            <ImageView
+                android:id="@+id/img_radio6"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:contentDescription="BBC Radio 6 Music"
+                android:scaleType="centerInside" />
+            
+            <Button
+                android:id="@+id/btn_radio6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="BBC Radio 6"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+    </LinearLayout>
 
     <Button
         android:id="@+id/btn_stop"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Stop Playback"
-        android:layout_marginTop="24dp"
         android:backgroundTint="#D32F2F" />
 
 </LinearLayout>
