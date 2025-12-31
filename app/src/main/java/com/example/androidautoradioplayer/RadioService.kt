@@ -213,6 +213,11 @@ class RadioService : MediaBrowserServiceCompat() {
             return
         }
         Log.d(TAG, "Playing station: ${station.title} - ${station.uri}")
+        
+        // Release existing player to ensure clean state
+        player?.release()
+        player = null
+        
         ensurePlayer()
         requestAudioFocus()
         startForegroundNotification()
@@ -231,8 +236,6 @@ class RadioService : MediaBrowserServiceCompat() {
         updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
 
         player?.apply {
-            stop()
-            clearMediaItems()
             playWhenReady = true
             setMediaItem(ExoMediaItem.fromUri(station.uri))
             prepare()
