@@ -112,29 +112,30 @@ class RadioService : MediaBrowserServiceCompat() {
         mediaSession.setPlaybackState(pbState)
     }
 
-    override fun onGetRoot(clientName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot? {
-        Log.d(TAG, "onGetRoot called for client: $clientName")
-        
-        // Check if this is Android Auto or Android Automotive
-        val isAutomotiveClient = clientName?.contains("com.google.android.gms.car") == true ||
-                                 clientName?.contains("android.media.MediaBrowser") == true
-        
-        Log.d(TAG, "Client: $clientName, isAutomotiveClient: $isAutomotiveClient")
+    override fun onGetRoot(clientName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot {
+        Log.d(TAG, "onGetRoot called for client: $clientName, uid: $clientUid")
         
         val extras = Bundle().apply {
             putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
             putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1) // 1 = LIST
+            putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 1) // 1 = LIST
         }
+        
+        Log.d(TAG, "onGetRoot returning root with extras")
         return BrowserRoot("root", extras)
     }
 
     override fun onLoadChildren(parentId: String, result: Result<List<MediaItem>>) {
-        Log.d(TAG, "onLoadChildren called for parentId: $parentId")
+        Log.d(TAG, "onLoadChildren START - parentId: $parentId, thread: ${Thread.currentThread().name}")
         
         try {
             if (parentId == "root") {
-                val items = StationRepository.getStations().map { station ->
+                val stations = StationRepository.getStations()
+                Log.d(TAG, "Got ${stations.size} stations from repository")
+                
+                val items = stations.mapNotNull { station ->
                     try {
+                        Log.d(TAG, "Creating item for station: ${station.id} - ${station.title}")
                         val desc = MediaDescriptionCompat.Builder()
                             .setMediaId(station.id)
                             .setTitle(station.title)
@@ -146,16 +147,18 @@ class RadioService : MediaBrowserServiceCompat() {
                         Log.e(TAG, "Error creating media item for station: ${station.id}", e)
                         null
                     }
-                }.filterNotNull()
+                }
                 
-                Log.d(TAG, "Returning ${items.size} items for root")
+                Log.d(TAG, "Sending ${items.size} items to result callback")
                 result.sendResult(items)
+                Log.d(TAG, "onLoadChildren COMPLETE - sent ${items.size} items")
             } else {
-                Log.d(TAG, "Returning empty list for parentId: $parentId")
+                Log.d(TAG, "Returning empty list for unknown parentId: $parentId")
                 result.sendResult(emptyList())
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in onLoadChildren", e)
+            Log.e(TAG, "EXCEPTION in onLoadChildren", e)
+            e.printStackTrace()
             result.sendResult(emptyList())
         }
     }
@@ -269,6 +272,7 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(TAG, "onStartCommand - action: ${intent?.action}")
         intent?.let {
             when (it.action) {
                 ACTION_PLAY_STATION -> {
@@ -281,6 +285,11 @@ class RadioService : MediaBrowserServiceCompat() {
             }
         }
         return START_STICKY
+    }
+    
+    override fun onBind(intent: Intent?): android.os.IBinder? {
+        Log.d(TAG, "onBind - action: ${intent?.action}")
+        return super.onBind(intent)
     }
 
     override fun onDestroy() {
