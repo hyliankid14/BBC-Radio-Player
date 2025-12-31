@@ -8,11 +8,16 @@ import android.widget.ListView
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Apply theme before creating the view
+        val theme = ThemePreference.getTheme(this)
+        ThemeManager.applyTheme(theme)
+        
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         val stationsList: ListView = findViewById(R.id.stations_list)
         val btnStop: Button = findViewById(R.id.btn_stop)
+        val btnSettings: Button = findViewById(R.id.btn_settings)
         
         val stations = StationRepository.getStations()
         
@@ -22,6 +27,7 @@ class MainActivity : AppCompatActivity() {
         
         stationsList.adapter = adapter
         btnStop.setOnClickListener { stopPlayback() }
+        btnSettings.setOnClickListener { openSettings() }
     }
 
     private fun playStation(id: String) {
@@ -37,5 +43,9 @@ class MainActivity : AppCompatActivity() {
             action = RadioService.ACTION_STOP
         }
         startService(intent)
+    }
+    
+    private fun openSettings() {
+        startActivity(Intent(this, SettingsActivity::class.java))
     }
 }
