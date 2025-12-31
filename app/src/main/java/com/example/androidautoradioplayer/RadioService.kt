@@ -70,7 +70,6 @@ class RadioService : MediaBrowserServiceCompat() {
         })
         
         mediaSession.setFlags(
-            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
             MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
         )
         mediaSession.isActive = true
@@ -280,7 +279,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
     private fun stopPlayback() {
         player?.stop()
-        stopForeground(true)
+        stopForeground(STOP_FOREGROUND_REMOVE)
         updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
         Log.d(TAG, "Playback stopped")
     }
