@@ -17,7 +17,7 @@ class MainActivity : AppCompatActivity() {
 
         val stationsList: ListView = findViewById(R.id.stations_list)
         val btnStop: Button = findViewById(R.id.btn_stop)
-        val btnSettings: Button = findViewById(R.id.btn_settings)
+        val btnSettings: android.widget.ImageButton = findViewById(R.id.btn_settings)
         
         val stations = StationRepository.getStations()
         

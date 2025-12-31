@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.AndroidAutoRadioPlayer" parent="Theme.AppCompat.Light.DarkActionBar">
+    <style name="Theme.AndroidAutoRadioPlayer" parent="Theme.AppCompat.DayNight.DarkActionBar">
         <item name="colorPrimary">#6200EE</item>
         <item name="colorPrimaryDark">#3700B3</item>
         <item name="colorAccent">#03DAC5</item>
