@@ -40,7 +40,10 @@ class RadioService : MediaBrowserServiceCompat() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.d(TAG, "onCreate - Service starting")
         createNotificationChannel()
+        
+        // Create and configure media session FIRST
         mediaSession = MediaSessionCompat(this, "RadioService")
         mediaSession.setCallback(object : MediaSessionCompat.Callback() {
             override fun onPlay() {
@@ -80,10 +83,14 @@ class RadioService : MediaBrowserServiceCompat() {
         )
         mediaSession.setSessionActivity(sessionPendingIntent)
         
-        // Set initial playback state
-        updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
+        // Set session token IMMEDIATELY
         sessionToken = mediaSession.sessionToken
-        Log.d(TAG, "MediaSession created and token set")
+        Log.d(TAG, "Session token set: $sessionToken")
+        
+        // Set initial playback state
+        updatePlaybackState(PlaybackStateCompat.STATE_NONE)
+        
+        Log.d(TAG, "onCreate complete - Service ready")
     }
 
     private fun createNotificationChannel() {
@@ -126,41 +133,46 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     override fun onLoadChildren(parentId: String, result: Result<List<MediaItem>>) {
-        Log.d(TAG, "onLoadChildren START - parentId: $parentId, thread: ${Thread.currentThread().name}")
+        Log.d(TAG, "onLoadChildren - parentId: $parentId")
         
-        try {
-            if (parentId == "root") {
-                val stations = StationRepository.getStations()
-                Log.d(TAG, "Got ${stations.size} stations from repository")
-                
-                val items = stations.mapNotNull { station ->
-                    try {
-                        Log.d(TAG, "Creating item for station: ${station.id} - ${station.title}")
-                        val desc = MediaDescriptionCompat.Builder()
-                            .setMediaId(station.id)
-                            .setTitle(station.title)
-                            .setSubtitle("BBC Radio")
-                            .setDescription("Live Stream")
-                            .build()
-                        MediaItem(desc, MediaItem.FLAG_PLAYABLE)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error creating media item for station: ${station.id}", e)
-                        null
-                    }
-                }
-                
-                Log.d(TAG, "Sending ${items.size} items to result callback")
-                result.sendResult(items)
-                Log.d(TAG, "onLoadChildren COMPLETE - sent ${items.size} items")
-            } else {
-                Log.d(TAG, "Returning empty list for unknown parentId: $parentId")
-                result.sendResult(emptyList())
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "EXCEPTION in onLoadChildren", e)
-            e.printStackTrace()
+        if (parentId != "root") {
+            Log.d(TAG, "Non-root parent, sending empty")
             result.sendResult(emptyList())
+            return
         }
+        
+        val items = mutableListOf<MediaItem>()
+        
+        items.add(MediaItem(
+            MediaDescriptionCompat.Builder()
+                .setMediaId("radio2")
+                .setTitle("BBC Radio 2")
+                .setSubtitle("BBC Radio")
+                .build(),
+            MediaItem.FLAG_PLAYABLE
+        ))
+        
+        items.add(MediaItem(
+            MediaDescriptionCompat.Builder()
+                .setMediaId("radio4")
+                .setTitle("BBC Radio 4")
+                .setSubtitle("BBC Radio")
+                .build(),
+            MediaItem.FLAG_PLAYABLE
+        ))
+        
+        items.add(MediaItem(
+            MediaDescriptionCompat.Builder()
+                .setMediaId("radio6")
+                .setTitle("BBC Radio 6 Music")
+                .setSubtitle("BBC Radio")
+                .build(),
+            MediaItem.FLAG_PLAYABLE
+        ))
+        
+        Log.d(TAG, "Sending ${items.size} items")
+        result.sendResult(items)
+        Log.d(TAG, "onLoadChildren complete")
     }
 
     private fun ensurePlayer() {
