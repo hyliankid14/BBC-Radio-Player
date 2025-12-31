@@ -19,7 +19,7 @@
             android:text="BBC Radio Player"
             android:textSize="24sp"
             android:textStyle="bold"
-            android:textColor="?attr/colorOnPrimary" />
+            android:textColor="@android:color/white" />
 
         <Button
             android:id="@+id/btn_settings"
