@@ -20,6 +20,25 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/sdk
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('.github/workflows/android-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
+      - name: Cache Gradle build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle', '**/*.gradle.kts', 'gradle.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Grant execute for gradlew
         run: chmod +x ./gradlew
 
