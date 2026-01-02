@@ -16,78 +16,78 @@ object StationRepository {
         Station(
             "radio1",
             "BBC Radio 1",
-            "https://as-hls-ww-live.akamaized.net/pool_904338/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904338/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d128000.norewind.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/pc_hd_abr_v2/cf/bbc_radio_one.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/pc_hd_abr_v2/cf/bbc_radio_one.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_one/blocks-colour-black_128x128.png"
         ),
         Station(
             "1xtra",
             "BBC Radio 1Xtra",
-            "https://as-hls-ww-live.akamaized.net/pool_904339/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904339/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_92079267/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_92079267/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_1xtra/blocks-colour-black_128x128.png"
         ),
         Station(
             "radio2",
             "BBC Radio 2",
-            "https://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d96000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_two/blocks-colour-black_128x128.png"
         ),
         Station(
             "radio3",
             "BBC Radio 3",
-            "https://as-hls-ww-live.akamaized.net/pool_904340/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904340/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_three/blocks-colour-black_128x128.png"
         ),
         Station(
             "radio4",
             "BBC Radio 4",
-            "https://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_fourfm/blocks-colour-black_128x128.png"
         ),
         Station(
             "radio4extra",
             "BBC Radio 4 Extra",
-            "https://as-hls-ww-live.akamaized.net/pool_904341/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904341/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_26173715/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_26173715/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_four_extra/blocks-colour-black_128x128.png"
         ),
         Station(
             "radio5live",
             "BBC Radio 5 Live",
-            "https://as-hls-ww-live.akamaized.net/pool_904342/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904342/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_five_live/blocks-colour-black_128x128.png"
         ),
         Station(
             "radio5livesportsextra",
             "BBC Radio 5 Sports Extra",
-            "https://as-hls-ww-live.akamaized.net/pool_904343/live/ww/bbc_radio_five_live_sports_extra/bbc_radio_five_live_sports_extra.isml/bbc_radio_five_live_sports_extra-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904343/live/ww/bbc_radio_five_live_sports_extra/bbc_radio_five_live_sports_extra.isml/bbc_radio_five_live_sports_extra-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live_sports_extra/bbc_radio_five_live_sports_extra.isml/bbc_radio_five_live_sports_extra-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live_sports_extra/bbc_radio_five_live_sports_extra.isml/bbc_radio_five_live_sports_extra-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_five_live_sports_extra/blocks-colour-black_128x128.png"
         ),
         Station(
             "radio6",
             "BBC Radio 6 Music",
-            "https://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_6music/blocks-colour-black_128x128.png"
         ),
         Station(
             "asiannetwork",
             "BBC Asian Network",
-            "https://as-hls-ww-live.akamaized.net/pool_904344/live/ww/bbc_asian_network/bbc_asian_network.isml/bbc_asian_network-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904344/live/ww/bbc_asian_network/bbc_asian_network.isml/bbc_asian_network-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_22108647/live/ww/bbc_asian_network/bbc_asian_network.isml/bbc_asian_network-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_22108647/live/ww/bbc_asian_network/bbc_asian_network.isml/bbc_asian_network-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_asian_network/blocks-colour-black_128x128.png"
         ),
         Station(
             "worldservice",
             "BBC World Service",
-            "https://as-hls-ww-live.akamaized.net/pool_904345/live/ww/bbc_world_service/bbc_world_service.isml/bbc_world_service-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904345/live/ww/bbc_world_service/bbc_world_service.isml/bbc_world_service-audio%3d128000.norewind.m3u8",
+            "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service_west_africa",
+            "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service_west_africa",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_world_service/blocks-colour-black_128x128.png"
         ),
         
@@ -102,8 +102,8 @@ object StationRepository {
         Station(
             "radiobristol",
             "BBC Radio Bristol",
-            "https://as-hls-ww-live.akamaized.net/pool_904347/live/ww/bbc_radio_bristol/bbc_radio_bristol.isml/bbc_radio_bristol-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904347/live/ww/bbc_radio_bristol/bbc_radio_bristol.isml/bbc_radio_bristol-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_41858929/live/ww/bbc_radio_bristol/bbc_radio_bristol.isml/bbc_radio_bristol-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_41858929/live/ww/bbc_radio_bristol/bbc_radio_bristol.isml/bbc_radio_bristol-audio%3d96000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_bristol/blocks-colour-black_128x128.png"
         ),
         Station(
@@ -137,8 +137,8 @@ object StationRepository {
         Station(
             "radiodevon",
             "BBC Radio Devon",
-            "https://as-hls-ww-live.akamaized.net/pool_904352/live/ww/bbc_radio_devon/bbc_radio_devon.isml/bbc_radio_devon-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904352/live/ww/bbc_radio_devon/bbc_radio_devon.isml/bbc_radio_devon-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_08856933/live/ww/bbc_radio_devon/bbc_radio_devon.isml/bbc_radio_devon-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_08856933/live/ww/bbc_radio_devon/bbc_radio_devon.isml/bbc_radio_devon-audio%3d96000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_devon/blocks-colour-black_128x128.png"
         ),
         Station(
@@ -179,8 +179,8 @@ object StationRepository {
         Station(
             "radioleeds",
             "BBC Radio Leeds",
-            "https://as-hls-ww-live.akamaized.net/pool_904358/live/ww/bbc_radio_leeds/bbc_radio_leeds.isml/bbc_radio_leeds-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904358/live/ww/bbc_radio_leeds/bbc_radio_leeds.isml/bbc_radio_leeds-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_50115440/live/ww/bbc_radio_leeds/bbc_radio_leeds.isml/bbc_radio_leeds-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_50115440/live/ww/bbc_radio_leeds/bbc_radio_leeds.isml/bbc_radio_leeds-audio%3d96000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_leeds/blocks-colour-black_128x128.png"
         ),
         Station(
@@ -200,8 +200,8 @@ object StationRepository {
         Station(
             "radiolon",
             "BBC Radio London",
-            "https://as-hls-ww-live.akamaized.net/pool_904361/live/ww/bbc_london/bbc_london.isml/bbc_london-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904361/live/ww/bbc_london/bbc_london.isml/bbc_london-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_98137350/live/ww/bbc_london/bbc_london.isml/bbc_london-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_98137350/live/ww/bbc_london/bbc_london.isml/bbc_london-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_london/blocks-colour-black_128x128.png"
         ),
         Station(
@@ -235,15 +235,15 @@ object StationRepository {
         Station(
             "radionorthampton",
             "BBC Radio Northampton",
-            "https://as-hls-ww-live.akamaized.net/pool_904366/live/ww/bbc_radio_northampton/bbc_radio_northampton.isml/bbc_radio_northampton-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904366/live/ww/bbc_radio_northampton/bbc_radio_northampton.isml/bbc_radio_northampton-audio%3d128000.norewind.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/pc_hd_abr_v2/cfs/bbc_radio_northampton.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/pc_hd_abr_v2/cfs/bbc_radio_northampton.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_northampton/blocks-colour-black_128x128.png"
         ),
         Station(
             "radionottingham",
             "BBC Radio Nottingham",
-            "https://as-hls-ww-live.akamaized.net/pool_904367/live/ww/bbc_radio_nottingham/bbc_radio_nottingham.isml/bbc_radio_nottingham-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904367/live/ww/bbc_radio_nottingham/bbc_radio_nottingham.isml/bbc_radio_nottingham-audio%3d128000.norewind.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/audio_syndication_low_sbr_v1/aks/bbc_radio_nottingham.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/audio_syndication_low_sbr_v1/aks/bbc_radio_nottingham.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_nottingham/blocks-colour-black_128x128.png"
         ),
         Station(
@@ -270,8 +270,8 @@ object StationRepository {
         Station(
             "radiosolent",
             "BBC Radio Solent",
-            "https://as-hls-ww-live.akamaized.net/pool_904371/live/ww/bbc_radio_solent/bbc_radio_solent.isml/bbc_radio_solent-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904371/live/ww/bbc_radio_solent/bbc_radio_solent.isml/bbc_radio_solent-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_11685351/live/ww/bbc_radio_solent/bbc_radio_solent.isml/bbc_radio_solent-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_11685351/live/ww/bbc_radio_solent/bbc_radio_solent.isml/bbc_radio_solent-audio%3d96000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_solent/blocks-colour-black_128x128.png"
         ),
         Station(
@@ -312,8 +312,8 @@ object StationRepository {
         Station(
             "radiotees",
             "BBC Radio Tees",
-            "https://as-hls-ww-live.akamaized.net/pool_904377/live/ww/bbc_tees/bbc_tees.isml/bbc_tees-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904377/live/ww/bbc_tees/bbc_tees.isml/bbc_tees-audio%3d128000.norewind.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/pc_hd_abr_v2/aks/bbc_tees.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/pc_hd_abr_v2/aks/bbc_tees.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_tees/blocks-colour-black_128x128.png"
         ),
         Station(
@@ -335,43 +335,43 @@ object StationRepository {
         Station(
             "radioscotland",
             "BBC Radio Scotland",
-            "https://as-hls-ww-live.akamaized.net/pool_904380/live/ww/bbc_radio_scotland_fm/bbc_radio_scotland_fm.isml/bbc_radio_scotland_fm-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904380/live/ww/bbc_radio_scotland_fm/bbc_radio_scotland_fm.isml/bbc_radio_scotland_fm-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_43322914/live/ww/bbc_radio_scotland_fm/bbc_radio_scotland_fm.isml/bbc_radio_scotland_fm-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_43322914/live/ww/bbc_radio_scotland_fm/bbc_radio_scotland_fm.isml/bbc_radio_scotland_fm-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_scotland_fm/blocks-colour-black_128x128.png"
         ),
         Station(
             "radionanaidheal",
             "BBC Radio nan Gàidheal",
-            "https://as-hls-ww-live.akamaized.net/pool_904381/live/ww/bbc_radio_nan_gaidheal/bbc_radio_nan_gaidheal.isml/bbc_radio_nan_gaidheal-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904381/live/ww/bbc_radio_nan_gaidheal/bbc_radio_nan_gaidheal.isml/bbc_radio_nan_gaidheal-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_01935182/live/ww/bbc_radio_nan_gaidheal/bbc_radio_nan_gaidheal.isml/bbc_radio_nan_gaidheal-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_01935182/live/ww/bbc_radio_nan_gaidheal/bbc_radio_nan_gaidheal.isml/bbc_radio_nan_gaidheal-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_nan_gaidheal/blocks-colour-black_128x128.png"
         ),
         Station(
             "radiowales",
             "BBC Radio Wales",
-            "https://as-hls-ww-live.akamaized.net/pool_904382/live/ww/bbc_radio_wales_fm/bbc_radio_wales_fm.isml/bbc_radio_wales_fm-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904382/live/ww/bbc_radio_wales_fm/bbc_radio_wales_fm.isml/bbc_radio_wales_fm-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_97517794/live/ww/bbc_radio_wales_fm/bbc_radio_wales_fm.isml/bbc_radio_wales_fm-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_97517794/live/ww/bbc_radio_wales_fm/bbc_radio_wales_fm.isml/bbc_radio_wales_fm-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_wales_fm/blocks-colour-black_128x128.png"
         ),
         Station(
             "radiocymru",
             "BBC Radio Cymru",
-            "https://as-hls-ww-live.akamaized.net/pool_904383/live/ww/bbc_radio_cymru/bbc_radio_cymru.isml/bbc_radio_cymru-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904383/live/ww/bbc_radio_cymru/bbc_radio_cymru.isml/bbc_radio_cymru-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_24792333/live/ww/bbc_radio_cymru/bbc_radio_cymru.isml/bbc_radio_cymru-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_24792333/live/ww/bbc_radio_cymru/bbc_radio_cymru.isml/bbc_radio_cymru-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_cymru/blocks-colour-black_128x128.png"
         ),
         Station(
             "radioulster",
             "BBC Radio Ulster",
-            "https://as-hls-ww-live.akamaized.net/pool_904384/live/ww/bbc_radio_ulster/bbc_radio_ulster.isml/bbc_radio_ulster-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904384/live/ww/bbc_radio_ulster/bbc_radio_ulster.isml/bbc_radio_ulster-audio%3d128000.norewind.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/audio_syndication_low_sbr_v1/aks/bbc_radio_ulster.m3u8",
+            "http://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/audio_syndication_low_sbr_v1/aks/bbc_radio_ulster.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_ulster/blocks-colour-black_128x128.png"
         ),
         Station(
             "radiofoyle",
             "BBC Radio Foyle",
-            "https://as-hls-ww-live.akamaized.net/pool_904385/live/ww/bbc_radio_foyle/bbc_radio_foyle.isml/bbc_radio_foyle-audio%3d320000.norewind.m3u8",
-            "https://as-hls-ww-live.akamaized.net/pool_904385/live/ww/bbc_radio_foyle/bbc_radio_foyle.isml/bbc_radio_foyle-audio%3d128000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_43178797/live/ww/bbc_radio_foyle/bbc_radio_foyle.isml/bbc_radio_foyle-audio%3d320000.norewind.m3u8",
+            "http://as-hls-ww-live.akamaized.net/pool_43178797/live/ww/bbc_radio_foyle/bbc_radio_foyle.isml/bbc_radio_foyle-audio%3d128000.norewind.m3u8",
             "https://sounds.files.bbci.co.uk/3.11.0/services/bbc_radio_foyle/blocks-colour-black_128x128.png"
         )
     )
