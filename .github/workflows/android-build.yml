@@ -15,29 +15,28 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.android/sdk
-          key: ${{ runner.os }}-android-sdk-${{ hashFiles('.github/workflows/android-build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-android-sdk-
-
-      - name: Cache Gradle build cache
+      - name: Cache Gradle wrapper and dependencies
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle', '**/*.gradle.kts', 'gradle.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
+
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('.github/workflows/android-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Grant execute for gradlew
         run: chmod +x ./gradlew
