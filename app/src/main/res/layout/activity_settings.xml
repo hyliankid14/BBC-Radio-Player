@@ -42,4 +42,35 @@
 
     </RadioGroup>
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Audio Quality"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginTop="32dp"
+        android:layout_marginBottom="16dp" />
+
+    <RadioGroup
+        android:id="@+id/quality_radio_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/radio_high_quality"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="High Quality (320kbps)"
+            android:padding="12dp" />
+
+        <RadioButton
+            android:id="@+id/radio_low_quality"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Low Quality (128kbps)"
+            android:padding="12dp" />
+
+    </RadioGroup>
+
 </LinearLayout>

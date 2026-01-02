@@ -14,12 +14,22 @@ class SettingsActivity : AppCompatActivity() {
         supportActionBar?.title = "Settings"
         
         val themeGroup: RadioGroup = findViewById(R.id.theme_radio_group)
+        val qualityGroup: RadioGroup = findViewById(R.id.quality_radio_group)
         
+        // Set current theme selection
         val currentTheme = ThemePreference.getTheme(this)
         when (currentTheme) {
             ThemePreference.THEME_LIGHT -> themeGroup.check(R.id.radio_light)
             ThemePreference.THEME_DARK -> themeGroup.check(R.id.radio_dark)
             ThemePreference.THEME_SYSTEM -> themeGroup.check(R.id.radio_system)
+        }
+        
+        // Set current quality selection
+        val highQuality = ThemePreference.getHighQuality(this)
+        if (highQuality) {
+            qualityGroup.check(R.id.radio_high_quality)
+        } else {
+            qualityGroup.check(R.id.radio_low_quality)
         }
         
         themeGroup.setOnCheckedChangeListener { _, checkedId ->
@@ -32,6 +42,11 @@ class SettingsActivity : AppCompatActivity() {
             
             ThemePreference.setTheme(this, selectedTheme)
             ThemeManager.applyTheme(selectedTheme)
+        }
+        
+        qualityGroup.setOnCheckedChangeListener { _, checkedId ->
+            val isHighQuality = checkedId == R.id.radio_high_quality
+            ThemePreference.setHighQuality(this, isHighQuality)
         }
     }
     

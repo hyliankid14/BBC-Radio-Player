@@ -290,7 +290,12 @@ class RadioService : MediaBrowserServiceCompat() {
             Log.w(TAG, "Unknown station: $stationId")
             return
         }
-        Log.d(TAG, "Playing station: ${station.title} - ${station.uri}")
+        
+        // Get quality preference
+        val highQuality = ThemePreference.getHighQuality(this)
+        val streamUri = station.getUri(highQuality)
+        
+        Log.d(TAG, "Playing station: ${station.title} - $streamUri (HQ: $highQuality)")
         
         currentStationTitle = station.title
         
@@ -319,7 +324,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
         player?.apply {
             playWhenReady = true
-            setMediaItem(ExoMediaItem.fromUri(station.uri))
+            setMediaItem(ExoMediaItem.fromUri(streamUri))
             prepare()
         }
     }
