@@ -2,7 +2,8 @@
 <resources>
     <style name="Theme.AndroidAutoRadioPlayer" parent="Theme.AppCompat.DayNight.DarkActionBar">
         <item name="colorPrimary">#6200EE</item>
-        <item name="colorPrimaryDark">#3700B3</item>
+        <item name="colorPrimaryDark">#6200EE</item>
         <item name="colorAccent">#03DAC5</item>
+        <item name="android:statusBarColor">#6200EE</item>
     </style>
 </resources>
