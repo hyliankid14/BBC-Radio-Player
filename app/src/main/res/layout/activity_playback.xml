@@ -3,7 +3,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="?attr/colorBackground"
     android:padding="16dp">
 
     <!-- Back Button -->
@@ -11,10 +10,11 @@
         android:id="@+id/btn_back"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:src="@android:drawable/ic_menu_back"
+        android:src="@drawable/ic_settings"
         android:contentDescription="Back"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="16dp"
+        android:rotation="180" />
 
     <!-- Station Artwork -->
     <ImageView
