@@ -11,6 +11,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
+import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.MediaBrowserServiceCompat
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaBrowserCompat.MediaItem
@@ -28,9 +29,12 @@ class RadioService : MediaBrowserServiceCompat() {
     private var player: ExoPlayer? = null
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private var audioFocusRequest: AudioFocusRequest? = null
+    private var currentStationTitle: String = ""
 
     companion object {
         const val ACTION_PLAY_STATION = "com.example.androidautoradioplayer.ACTION_PLAY_STATION"
+        const val ACTION_PLAY = "com.example.androidautoradioplayer.ACTION_PLAY"
+        const val ACTION_PAUSE = "com.example.androidautoradioplayer.ACTION_PAUSE"
         const val ACTION_STOP = "com.example.androidautoradioplayer.ACTION_STOP"
         const val EXTRA_STATION_ID = "com.example.androidautoradioplayer.EXTRA_STATION_ID"
         private const val TAG = "RadioService"
@@ -228,15 +232,56 @@ class RadioService : MediaBrowserServiceCompat() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Create play/pause action
+        val playPauseAction = if (player?.isPlaying == true) {
+            NotificationCompat.Action(
+                android.R.drawable.ic_media_pause,
+                "Pause",
+                createPendingIntent(ACTION_PAUSE, "pause_action")
+            )
+        } else {
+            NotificationCompat.Action(
+                android.R.drawable.ic_media_play,
+                "Play",
+                createPendingIntent(ACTION_PLAY, "play_action")
+            )
+        }
+
+        // Create stop action
+        val stopAction = NotificationCompat.Action(
+            android.R.drawable.ic_media_pause,
+            "Stop",
+            createPendingIntent(ACTION_STOP, "stop_action")
+        )
+
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("BBC Radio Player")
-            .setContentText("Playing radio")
+            .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
+            .setContentText("Live Stream")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
+            .addAction(playPauseAction)
+            .addAction(stopAction)
+            .setStyle(MediaStyle()
+                .setMediaSession(mediaSession.sessionToken)
+                .setShowActionsInCompactView(0, 1)
+            )
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
         startForeground(NOTIFICATION_ID, notification)
+    }
+
+    private fun createPendingIntent(action: String, tag: String): PendingIntent {
+        val intent = Intent(this, RadioService::class.java).apply {
+            this.action = action
+        }
+        return PendingIntent.getService(
+            this,
+            tag.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun playStation(stationId: String) {
@@ -246,6 +291,8 @@ class RadioService : MediaBrowserServiceCompat() {
             return
         }
         Log.d(TAG, "Playing station: ${station.title} - ${station.uri}")
+        
+        currentStationTitle = station.title
         
         // Release existing player to ensure clean state
         player?.release()
@@ -291,6 +338,16 @@ class RadioService : MediaBrowserServiceCompat() {
                 ACTION_PLAY_STATION -> {
                     val id = it.getStringExtra(EXTRA_STATION_ID)
                     id?.let { playStation(it) }
+                }
+                ACTION_PLAY -> {
+                    player?.play()
+                    updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+                    startForegroundNotification()
+                }
+                ACTION_PAUSE -> {
+                    player?.pause()
+                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
+                    startForegroundNotification()
                 }
                 ACTION_STOP -> {
                     stopPlayback()
