@@ -10,17 +10,16 @@
         android:id="@+id/btn_back"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:src="@drawable/ic_settings"
+        android:src="@drawable/ic_back"
         android:contentDescription="Back"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:layout_marginBottom="16dp"
-        android:rotation="180" />
+        android:layout_marginBottom="16dp" />
 
     <!-- Station Artwork -->
     <ImageView
         android:id="@+id/station_artwork"
-        android:layout_width="240dp"
-        android:layout_height="240dp"
+        android:layout_width="320dp"
+        android:layout_height="320dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginVertical="32dp"
         android:scaleType="centerInside"
@@ -79,7 +78,7 @@
             android:id="@+id/btn_stop"
             android:layout_width="72dp"
             android:layout_height="72dp"
-            android:src="@android:drawable/ic_media_pause"
+            android:src="@drawable/ic_stop"
             android:contentDescription="Stop"
             android:background="#D32F2F"
             android:scaleType="centerInside"
