@@ -11,14 +11,10 @@
         android:layout_weight="1"
         android:layout_margin="16dp" />
 
-    <Button
-        android:id="@+id/btn_stop"
+    <include
+        layout="@layout/mini_player"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Stop Playback"
-        android:backgroundTint="#D32F2F"
-        android:layout_margin="16dp"
-        android:padding="12dp" />
+        android:layout_height="wrap_content" />
 
     <LinearLayout
         android:id="@+id/bottom_navigation"

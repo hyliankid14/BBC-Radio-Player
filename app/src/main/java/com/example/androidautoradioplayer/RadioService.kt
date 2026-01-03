@@ -54,12 +54,14 @@ class RadioService : MediaBrowserServiceCompat() {
                 Log.d(TAG, "onPlay called")
                 player?.play()
                 updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+                PlaybackStateHelper.setIsPlaying(true)
             }
 
             override fun onPause() {
                 Log.d(TAG, "onPause called")
                 player?.pause()
                 updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
+                PlaybackStateHelper.setIsPlaying(false)
             }
 
             override fun onStop() {
@@ -203,6 +205,13 @@ class RadioService : MediaBrowserServiceCompat() {
                             else -> PlaybackStateCompat.STATE_NONE
                         }
                         updatePlaybackState(state)
+                        
+                        // Update helper for mini player
+                        when (state) {
+                            PlaybackStateCompat.STATE_PLAYING -> PlaybackStateHelper.setIsPlaying(true)
+                            PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.STATE_STOPPED -> PlaybackStateHelper.setIsPlaying(false)
+                            else -> {}
+                        }
                     }
                 })
             }
@@ -304,6 +313,10 @@ class RadioService : MediaBrowserServiceCompat() {
         
         currentStationTitle = station.title
         
+        // Update global playback state
+        PlaybackStateHelper.setCurrentStation(station)
+        PlaybackStateHelper.setIsPlaying(true)
+        
         // Release existing player to ensure clean state
         player?.release()
         player = null
@@ -338,6 +351,11 @@ class RadioService : MediaBrowserServiceCompat() {
         player?.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
         updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+        
+        // Update global playback state
+        PlaybackStateHelper.setCurrentStation(null)
+        PlaybackStateHelper.setIsPlaying(false)
+        
         Log.d(TAG, "Playback stopped")
     }
 
