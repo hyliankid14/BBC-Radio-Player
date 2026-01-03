@@ -40,4 +40,7 @@
     <!-- Legacy colors for compatibility -->
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#E0E0E0</color>
+    
+    <!-- Mini player icon tint - dark in light mode -->
+    <color name="mini_player_icon_tint">#424242</color>
 </resources>

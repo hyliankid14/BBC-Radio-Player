@@ -59,7 +59,7 @@
                 android:padding="14dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Play/Pause"
-                android:tint="?attr/colorPrimary" />
+                android:tint="@color/mini_player_icon_tint" />
 
             <!-- Stop Button -->
             <ImageButton
@@ -71,7 +71,7 @@
                 android:padding="14dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Stop"
-                android:tint="?attr/colorPrimary" />
+                android:tint="@color/mini_player_icon_tint" />
 
             <!-- Favorites Button -->
             <ImageButton
@@ -83,7 +83,7 @@
                 android:padding="14dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Add to Favorites"
-                android:tint="?attr/colorPrimary" />
+                android:tint="@color/mini_player_icon_tint" />
 
         </LinearLayout>
 
