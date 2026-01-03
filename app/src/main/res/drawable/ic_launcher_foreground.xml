@@ -10,7 +10,7 @@
         android:pivotY="54"
         android:scaleX="0.64"
         android:scaleY="0.64"
-        android:translateX="0"
+        android:translateX="1"
         android:translateY="-2">
 
         <!-- subtle shadow -->
