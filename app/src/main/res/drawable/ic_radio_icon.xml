@@ -5,25 +5,30 @@
     android:viewportWidth="192"
     android:viewportHeight="192">
     
-    <!-- Radio body -->
+    <!-- Colored background with rounded corners -->
     <path
-        android:fillColor="#1E88E5"
-        android:pathData="M 30,50 L 162,50 L 162,150 L 30,150 Z" />
+        android:fillColor="#2196F3"
+        android:pathData="M 24,24 L 168,24 Q 176,24 176,32 L 176,160 Q 176,168 168,168 L 24,168 Q 16,168 16,160 L 16,32 Q 16,24 24,24 Z" />
     
-    <!-- Radio frame darker -->
+    <!-- Radio body with rounded corners -->
     <path
-        android:fillColor="#0D47A1"
-        android:pathData="M 35,55 L 157,55 L 157,145 L 35,145 Z" />
+        android:fillColor="#1565C0"
+        android:pathData="M 40,52 Q 48,52 48,60 L 48,140 Q 48,148 40,148 L 152,148 Q 160,148 160,140 L 160,60 Q 160,52 152,52 L 40,52 Z" />
     
-    <!-- Display -->
+    <!-- Radio body highlight (lighter shade) -->
     <path
-        android:fillColor="#000000"
-        android:pathData="M 45,65 L 147,65 L 147,105 L 45,105 Z" />
+        android:fillColor="#1976D2"
+        android:pathData="M 44,56 Q 50,56 50,62 L 50,138 Q 50,144 44,144 L 148,144 Q 154,144 154,138 L 154,62 Q 154,56 148,56 L 44,56 Z" />
+    
+    <!-- Display screen with rounded corners -->
+    <path
+        android:fillColor="#0D1F29"
+        android:pathData="M 54,68 Q 58,68 58,72 L 58,104 Q 58,108 54,108 L 138,108 Q 142,108 142,104 L 142,72 Q 142,68 138,68 L 54,68 Z" />
     
     <!-- Display text 1 -->
     <path
         android:fillColor="#00BCD4"
-        android:pathData="M 55,75 L 75,75 L 75,78 L 55,78 Z" />
+        android:pathData="M 64,80 L 82,80 L 82,83 L 64,83 Z" />
     
     <!-- Display text 2 -->
     <path

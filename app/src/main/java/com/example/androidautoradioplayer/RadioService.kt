@@ -220,11 +220,16 @@ class RadioService : MediaBrowserServiceCompat() {
 
     private fun createMediaItem(station: Station): MediaItem {
         val isFavorite = FavoritesPreference.isFavorite(this, station.id)
-        val title = if (isFavorite) "${station.title} ★" else station.title
+        // Use padding to right-align the star icon in the list
+        val displayTitle = if (isFavorite) {
+            station.title.padEnd(30) + "★"
+        } else {
+            station.title
+        }
         return MediaItem(
             MediaDescriptionCompat.Builder()
                 .setMediaId(station.id)
-                .setTitle(title)
+                .setTitle(displayTitle)
                 .setSubtitle("BBC Radio")
                 .setIconUri(android.net.Uri.parse(station.logoUrl))
                 .build(),
