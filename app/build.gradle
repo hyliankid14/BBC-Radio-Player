@@ -22,8 +22,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = '17'
-        // Suppress Kotlin metadata compatibility warnings with R8
-        freeCompilerArgs += ["-Xuse-deprecated-legacy-compiler"]
     }
 }
 

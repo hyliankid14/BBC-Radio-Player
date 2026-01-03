@@ -357,6 +357,9 @@ class RadioService : MediaBrowserServiceCompat() {
                 ACTION_STOP -> {
                     stopPlayback()
                 }
+                else -> {
+                    Log.w(TAG, "Unknown action: ${it.action}")
+                }
             }
         }
         return START_STICKY
