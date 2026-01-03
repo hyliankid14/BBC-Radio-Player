@@ -128,6 +128,12 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     private fun updatePlaybackState(state: Int) {
+        val favoriteLabel = if (currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)) {
+            "Remove from Favorites"
+        } else {
+            "Add to Favorites"
+        }
+        
         val pbState = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
@@ -138,11 +144,7 @@ class RadioService : MediaBrowserServiceCompat() {
             )
             .addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAVORITE, 
-                if (currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)) {
-                    "Remove from Favorites"
-                } else {
-                    "Add to Favorites"
-                },
+                favoriteLabel,
                 android.R.drawable.btn_star_big_off
             )
             .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
