@@ -52,11 +52,11 @@
             <!-- Play/Pause Button -->
             <ImageButton
                 android:id="@+id/mini_player_play_pause"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/ic_play_arrow"
-                android:scaleType="fitCenter"
-                android:padding="14dp"
+                android:scaleType="centerInside"
+                android:padding="10dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Play/Pause"
                 android:tint="@color/mini_player_icon_tint" />
@@ -64,11 +64,11 @@
             <!-- Stop Button -->
             <ImageButton
                 android:id="@+id/mini_player_stop"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/ic_stop"
-                android:scaleType="fitCenter"
-                android:padding="14dp"
+                android:scaleType="centerInside"
+                android:padding="10dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Stop"
                 android:tint="@color/mini_player_icon_tint" />
@@ -76,10 +76,10 @@
             <!-- Favorites Button -->
             <ImageButton
                 android:id="@+id/mini_player_favorite"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:scaleType="fitCenter"
-                android:padding="14dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:scaleType="centerInside"
+                android:padding="10dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Add to Favorites" />
 

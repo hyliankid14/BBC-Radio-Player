@@ -82,6 +82,9 @@ class MainActivity : AppCompatActivity() {
         miniPlayerStop.setOnClickListener { stopPlayback() }
         miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
         
+        // Ensure mini player state is in sync immediately (avoids flicker on theme change)
+        updateMiniPlayer()
+        
         // Restore previous section when recreating (e.g., theme change), otherwise default to list
         val restoredNavSelection = savedInstanceState?.getInt("selectedNavId")
         if (restoredNavSelection != null) {
@@ -161,6 +164,15 @@ class MainActivity : AppCompatActivity() {
         qualityGroup.setOnCheckedChangeListener { _, checkedId ->
             val isHighQuality = checkedId == R.id.radio_high_quality
             ThemePreference.setHighQuality(this, isHighQuality)
+            // If currently playing, reload stream with the new quality
+            val currentStation = PlaybackStateHelper.getCurrentStation()
+            if (currentStation != null && PlaybackStateHelper.getIsPlaying()) {
+                val intent = Intent(this, RadioService::class.java).apply {
+                    action = RadioService.ACTION_PLAY_STATION
+                    putExtra(RadioService.EXTRA_STATION_ID, currentStation.id)
+                }
+                startService(intent)
+            }
         }
     }
 
