@@ -20,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerArtwork: ImageView
     private lateinit var miniPlayerPlayPause: Button
     private lateinit var miniPlayerStop: Button
+    private lateinit var miniPlayerFavorite: Button
     
     private var currentMode = "list" // "favorites" or "list"
     private var miniPlayerUpdateTimer: Thread? = null
@@ -43,9 +44,11 @@ class MainActivity : AppCompatActivity() {
         miniPlayerArtwork = findViewById(R.id.mini_player_artwork)
         miniPlayerPlayPause = findViewById(R.id.mini_player_play_pause)
         miniPlayerStop = findViewById(R.id.mini_player_stop)
+        miniPlayerFavorite = findViewById(R.id.mini_player_favorite)
         
         miniPlayerPlayPause.setOnClickListener { togglePlayPause() }
         miniPlayerStop.setOnClickListener { stopPlayback() }
+        miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
         
         btnFavorites.setOnClickListener { showFavorites() }
         btnList.setOnClickListener { showAllStations() }
@@ -189,9 +192,21 @@ class MainActivity : AppCompatActivity() {
             
             // Update play/pause button - always show the correct state
             miniPlayerPlayPause.text = if (isPlaying) "⏸" else "▶"
+            
+            // Update favorite button state
+            val isFavorited = FavoritesPreference.isFavorite(this, station.id)
+            miniPlayerFavorite.alpha = if (isFavorited) 1.0f else 0.6f
         } else {
             // Hide mini player
             miniPlayer.visibility = android.view.View.GONE
+        }
+    }
+    
+    private fun toggleMiniPlayerFavorite() {
+        val station = PlaybackStateHelper.getCurrentStation()
+        if (station != null) {
+            FavoritesPreference.toggleFavorite(this, station.id)
+            updateMiniPlayer()
         }
     }
 }

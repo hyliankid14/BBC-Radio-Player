@@ -56,7 +56,7 @@
                 android:textSize="32sp"
                 android:textColor="@color/text_primary"
                 android:padding="0dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:background="#FF9800"
                 android:contentDescription="Play/Pause" />
 
             <!-- Stop Button -->
@@ -70,6 +70,18 @@
                 android:padding="0dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Stop" />
+
+            <!-- Favorites Button -->
+            <Button
+                android:id="@+id/mini_player_favorite"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:text="★"
+                android:textSize="32sp"
+                android:textColor="@color/text_primary"
+                android:padding="0dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Add to Favorites" />
 
         </LinearLayout>
 
