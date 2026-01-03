@@ -425,6 +425,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     if (currentStationId.isNotEmpty()) {
                         toggleFavoriteAndNotify(currentStationId)
                     }
+                    Unit
                 }
                 else -> {
                     Log.w(TAG, "Unknown action: ${it.action}")
