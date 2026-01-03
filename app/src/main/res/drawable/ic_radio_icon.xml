@@ -4,110 +4,102 @@
     android:height="192dp"
     android:viewportWidth="192"
     android:viewportHeight="192">
-    
-    <!-- Purple background filling entire canvas -->
+
+    <!-- Purple background (matches app primary) -->
     <path
         android:fillColor="#6200EE"
-        android:pathData="M 0,0 L 192,0 L 192,192 L 0,192 Z" />
-    
-    <!-- Radio body - white rounded rectangle, centered and symmetrical -->
+        android:pathData="M0,0H192V192H0Z" />
+
+    <!-- Radio body (white rounded rectangle) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M 28,42 Q 40,42 40,54 L 40,150 Q 40,162 28,162 L 164,162 Q 176,162 176,150 L 176,54 Q 176,42 164,42 L 28,42 Z" />
-    
-    <!-- Radio frame edge accent for depth -->
+        android:pathData="M28,40Q40,40 40,52V148Q40,160 28,160H164Q176,160 176,148V52Q176,40 164,40H28Z" />
+
+    <!-- Inner body edge to add definition (subtle) -->
     <path
-        android:fillColor="#F5F5F5"
-        android:pathData="M 32,46 Q 42,46 42,56 L 42,148 Q 42,158 32,158 L 160,158 Q 170,158 170,148 L 170,56 Q 170,46 160,46 L 32,46 Z" />
-    
-    <!-- Display screen - dark area -->
+        android:fillColor="#F2F2F2"
+        android:pathData="M32,44Q42,44 42,54V146Q42,156 32,156H160Q170,156 170,146V54Q170,44 160,44H32Z" />
+
+    <!-- Screen (black rounded rectangle) -->
     <path
-        android:fillColor="#1A1A1A"
-        android:pathData="M 46,60 Q 52,60 52,66 L 52,122 Q 52,128 46,128 L 166,128 Q 172,128 172,122 L 172,66 Q 172,60 166,60 L 46,60 Z" />
-    
-    <!-- Volume indicator bars (small -> large) -->
+        android:fillColor="#111111"
+        android:pathData="M52,62Q58,62 58,68V114Q58,120 52,120H140Q146,120 146,114V68Q146,62 140,62H52Z" />
+
+    <!-- Waveform lines (green) -->
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 62,118 L 66,118 L 66,124 L 62,124 Z" />
-    
-    <!-- Volume indicator bar 2 -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#00C853"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M66,112V108" />
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 70,112 L 74,112 L 74,124 L 70,124 Z" />
-    
-    <!-- Volume indicator bar 3 -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#00C853"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M74,112V102" />
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 78,106 L 82,106 L 82,124 L 78,124 Z" />
-    
-    <!-- Volume indicator bar 4 -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#00C853"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M82,112V96" />
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 86,100 L 90,100 L 90,124 L 86,124 Z" />
-    
-    <!-- Volume indicator bar 5 (tallest middle) -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#00C853"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M90,112V88" />
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 94,94 L 98,94 L 98,124 L 94,124 Z" />
-    
-    <!-- Volume indicator bar 6 -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#00C853"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M98,112V92" />
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 102,100 L 106,100 L 106,124 L 102,124 Z" />
-    
-    <!-- Volume indicator bar 7 -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#00C853"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M106,112V98" />
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 110,106 L 114,106 L 114,124 L 110,124 Z" />
-    
-    <!-- Volume indicator bar 8 -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#00C853"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M114,112V104" />
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 118,112 L 122,112 L 122,124 L 118,124 Z" />
-    
-    <!-- Volume indicator bar 9 (small on right) -->
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#00C853"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M122,112V108" />
+
+    <!-- Two prominent dials (as before), kept fully within the body -->
+    <!-- Left dial outer ring -->
     <path
-        android:fillColor="#00C853"
-        android:pathData="M 126,118 L 130,118 L 130,124 L 126,124 Z" />
-    
-    <!-- Tuning frequency display area -->
-    <path
-        android:fillColor="#808080"
-        android:pathData="M 58,72 L 160,72 L 160,82 L 58,82 Z" />
-    
-    <!-- Frequency indicator line - cyan -->
-    <path
-        android:fillColor="#00BCD4"
-        android:pathData="M 94,72 L 94,82 L 98,82 L 98,72 Z" />
-    
-    <!-- Left volume knob outer ring - dark gray outline (true circle) -->
-    <path
-        android:fillColor="#444444"
-        android:pathData="M 56,144 m -14,0 a 14,14 0 1,0 28,0 a 14,14 0 1,0 -28,0" />
-    
-    <!-- Left volume knob - white circle -->
+        android:fillColor="#3F3F3F"
+        android:pathData="M64,144 m -15,0 a 15,15 0 1,0 30,0 a 15,15 0 1,0 -30,0" />
+    <!-- Left dial face -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M 56,144 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0" />
-    
-    <!-- Left volume knob indicator - purple line -->
+        android:pathData="M64,144 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0" />
+    <!-- Left dial indicator -->
     <path
         android:fillColor="#6200EE"
-        android:pathData="M 55,136 L 57,136 L 57,144 L 55,144 Z" />
-    
-    <!-- Right tuner knob outer ring - dark gray outline (true circle) -->
+        android:pathData="M63,136H65V144H63Z" />
+
+    <!-- Right dial outer ring -->
     <path
-        android:fillColor="#444444"
-        android:pathData="M 136,144 m -14,0 a 14,14 0 1,0 28,0 a 14,14 0 1,0 -28,0" />
-    
-    <!-- Right tuner knob - white circle -->
+        android:fillColor="#3F3F3F"
+        android:pathData="M128,144 m -15,0 a 15,15 0 1,0 30,0 a 15,15 0 1,0 -30,0" />
+    <!-- Right dial face -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M 136,144 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0" />
-    
-    <!-- Right tuner knob indicator - purple line -->
+        android:pathData="M128,144 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0" />
+    <!-- Right dial indicator -->
     <path
         android:fillColor="#6200EE"
-        android:pathData="M 135,136 L 137,136 L 137,144 L 135,144 Z" />
+        android:pathData="M127,136H129V144H127Z" />
 </vector>
 
