@@ -31,6 +31,8 @@ class RadioService : MediaBrowserServiceCompat() {
     private var audioFocusRequest: AudioFocusRequest? = null
     private var currentStationTitle: String = ""
     private var currentStationId: String = ""
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var currentStationLogo: String = ""
 
     companion object {
         const val ACTION_PLAY_STATION = "com.example.androidautoradioplayer.ACTION_PLAY_STATION"
@@ -261,6 +263,17 @@ class RadioService : MediaBrowserServiceCompat() {
                             else -> {}
                         }
                     }
+                    
+                    override fun onPlayerError(error: PlaybackException) {
+                        Log.e(TAG, "Playback error: ${error.message}", error)
+                        // Auto-reconnect after a delay
+                        handler.postDelayed({
+                            if (currentStationId.isNotEmpty()) {
+                                Log.d(TAG, "Attempting to reconnect to station: $currentStationId")
+                                playStation(currentStationId)
+                            }
+                        }, 3000) // Wait 3 seconds before reconnecting
+                    }
                 })
             }
         }
@@ -313,8 +326,23 @@ class RadioService : MediaBrowserServiceCompat() {
             "Stop",
             createPendingIntent(ACTION_STOP, "stop_action")
         )
+        
+        // Load station logo for notification
+        var largeBitmap: android.graphics.Bitmap? = null
+        if (currentStationLogo.isNotEmpty()) {
+            try {
+                val url = java.net.URL(currentStationLogo)
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.doInput = true
+                connection.connect()
+                val input = connection.inputStream
+                largeBitmap = android.graphics.BitmapFactory.decodeStream(input)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load station logo: ${e.message}")
+            }
+        }
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
             .setContentText("Live Stream")
             .setSmallIcon(android.R.drawable.ic_media_play)
@@ -329,7 +357,13 @@ class RadioService : MediaBrowserServiceCompat() {
                 .setShowActionsInCompactView(0, 1)
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
+        
+        // Add large icon if logo was loaded
+        if (largeBitmap != null) {
+            notificationBuilder.setLargeIcon(largeBitmap)
+        }
+        
+        val notification = notificationBuilder.build()
 
         startForeground(NOTIFICATION_ID, notification)
     }
@@ -361,6 +395,7 @@ class RadioService : MediaBrowserServiceCompat() {
         
         currentStationTitle = station.title
         currentStationId = station.id
+        currentStationLogo = station.logoUrl
         
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(station)
