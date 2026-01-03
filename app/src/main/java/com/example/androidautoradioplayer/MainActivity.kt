@@ -83,7 +83,6 @@ class MainActivity : AppCompatActivity() {
         }, { _ ->
             // Do nothing to prevent list jump
         })
-        })
         stationsList.adapter = adapter
     }
 

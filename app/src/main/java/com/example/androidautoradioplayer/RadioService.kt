@@ -136,11 +136,13 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
                 PlaybackStateCompat.ACTION_PLAY_PAUSE
             )
-            .addCustomAction(CUSTOM_ACTION_TOGGLE_FAVORITE, 
-                if (currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)) 
-                    "Remove from Favorites" 
-                else 
-                    "Add to Favorites", 
+            .addCustomAction(
+                CUSTOM_ACTION_TOGGLE_FAVORITE, 
+                if (currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)) {
+                    "Remove from Favorites"
+                } else {
+                    "Add to Favorites"
+                },
                 android.R.drawable.btn_star_big_off
             )
             .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
