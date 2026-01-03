@@ -22,7 +22,6 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-            app/build
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
@@ -35,7 +34,7 @@ jobs:
 
       - name: Build debug APK
         run: |
-          ./gradlew assembleDebug --parallel --build-cache --configuration-cache
+          ./gradlew assembleDebug --parallel --build-cache
 
       - name: Show build outputs
         run: |
