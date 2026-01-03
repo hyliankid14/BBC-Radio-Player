@@ -110,12 +110,6 @@ class MainActivity : AppCompatActivity() {
             putExtra(RadioService.EXTRA_STATION_ID, id)
         }
         startService(intent)
-        
-        // Launch playback screen
-        val playbackIntent = Intent(this, PlaybackActivity::class.java).apply {
-            putExtra("station_id", id)
-        }
-        startActivity(playbackIntent)
     }
 
     override fun onResume() {

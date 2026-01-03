@@ -7,7 +7,8 @@
     android:background="?attr/colorPrimaryDark"
     android:gravity="center_vertical"
     android:padding="12dp"
-    android:visibility="gone">
+    android:visibility="gone"
+    android:elevation="8dp">
 
     <!-- Station Artwork -->
     <ImageView
@@ -34,6 +35,7 @@
             android:text="Station Name"
             android:textSize="16sp"
             android:textStyle="bold"
+            android:textColor="@color/text_primary"
             android:maxLines="1"
             android:ellipsize="end" />
 
@@ -48,10 +50,11 @@
             <!-- Play/Pause Button -->
             <Button
                 android:id="@+id/mini_player_play_pause"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:text="⏸"
-                android:textSize="18sp"
+                android:textSize="24sp"
+                android:textColor="@color/text_primary"
                 android:padding="0dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Play/Pause" />
@@ -59,10 +62,11 @@
             <!-- Stop Button -->
             <Button
                 android:id="@+id/mini_player_stop"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:text="⏹"
-                android:textSize="18sp"
+                android:textSize="24sp"
+                android:textColor="@color/text_primary"
                 android:padding="0dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Stop" />
