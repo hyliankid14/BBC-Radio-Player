@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -18,9 +19,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
     private lateinit var miniPlayerArtwork: ImageView
-    private lateinit var miniPlayerPlayPause: Button
-    private lateinit var miniPlayerStop: Button
-    private lateinit var miniPlayerFavorite: Button
+    private lateinit var miniPlayerPlayPause: ImageButton
+    private lateinit var miniPlayerStop: ImageButton
+    private lateinit var miniPlayerFavorite: ImageButton
     
     private var currentMode = "list" // "favorites" or "list"
     private var miniPlayerUpdateTimer: Thread? = null
@@ -191,11 +192,11 @@ class MainActivity : AppCompatActivity() {
                 .into(miniPlayerArtwork)
             
             // Update play/pause button - always show the correct state
-            miniPlayerPlayPause.text = if (isPlaying) "⏸" else "▶"
+            miniPlayerPlayPause.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
             // Update favorite button state - change color when favorited
             val isFavorited = FavoritesPreference.isFavorite(this, station.id)
-            miniPlayerFavorite.setTextColor(
+            miniPlayerFavorite.setColorFilter(
                 if (isFavorited) {
                     android.graphics.Color.parseColor("#FFD700") // Gold color when favorited
                 } else {

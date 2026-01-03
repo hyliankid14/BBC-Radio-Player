@@ -48,50 +48,35 @@
             android:layout_marginTop="8dp">
 
             <!-- Play/Pause Button -->
-            <Button
+            <ImageButton
                 android:id="@+id/mini_player_play_pause"
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:text="⏸"
-                android:textSize="32sp"
-                android:textColor="@color/text_primary"
-                android:padding="0dp"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
+                android:src="@drawable/ic_play_arrow"
+                android:scaleType="fitCenter"
+                android:padding="16dp"
                 android:background="@drawable/button_background"
                 android:contentDescription="Play/Pause" />
 
             <!-- Stop Button -->
-            <Button
+            <ImageButton
                 android:id="@+id/mini_player_stop"
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:text="⏹"
-                android:textSize="32sp"
-                android:textColor="@color/text_primary"
-                android:padding="0dp"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
+                android:src="@drawable/ic_stop"
+                android:scaleType="fitCenter"
+                android:padding="16dp"
                 android:background="@drawable/button_background"
                 android:contentDescription="Stop" />
 
             <!-- Favorites Button -->
-            <Button
+            <ImageButton
                 android:id="@+id/mini_player_favorite"
                 android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:text="★"
-                android:textSize="32sp"
-                android:textColor="@color/text_primary"
-                android:padding="0dp"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
+                android:src="@drawable/ic_star"
+                android:scaleType="fitCenter"
+                android:padding="16dp"
                 android:background="@drawable/button_background"
                 android:contentDescription="Add to Favorites" />
 
