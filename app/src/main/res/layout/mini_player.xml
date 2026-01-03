@@ -75,15 +75,15 @@
 
             <!-- Favorites Button -->
             <ImageButton
-                android:id="@+id/mini_56dp"
+                android:id="@+id/mini_player_favorite"
+                android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:src="@drawable/ic_star"
                 android:scaleType="fitCenter"
                 android:padding="14dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Add to Favorites"
-                android:tint="?attr/colorPrimarygroundBorderless"
-                android:contentDescription="Add to Favorites" />
+                android:tint="?attr/colorPrimary" />
 
         </LinearLayout>
 
