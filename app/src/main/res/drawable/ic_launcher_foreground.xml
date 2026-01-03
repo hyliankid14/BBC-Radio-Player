@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- subtle shadow -->
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.12"
+        android:pathData="M16,26Q22,26 22,32V88Q22,94 16,94H92Q98,94 98,88V32Q98,26 92,26H16Z" />
+
+    <!-- radio body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M14,24Q22,24 22,32V86Q22,94 14,94H94Q102,94 102,86V32Q102,24 94,24H14Z" />
+
+    <!-- inner bevel -->
+    <path
+        android:fillColor="#F2F2F2"
+        android:pathData="M17,27Q23,27 23,33V85Q23,91 17,91H91Q97,91 97,85V33Q97,27 91,27H17Z" />
+
+    <!-- screen -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M28,36Q31,36 31,39V64Q31,67 28,67H80Q83,67 83,64V39Q83,36 80,36H28Z" />
+
+    <!-- waveform bars (match reference: small->tall->small) -->
+    <path android:fillColor="#00C853" android:pathData="M34,62H37V64H34Z" />
+    <path android:fillColor="#00C853" android:pathData="M39,58H42V64H39Z" />
+    <path android:fillColor="#00C853" android:pathData="M44,54H47V64H44Z" />
+    <path android:fillColor="#00C853" android:pathData="M49,48H52V64H49Z" />
+    <path android:fillColor="#00C853" android:pathData="M54,44H57V64H54Z" />
+    <path android:fillColor="#00C853" android:pathData="M59,48H62V64H59Z" />
+    <path android:fillColor="#00C853" android:pathData="M64,54H67V64H64Z" />
+    <path android:fillColor="#00C853" android:pathData="M69,58H72V64H69Z" />
+    <path android:fillColor="#00C853" android:pathData="M74,62H77V64H74Z" />
+
+    <!-- dials (prominent, symmetric) -->
+    <!-- left dial ring -->
+    <path android:fillColor="#6B6B6B" android:pathData="M40,80 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
+    <path android:fillColor="#FFFFFF" android:pathData="M40,80 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
+    <path android:fillColor="#6200EE" android:pathData="M39,74H41V79H39Z" />
+
+    <!-- right dial ring -->
+    <path android:fillColor="#6B6B6B" android:pathData="M68,80 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
+    <path android:fillColor="#FFFFFF" android:pathData="M68,80 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
+    <path android:fillColor="#6200EE" android:pathData="M67,74H69V79H67Z" />
+</vector>
