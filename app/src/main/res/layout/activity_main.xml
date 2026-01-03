@@ -24,17 +24,32 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Stop Playback"
+            android:text="Stop"
             android:backgroundTint="#D32F2F"
             android:layout_marginEnd="8dp" />
 
-        <ImageButton
+        <Button
+            android:id="@+id/btn_favorites"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Favorites"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btn_list"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="List"
+            android:layout_marginEnd="8dp" />
+
+        <Button
             android:id="@+id/btn_settings"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:src="@drawable/ic_settings"
-            android:contentDescription="Settings"
-            android:background="?attr/selectableItemBackgroundBorderless" />
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Settings" />
 
     </LinearLayout>
 

@@ -12,7 +12,8 @@ import com.bumptech.glide.Glide
 class StationAdapter(
     context: Context,
     private val stations: List<Station>,
-    private val onStationClick: (String) -> Unit
+    private val onStationClick: (String) -> Unit,
+    private val onFavoriteToggle: ((String) -> Unit)? = null
 ) : ArrayAdapter<Station>(context, 0, stations) {
     
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
@@ -26,6 +27,7 @@ class StationAdapter(
         
         val imageView: ImageView = view.findViewById(R.id.station_artwork)
         val textView: TextView = view.findViewById(R.id.station_title)
+        val starView: ImageView = view.findViewById(R.id.station_favorite_star)
         
         textView.text = station.title
         
@@ -33,11 +35,25 @@ class StationAdapter(
             .load(station.logoUrl)
             .into(imageView)
         
-        // Make both image and text clickable
+        // Update star icon
+        val isFavorite = FavoritesPreference.isFavorite(context, station.id)
+        starView.setImageResource(if (isFavorite) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off)
+        
+        starView.setOnClickListener {
+            FavoritesPreference.toggleFavorite(context, station.id)
+            starView.setImageResource(
+                if (FavoritesPreference.isFavorite(context, station.id))
+                    android.R.drawable.btn_star_big_on
+                else
+                    android.R.drawable.btn_star_big_off
+            )
+            onFavoriteToggle?.invoke(station.id)
+        }
+        
+        // Make image and text clickable to play
         val clickListener = View.OnClickListener { onStationClick(station.id) }
         imageView.setOnClickListener(clickListener)
         textView.setOnClickListener(clickListener)
-        view.setOnClickListener(clickListener)
         
         return view
     }

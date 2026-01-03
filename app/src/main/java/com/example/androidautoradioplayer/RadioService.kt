@@ -260,6 +260,8 @@ class RadioService : MediaBrowserServiceCompat() {
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
+            .setSound(null)
+            .setVibrate(null)
             .addAction(playPauseAction)
             .addAction(stopAction)
             .setStyle(MediaStyle()

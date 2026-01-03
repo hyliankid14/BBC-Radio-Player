@@ -7,6 +7,14 @@ import android.widget.Button
 import android.widget.ListView
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var stationsList: ListView
+    private lateinit var btnFavorites: Button
+    private lateinit var btnList: Button
+    private lateinit var btnSettings: Button
+    private lateinit var btnStop: Button
+    
+    private var currentMode = "list" // "favorites" or "list"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme before creating the view
         val theme = ThemePreference.getTheme(this)
@@ -15,19 +23,55 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val stationsList: ListView = findViewById(R.id.stations_list)
-        val btnStop: Button = findViewById(R.id.btn_stop)
-        val btnSettings: android.widget.ImageButton = findViewById(R.id.btn_settings)
+        stationsList = findViewById(R.id.stations_list)
+        btnStop = findViewById(R.id.btn_stop)
+        btnFavorites = findViewById(R.id.btn_favorites)
+        btnList = findViewById(R.id.btn_list)
+        btnSettings = findViewById(R.id.btn_settings)
         
-        val stations = StationRepository.getStations()
-        
-        val adapter = StationAdapter(this, stations) { stationId ->
-            playStation(stationId)
-        }
-        
-        stationsList.adapter = adapter
         btnStop.setOnClickListener { stopPlayback() }
+        btnFavorites.setOnClickListener { showFavorites() }
+        btnList.setOnClickListener { showAllStations() }
         btnSettings.setOnClickListener { openSettings() }
+        
+        // Show list by default
+        showAllStations()
+    }
+
+    private fun showAllStations() {
+        currentMode = "list"
+        updateButtonStates()
+        val stations = StationRepository.getStations()
+        val adapter = StationAdapter(this, stations, { stationId ->
+            playStation(stationId)
+        }, { _ ->
+            // Refresh adapter when favorite is toggled
+            showAllStations()
+        })
+        stationsList.adapter = adapter
+    }
+
+    private fun showFavorites() {
+        currentMode = "favorites"
+        updateButtonStates()
+        val stations = FavoritesPreference.getFavorites(this)
+        val adapter = StationAdapter(this, stations, { stationId ->
+            playStation(stationId)
+        }, { _ ->
+            // Refresh adapter when favorite is toggled
+            showFavorites()
+        })
+        stationsList.adapter = adapter
+    }
+
+    private fun updateButtonStates() {
+        if (currentMode == "favorites") {
+            btnFavorites.isEnabled = false
+            btnList.isEnabled = true
+        } else {
+            btnFavorites.isEnabled = true
+            btnList.isEnabled = false
+        }
     }
 
     private fun playStation(id: String) {
