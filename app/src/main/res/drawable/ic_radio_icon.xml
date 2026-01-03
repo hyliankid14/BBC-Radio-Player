@@ -5,71 +5,61 @@
     android:viewportWidth="192"
     android:viewportHeight="192">
     
-    <!-- Colored background with rounded corners -->
+    <!-- Purple background with rounded corners -->
     <path
-        android:fillColor="#2196F3"
+        android:fillColor="#6200EE"
         android:pathData="M 24,24 L 168,24 Q 176,24 176,32 L 176,160 Q 176,168 168,168 L 24,168 Q 16,168 16,160 L 16,32 Q 16,24 24,24 Z" />
     
-    <!-- Radio body with rounded corners -->
+    <!-- Radio body - white rounded rectangle -->
     <path
-        android:fillColor="#1565C0"
-        android:pathData="M 40,52 Q 48,52 48,60 L 48,140 Q 48,148 40,148 L 152,148 Q 160,148 160,140 L 160,60 Q 160,52 152,52 L 40,52 Z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M 50,60 Q 58,60 58,68 L 58,130 Q 58,138 50,138 L 142,138 Q 150,138 150,130 L 150,68 Q 150,60 142,60 L 50,60 Z" />
     
-    <!-- Radio body highlight (lighter shade) -->
+    <!-- Display screen - dark rounded rectangle -->
     <path
-        android:fillColor="#1976D2"
-        android:pathData="M 44,56 Q 50,56 50,62 L 50,138 Q 50,144 44,144 L 148,144 Q 154,144 154,138 L 154,62 Q 154,56 148,56 L 44,56 Z" />
+        android:fillColor="#4A4A4A"
+        android:pathData="M 62,72 Q 66,72 66,76 L 66,104 Q 66,108 62,108 L 130,108 Q 134,108 134,104 L 134,76 Q 134,72 130,72 L 62,72 Z" />
     
-    <!-- Display screen with rounded corners -->
-    <path
-        android:fillColor="#0D1F29"
-        android:pathData="M 54,68 Q 58,68 58,72 L 58,104 Q 58,108 54,108 L 138,108 Q 142,108 142,104 L 142,72 Q 142,68 138,68 L 54,68 Z" />
-    
-    <!-- Display text 1 -->
+    <!-- Tuning needle - cyan line -->
     <path
         android:fillColor="#00BCD4"
-        android:pathData="M 64,80 L 82,80 L 82,83 L 64,83 Z" />
+        android:pathData="M 98,82 L 98,100" />
     
-    <!-- Display text 2 -->
+    <!-- Frequency bars 1 -->
     <path
         android:fillColor="#00BCD4"
-        android:pathData="M 85,75 L 105,75 L 105,78 L 85,78 Z" />
+        android:pathData="M 76,96 L 76,98 L 78,98 L 78,96 Z" />
     
-    <!-- Display text 3 -->
+    <!-- Frequency bars 2 -->
     <path
         android:fillColor="#00BCD4"
-        android:pathData="M 115,75 L 135,75 L 135,78 L 115,78 Z" />
+        android:pathData="M 82,94 L 82,98 L 84,98 L 84,94 Z" />
     
-    <!-- Frequency display -->
+    <!-- Frequency bars 3 -->
     <path
         android:fillColor="#00BCD4"
-        android:pathData="M 50,88 L 142,88 L 142,91 L 50,91 Z" />
+        android:pathData="M 88,92 L 88,98 L 90,98 L 90,92 Z" />
     
-    <!-- Volume knob (path-based circle) -->
+    <!-- Volume knob - circular -->
     <path
-        android:fillColor="#455A64"
-        android:pathData="M 65,113 C 71,113 76,118 76,125 C 76,132 71,137 65,137 C 59,137 54,132 54,125 C 54,118 59,113 65,113 Z" />
+        android:fillColor="#6200EE"
+        android:pathData="M 64,118 C 70,118 75,123 75,129 C 75,135 70,140 64,140 C 58,140 53,135 53,129 C 53,123 58,118 64,118 Z" />
     
+    <!-- Volume knob center dot -->
     <path
-        android:fillColor="#263238"
-        android:pathData="M 65,118 C 69,118 72,121 72,125 C 72,129 69,132 65,132 C 61,132 58,129 58,125 C 58,121 61,118 65,118 Z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M 63,126 L 65,126 L 65,132 L 63,132 Z" />
     
-    <!-- Volume indicator -->
+    <!-- Tuner knob - circular -->
     <path
-        android:fillColor="#00BCD4"
-        android:pathData="M 64,113 L 66,113 L 66,116 L 64,116 Z" />
+        android:fillColor="#6200EE"
+        android:pathData="M 128,118 C 134,118 139,123 139,129 C 139,135 134,140 128,140 C 122,140 117,135 117,129 C 117,123 122,118 128,118 Z" />
     
-    <!-- Tuner knob (path-based circle) -->
+    <!-- Tuner knob center dot -->
     <path
-        android:fillColor="#455A64"
-        android:pathData="M 127,113 C 133,113 138,118 138,125 C 138,132 133,137 127,137 C 121,137 116,132 116,125 C 116,118 121,113 127,113 Z" />
-    
-    <path
-        android:fillColor="#263238"
-        android:pathData="M 127,118 C 131,118 134,121 134,125 C 134,129 131,132 127,132 C 123,132 120,129 120,125 C 120,121 123,118 127,118 Z" />
-    
-    <!-- Tuner indicator -->
-    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 127,126 L 129,126 L 129,132 L 127,132 Z" />
+</vector>
         android:fillColor="#FF6F00"
         android:pathData="M 126,113 L 128,113 L 128,116 L 126,116 Z" />
 </vector>

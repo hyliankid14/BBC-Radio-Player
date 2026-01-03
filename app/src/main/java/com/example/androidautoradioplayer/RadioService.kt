@@ -89,6 +89,7 @@ class RadioService : MediaBrowserServiceCompat() {
             }
         })
         
+        @Suppress("DEPRECATION")
         mediaSession.setFlags(
             MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
         )
