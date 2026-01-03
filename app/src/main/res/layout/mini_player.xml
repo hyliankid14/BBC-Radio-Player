@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="80dp"
     android:orientation="horizontal"
-    android:background="?attr/colorSurfaceContainer"
+    android:background="@color/md_theme_surfaceContainer"
     android:gravity="center_vertical"
     android:paddingStart="16dp"
     android:paddingEnd="8dp"
