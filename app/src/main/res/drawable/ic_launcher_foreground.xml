@@ -10,24 +10,24 @@
         android:pivotY="54"
         android:scaleX="0.64"
         android:scaleY="0.64"
-        android:translateX="1"
+        android:translateX="0"
         android:translateY="-2">
 
         <!-- subtle shadow -->
         <path
             android:fillColor="#000000"
             android:fillAlpha="0.12"
-            android:pathData="M22,26 Q16,26 16,32 V88 Q16,94 22,94 H92 Q98,94 98,88 V32 Q98,26 92,26 H22 Z" />
+            android:pathData="M18,26 Q12,26 12,32 V88 Q12,94 18,94 H90 Q96,94 96,88 V32 Q96,26 90,26 H18 Z" />
 
         <!-- radio body -->
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M22,24 Q14,24 14,32 V86 Q14,94 22,94 H94 Q102,94 102,86 V32 Q102,24 94,24 H22 Z" />
+            android:pathData="M18,24 Q10,24 10,32 V86 Q10,94 18,94 H90 Q98,94 98,86 V32 Q98,24 90,24 H18 Z" />
 
         <!-- inner bevel -->
         <path
             android:fillColor="#F2F2F2"
-            android:pathData="M23,27 Q17,27 17,33 V85 Q17,91 23,91 H91 Q97,91 97,85 V33 Q97,27 91,27 H23 Z" />
+            android:pathData="M21,27 Q15,27 15,33 V85 Q15,91 21,91 H87 Q93,91 93,85 V33 Q93,27 87,27 H21 Z" />
 
         <!-- screen -->
         <path
