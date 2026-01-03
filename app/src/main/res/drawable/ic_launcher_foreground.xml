@@ -8,51 +8,52 @@
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.74"
-        android:scaleY="0.74">
+        android:scaleX="0.72"
+        android:scaleY="0.72"
+        android:translateX="2"
+        android:translateY="-5">
 
-    <!-- subtle shadow -->
-    <path
-        android:fillColor="#000000"
-        android:fillAlpha="0.12"
-        android:pathData="M16,26Q22,26 22,32V88Q22,94 16,94H92Q98,94 98,88V32Q98,26 92,26H16Z" />
+        <!-- subtle shadow -->
+        <path
+            android:fillColor="#000000"
+            android:fillAlpha="0.12"
+            android:pathData="M22,26 Q16,26 16,32 V88 Q16,94 22,94 H92 Q98,94 98,88 V32 Q98,26 92,26 H22 Z" />
 
-    <!-- radio body -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M14,24Q22,24 22,32V86Q22,94 14,94H94Q102,94 102,86V32Q102,24 94,24H14Z" />
+        <!-- radio body -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M22,24 Q14,24 14,32 V86 Q14,94 22,94 H94 Q102,94 102,86 V32 Q102,24 94,24 H22 Z" />
 
-    <!-- inner bevel -->
-    <path
-        android:fillColor="#F2F2F2"
-        android:pathData="M17,27Q23,27 23,33V85Q23,91 17,91H91Q97,91 97,85V33Q97,27 91,27H17Z" />
+        <!-- inner bevel -->
+        <path
+            android:fillColor="#F2F2F2"
+            android:pathData="M23,27 Q17,27 17,33 V85 Q17,91 23,91 H91 Q97,91 97,85 V33 Q97,27 91,27 H23 Z" />
 
-    <!-- screen -->
-    <path
-        android:fillColor="#000000"
-        android:pathData="M28,36Q31,36 31,39V64Q31,67 28,67H80Q83,67 83,64V39Q83,36 80,36H28Z" />
+        <!-- screen -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M28,36Q31,36 31,39V64Q31,67 28,67H80Q83,67 83,64V39Q83,36 80,36H28Z" />
 
-    <!-- waveform bars (match reference: small->tall->small) -->
-    <path android:fillColor="#00C853" android:pathData="M34,62H37V64H34Z" />
-    <path android:fillColor="#00C853" android:pathData="M39,58H42V64H39Z" />
-    <path android:fillColor="#00C853" android:pathData="M44,54H47V64H44Z" />
-    <path android:fillColor="#00C853" android:pathData="M49,48H52V64H49Z" />
-    <path android:fillColor="#00C853" android:pathData="M54,44H57V64H54Z" />
-    <path android:fillColor="#00C853" android:pathData="M59,48H62V64H59Z" />
-    <path android:fillColor="#00C853" android:pathData="M64,54H67V64H64Z" />
-    <path android:fillColor="#00C853" android:pathData="M69,58H72V64H69Z" />
-    <path android:fillColor="#00C853" android:pathData="M74,62H77V64H74Z" />
+        <!-- waveform bars (match reference: small->tall->small) -->
+        <path android:fillColor="#00C853" android:pathData="M34,62H37V64H34Z" />
+        <path android:fillColor="#00C853" android:pathData="M39,58H42V64H39Z" />
+        <path android:fillColor="#00C853" android:pathData="M44,54H47V64H44Z" />
+        <path android:fillColor="#00C853" android:pathData="M49,48H52V64H49Z" />
+        <path android:fillColor="#00C853" android:pathData="M54,44H57V64H54Z" />
+        <path android:fillColor="#00C853" android:pathData="M59,48H62V64H59Z" />
+        <path android:fillColor="#00C853" android:pathData="M64,54H67V64H64Z" />
+        <path android:fillColor="#00C853" android:pathData="M69,58H72V64H69Z" />
+        <path android:fillColor="#00C853" android:pathData="M74,62H77V64H74Z" />
 
-    <!-- dials (prominent, symmetric) -->
-    <!-- left dial ring -->
-    <path android:fillColor="#6B6B6B" android:pathData="M40,80 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
-    <path android:fillColor="#FFFFFF" android:pathData="M40,80 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
-    <path android:fillColor="#6200EE" android:pathData="M39,74H41V79H39Z" />
+        <!-- dials (prominent, symmetric) -->
+        <!-- left dial ring -->
+        <path android:fillColor="#6B6B6B" android:pathData="M40,80 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M40,80 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
+        <path android:fillColor="#6200EE" android:pathData="M39,74H41V79H39Z" />
 
-    <!-- right dial ring -->
-    <path android:fillColor="#6B6B6B" android:pathData="M68,80 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
-    <path android:fillColor="#FFFFFF" android:pathData="M68,80 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
-    <path android:fillColor="#6200EE" android:pathData="M67,74H69V79H67Z" />
-
+        <!-- right dial ring -->
+        <path android:fillColor="#6B6B6B" android:pathData="M68,80 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M68,80 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
+        <path android:fillColor="#6200EE" android:pathData="M67,74H69V79H67Z" />
     </group>
 </vector>
