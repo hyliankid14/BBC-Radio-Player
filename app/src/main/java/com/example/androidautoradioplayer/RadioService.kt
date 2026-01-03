@@ -136,9 +136,9 @@ class RadioService : MediaBrowserServiceCompat() {
         }
         
         val favoriteIcon = if (isFavorite) {
-            android.R.drawable.btn_star_big_on
+            R.drawable.ic_star_filled
         } else {
-            android.R.drawable.btn_star_big_off
+            R.drawable.ic_star_outline
         }
         
         val pbState = PlaybackStateCompat.Builder()
