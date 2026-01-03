@@ -6,6 +6,7 @@ object ThemePreference {
     private const val PREF_NAME = "theme_prefs"
     private const val THEME_KEY = "selected_theme"
     private const val QUALITY_KEY = "audio_quality"
+    private const val AUTO_QUALITY_KEY = "auto_detect_quality"
     
     const val THEME_LIGHT = "light"
     const val THEME_DARK = "dark"
@@ -21,9 +22,24 @@ object ThemePreference {
         prefs.edit().putString(THEME_KEY, theme).apply()
     }
     
-    fun getHighQuality(context: Context): Boolean {
+    fun getAutoDetectQuality(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        return prefs.getBoolean(QUALITY_KEY, true) // Default to high quality
+        return prefs.getBoolean(AUTO_QUALITY_KEY, true) // Default to auto-detect enabled
+    }
+    
+    fun setAutoDetectQuality(context: Context, autoDetect: Boolean) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(AUTO_QUALITY_KEY, autoDetect).apply()
+    }
+    
+    fun getHighQuality(context: Context): Boolean {
+        val autoDetect = getAutoDetectQuality(context)
+        return if (autoDetect) {
+            NetworkQualityDetector.shouldUseHighQuality(context)
+        } else {
+            val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            prefs.getBoolean(QUALITY_KEY, true) // Default to high quality when not auto-detecting
+        }
     }
     
     fun setHighQuality(context: Context, highQuality: Boolean) {
