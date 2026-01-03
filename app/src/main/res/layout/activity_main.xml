@@ -5,24 +5,6 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- App Bar Header -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="?attr/colorPrimary">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="@android:color/white"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:paddingStart="16dp"
-            android:layout_gravity="center_vertical" />
-
-    </FrameLayout>
-
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/stations_list"
         android:layout_width="match_parent"

@@ -38,5 +38,8 @@
         <!-- Status bar styling -->
         <item name="android:statusBarColor">?attr/colorPrimary</item>
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        
+        <!-- ActionBar styling - use darker purple in light mode -->
+        <item name="actionBarStyle">@style/Widget.AppCompat.ActionBar.Solid</item>
     </style>
 </resources>
