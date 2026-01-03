@@ -327,21 +327,6 @@ class RadioService : MediaBrowserServiceCompat() {
             "Stop",
             createPendingIntent(ACTION_STOP, "stop_action")
         )
-        
-        // Load station logo for notification
-        var largeBitmap: android.graphics.Bitmap? = null
-        if (currentStationLogo.isNotEmpty()) {
-            try {
-                val url = java.net.URL(currentStationLogo)
-                val connection = url.openConnection() as java.net.HttpURLConnection
-                connection.doInput = true
-                connection.connect()
-                val input = connection.inputStream
-                largeBitmap = android.graphics.BitmapFactory.decodeStream(input)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to load station logo: ${e.message}")
-            }
-        }
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
@@ -358,15 +343,48 @@ class RadioService : MediaBrowserServiceCompat() {
                 .setShowActionsInCompactView(0, 1)
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-        
-        // Add large icon if logo was loaded
-        if (largeBitmap != null) {
-            notificationBuilder.setLargeIcon(largeBitmap)
-        }
-        
-        val notification = notificationBuilder.build()
 
+        val notification = notificationBuilder.build()
         startForeground(NOTIFICATION_ID, notification)
+
+        // Load station logo asynchronously and update notification
+        if (currentStationLogo.isNotEmpty()) {
+            loadStationLogoAndUpdateNotification()
+        }
+    }
+
+    private fun loadStationLogoAndUpdateNotification() {
+        Thread {
+            try {
+                val bitmap = com.bumptech.glide.Glide.with(this)
+                    .asBitmap()
+                    .load(currentStationLogo)
+                    .submit(256, 256) // Request 256x256 bitmap
+                    .get() // Block until loaded
+
+                // Update notification with the logo
+                val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
+                    .setContentText("Live Stream")
+                    .setSmallIcon(android.R.drawable.ic_media_play)
+                    .setLargeIcon(bitmap)
+                    .setOngoing(true)
+                    .setSound(null)
+                    .setVibrate(null)
+                    .setStyle(MediaStyle()
+                        .setMediaSession(mediaSession.sessionToken)
+                        .setShowActionsInCompactView(0, 1)
+                    )
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .build()
+
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(NOTIFICATION_ID, updatedNotification)
+                Log.d(TAG, "Updated notification with station logo")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load station logo for notification: ${e.message}")
+            }
+        }.start()
     }
 
     private fun createPendingIntent(action: String, tag: String): PendingIntent {
