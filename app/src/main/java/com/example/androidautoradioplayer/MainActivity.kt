@@ -3,19 +3,18 @@ package com.example.androidautoradioplayer
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import android.widget.Button
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ListView
 import android.widget.TextView
 import com.bumptech.glide.Glide
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var stationsList: ListView
-    private lateinit var btnFavorites: Button
-    private lateinit var btnList: Button
-    private lateinit var btnSettings: Button
+    private lateinit var stationsList: RecyclerView
+    private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
     private lateinit var miniPlayerArtwork: ImageView
@@ -35,9 +34,26 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         stationsList = findViewById(R.id.stations_list)
-        btnFavorites = findViewById(R.id.btn_favorites)
-        btnList = findViewById(R.id.btn_list)
-        btnSettings = findViewById(R.id.btn_settings)
+        stationsList.layoutManager = LinearLayoutManager(this)
+        
+        bottomNavigation = findViewById(R.id.bottom_navigation)
+        bottomNavigation.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.navigation_favorites -> {
+                    showFavorites()
+                    true
+                }
+                R.id.navigation_list -> {
+                    showAllStations()
+                    true
+                }
+                R.id.navigation_settings -> {
+                    openSettings()
+                    true
+                }
+                else -> false
+            }
+        }
         
         // Mini player views
         miniPlayer = findViewById(R.id.mini_player)
@@ -51,12 +67,8 @@ class MainActivity : AppCompatActivity() {
         miniPlayerStop.setOnClickListener { stopPlayback() }
         miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
         
-        btnFavorites.setOnClickListener { showFavorites() }
-        btnList.setOnClickListener { showAllStations() }
-        btnSettings.setOnClickListener { openSettings() }
-        
         // Show list by default
-        showAllStations()
+        bottomNavigation.selectedItemId = R.id.navigation_list
         
         // Start polling for playback state updates
         startPlaybackStateUpdates()
@@ -64,7 +76,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun showAllStations() {
         currentMode = "list"
-        updateButtonStates()
         val stations = StationRepository.getStations()
         val adapter = StationAdapter(this, stations, { stationId ->
             playStation(stationId)
@@ -76,7 +87,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFavorites() {
         currentMode = "favorites"
-        updateButtonStates()
         val stations = FavoritesPreference.getFavorites(this)
         val adapter = StationAdapter(this, stations, { stationId ->
             playStation(stationId)
@@ -84,26 +94,6 @@ class MainActivity : AppCompatActivity() {
             // Do nothing to prevent list jump
         })
         stationsList.adapter = adapter
-    }
-
-    private fun updateButtonStates() {
-        when (currentMode) {
-            "favorites" -> {
-                btnFavorites.alpha = 1.0f
-                btnList.alpha = 0.6f
-                btnSettings.alpha = 0.6f
-            }
-            "list" -> {
-                btnFavorites.alpha = 0.6f
-                btnList.alpha = 1.0f
-                btnSettings.alpha = 0.6f
-            }
-            "settings" -> {
-                btnFavorites.alpha = 0.6f
-                btnList.alpha = 0.6f
-                btnSettings.alpha = 1.0f
-            }
-        }
     }
 
     private fun playStation(id: String) {
@@ -116,8 +106,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Restore button states when returning from settings
-        updateButtonStates()
+        // Restore view when returning from settings
         startPlaybackStateUpdates()
     }
     
