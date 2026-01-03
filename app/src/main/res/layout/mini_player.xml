@@ -50,10 +50,10 @@
             <!-- Play/Pause Button -->
             <Button
                 android:id="@+id/mini_player_play_pause"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
                 android:text="⏸"
-                android:textSize="24sp"
+                android:textSize="28sp"
                 android:textColor="@color/text_primary"
                 android:padding="0dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
@@ -62,10 +62,10 @@
             <!-- Stop Button -->
             <Button
                 android:id="@+id/mini_player_stop"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
                 android:text="⏹"
-                android:textSize="24sp"
+                android:textSize="28sp"
                 android:textColor="@color/text_primary"
                 android:padding="0dp"
                 android:background="?attr/selectableItemBackgroundBorderless"

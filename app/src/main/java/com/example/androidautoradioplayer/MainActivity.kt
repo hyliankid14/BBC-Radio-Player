@@ -172,7 +172,7 @@ class MainActivity : AppCompatActivity() {
         val station = PlaybackStateHelper.getCurrentStation()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
         
-        if (station != null && isPlaying) {
+        if (station != null) {
             // Show mini player
             miniPlayer.visibility = android.view.View.VISIBLE
             miniPlayerTitle.text = station.title
@@ -183,7 +183,7 @@ class MainActivity : AppCompatActivity() {
                 .error(android.R.drawable.ic_media_play)
                 .into(miniPlayerArtwork)
             
-            // Update play/pause button
+            // Update play/pause button - always show the correct state
             miniPlayerPlayPause.text = if (isPlaying) "⏸" else "▶"
         } else {
             // Hide mini player
