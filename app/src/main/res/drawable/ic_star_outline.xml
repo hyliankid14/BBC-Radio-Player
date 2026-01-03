@@ -14,7 +14,7 @@
     <!-- Dark outline for light mode visibility -->
     <path
         android:strokeColor="#1A1A1A"
-        android:strokeWidth="0.2"
+        android:strokeWidth="0.6"
         android:fillColor="@android:color/transparent"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"

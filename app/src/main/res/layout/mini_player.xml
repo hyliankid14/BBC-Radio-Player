@@ -78,12 +78,10 @@
                 android:id="@+id/mini_player_favorite"
                 android:layout_width="56dp"
                 android:layout_height="56dp"
-                android:src="@drawable/ic_star"
                 android:scaleType="fitCenter"
                 android:padding="14dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Add to Favorites"
-                android:tint="@color/mini_player_icon_tint" />
+                android:contentDescription="Add to Favorites" />
 
         </LinearLayout>
 
