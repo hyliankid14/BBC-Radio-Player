@@ -8,8 +8,8 @@
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.88"
-        android:scaleY="0.88">
+        android:scaleX="0.74"
+        android:scaleY="0.74">
 
     <!-- subtle shadow -->
     <path
