@@ -2,9 +2,11 @@
 <resources>
     <!-- Material Design 3 Theme - Dark -->
     <style name="Theme.AndroidAutoRadioPlayer" parent="Theme.Material3.DayNight">
+        <!-- Override primary color to use darker purple (#6200EE) -->
+        <item name="colorPrimary">#6200EE</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        
         <!-- Primary brand color -->
-        <item name="colorPrimary">@color/md_theme_primary</item>
-        <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
         <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>
         <item name="colorOnPrimaryContainer">@color/md_theme_onPrimaryContainer</item>
         
@@ -35,12 +37,9 @@
         <item name="colorSurfaceContainer">@color/md_theme_surfaceContainer</item>
         <item name="colorOutline">@color/md_theme_outline</item>
         
-    <!-- Status bar styling -->
+        <!-- Status bar styling -->
         <item name="android:statusBarColor">#6200EE</item>
         <item name="android:navigationBarColor">?attr/colorSurface</item>
-        
-        <!-- Override primary color to use darker purple (#6200EE) instead of light purple -->
-        <item name="colorPrimary">#6200EE</item>
         
         <!-- ActionBar styling with light text for dark mode -->
         <item name="android:textColorPrimary">@android:color/white</item>

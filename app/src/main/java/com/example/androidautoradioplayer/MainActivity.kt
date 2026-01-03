@@ -181,15 +181,15 @@ class MainActivity : AppCompatActivity() {
             // Update play/pause button - always show the correct state
             miniPlayerPlayPause.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
-            // Update favorite button state - change color when favorited
+            // Update favorite button state - swap drawable based on favorite status
             val isFavorited = FavoritesPreference.isFavorite(this, station.id)
-            miniPlayerFavorite.setColorFilter(
-                if (isFavorited) {
-                    android.graphics.Color.parseColor("#FFD700") // Gold color when favorited
-                } else {
-                    resources.getColor(R.color.text_primary, null) // White when not favorited
-                }
-            )
+            if (isFavorited) {
+                miniPlayerFavorite.setImageResource(R.drawable.ic_star_filled)
+                miniPlayerFavorite.clearColorFilter()
+            } else {
+                miniPlayerFavorite.setImageResource(R.drawable.ic_star_outline)
+                miniPlayerFavorite.clearColorFilter()
+            }
         } else {
             // Hide mini player
             miniPlayer.visibility = android.view.View.GONE

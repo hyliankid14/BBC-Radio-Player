@@ -6,10 +6,10 @@
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M12,17.27L18.18,21l-1.64,-7.03L22,9.24l-7.19,-0.61L12,2 9.19,8.63 2,9.24l5.46,4.73L5.82,21z"/>
-    <!-- Outline stroke -->
+    <!-- Dark outline for contrast -->
     <path
-        android:strokeColor="#333333"
-        android:strokeWidth="0.5"
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="0.7"
         android:fillColor="@android:color/transparent"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
