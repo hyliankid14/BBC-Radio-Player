@@ -1,6 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark mode text color (even lighter for night mode) -->
+    <!-- Material Design 3 Dark Theme Color Palette -->
+    <!-- Based on primary color #6200EE (Purple) -->
+    
+    <!-- Dark Theme Colors -->
+    <!-- Primary colors -->
+    <color name="md_theme_primary">#D0BCFF</color>
+    <color name="md_theme_onPrimary">#370B1E</color>
+    <color name="md_theme_primaryContainer">#4F378A</color>
+    <color name="md_theme_onPrimaryContainer">#EADDFF</color>
+    
+    <!-- Secondary colors -->
+    <color name="md_theme_secondary">#80F7F5</color>
+    <color name="md_theme_onSecondary">#003634</color>
+    <color name="md_theme_secondaryContainer">#004F4D</color>
+    <color name="md_theme_onSecondaryContainer">#B2F5EA</color>
+    
+    <!-- Tertiary colors -->
+    <color name="md_theme_tertiary">#84F2ED</color>
+    <color name="md_theme_onTertiary">#003634</color>
+    <color name="md_theme_tertiaryContainer">#004F4D</color>
+    <color name="md_theme_onTertiaryContainer">#B2F5EA</color>
+    
+    <!-- Error colors -->
+    <color name="md_theme_error">#F2B8B5</color>
+    <color name="md_theme_onError">#601410</color>
+    <color name="md_theme_errorContainer">#8C1D18</color>
+    <color name="md_theme_onErrorContainer">#F9DEDC</color>
+    
+    <!-- Surface colors -->
+    <color name="md_theme_background">#1C1B1F</color>
+    <color name="md_theme_surface">#1C1B1F</color>
+    <color name="md_theme_onSurface">#E6E1E5</color>
+    <color name="md_theme_surfaceVariant">#49454E</color>
+    <color name="md_theme_onSurfaceVariant">#CAC7D0</color>
+    <color name="md_theme_outline">#938F99</color>
+    
+    <!-- Legacy colors for compatibility -->
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#E0E0E0</color>
 </resources>
