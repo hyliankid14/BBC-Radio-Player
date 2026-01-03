@@ -56,7 +56,7 @@
                 android:textSize="32sp"
                 android:textColor="@color/text_primary"
                 android:padding="0dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:background="@drawable/button_background"
                 android:contentDescription="Play/Pause" />
 
             <!-- Stop Button -->
@@ -68,7 +68,7 @@
                 android:textSize="32sp"
                 android:textColor="@color/text_primary"
                 android:padding="0dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:background="@drawable/button_background"
                 android:contentDescription="Stop" />
 
             <!-- Favorites Button -->
@@ -80,7 +80,7 @@
                 android:textSize="32sp"
                 android:textColor="@color/text_primary"
                 android:padding="0dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:background="@drawable/button_background"
                 android:contentDescription="Add to Favorites" />
 
         </LinearLayout>

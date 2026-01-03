@@ -193,9 +193,15 @@ class MainActivity : AppCompatActivity() {
             // Update play/pause button - always show the correct state
             miniPlayerPlayPause.text = if (isPlaying) "⏸" else "▶"
             
-            // Update favorite button state
+            // Update favorite button state - change color when favorited
             val isFavorited = FavoritesPreference.isFavorite(this, station.id)
-            miniPlayerFavorite.alpha = if (isFavorited) 1.0f else 0.6f
+            miniPlayerFavorite.setTextColor(
+                if (isFavorited) {
+                    android.graphics.Color.parseColor("#FFD700") // Gold color when favorited
+                } else {
+                    resources.getColor(R.color.text_primary, null) // White when not favorited
+                }
+            )
         } else {
             // Hide mini player
             miniPlayer.visibility = android.view.View.GONE
