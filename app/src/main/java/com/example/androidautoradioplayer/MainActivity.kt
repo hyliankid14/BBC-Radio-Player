@@ -81,8 +81,8 @@ class MainActivity : AppCompatActivity() {
         val adapter = StationAdapter(this, stations, { stationId ->
             playStation(stationId)
         }, { _ ->
-            // Refresh adapter when favorite is toggled
-            showFavorites()
+            // Do nothing to prevent list jump
+        })
         })
         stationsList.adapter = adapter
     }

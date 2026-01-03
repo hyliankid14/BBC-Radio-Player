@@ -30,16 +30,19 @@ class RadioService : MediaBrowserServiceCompat() {
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private var audioFocusRequest: AudioFocusRequest? = null
     private var currentStationTitle: String = ""
+    private var currentStationId: String = ""
 
     companion object {
         const val ACTION_PLAY_STATION = "com.example.androidautoradioplayer.ACTION_PLAY_STATION"
         const val ACTION_PLAY = "com.example.androidautoradioplayer.ACTION_PLAY"
         const val ACTION_PAUSE = "com.example.androidautoradioplayer.ACTION_PAUSE"
         const val ACTION_STOP = "com.example.androidautoradioplayer.ACTION_STOP"
+        const val ACTION_TOGGLE_FAVORITE = "com.example.androidautoradioplayer.ACTION_TOGGLE_FAVORITE"
         const val EXTRA_STATION_ID = "com.example.androidautoradioplayer.EXTRA_STATION_ID"
         private const val TAG = "RadioService"
         private const val CHANNEL_ID = "radio_playback"
         private const val NOTIFICATION_ID = 1
+        private const val CUSTOM_ACTION_TOGGLE_FAVORITE = "TOGGLE_FAVORITE"
         
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
@@ -76,6 +79,13 @@ class RadioService : MediaBrowserServiceCompat() {
             override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
                 Log.d(TAG, "onPlayFromMediaId called with mediaId: $mediaId")
                 mediaId?.let { playStation(it) }
+            }
+
+            override fun onCustomAction(action: String?, extras: Bundle?) {
+                Log.d(TAG, "onCustomAction called with action: $action")
+                if (action == CUSTOM_ACTION_TOGGLE_FAVORITE && currentStationId.isNotEmpty()) {
+                    toggleFavoriteAndNotify(currentStationId)
+                }
             }
         })
         
@@ -125,6 +135,13 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_STOP or
                 PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
                 PlaybackStateCompat.ACTION_PLAY_PAUSE
+            )
+            .addCustomAction(CUSTOM_ACTION_TOGGLE_FAVORITE, 
+                if (currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)) 
+                    "Remove from Favorites" 
+                else 
+                    "Add to Favorites", 
+                android.R.drawable.btn_star_big_off
             )
             .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
             .build()
@@ -331,6 +348,7 @@ class RadioService : MediaBrowserServiceCompat() {
         Log.d(TAG, "Playing station: ${station.title} - $streamUri (HQ: $highQuality)")
         
         currentStationTitle = station.title
+        currentStationId = station.id
         
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(station)
@@ -399,12 +417,28 @@ class RadioService : MediaBrowserServiceCompat() {
                 ACTION_STOP -> {
                     stopPlayback()
                 }
+                ACTION_TOGGLE_FAVORITE -> {
+                    if (currentStationId.isNotEmpty()) {
+                        toggleFavoriteAndNotify(currentStationId)
+                    }
+                }
                 else -> {
                     Log.w(TAG, "Unknown action: ${it.action}")
                 }
             }
         }
         return START_STICKY
+    }
+    
+    private fun toggleFavoriteAndNotify(stationId: String) {
+        Log.d(TAG, "toggleFavoriteAndNotify - stationId: $stationId")
+        FavoritesPreference.toggleFavorite(this, stationId)
+        
+        // Notify the media browser clients that favorites have changed
+        notifyChildrenChanged(MEDIA_ID_FAVORITES)
+        
+        // Update playback state to reflect new favorite status
+        updatePlaybackState(mediaSession.controller.playbackState?.state ?: PlaybackStateCompat.STATE_PLAYING)
     }
     
     override fun onBind(intent: Intent?): android.os.IBinder? {
