@@ -9,11 +9,14 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.RadioGroup
+import android.view.View
 import com.bumptech.glide.Glide
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
     private lateinit var stationsList: RecyclerView
+    private lateinit var settingsContainer: View
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
@@ -22,7 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerStop: ImageButton
     private lateinit var miniPlayerFavorite: ImageButton
     
-    private var currentMode = "list" // "favorites" or "list"
+    private var currentMode = "list" // "favorites", "list", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,6 +46,8 @@ class MainActivity : AppCompatActivity() {
         stationsList = findViewById(R.id.stations_list)
         stationsList.layoutManager = LinearLayoutManager(this)
         
+        settingsContainer = findViewById(R.id.settings_container)
+        
         bottomNavigation = findViewById(R.id.bottom_navigation)
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
@@ -55,12 +60,15 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
                 R.id.navigation_settings -> {
-                    openSettings()
+                    showSettings()
                     true
                 }
                 else -> false
             }
         }
+        
+        // Setup settings controls
+        setupSettings()
         
         // Mini player views
         miniPlayer = findViewById(R.id.mini_player)
@@ -83,6 +91,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showAllStations() {
         currentMode = "list"
+        stationsList.visibility = View.VISIBLE
+        settingsContainer.visibility = View.GONE
         val stations = StationRepository.getStations()
         val adapter = StationAdapter(this, stations, { stationId ->
             playStation(stationId)
@@ -94,6 +104,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFavorites() {
         currentMode = "favorites"
+        stationsList.visibility = View.VISIBLE
+        settingsContainer.visibility = View.GONE
         val stations = FavoritesPreference.getFavorites(this)
         val adapter = StationAdapter(this, stations, { stationId ->
             playStation(stationId)
@@ -101,6 +113,50 @@ class MainActivity : AppCompatActivity() {
             // Do nothing to prevent list jump
         })
         stationsList.adapter = adapter
+    }
+
+    private fun showSettings() {
+        currentMode = "settings"
+        stationsList.visibility = View.GONE
+        settingsContainer.visibility = View.VISIBLE
+    }
+
+    private fun setupSettings() {
+        val themeGroup: RadioGroup = findViewById(R.id.theme_radio_group)
+        val qualityGroup: RadioGroup = findViewById(R.id.quality_radio_group)
+        
+        // Set current theme selection
+        val currentTheme = ThemePreference.getTheme(this)
+        when (currentTheme) {
+            ThemePreference.THEME_LIGHT -> themeGroup.check(R.id.radio_light)
+            ThemePreference.THEME_DARK -> themeGroup.check(R.id.radio_dark)
+            ThemePreference.THEME_SYSTEM -> themeGroup.check(R.id.radio_system)
+        }
+        
+        // Set current quality selection
+        val highQuality = ThemePreference.getHighQuality(this)
+        if (highQuality) {
+            qualityGroup.check(R.id.radio_high_quality)
+        } else {
+            qualityGroup.check(R.id.radio_low_quality)
+        }
+        
+        themeGroup.setOnCheckedChangeListener { _, checkedId ->
+            val selectedTheme = when (checkedId) {
+                R.id.radio_light -> ThemePreference.THEME_LIGHT
+                R.id.radio_dark -> ThemePreference.THEME_DARK
+                R.id.radio_system -> ThemePreference.THEME_SYSTEM
+                else -> ThemePreference.THEME_SYSTEM
+            }
+            
+            ThemePreference.setTheme(this, selectedTheme)
+            ThemeManager.applyTheme(selectedTheme)
+        }
+        
+        qualityGroup.setOnCheckedChangeListener { _, checkedId ->
+            val isHighQuality = checkedId == R.id.radio_high_quality
+            ThemePreference.setHighQuality(this, isHighQuality)
+        }
     }
 
     private fun playStation(id: String) {
@@ -144,10 +200,6 @@ class MainActivity : AppCompatActivity() {
         }
         startService(intent)
         updateMiniPlayer()
-    }
-    
-    private fun openSettings() {
-        startActivity(Intent(this, SettingsActivity::class.java))
     }
     
     private fun startPlaybackStateUpdates() {

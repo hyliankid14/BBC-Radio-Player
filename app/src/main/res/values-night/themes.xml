@@ -46,5 +46,8 @@
         <item name="android:textColorSecondary">@android:color/white</item>
         <item name="colorPrimaryDark">#6200EE</item>
         <item name="android:windowActionBarOverlay">false</item>
+        
+        <!-- Bottom Navigation View - purple selection color for dark mode -->
+        <item name="colorSecondaryContainer">#4A148C</item>
     </style>
 </resources>
