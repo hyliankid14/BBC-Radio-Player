@@ -40,6 +40,10 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val TAG = "RadioService"
         private const val CHANNEL_ID = "radio_playback"
         private const val NOTIFICATION_ID = 1
+        
+        private const val MEDIA_ID_ROOT = "root"
+        private const val MEDIA_ID_FAVORITES = "favorites"
+        private const val MEDIA_ID_ALL_STATIONS = "all_stations"
     }
 
     override fun onCreate() {
@@ -143,44 +147,59 @@ class RadioService : MediaBrowserServiceCompat() {
     override fun onLoadChildren(parentId: String, result: Result<List<MediaItem>>) {
         Log.d(TAG, "onLoadChildren - parentId: $parentId")
         
-        if (parentId != "root") {
-            Log.d(TAG, "Non-root parent, sending empty")
-            result.sendResult(emptyList())
-            return
+        val items = mutableListOf<MediaItem>()
+
+        when (parentId) {
+            MEDIA_ID_ROOT -> {
+                // Add "Favorites" folder
+                items.add(MediaItem(
+                    MediaDescriptionCompat.Builder()
+                        .setMediaId(MEDIA_ID_FAVORITES)
+                        .setTitle("Favorites")
+                        .build(),
+                    MediaItem.FLAG_BROWSABLE
+                ))
+                
+                // Add "All Stations" folder
+                items.add(MediaItem(
+                    MediaDescriptionCompat.Builder()
+                        .setMediaId(MEDIA_ID_ALL_STATIONS)
+                        .setTitle("All Stations")
+                        .build(),
+                    MediaItem.FLAG_BROWSABLE
+                ))
+            }
+            MEDIA_ID_FAVORITES -> {
+                val favorites = FavoritesPreference.getFavorites(this)
+                favorites.forEach { station ->
+                    items.add(createMediaItem(station))
+                }
+            }
+            MEDIA_ID_ALL_STATIONS -> {
+                val stations = StationRepository.getStations()
+                stations.forEach { station ->
+                    items.add(createMediaItem(station))
+                }
+            }
+            else -> {
+                Log.d(TAG, "Unknown parentId: $parentId")
+            }
         }
         
-        val items = mutableListOf<MediaItem>()
-        
-        items.add(MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId("radio2")
-                .setTitle("BBC Radio 2")
-                .setSubtitle("BBC Radio")
-                .build(),
-            MediaItem.FLAG_PLAYABLE
-        ))
-        
-        items.add(MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId("radio4")
-                .setTitle("BBC Radio 4")
-                .setSubtitle("BBC Radio")
-                .build(),
-            MediaItem.FLAG_PLAYABLE
-        ))
-        
-        items.add(MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId("radio6")
-                .setTitle("BBC Radio 6 Music")
-                .setSubtitle("BBC Radio")
-                .build(),
-            MediaItem.FLAG_PLAYABLE
-        ))
-        
-        Log.d(TAG, "Sending ${items.size} items")
+        Log.d(TAG, "Sending ${items.size} items for parentId: $parentId")
         result.sendResult(items)
-        Log.d(TAG, "onLoadChildren complete")
+    }
+
+    private fun createMediaItem(station: Station): MediaItem {
+        return MediaItem(
+            MediaDescriptionCompat.Builder()
+                .setMediaId(station.id)
+                .setTitle(station.title)
+                .setSubtitle("BBC Radio")
+                .setIconUri(android.net.Uri.parse(station.logoUrl))
+                .build(),
+            MediaItem.FLAG_PLAYABLE
+        )
     }
 
     private fun ensurePlayer() {
