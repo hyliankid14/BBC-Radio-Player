@@ -221,18 +221,19 @@ class RadioService : MediaBrowserServiceCompat() {
 
     private fun createMediaItem(station: Station): MediaItem {
         val isFavorite = FavoritesPreference.isFavorite(this, station.id)
-        // Use padding to right-align the star icon in the list
-        val displayTitle = if (isFavorite) {
-            station.title.padEnd(30) + "★"
-        } else {
-            station.title
+        // Use extras to set content description with star for right-aligned display
+        val extras = Bundle().apply {
+            if (isFavorite) {
+                putString("android.media.extra.CONTENT_STYLE_GROUP_TITLE_HINT", "★")
+            }
         }
         return MediaItem(
             MediaDescriptionCompat.Builder()
                 .setMediaId(station.id)
-                .setTitle(displayTitle)
-                .setSubtitle("BBC Radio")
+                .setTitle(station.title)
+                .setSubtitle(if (isFavorite) "BBC Radio ★" else "BBC Radio")
                 .setIconUri(android.net.Uri.parse(station.logoUrl))
+                .setExtras(extras)
                 .build(),
             MediaItem.FLAG_PLAYABLE
         )
@@ -456,6 +457,9 @@ class RadioService : MediaBrowserServiceCompat() {
         
         // Notify the media browser clients that favorites have changed
         notifyChildrenChanged(MEDIA_ID_FAVORITES)
+        
+        // Also notify all stations list to update star icons immediately
+        notifyChildrenChanged(MEDIA_ID_ALL_STATIONS)
         
         // Update playback state to reflect new favorite status
         updatePlaybackState(mediaSession.controller.playbackState?.state ?: PlaybackStateCompat.STATE_PLAYING)
