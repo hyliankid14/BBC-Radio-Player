@@ -8,9 +8,9 @@
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.68"
-        android:scaleY="0.68"
-        android:translateX="-2"
+        android:scaleX="0.64"
+        android:scaleY="0.64"
+        android:translateX="0"
         android:translateY="-2">
 
         <!-- subtle shadow -->
@@ -32,7 +32,7 @@
         <!-- screen -->
         <path
             android:fillColor="#000000"
-            android:pathData="M28,36 Q31,36 31,39 V64 Q31,67 28,67 Q25,67 25,64 V39 Q25,36 28,36 H80 Q83,67 83,64 V39 Q83,36 80,36 H28 Z" />
+            android:pathData="M28,36 L80,36 Q83,36 83,39 L83,64 Q83,67 80,67 L28,67 Q25,67 25,64 L25,39 Q25,36 28,36 Z" />
 
         <!-- waveform bars (match reference: small->tall->small) -->
         <path android:fillColor="#00C853" android:pathData="M34,62H37V64H34Z" />
