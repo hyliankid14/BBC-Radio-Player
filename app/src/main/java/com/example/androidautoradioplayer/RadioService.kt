@@ -103,6 +103,9 @@ class RadioService : MediaBrowserServiceCompat() {
                 "Radio Playback",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
+            channel.setSound(null, null)
+            channel.enableVibration(false)
+            channel.enableLights(false)
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
         }

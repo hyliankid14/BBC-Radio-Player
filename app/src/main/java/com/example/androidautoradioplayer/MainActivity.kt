@@ -65,12 +65,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateButtonStates() {
-        if (currentMode == "favorites") {
-            btnFavorites.isEnabled = false
-            btnList.isEnabled = true
-        } else {
-            btnFavorites.isEnabled = true
-            btnList.isEnabled = false
+        when (currentMode) {
+            "favorites" -> {
+                btnFavorites.alpha = 1.0f
+                btnFavorites.isEnabled = true
+                btnList.alpha = 0.6f
+                btnList.isEnabled = false
+                btnSettings.alpha = 0.6f
+                btnSettings.isEnabled = false
+            }
+            "list" -> {
+                btnFavorites.alpha = 0.6f
+                btnFavorites.isEnabled = false
+                btnList.alpha = 1.0f
+                btnList.isEnabled = true
+                btnSettings.alpha = 0.6f
+                btnSettings.isEnabled = false
+            }
+            "settings" -> {
+                btnFavorites.alpha = 0.6f
+                btnFavorites.isEnabled = false
+                btnList.alpha = 0.6f
+                btnList.isEnabled = false
+                btnSettings.alpha = 1.0f
+                btnSettings.isEnabled = true
+            }
         }
     }
 
