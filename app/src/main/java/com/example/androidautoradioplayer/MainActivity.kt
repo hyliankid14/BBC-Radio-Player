@@ -82,8 +82,13 @@ class MainActivity : AppCompatActivity() {
         miniPlayerStop.setOnClickListener { stopPlayback() }
         miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
         
-        // Show list by default
-        bottomNavigation.selectedItemId = R.id.navigation_list
+        // Restore previous section when recreating (e.g., theme change), otherwise default to list
+        val restoredNavSelection = savedInstanceState?.getInt("selectedNavId")
+        if (restoredNavSelection != null) {
+            bottomNavigation.selectedItemId = restoredNavSelection
+        } else {
+            bottomNavigation.selectedItemId = R.id.navigation_list
+        }
         
         // Start polling for playback state updates
         startPlaybackStateUpdates()
@@ -176,6 +181,12 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         stopPlaybackStateUpdates()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("currentMode", currentMode)
+        outState.putInt("selectedNavId", bottomNavigation.selectedItemId)
     }
 
     private fun stopPlayback() {

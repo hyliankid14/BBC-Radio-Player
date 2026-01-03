@@ -10,17 +10,17 @@
     <color name="md_theme_primaryContainer">#EADDFF</color>
     <color name="md_theme_onPrimaryContainer">#21005D</color>
     
-    <!-- Secondary colors -->
-    <color name="md_theme_secondary">#03DAC6</color>
+    <!-- Secondary colors (purple accents) -->
+    <color name="md_theme_secondary">#625B71</color>
     <color name="md_theme_onSecondary">#FFFFFF</color>
-    <color name="md_theme_secondaryContainer">#B2F5EA</color>
-    <color name="md_theme_onSecondaryContainer">#004B47</color>
+    <color name="md_theme_secondaryContainer">#E8DEF8</color>
+    <color name="md_theme_onSecondaryContainer">#1D192B</color>
     
-    <!-- Tertiary colors -->
-    <color name="md_theme_tertiary">#018786</color>
+    <!-- Tertiary colors (rose accents) -->
+    <color name="md_theme_tertiary">#7D5260</color>
     <color name="md_theme_onTertiary">#FFFFFF</color>
-    <color name="md_theme_tertiaryContainer">#B2F5EA</color>
-    <color name="md_theme_onTertiaryContainer">#004B47</color>
+    <color name="md_theme_tertiaryContainer">#FFD8E4</color>
+    <color name="md_theme_onTertiaryContainer">#31101D</color>
     
     <!-- Error colors -->
     <color name="md_theme_error">#B3261E</color>

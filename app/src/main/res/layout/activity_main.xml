@@ -119,6 +119,8 @@
         android:layout_height="wrap_content"
         app:menu="@menu/bottom_navigation_menu"
         app:labelVisibilityMode="labeled"
+        app:itemIconTint="@color/bottom_nav_color"
+        app:itemTextColor="@color/bottom_nav_color"
         style="@style/Widget.Material3.BottomNavigationView" />
 
 </LinearLayout>
