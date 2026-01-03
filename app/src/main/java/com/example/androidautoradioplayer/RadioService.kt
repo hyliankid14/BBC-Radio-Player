@@ -149,12 +149,12 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
                 PlaybackStateCompat.ACTION_PLAY_PAUSE
             )
+            .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
             .addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAVORITE, 
                 favoriteLabel,
                 favoriteIcon
             )
-            .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
             .build()
         mediaSession.setPlaybackState(pbState)
     }
