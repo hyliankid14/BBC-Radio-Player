@@ -207,6 +207,12 @@ class MainActivity : AppCompatActivity() {
         if (station != null) {
             FavoritesPreference.toggleFavorite(this, station.id)
             updateMiniPlayer()
+            
+            // Refresh the current view to update the station's favorite status
+            when (currentMode) {
+                "list" -> showAllStations()
+                "favorites" -> showFavorites()
+            }
         }
     }
 }

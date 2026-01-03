@@ -56,7 +56,7 @@
                 android:textSize="32sp"
                 android:textColor="@color/text_primary"
                 android:padding="0dp"
-                android:background="#FF9800"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Play/Pause" />
 
             <!-- Stop Button -->
