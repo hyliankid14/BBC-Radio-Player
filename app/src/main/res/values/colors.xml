@@ -34,6 +34,7 @@
     <color name="md_theme_onSurface">#1C1B1F</color>
     <color name="md_theme_surfaceVariant">#E7E0EC</color>
     <color name="md_theme_onSurfaceVariant">#49454E</color>
+    <color name="md_theme_surfaceContainer">#F3EDF7</color>
     <color name="md_theme_outline">#79747E</color>
     
     <!-- Legacy colors for compatibility -->

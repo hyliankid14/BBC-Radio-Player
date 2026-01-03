@@ -2,22 +2,25 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/mini_player"
     android:layout_width="match_parent"
-    android:layout_height="100dp"
+    android:layout_height="80dp"
     android:orientation="horizontal"
-    android:background="?attr/colorPrimaryDark"
+    android:background="?attr/colorSurfaceContainer"
     android:gravity="center_vertical"
-    android:padding="12dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
     android:visibility="gone"
-    android:elevation="8dp">
+    android:elevation="2dp">
 
     <!-- Station Artwork -->
     <ImageView
         android:id="@+id/mini_player_artwork"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
         android:scaleType="centerCrop"
         android:contentDescription="Station artwork"
-        android:layout_marginEnd="12dp" />
+        android:layout_marginEnd="16dp" />
 
     <!-- Station Info and Controls -->
     <LinearLayout
@@ -33,9 +36,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Station Name"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_primary"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+            android:textColor="?attr/colorOnSurface"
             android:maxLines="1"
             android:ellipsize="end" />
 
@@ -50,34 +52,34 @@
             <!-- Play/Pause Button -->
             <ImageButton
                 android:id="@+id/mini_player_play_pause"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/ic_play_arrow"
                 android:scaleType="fitCenter"
-                android:padding="16dp"
-                android:background="@drawable/button_background"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Play/Pause" />
 
             <!-- Stop Button -->
             <ImageButton
                 android:id="@+id/mini_player_stop"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/ic_stop"
                 android:scaleType="fitCenter"
-                android:padding="16dp"
-                android:background="@drawable/button_background"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Stop" />
 
             <!-- Favorites Button -->
             <ImageButton
                 android:id="@+id/mini_player_favorite"
-                android:layout_width="72dp"
-                android:layout_height="72dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:src="@drawable/ic_star"
                 android:scaleType="fitCenter"
-                android:padding="16dp"
-                android:background="@drawable/button_background"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Add to Favorites" />
 
         </LinearLayout>
