@@ -219,10 +219,12 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     private fun createMediaItem(station: Station): MediaItem {
+        val isFavorite = FavoritesPreference.isFavorite(this, station.id)
+        val title = if (isFavorite) "${station.title} ★" else station.title
         return MediaItem(
             MediaDescriptionCompat.Builder()
                 .setMediaId(station.id)
-                .setTitle(station.title)
+                .setTitle(title)
                 .setSubtitle("BBC Radio")
                 .setIconUri(android.net.Uri.parse(station.logoUrl))
                 .build(),
