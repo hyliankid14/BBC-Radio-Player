@@ -9,7 +9,7 @@
     <!-- Dark outline for contrast -->
     <path
         android:strokeColor="#1A1A1A"
-        android:strokeWidth="0.7"
+        android:strokeWidth="0.8"
         android:fillColor="@android:color/transparent"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"

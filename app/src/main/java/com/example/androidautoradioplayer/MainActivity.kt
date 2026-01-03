@@ -33,6 +33,13 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Set action bar color to match status bar (purple)
+        supportActionBar?.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(
+                android.graphics.Color.parseColor("#6200EE")
+            )
+        )
+
         stationsList = findViewById(R.id.stations_list)
         stationsList.layoutManager = LinearLayoutManager(this)
         
