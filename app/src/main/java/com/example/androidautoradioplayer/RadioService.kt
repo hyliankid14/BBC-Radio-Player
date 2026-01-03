@@ -221,19 +221,25 @@ class RadioService : MediaBrowserServiceCompat() {
 
     private fun createMediaItem(station: Station): MediaItem {
         val isFavorite = FavoritesPreference.isFavorite(this, station.id)
-        // Use extras to set content description with star for right-aligned display
-        val extras = Bundle().apply {
-            if (isFavorite) {
-                putString("android.media.extra.CONTENT_STYLE_GROUP_TITLE_HINT", "★")
+        // Right-align star by padding title to a fixed width
+        // Use Unicode non-breaking spaces for consistent spacing
+        val displayTitle = if (isFavorite) {
+            val baseTitle = station.title
+            val paddingNeeded = 45 - baseTitle.length
+            if (paddingNeeded > 0) {
+                baseTitle + "\u00A0".repeat(paddingNeeded) + "★"
+            } else {
+                "$baseTitle ★"
             }
+        } else {
+            station.title
         }
         return MediaItem(
             MediaDescriptionCompat.Builder()
                 .setMediaId(station.id)
-                .setTitle(station.title)
-                .setSubtitle(if (isFavorite) "BBC Radio ★" else "BBC Radio")
+                .setTitle(displayTitle)
+                .setSubtitle("BBC Radio")
                 .setIconUri(android.net.Uri.parse(station.logoUrl))
-                .setExtras(extras)
                 .build(),
             MediaItem.FLAG_PLAYABLE
         )
