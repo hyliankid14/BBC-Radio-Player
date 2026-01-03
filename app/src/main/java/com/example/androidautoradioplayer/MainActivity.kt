@@ -133,8 +133,12 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun togglePlayPause() {
+        // Toggle the state immediately for UI feedback
+        val isCurrentlyPlaying = PlaybackStateHelper.getIsPlaying()
+        PlaybackStateHelper.setIsPlaying(!isCurrentlyPlaying)
+        
         val intent = Intent(this, RadioService::class.java).apply {
-            action = if (PlaybackStateHelper.getIsPlaying()) {
+            action = if (isCurrentlyPlaying) {
                 RadioService.ACTION_PAUSE
             } else {
                 RadioService.ACTION_PLAY
