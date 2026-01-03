@@ -1,0 +1,8 @@
+Screenshots/
+build/
+.gradle/
+artifacts/
+local.properties
+.idea/
+*.iml
+.DS_Store
