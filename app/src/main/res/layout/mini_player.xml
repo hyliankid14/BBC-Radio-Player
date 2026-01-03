@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/mini_player"
     android:layout_width="match_parent"
-    android:layout_height="80dp"
+    android:layout_height="96dp"
     android:orientation="horizontal"
     android:background="@color/md_theme_surfaceContainer"
     android:gravity="center_vertical"
@@ -16,8 +16,8 @@
     <!-- Station Artwork -->
     <ImageView
         android:id="@+id/mini_player_artwork"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
         android:scaleType="centerCrop"
         android:contentDescription="Station artwork"
         android:layout_marginEnd="16dp" />
@@ -52,34 +52,37 @@
             <!-- Play/Pause Button -->
             <ImageButton
                 android:id="@+id/mini_player_play_pause"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:src="@drawable/ic_play_arrow"
                 android:scaleType="fitCenter"
-                android:padding="12dp"
+                android:padding="14dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Play/Pause" />
+                android:contentDescription="Play/Pause"
+                android:tint="?attr/colorPrimary" />
 
             <!-- Stop Button -->
             <ImageButton
                 android:id="@+id/mini_player_stop"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:src="@drawable/ic_stop"
                 android:scaleType="fitCenter"
-                android:padding="12dp"
+                android:padding="14dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Stop" />
+                android:contentDescription="Stop"
+                android:tint="?attr/colorPrimary" />
 
             <!-- Favorites Button -->
             <ImageButton
-                android:id="@+id/mini_player_favorite"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:id="@+id/mini_56dp"
+                android:layout_height="56dp"
                 android:src="@drawable/ic_star"
                 android:scaleType="fitCenter"
-                android:padding="12dp"
+                android:padding="14dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Add to Favorites"
+                android:tint="?attr/colorPrimarygroundBorderless"
                 android:contentDescription="Add to Favorites" />
 
         </LinearLayout>
