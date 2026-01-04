@@ -43,6 +43,10 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentShowInfo: CurrentShow = CurrentShow("BBC Radio")
     private var showInfoRefreshRunnable: Runnable? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main)
+    
+    private val placeholderBitmap by lazy {
+        android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
+    }
 
     companion object {
         const val ACTION_PLAY_STATION = "com.example.androidautoradioplayer.ACTION_PLAY_STATION"
@@ -508,10 +512,11 @@ class RadioService : MediaBrowserServiceCompat() {
         
         ensurePlayer()
         requestAudioFocus()
-        startForegroundNotification()
         
-        // Set metadata for Android Auto display with album art
-        updateMediaMetadata()
+        // Set metadata immediately with placeholder to clear old artwork
+        updateMediaMetadata(artworkBitmap = placeholderBitmap)
+        
+        startForegroundNotification()
         
         // Indicate buffering immediately to prevent UI from showing "Stopped"
         updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
