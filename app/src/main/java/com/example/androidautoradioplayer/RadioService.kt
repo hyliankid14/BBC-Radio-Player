@@ -40,6 +40,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var currentStationLogo: String = ""
     private var currentShowTitle: String = "BBC Radio"
+    private var currentShowInfo: CurrentShow = CurrentShow("BBC Radio")
     private var showInfoRefreshRunnable: Runnable? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main)
 
@@ -364,13 +365,20 @@ class RadioService : MediaBrowserServiceCompat() {
     private fun loadStationLogoAndUpdateNotification() {
         Thread {
             try {
+                // Use image_url from API if available, otherwise fall back to station logo
+                val imageUrl = currentShowInfo.imageUrl ?: currentStationLogo
+                if (imageUrl.isEmpty()) {
+                    Log.d(TAG, "No image URL available for notification")
+                    return@Thread
+                }
+                
                 val bitmap = com.bumptech.glide.Glide.with(this)
                     .asBitmap()
-                    .load(currentStationLogo)
+                    .load(imageUrl)
                     .submit(256, 256) // Request 256x256 bitmap
                     .get() // Block until loaded
 
-                // Update notification with the logo
+                // Update notification with the artwork
                 val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
                     .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
                     .setContentText(currentShowTitle)
@@ -388,9 +396,9 @@ class RadioService : MediaBrowserServiceCompat() {
 
                 val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(NOTIFICATION_ID, updatedNotification)
-                Log.d(TAG, "Updated notification with station logo")
+                Log.d(TAG, "Updated notification with artwork from: $imageUrl")
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to load station logo for notification: ${e.message}")
+                Log.w(TAG, "Failed to load artwork for notification: ${e.message}")
             }
         }.start()
     }
@@ -423,7 +431,8 @@ class RadioService : MediaBrowserServiceCompat() {
         currentStationTitle = station.title
         currentStationId = station.id
         currentStationLogo = station.logoUrl
-        currentShowTitle = "BBC Radio" // Reset to default
+        currentShowInfo = CurrentShow("BBC Radio") // Reset to default
+        currentShowTitle = "BBC Radio"
         
         // Cancel existing show refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
@@ -466,14 +475,16 @@ class RadioService : MediaBrowserServiceCompat() {
                 Log.d(TAG, "Fetching show info in background thread for station: $currentStationId")
                 val show = runBlocking { ShowInfoFetcher.getCurrentShow(currentStationId) }
                 Log.d(TAG, "ShowInfoFetcher returned: ${show.title}")
-                currentShowTitle = show.title
-                PlaybackStateHelper.setCurrentShowTitle(show.title)
-                Log.d(TAG, "Set currentShowTitle to: $currentShowTitle")
-                Log.d(TAG, "PlaybackStateHelper now contains: ${PlaybackStateHelper.getCurrentShowTitle()}")
+                
+                // Update show info
+                currentShowInfo = show
+                currentShowTitle = show.getFormattedTitle()
+                PlaybackStateHelper.setCurrentShow(show)
+                Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, imageUrl: ${show.imageUrl}")
                 
                 // Switch to main thread to update UI
                 handler.post {
-                    Log.d(TAG, "Updating UI with show title: $currentShowTitle, from helper: ${PlaybackStateHelper.getCurrentShowTitle()}")
+                    Log.d(TAG, "Updating UI with show title: $currentShowTitle")
                     updateMediaMetadata()
                     startForegroundNotification()
                 }
@@ -487,17 +498,17 @@ class RadioService : MediaBrowserServiceCompat() {
         // Cancel existing scheduled refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
         
-        // Create new refresh runnable
+        // Create new refresh runnable - poll every 30 seconds (within BBC's 30-60 sec recommendation)
         showInfoRefreshRunnable = Runnable {
             if (currentStationId.isNotEmpty() && PlaybackStateHelper.getIsPlaying()) {
                 fetchAndUpdateShowInfo()
-                // Schedule next refresh in 5 minutes
-                handler.postDelayed(showInfoRefreshRunnable!!, 5 * 60 * 1000) // 5 minutes
+                // Schedule next refresh in 30 seconds
+                handler.postDelayed(showInfoRefreshRunnable!!, 30 * 1000)
             }
         }
         
-        // Schedule first refresh in 5 minutes
-        handler.postDelayed(showInfoRefreshRunnable!!, 5 * 60 * 1000)
+        // Schedule first refresh in 30 seconds
+        handler.postDelayed(showInfoRefreshRunnable!!, 30 * 1000)
     }
     
     private fun updateMediaMetadata() {
@@ -506,8 +517,9 @@ class RadioService : MediaBrowserServiceCompat() {
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentStationTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentShowTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentStationLogo)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, currentStationLogo)
+            // Use image_url from API if available, otherwise use station logo
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentShowInfo.imageUrl ?: currentStationLogo)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, currentShowInfo.imageUrl ?: currentStationLogo)
             .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1)
             .build()
         mediaSession.setMetadata(metadata)

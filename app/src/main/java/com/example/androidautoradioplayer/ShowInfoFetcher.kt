@@ -6,9 +6,20 @@ import kotlinx.coroutines.withContext
 
 data class CurrentShow(
     val title: String,
+    val secondary: String? = null,
+    val tertiary: String? = null,
+    val imageUrl: String? = null,
     val startTime: String? = null,
     val endTime: String? = null
-)
+) {
+    // Format the full subtitle as "primary - secondary - tertiary"
+    fun getFormattedTitle(): String {
+        val parts = mutableListOf(title)
+        if (!secondary.isNullOrEmpty()) parts.add(secondary)
+        if (!tertiary.isNullOrEmpty()) parts.add(tertiary)
+        return parts.joinToString(" - ")
+    }
+}
 
 object ShowInfoFetcher {
     private const val TAG = "ShowInfoFetcher"
@@ -67,10 +78,10 @@ object ShowInfoFetcher {
             
             Log.d(TAG, "RMS Response length: ${response.length} bytes")
             
-            val showTitle = parseShowFromRmsResponse(response)
-            Log.d(TAG, "Parsed show title: $showTitle")
+            val show = parseShowFromRmsResponse(response)
+            Log.d(TAG, "Parsed show: $show")
             
-            CurrentShow(showTitle ?: "BBC Radio")
+            show ?: CurrentShow("BBC Radio")
         } catch (e: Exception) {
             Log.w(TAG, "Error fetching show info: ${e.message}", e)
             CurrentShow("BBC Radio")
@@ -98,37 +109,38 @@ object ShowInfoFetcher {
             val response = connection.inputStream.bufferedReader().readText()
             connection.disconnect()
             
-            val showTitle = parseShowFromEssResponse(response)
-            CurrentShow(showTitle ?: "BBC Radio")
+            val show = parseShowFromEssResponse(response)
+            show ?: CurrentShow("BBC Radio")
         } catch (e: Exception) {
             Log.w(TAG, "Error fetching from ESS API: ${e.message}")
             CurrentShow("BBC Radio")
         }
     }
     
-    private fun parseShowFromRmsResponse(json: String): String? {
+    private fun parseShowFromRmsResponse(json: String): CurrentShow? {
         try {
-            // Look for titles.primary field which contains the current song/show name
-            // Example: "primary": "Texas Hold 'Em"
+            // Extract all three titles and image URL
             val primaryRegex = "\"primary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
-            val primaryMatch = primaryRegex.find(json)
-            
-            if (primaryMatch != null) {
-                val primary = primaryMatch.groupValues.getOrNull(1)?.trim()
-                Log.d(TAG, "Found primary title: $primary")
-                return primary
-            }
-            
-            // Also check for secondary (artist) if primary not found
             val secondaryRegex = "\"secondary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
-            val secondaryMatch = secondaryRegex.find(json)
-            if (secondaryMatch != null) {
-                val secondary = secondaryMatch.groupValues.getOrNull(1)?.trim()
-                Log.d(TAG, "Found secondary title: $secondary")
-                return secondary
+            val tertiaryRegex = "\"tertiary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
+            val imageUrlRegex = "\"image_url\"\\s*:\\s*\"([^\"]+)\"".toRegex()
+            
+            val primary = primaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
+            val secondary = secondaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
+            val tertiary = tertiaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
+            val imageUrl = imageUrlRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
+            
+            if (primary != null) {
+                Log.d(TAG, "Found RMS: primary=$primary, secondary=$secondary, tertiary=$tertiary, imageUrl=$imageUrl")
+                return CurrentShow(
+                    title = primary,
+                    secondary = secondary,
+                    tertiary = tertiary,
+                    imageUrl = imageUrl
+                )
             }
             
-            Log.w(TAG, "No title found in RMS response")
+            Log.w(TAG, "No primary title found in RMS response")
             return null
         } catch (e: Exception) {
             Log.w(TAG, "Error parsing RMS response: ${e.message}")
@@ -136,7 +148,7 @@ object ShowInfoFetcher {
         }
     }
     
-    private fun parseShowFromEssResponse(json: String): String? {
+    private fun parseShowFromEssResponse(json: String): CurrentShow? {
         try {
             // Look for program title in ESS response
             // This is typically in the schedule for the current time
@@ -146,7 +158,7 @@ object ShowInfoFetcher {
             if (match != null) {
                 val title = match.groupValues.getOrNull(1)?.trim()
                 Log.d(TAG, "Found ESS title: $title")
-                return title
+                return CurrentShow(title = title ?: "BBC Radio")
             }
             
             Log.w(TAG, "No title found in ESS response")

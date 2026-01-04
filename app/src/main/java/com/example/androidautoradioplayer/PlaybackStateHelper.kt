@@ -6,7 +6,8 @@ package com.example.androidautoradioplayer
 object PlaybackStateHelper {
     private var currentStation: Station? = null
     private var isPlaying: Boolean = false
-    private var currentShowTitle: String = "BBC Radio"
+    private var currentShow: CurrentShow = CurrentShow("BBC Radio")
+    private val showChangeListeners = mutableListOf<(CurrentShow) -> Unit>()
     
     fun setCurrentStation(station: Station?) {
         currentStation = station
@@ -20,11 +21,26 @@ object PlaybackStateHelper {
     
     fun getIsPlaying(): Boolean = isPlaying
     
-    fun setCurrentShowTitle(title: String) {
-        currentShowTitle = title
+    fun setCurrentShow(show: CurrentShow) {
+        currentShow = show
+        notifyShowChangeListeners()
     }
     
-    fun getCurrentShowTitle(): String = currentShowTitle
+    fun getCurrentShow(): CurrentShow = currentShow
+    
+    fun getCurrentShowTitle(): String = currentShow.getFormattedTitle()
+    
+    fun onShowChange(listener: (CurrentShow) -> Unit) {
+        showChangeListeners.add(listener)
+    }
+    
+    fun removeShowChangeListener(listener: (CurrentShow) -> Unit) {
+        showChangeListeners.remove(listener)
+    }
+    
+    private fun notifyShowChangeListeners() {
+        showChangeListeners.forEach { it(currentShow) }
+    }
     
     fun isPlayingAny(): Boolean = currentStation != null && isPlaying
 }

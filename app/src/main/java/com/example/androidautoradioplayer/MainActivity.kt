@@ -28,6 +28,9 @@ class MainActivity : AppCompatActivity() {
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
+    private val showChangeListener: (CurrentShow) -> Unit = { show ->
+        runOnUiThread { updateMiniPlayerFromShow(show) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme before creating the view
@@ -86,6 +89,9 @@ class MainActivity : AppCompatActivity() {
         
         // Ensure mini player state is in sync immediately (avoids flicker on theme change)
         updateMiniPlayer()
+        
+        // Register listener for show changes
+        PlaybackStateHelper.onShowChange(showChangeListener)
         
         // Restore previous section when recreating (e.g., theme change), otherwise default to list
         val restoredNavSelection = savedInstanceState?.getInt("selectedNavId")
@@ -218,11 +224,13 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // Restore view when returning from settings
+        PlaybackStateHelper.onShowChange(showChangeListener)
         startPlaybackStateUpdates()
     }
     
     override fun onPause() {
         super.onPause()
+        PlaybackStateHelper.removeShowChangeListener(showChangeListener)
         stopPlaybackStateUpdates()
     }
 
@@ -279,19 +287,20 @@ class MainActivity : AppCompatActivity() {
     private fun updateMiniPlayer() {
         val station = PlaybackStateHelper.getCurrentStation()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
+        val show = PlaybackStateHelper.getCurrentShow()
         
         if (station != null) {
             // Show mini player
             miniPlayer.visibility = android.view.View.VISIBLE
             miniPlayerTitle.text = station.title
             
-            // Get the current show title from the metadata's ARTIST field
-            val showTitle = PlaybackStateHelper.getCurrentShowTitle()
-            miniPlayerSubtitle.text = showTitle
+            // Display formatted show title (primary - secondary - tertiary)
+            miniPlayerSubtitle.text = show.getFormattedTitle()
             
-            // Load artwork
+            // Load artwork: Use image_url from API if available, otherwise station logo
+            val artworkUrl = show.imageUrl ?: station.logoUrl
             Glide.with(this)
-                .load(station.logoUrl)
+                .load(artworkUrl)
                 .error(android.R.drawable.ic_media_play)
                 .into(miniPlayerArtwork)
             
@@ -310,6 +319,20 @@ class MainActivity : AppCompatActivity() {
         } else {
             // Hide mini player
             miniPlayer.visibility = android.view.View.GONE
+        }
+    }
+    
+    private fun updateMiniPlayerFromShow(show: CurrentShow) {
+        // Update subtitle with formatted show title
+        miniPlayerSubtitle.text = show.getFormattedTitle()
+        
+        // Load new artwork
+        val artworkUrl = show.imageUrl ?: PlaybackStateHelper.getCurrentStation()?.logoUrl
+        if (artworkUrl != null) {
+            Glide.with(this)
+                .load(artworkUrl)
+                .error(android.R.drawable.ic_media_play)
+                .into(miniPlayerArtwork)
         }
     }
     
