@@ -58,7 +58,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
+            android:gravity="center_vertical|start"
             android:layout_marginTop="4dp">
 
             <!-- Play/Pause Button -->
@@ -84,12 +84,6 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Stop"
                 android:tint="@color/mini_player_icon_tint" />
-
-            <!-- Spacer to push favorite to right -->
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
 
             <!-- Favorites Button -->
             <ImageButton

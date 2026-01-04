@@ -463,15 +463,17 @@ class RadioService : MediaBrowserServiceCompat() {
         Log.d(TAG, "fetchAndUpdateShowInfo called for station: $currentStationId")
         Thread {
             try {
-                Log.d(TAG, "Fetching show info in background thread")
+                Log.d(TAG, "Fetching show info in background thread for station: $currentStationId")
                 val show = runBlocking { ShowInfoFetcher.getCurrentShow(currentStationId) }
+                Log.d(TAG, "ShowInfoFetcher returned: ${show.title}")
                 currentShowTitle = show.title
                 PlaybackStateHelper.setCurrentShowTitle(show.title)
-                Log.d(TAG, "Fetched show info: ${show.title}")
+                Log.d(TAG, "Set currentShowTitle to: $currentShowTitle")
+                Log.d(TAG, "PlaybackStateHelper now contains: ${PlaybackStateHelper.getCurrentShowTitle()}")
                 
                 // Switch to main thread to update UI
                 handler.post {
-                    Log.d(TAG, "Updating UI with show title: $currentShowTitle")
+                    Log.d(TAG, "Updating UI with show title: $currentShowTitle, from helper: ${PlaybackStateHelper.getCurrentShowTitle()}")
                     updateMediaMetadata()
                     startForegroundNotification()
                 }
