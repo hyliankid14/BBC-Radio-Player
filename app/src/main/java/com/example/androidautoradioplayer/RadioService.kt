@@ -160,7 +160,7 @@ class RadioService : MediaBrowserServiceCompat() {
         }
         
         val favoriteIcon = if (isFavorite) {
-            R.drawable.ic_star_filled
+            R.drawable.ic_star_filled_yellow
         } else {
             R.drawable.ic_star_outline
         }
@@ -379,8 +379,8 @@ class RadioService : MediaBrowserServiceCompat() {
         Thread {
             try {
                 // Use image_url from API if available and valid, otherwise fall back to station logo
-                val imageUrl: String = when {
-                    !currentShowInfo.imageUrl.isNullOrEmpty() && currentShowInfo.imageUrl?.startsWith("http") == true -> currentShowInfo.imageUrl ?: currentStationLogo
+                var imageUrl: String = when {
+                    !currentShowInfo.imageUrl.isNullOrEmpty() && currentShowInfo.imageUrl?.startsWith("http") == true -> currentShowInfo.imageUrl!!
                     else -> currentStationLogo
                 }
                 
@@ -391,31 +391,55 @@ class RadioService : MediaBrowserServiceCompat() {
                 
                 Log.d(TAG, "Loading notification artwork from: $imageUrl")
                 
-                val bitmap = com.bumptech.glide.Glide.with(this)
-                    .asBitmap()
-                    .load(imageUrl)
-                    .submit(256, 256) // Request 256x256 bitmap
-                    .get() // Block until loaded
+                var bitmap: android.graphics.Bitmap? = null
+                try {
+                    bitmap = com.bumptech.glide.Glide.with(this)
+                        .asBitmap()
+                        .load(imageUrl)
+                        .submit(256, 256) // Request 256x256 bitmap
+                        .get() // Block until loaded
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load artwork from $imageUrl: ${e.message}")
+                    // Fallback to station logo if we weren't already using it
+                    if (imageUrl != currentStationLogo && currentStationLogo.isNotEmpty()) {
+                        Log.d(TAG, "Falling back to station logo: $currentStationLogo")
+                        imageUrl = currentStationLogo
+                        try {
+                            bitmap = com.bumptech.glide.Glide.with(this)
+                                .asBitmap()
+                                .load(imageUrl)
+                                .submit(256, 256)
+                                .get()
+                        } catch (e2: Exception) {
+                            Log.w(TAG, "Failed to load fallback station logo: ${e2.message}")
+                        }
+                    }
+                }
 
-                // Update notification with the artwork
-                val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-                    .setContentText(currentShowTitle)
-                    .setSmallIcon(android.R.drawable.ic_media_play)
-                    .setLargeIcon(bitmap)
-                    .setOngoing(true)
-                    .setSound(null)
-                    .setVibrate(null)
-                    .setStyle(MediaStyle()
-                        .setMediaSession(mediaSession.sessionToken)
-                        .setShowActionsInCompactView(0, 1)
-                    )
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .build()
+                if (bitmap != null) {
+                    // Update notification with the artwork
+                    val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
+                        .setContentText(currentShowTitle)
+                        .setSmallIcon(android.R.drawable.ic_media_play)
+                        .setLargeIcon(bitmap)
+                        .setOngoing(true)
+                        .setSound(null)
+                        .setVibrate(null)
+                        .setStyle(MediaStyle()
+                            .setMediaSession(mediaSession.sessionToken)
+                            .setShowActionsInCompactView(0, 1)
+                        )
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .build()
 
-                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.notify(NOTIFICATION_ID, updatedNotification)
-                Log.d(TAG, "Updated notification with artwork from: $imageUrl")
+                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.notify(NOTIFICATION_ID, updatedNotification)
+                    Log.d(TAG, "Updated notification with artwork from: $imageUrl")
+                    
+                    // Update MediaSession metadata with the bitmap
+                    updateMediaMetadata(bitmap)
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to load artwork for notification: ${e.message}")
             }
@@ -554,11 +578,12 @@ class RadioService : MediaBrowserServiceCompat() {
         }
     }
     
-    private fun updateMediaMetadata() {
-        val metadata = android.support.v4.media.MediaMetadataCompat.Builder()
+    private fun updateMediaMetadata(artworkBitmap: android.graphics.Bitmap? = null) {
+        val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentStationId)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentStationTitle)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentShowTitle)
+            // Swap Title and Artist for better scrolling on AA
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentShowTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentStationTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentShowTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentStationTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
@@ -566,8 +591,13 @@ class RadioService : MediaBrowserServiceCompat() {
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentShowInfo.imageUrl ?: currentStationLogo)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, currentShowInfo.imageUrl ?: currentStationLogo)
             .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1)
-            .build()
-        mediaSession.setMetadata(metadata)
+            
+        if (artworkBitmap != null) {
+            metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artworkBitmap)
+            metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, artworkBitmap)
+        }
+
+        mediaSession.setMetadata(metadataBuilder.build())
     }
 
     private fun stopPlayback() {
