@@ -123,12 +123,21 @@ object ShowInfoFetcher {
             val primaryRegex = "\"primary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
             val secondaryRegex = "\"secondary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
             val tertiaryRegex = "\"tertiary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
-            val imageUrlRegex = "\"image_url\"\\s*:\\s*\"([^\"]+)\"".toRegex()
+            val imageUrlRegex = "\"image_url\"\\s*:\\s*\"([^\"]*)\"".toRegex()
             
             val primary = primaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
             val secondary = secondaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
             val tertiary = tertiaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
-            val imageUrl = imageUrlRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
+            var imageUrl = imageUrlRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
+            
+            // Unescape the URL if it contains escaped characters
+            if (!imageUrl.isNullOrEmpty()) {
+                imageUrl = imageUrl.replace("\\/", "/").replace("\\\\", "\\")
+                // Only use URL if it's not empty and looks valid
+                if (imageUrl.isEmpty() || !imageUrl.startsWith("http")) {
+                    imageUrl = null
+                }
+            }
             
             if (primary != null) {
                 Log.d(TAG, "Found RMS: primary=$primary, secondary=$secondary, tertiary=$tertiary, imageUrl=$imageUrl")

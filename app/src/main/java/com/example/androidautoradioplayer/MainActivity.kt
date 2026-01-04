@@ -297,12 +297,18 @@ class MainActivity : AppCompatActivity() {
             // Display formatted show title (primary - secondary - tertiary)
             miniPlayerSubtitle.text = show.getFormattedTitle()
             
-            // Load artwork: Use image_url from API if available, otherwise station logo
-            val artworkUrl = show.imageUrl ?: station.logoUrl
+            // Load artwork: Use image_url from API if available and valid, otherwise station logo
+            val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
+                show.imageUrl
+            } else {
+                station.logoUrl
+            }
+            
             Glide.with(this)
                 .load(artworkUrl)
                 .error(android.R.drawable.ic_media_play)
                 .into(miniPlayerArtwork)
+            Log.d("MainActivity", "Loading artwork from: $artworkUrl")
             
             // Update play/pause button - always show the correct state
             miniPlayerPlayPause.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
@@ -326,13 +332,19 @@ class MainActivity : AppCompatActivity() {
         // Update subtitle with formatted show title
         miniPlayerSubtitle.text = show.getFormattedTitle()
         
-        // Load new artwork
-        val artworkUrl = show.imageUrl ?: PlaybackStateHelper.getCurrentStation()?.logoUrl
+        // Load new artwork - use image_url if available and valid, otherwise station logo
+        val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
+            show.imageUrl
+        } else {
+            PlaybackStateHelper.getCurrentStation()?.logoUrl
+        }
+        
         if (artworkUrl != null) {
             Glide.with(this)
                 .load(artworkUrl)
                 .error(android.R.drawable.ic_media_play)
                 .into(miniPlayerArtwork)
+            Log.d("MainActivity", "Loading artwork from: $artworkUrl")
         }
     }
     

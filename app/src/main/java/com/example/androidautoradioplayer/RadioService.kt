@@ -365,12 +365,19 @@ class RadioService : MediaBrowserServiceCompat() {
     private fun loadStationLogoAndUpdateNotification() {
         Thread {
             try {
-                // Use image_url from API if available, otherwise fall back to station logo
-                val imageUrl = currentShowInfo.imageUrl ?: currentStationLogo
+                // Use image_url from API if available and valid, otherwise fall back to station logo
+                val imageUrl = if (!currentShowInfo.imageUrl.isNullOrEmpty() && currentShowInfo.imageUrl.startsWith("http")) {
+                    currentShowInfo.imageUrl
+                } else {
+                    currentStationLogo
+                }
+                
                 if (imageUrl.isEmpty()) {
                     Log.d(TAG, "No image URL available for notification")
                     return@Thread
                 }
+                
+                Log.d(TAG, "Loading notification artwork from: $imageUrl")
                 
                 val bitmap = com.bumptech.glide.Glide.with(this)
                     .asBitmap()
