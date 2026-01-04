@@ -47,7 +47,7 @@ object ShowInfoFetcher {
             val bbcId = stationIdMap[stationId] ?: return@withContext CurrentShow("BBC Radio")
             val url = "https://www.bbc.co.uk/schedules/$bbcId/upcoming.json"
             
-            Log.d(TAG, "Fetching show info for station $stationId from $url")
+            Log.d(TAG, "Fetching show info for station $stationId (bbcId: $bbcId) from $url")
             
             val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
             connection.connectTimeout = 5000
@@ -55,6 +55,8 @@ object ShowInfoFetcher {
             connection.setRequestProperty("User-Agent", "AndroidAutoRadioPlayer/1.0")
             
             val responseCode = connection.responseCode
+            Log.d(TAG, "Response code: $responseCode")
+            
             if (responseCode != 200) {
                 Log.w(TAG, "Failed to fetch show info: HTTP $responseCode")
                 return@withContext CurrentShow("BBC Radio")
@@ -63,8 +65,15 @@ object ShowInfoFetcher {
             val response = connection.inputStream.bufferedReader().readText()
             connection.disconnect()
             
+            Log.d(TAG, "Response length: ${response.length} bytes")
+            if (response.length < 100) {
+                Log.d(TAG, "Response: $response")
+            }
+            
             // Parse JSON response
             val showTitle = parseShowFromJson(response)
+            Log.d(TAG, "Parsed show title: $showTitle")
+            
             CurrentShow(showTitle ?: "BBC Radio")
         } catch (e: Exception) {
             Log.w(TAG, "Error fetching show info: ${e.message}", e)
@@ -77,10 +86,18 @@ object ShowInfoFetcher {
             // Find the first "title" field in the JSON which represents the current/upcoming show
             val titleRegex = "\"title\"\\s*:\\s*\"([^\"]+)\"".toRegex()
             val match = titleRegex.find(json)
-            return match?.groupValues?.getOrNull(1)?.let { title ->
+            
+            if (match == null) {
+                Log.w(TAG, "No title match found in JSON")
+                return null
+            }
+            
+            val title = match.groupValues.getOrNull(1)
+            Log.d(TAG, "Found title match: $title")
+            
+            return title?.let { t ->
                 // Clean up HTML entities if present
-                title
-                    .replace("&quot;", "\"")
+                t.replace("&quot;", "\"")
                     .replace("&amp;", "&")
                     .replace("&lt;", "<")
                     .replace("&gt;", ">")
