@@ -27,27 +27,22 @@
     </FrameLayout>
 
     <!-- Large Artwork (Square) -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:gravity="center">
 
-        <ImageView
+        <com.example.androidautoradioplayer.SquareImageView
             android:id="@+id/player_artwork"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:scaleType="centerCrop"
             android:contentDescription="Station Artwork"
             android:layout_margin="32dp"
-            android:elevation="8dp"
-            app:layout_constraintDimensionRatio="1:1"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHeight_max="400dp" />
+            android:elevation="8dp" />
             
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 
     <!-- Metadata Container -->
     <LinearLayout
