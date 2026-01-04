@@ -325,7 +325,8 @@ class MainActivity : AppCompatActivity() {
             val newTitle = show.getFormattedTitle()
             if (miniPlayerSubtitle.text.toString() != newTitle) {
                 miniPlayerSubtitle.text = newTitle
-                miniPlayerSubtitle.isSelected = true // Trigger marquee if using native, but we use custom
+                miniPlayerSubtitle.isSelected = true // Trigger marquee/scroll
+                miniPlayerSubtitle.startScrolling()
             }
             
             // Load artwork: Use image_url from API if available and valid, otherwise station logo
@@ -342,8 +343,9 @@ class MainActivity : AppCompatActivity() {
                 
                 Glide.with(this)
                     .load(artworkUrl)
-                    .placeholder(R.drawable.ic_launcher_foreground)
+                    .placeholder(android.R.color.transparent)
                     .error(Glide.with(this).load(fallbackUrl))
+                    .fallback(Glide.with(this).load(fallbackUrl))
                     .listener(object : RequestListener<Drawable> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
                             return false
@@ -373,7 +375,7 @@ class MainActivity : AppCompatActivity() {
             val isFavorited = FavoritesPreference.isFavorite(this, station.id)
             if (isFavorited) {
                 miniPlayerFavorite.setImageResource(R.drawable.ic_star_filled)
-                miniPlayerFavorite.clearColorFilter()
+                miniPlayerFavorite.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
             } else {
                 miniPlayerFavorite.setImageResource(R.drawable.ic_star_outline)
                 miniPlayerFavorite.clearColorFilter()
@@ -389,6 +391,8 @@ class MainActivity : AppCompatActivity() {
         val newTitle = show.getFormattedTitle()
         if (miniPlayerSubtitle.text.toString() != newTitle) {
             miniPlayerSubtitle.text = newTitle
+            miniPlayerSubtitle.isSelected = true
+            miniPlayerSubtitle.startScrolling()
         }
         
         // Load new artwork - use image_url if available and valid, otherwise station logo
@@ -405,8 +409,9 @@ class MainActivity : AppCompatActivity() {
             
             Glide.with(this)
                 .load(artworkUrl)
-                .placeholder(R.drawable.ic_launcher_foreground)
+                .placeholder(android.R.color.transparent)
                 .error(Glide.with(this).load(fallbackUrl))
+                .fallback(Glide.with(this).load(fallbackUrl))
                 .listener(object : RequestListener<Drawable> {
                     override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
                         return false

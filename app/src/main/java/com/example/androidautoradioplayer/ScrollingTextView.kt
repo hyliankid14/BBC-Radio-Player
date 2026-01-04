@@ -73,7 +73,7 @@ class ScrollingTextView @JvmOverloads constructor(
         startScrolling()
     }
 
-    private fun startScrolling() {
+    fun startScrolling() {
         removeCallbacks(scrollRunnable)
         animator?.removeAllListeners()
         animator?.cancel()

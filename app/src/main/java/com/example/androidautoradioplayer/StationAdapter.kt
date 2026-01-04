@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.ImageView
 import android.widget.TextView
+import android.graphics.Color
 import com.bumptech.glide.Glide
 
 class StationAdapter(
@@ -47,6 +48,11 @@ class StationAdapter(
         holder.starView.setImageResource(
             if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline
         )
+        if (isFavorite) {
+            holder.starView.setColorFilter(Color.parseColor("#FFC107"))
+        } else {
+            holder.starView.clearColorFilter()
+        }
         
         holder.starView.setOnClickListener {
             FavoritesPreference.toggleFavorite(context, station.id)
@@ -56,6 +62,12 @@ class StationAdapter(
                 else
                     R.drawable.ic_star_outline
             )
+            val nowFavorite = FavoritesPreference.isFavorite(context, station.id)
+            if (nowFavorite) {
+                holder.starView.setColorFilter(Color.parseColor("#FFC107"))
+            } else {
+                holder.starView.clearColorFilter()
+            }
             onFavoriteToggle?.invoke(station.id)
         }
         

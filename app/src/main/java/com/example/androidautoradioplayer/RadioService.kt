@@ -77,6 +77,16 @@ class RadioService : MediaBrowserServiceCompat() {
                 scheduleShowInfoRefresh()
             }
 
+            override fun onSkipToNext() {
+                Log.d(TAG, "onSkipToNext")
+                skipStation(1)
+            }
+
+            override fun onSkipToPrevious() {
+                Log.d(TAG, "onSkipToPrevious")
+                skipStation(-1)
+            }
+
             override fun onPause() {
                 Log.d(TAG, "onPause called")
                 player?.pause()
@@ -160,6 +170,8 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
                 PlaybackStateCompat.ACTION_STOP or
+                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
                 PlaybackStateCompat.ACTION_PLAY_PAUSE
             )
@@ -517,12 +529,38 @@ class RadioService : MediaBrowserServiceCompat() {
         // Schedule first refresh in 30 seconds
         handler.postDelayed(showInfoRefreshRunnable!!, 30 * 1000)
     }
+
+    private fun skipStation(step: Int) {
+        val stations = getScrollableStations()
+        if (stations.isEmpty()) return
+
+        val currentIndex = stations.indexOfFirst { it.id == currentStationId }
+        val targetIndex = if (currentIndex == -1) {
+            0
+        } else {
+            (currentIndex + step + stations.size) % stations.size
+        }
+
+        playStation(stations[targetIndex].id)
+    }
+
+    private fun getScrollableStations(): List<Station> {
+        val mode = ScrollingPreference.getScrollMode(this)
+        val favorites = FavoritesPreference.getFavorites(this)
+        return if (mode == ScrollingPreference.MODE_FAVORITES && favorites.isNotEmpty()) {
+            favorites
+        } else {
+            StationRepository.getStations()
+        }
+    }
     
     private fun updateMediaMetadata() {
         val metadata = android.support.v4.media.MediaMetadataCompat.Builder()
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentStationId)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentStationTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentShowTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentShowTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentStationTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
             // Use image_url from API if available, otherwise use station logo
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentShowInfo.imageUrl ?: currentStationLogo)
