@@ -31,7 +31,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerTitle: TextView
     private lateinit var miniPlayerSubtitle: com.example.androidautoradioplayer.ScrollingTextView
     private lateinit var miniPlayerArtwork: ImageView
+    private lateinit var miniPlayerPrevious: ImageButton
     private lateinit var miniPlayerPlayPause: ImageButton
+    private lateinit var miniPlayerNext: ImageButton
     private lateinit var miniPlayerStop: ImageButton
     private lateinit var miniPlayerFavorite: ImageButton
     
@@ -89,11 +91,15 @@ class MainActivity : AppCompatActivity() {
         miniPlayerTitle = findViewById(R.id.mini_player_title)
         miniPlayerSubtitle = findViewById(R.id.mini_player_subtitle)
         miniPlayerArtwork = findViewById(R.id.mini_player_artwork)
+        miniPlayerPrevious = findViewById(R.id.mini_player_previous)
         miniPlayerPlayPause = findViewById(R.id.mini_player_play_pause)
+        miniPlayerNext = findViewById(R.id.mini_player_next)
         miniPlayerStop = findViewById(R.id.mini_player_stop)
         miniPlayerFavorite = findViewById(R.id.mini_player_favorite)
         
+        miniPlayerPrevious.setOnClickListener { skipToPrevious() }
         miniPlayerPlayPause.setOnClickListener { togglePlayPause() }
+        miniPlayerNext.setOnClickListener { skipToNext() }
         miniPlayerStop.setOnClickListener { stopPlayback() }
         miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
         
@@ -275,6 +281,20 @@ class MainActivity : AppCompatActivity() {
         updateMiniPlayer()
     }
     
+    private fun skipToPrevious() {
+        val intent = Intent(this, RadioService::class.java).apply {
+            action = RadioService.ACTION_SKIP_TO_PREVIOUS
+        }
+        startService(intent)
+    }
+
+    private fun skipToNext() {
+        val intent = Intent(this, RadioService::class.java).apply {
+            action = RadioService.ACTION_SKIP_TO_NEXT
+        }
+        startService(intent)
+    }
+
     private fun togglePlayPause() {
         // Toggle the state immediately for UI feedback
         val isCurrentlyPlaying = PlaybackStateHelper.getIsPlaying()

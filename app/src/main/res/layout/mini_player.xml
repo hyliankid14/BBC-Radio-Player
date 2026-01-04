@@ -59,6 +59,18 @@
             android:layout_marginTop="12dp"
             android:layout_marginStart="-12dp">
 
+            <!-- Previous Button -->
+            <ImageButton
+                android:id="@+id/mini_player_previous"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@android:drawable/ic_media_previous"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Previous"
+                android:tint="@color/mini_player_icon_tint" />
+
             <!-- Play/Pause Button -->
             <ImageButton
                 android:id="@+id/mini_player_play_pause"
@@ -69,6 +81,18 @@
                 android:padding="12dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Play/Pause"
+                android:tint="@color/mini_player_icon_tint" />
+
+            <!-- Next Button -->
+            <ImageButton
+                android:id="@+id/mini_player_next"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@android:drawable/ic_media_next"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Next"
                 android:tint="@color/mini_player_icon_tint" />
 
             <!-- Stop Button -->

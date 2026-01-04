@@ -57,6 +57,8 @@ class RadioService : MediaBrowserServiceCompat() {
         const val ACTION_PLAY = "com.example.androidautoradioplayer.ACTION_PLAY"
         const val ACTION_PAUSE = "com.example.androidautoradioplayer.ACTION_PAUSE"
         const val ACTION_STOP = "com.example.androidautoradioplayer.ACTION_STOP"
+        const val ACTION_SKIP_TO_NEXT = "com.example.androidautoradioplayer.ACTION_SKIP_TO_NEXT"
+        const val ACTION_SKIP_TO_PREVIOUS = "com.example.androidautoradioplayer.ACTION_SKIP_TO_PREVIOUS"
         const val ACTION_TOGGLE_FAVORITE = "com.example.androidautoradioplayer.ACTION_TOGGLE_FAVORITE"
         const val EXTRA_STATION_ID = "com.example.androidautoradioplayer.EXTRA_STATION_ID"
         private const val TAG = "RadioService"
@@ -355,6 +357,20 @@ class RadioService : MediaBrowserServiceCompat() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Create previous action
+        val previousAction = NotificationCompat.Action(
+            android.R.drawable.ic_media_previous,
+            "Previous",
+            createPendingIntent(ACTION_SKIP_TO_PREVIOUS, "previous_action")
+        )
+
+        // Create next action
+        val nextAction = NotificationCompat.Action(
+            android.R.drawable.ic_media_next,
+            "Next",
+            createPendingIntent(ACTION_SKIP_TO_NEXT, "next_action")
+        )
+
         // Create play/pause action
         val playPauseAction = if (player?.isPlaying == true) {
             NotificationCompat.Action(
@@ -385,11 +401,13 @@ class RadioService : MediaBrowserServiceCompat() {
             .setOngoing(true)
             .setSound(null)
             .setVibrate(null)
+            .addAction(previousAction)
             .addAction(playPauseAction)
+            .addAction(nextAction)
             .addAction(stopAction)
             .setStyle(MediaStyle()
                 .setMediaSession(mediaSession.sessionToken)
-                .setShowActionsInCompactView(0, 1)
+                .setShowActionsInCompactView(0, 1, 2)
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
 
@@ -733,6 +751,12 @@ class RadioService : MediaBrowserServiceCompat() {
                 }
                 ACTION_STOP -> {
                     stopPlayback()
+                }
+                ACTION_SKIP_TO_NEXT -> {
+                    skipStation(1)
+                }
+                ACTION_SKIP_TO_PREVIOUS -> {
+                    skipStation(-1)
                 }
                 ACTION_TOGGLE_FAVORITE -> {
                     if (currentStationId.isNotEmpty()) {
