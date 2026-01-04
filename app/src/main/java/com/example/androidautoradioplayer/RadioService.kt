@@ -55,6 +55,7 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val CHANNEL_ID = "radio_playback"
         private const val NOTIFICATION_ID = 1
         private const val CUSTOM_ACTION_TOGGLE_FAVORITE = "TOGGLE_FAVORITE"
+        private const val CUSTOM_ACTION_SPACER = "SPACER"
         
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
@@ -176,6 +177,12 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_PLAY_PAUSE
             )
             .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
+            // Add a spacer action first to push the favorite star to the right
+            .addCustomAction(
+                CUSTOM_ACTION_SPACER,
+                " ",
+                R.drawable.ic_transparent
+            )
             .addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAVORITE, 
                 favoriteLabel,
@@ -392,6 +399,8 @@ class RadioService : MediaBrowserServiceCompat() {
                 Log.d(TAG, "Loading notification artwork from: $imageUrl")
                 
                 var bitmap: android.graphics.Bitmap? = null
+                var finalUrl = imageUrl
+                
                 try {
                     bitmap = com.bumptech.glide.Glide.with(this)
                         .asBitmap()
@@ -403,11 +412,11 @@ class RadioService : MediaBrowserServiceCompat() {
                     // Fallback to station logo if we weren't already using it
                     if (imageUrl != currentStationLogo && currentStationLogo.isNotEmpty()) {
                         Log.d(TAG, "Falling back to station logo: $currentStationLogo")
-                        imageUrl = currentStationLogo
+                        finalUrl = currentStationLogo
                         try {
                             bitmap = com.bumptech.glide.Glide.with(this)
                                 .asBitmap()
-                                .load(imageUrl)
+                                .load(finalUrl)
                                 .submit(256, 256)
                                 .get()
                         } catch (e2: Exception) {
@@ -435,10 +444,16 @@ class RadioService : MediaBrowserServiceCompat() {
 
                     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     notificationManager.notify(NOTIFICATION_ID, updatedNotification)
-                    Log.d(TAG, "Updated notification with artwork from: $imageUrl")
+                    Log.d(TAG, "Updated notification with artwork from: $finalUrl")
                     
-                    // Update MediaSession metadata with the bitmap
-                    updateMediaMetadata(bitmap)
+                    // Update MediaSession metadata with the bitmap AND the correct URI
+                    updateMediaMetadata(bitmap, finalUrl)
+                } else {
+                    // If bitmap load failed completely, still update metadata with the fallback URI if possible
+                    // This ensures AA at least has a valid URI to try, rather than the broken one
+                    if (finalUrl != imageUrl) {
+                         updateMediaMetadata(null, finalUrl)
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to load artwork for notification: ${e.message}")
@@ -578,18 +593,21 @@ class RadioService : MediaBrowserServiceCompat() {
         }
     }
     
-    private fun updateMediaMetadata(artworkBitmap: android.graphics.Bitmap? = null) {
+    private fun updateMediaMetadata(artworkBitmap: android.graphics.Bitmap? = null, artworkUri: String? = null) {
+        // Determine the URI to display in metadata (fallback to station logo if needed)
+        val displayUri = artworkUri ?: currentShowInfo.imageUrl ?: currentStationLogo
+
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentStationId)
-            // Swap Title and Artist for better scrolling on AA
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentShowTitle)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentStationTitle)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentShowTitle)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentStationTitle)
+            // Station Name as Title (Large)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentStationTitle)
+            // Show Name as Artist (Small)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentShowTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentShowTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
-            // Use image_url from API if available, otherwise use station logo
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentShowInfo.imageUrl ?: currentStationLogo)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, currentShowInfo.imageUrl ?: currentStationLogo)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1)
             
         if (artworkBitmap != null) {
