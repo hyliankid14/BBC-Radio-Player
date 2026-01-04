@@ -366,10 +366,9 @@ class RadioService : MediaBrowserServiceCompat() {
         Thread {
             try {
                 // Use image_url from API if available and valid, otherwise fall back to station logo
-                val imageUrl = if (!currentShowInfo.imageUrl.isNullOrEmpty() && currentShowInfo.imageUrl.startsWith("http")) {
-                    currentShowInfo.imageUrl
-                } else {
-                    currentStationLogo
+                val imageUrl: String = when {
+                    !currentShowInfo.imageUrl.isNullOrEmpty() && currentShowInfo.imageUrl?.startsWith("http") == true -> currentShowInfo.imageUrl ?: currentStationLogo
+                    else -> currentStationLogo
                 }
                 
                 if (imageUrl.isEmpty()) {
