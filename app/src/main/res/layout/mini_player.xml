@@ -42,7 +42,7 @@
             android:ellipsize="end" />
 
         <!-- Station Subtitle (Current Show) -->
-        <TextView
+        <com.example.androidautoradioplayer.MarqueeTextView
             android:id="@+id/mini_player_subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
