@@ -14,6 +14,8 @@ class ScrollingTextView @JvmOverloads constructor(
 
     private var animator: ValueAnimator? = null
     
+    private var originalGravity: Int = -1
+
     private val scrollRunnable = Runnable {
         if (text.isNullOrEmpty()) return@Runnable
         
@@ -21,18 +23,14 @@ class ScrollingTextView @JvmOverloads constructor(
         val contentWidth = width - paddingLeft - paddingRight
         
         if (contentWidth > 0 && textWidth > contentWidth) {
-            // Calculate start position based on gravity
-            // If centered, the text is drawn starting at a negative coordinate relative to 0
-            // We need to scroll starting from that negative coordinate to show the beginning
-            val absoluteGravity = android.view.Gravity.getAbsoluteGravity(gravity, layoutDirection)
-            val horizontalGravity = absoluteGravity and android.view.Gravity.HORIZONTAL_GRAVITY_MASK
-            
-            val startX = if (horizontalGravity == android.view.Gravity.CENTER_HORIZONTAL) {
-                (contentWidth - textWidth) / 2
-            } else {
-                0
+            // If text overflows, force gravity to START (Left) to simplify scrolling
+            // Store original gravity to restore if needed
+            if (originalGravity == -1) {
+                originalGravity = gravity
             }
+            gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
             
+            val startX = 0
             val scrollDistance = textWidth - contentWidth + 100 // Scroll a bit past the end
             val endX = startX + scrollDistance
             
@@ -70,6 +68,11 @@ class ScrollingTextView @JvmOverloads constructor(
             }
         } else {
             // Ensure we are reset if text fits
+            // Restore original gravity if we changed it
+            if (originalGravity != -1) {
+                gravity = originalGravity
+                originalGravity = -1
+            }
             scrollTo(0, 0)
         }
     }
