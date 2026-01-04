@@ -49,12 +49,13 @@
             android:text="BBC Radio"
             android:textAppearance="@style/TextAppearance.Material3.BodySmall"
             android:textColor="?attr/colorOnSurfaceVariant"
-            android:maxLines="1"
+            android:singleLine="true"
+            android:scrollHorizontally="true"
             android:ellipsize="marquee"
             android:marqueeRepeatLimit="marquee_forever"
             android:focusable="true"
-            android:focusableInTouchMode="true" />
-            android:layout_marginTop="4dp" />
+            android:focusableInTouchMode="true"
+            android:freezesText="true" />
 
         <!-- Controls -->
         <LinearLayout
