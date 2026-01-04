@@ -44,8 +44,11 @@ object ShowInfoFetcher {
     
     suspend fun getCurrentShow(stationId: String): CurrentShow = withContext(Dispatchers.IO) {
         try {
+            // For BBC Radio 2 as an example, the show info endpoint
             val bbcId = stationIdMap[stationId] ?: return@withContext CurrentShow("BBC Radio")
-            val url = "https://www.bbc.co.uk/schedules/$bbcId/upcoming.json"
+            
+            // Try the main BBC Programmes API endpoint
+            val url = "https://www.bbc.co.uk/programmes/$bbcId.json"
             
             Log.d(TAG, "Fetching show info for station $stationId (bbcId: $bbcId) from $url")
             
@@ -58,15 +61,42 @@ object ShowInfoFetcher {
             Log.d(TAG, "Response code: $responseCode")
             
             if (responseCode != 200) {
-                Log.w(TAG, "Failed to fetch show info: HTTP $responseCode")
-                return@withContext CurrentShow("BBC Radio")
+                Log.w(TAG, "Failed to fetch show info: HTTP $responseCode, trying alternate endpoint")
+                
+                // Try alternate endpoint
+                val altUrl = "https://www.bbc.co.uk/schedules/$bbcId.json"
+                val altConnection = java.net.URL(altUrl).openConnection() as java.net.HttpURLConnection
+                altConnection.connectTimeout = 5000
+                altConnection.readTimeout = 5000
+                altConnection.setRequestProperty("User-Agent", "AndroidAutoRadioPlayer/1.0")
+                
+                val altResponseCode = altConnection.responseCode
+                Log.d(TAG, "Alternate endpoint response code: $altResponseCode")
+                
+                if (altResponseCode != 200) {
+                    Log.w(TAG, "Alternate endpoint also failed: HTTP $altResponseCode")
+                    return@withContext CurrentShow("BBC Radio")
+                }
+                
+                val response = altConnection.inputStream.bufferedReader().readText()
+                altConnection.disconnect()
+                
+                Log.d(TAG, "Response length: ${response.length} bytes")
+                if (response.length < 500) {
+                    Log.d(TAG, "Response: $response")
+                }
+                
+                val showTitle = parseShowFromJson(response)
+                Log.d(TAG, "Parsed show title: $showTitle")
+                
+                return@withContext CurrentShow(showTitle ?: "BBC Radio")
             }
             
             val response = connection.inputStream.bufferedReader().readText()
             connection.disconnect()
             
             Log.d(TAG, "Response length: ${response.length} bytes")
-            if (response.length < 100) {
+            if (response.length < 500) {
                 Log.d(TAG, "Response: $response")
             }
             
