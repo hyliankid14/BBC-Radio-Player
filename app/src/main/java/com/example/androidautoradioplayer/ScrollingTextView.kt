@@ -13,6 +13,49 @@ class ScrollingTextView @JvmOverloads constructor(
 ) : AppCompatTextView(context, attrs, defStyleAttr) {
 
     private var animator: ValueAnimator? = null
+    
+    private val scrollRunnable = Runnable {
+        if (text.isNullOrEmpty()) return@Runnable
+        
+        val textWidth = paint.measureText(text.toString()).toInt()
+        val contentWidth = width - paddingLeft - paddingRight
+        
+        if (contentWidth > 0 && textWidth > contentWidth) {
+            val scrollDistance = textWidth - contentWidth + 100 // Scroll a bit past the end
+            // Calculate duration based on distance to ensure consistent speed (approx 50px/sec)
+            val scrollDuration = (scrollDistance * 20).toLong()
+            
+            animator = ValueAnimator.ofInt(0, scrollDistance).apply {
+                duration = scrollDuration
+                interpolator = LinearInterpolator()
+                startDelay = 2000 // 2 seconds pause at start
+                
+                addUpdateListener { animation ->
+                    scrollTo(animation.animatedValue as Int, 0)
+                }
+                
+                addListener(object : AnimatorListenerAdapter() {
+                    var cancelled = false
+                    
+                    override fun onAnimationCancel(animation: Animator) {
+                        cancelled = true
+                    }
+                    
+                    override fun onAnimationEnd(animation: Animator) {
+                        if (cancelled) return
+                        
+                        // Reset to start
+                        scrollTo(0, 0)
+                        // Restart (will wait startDelay again)
+                        if (isAttachedToWindow) {
+                            start()
+                        }
+                    }
+                })
+                start()
+            }
+        }
+    }
 
     init {
         setSingleLine()
@@ -31,54 +74,17 @@ class ScrollingTextView @JvmOverloads constructor(
     }
 
     private fun startScrolling() {
+        removeCallbacks(scrollRunnable)
         animator?.removeAllListeners()
         animator?.cancel()
         scrollTo(0, 0)
 
         // Use post to ensure we have correct measurements and layout is complete
-        post {
-            val textWidth = paint.measureText(text.toString()).toInt()
-            val contentWidth = width - paddingLeft - paddingRight
-            
-            if (contentWidth > 0 && textWidth > contentWidth) {
-                val scrollDistance = textWidth - contentWidth + 100 // Scroll a bit past the end
-                // Calculate duration based on distance to ensure consistent speed (approx 50px/sec)
-                val scrollDuration = (scrollDistance * 20).toLong()
-                
-                animator = ValueAnimator.ofInt(0, scrollDistance).apply {
-                    duration = scrollDuration
-                    interpolator = LinearInterpolator()
-                    startDelay = 2000 // 2 seconds pause at start
-                    
-                    addUpdateListener { animation ->
-                        scrollTo(animation.animatedValue as Int, 0)
-                    }
-                    
-                    addListener(object : AnimatorListenerAdapter() {
-                        var cancelled = false
-                        
-                        override fun onAnimationCancel(animation: Animator) {
-                            cancelled = true
-                        }
-                        
-                        override fun onAnimationEnd(animation: Animator) {
-                            if (cancelled) return
-                            
-                            // Reset to start
-                            scrollTo(0, 0)
-                            // Restart (will wait startDelay again)
-                            if (isAttachedToWindow) {
-                                start()
-                            }
-                        }
-                    })
-                    start()
-                }
-            }
-        }
+        post(scrollRunnable)
     }
     
     override fun onDetachedFromWindow() {
+        removeCallbacks(scrollRunnable)
         animator?.removeAllListeners()
         animator?.cancel()
         super.onDetachedFromWindow()
@@ -89,6 +95,7 @@ class ScrollingTextView @JvmOverloads constructor(
         if (hasWindowFocus) {
             startScrolling()
         } else {
+            removeCallbacks(scrollRunnable)
             animator?.removeAllListeners()
             animator?.cancel()
             scrollTo(0, 0)
