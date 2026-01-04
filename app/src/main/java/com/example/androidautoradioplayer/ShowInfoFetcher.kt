@@ -132,3 +132,4 @@ object ShowInfoFetcher {
             return null
         }
     }
+}
