@@ -453,9 +453,10 @@ class RadioService : MediaBrowserServiceCompat() {
                     // Update MediaSession metadata with the bitmap AND the correct URI
                     updateMediaMetadata(bitmap, finalUrl)
                 } else {
-                    // If bitmap load failed completely, still update metadata with the fallback URI if possible
-                    // This ensures AA at least has a valid URI to try, rather than the broken one
-                    if (finalUrl != imageUrl) {
+                    // If bitmap load failed completely, still update metadata with the fallback URI
+                    // This ensures AA at least has a valid URI to try, rather than the broken one or the placeholder
+                    if (finalUrl.isNotEmpty()) {
+                         Log.d(TAG, "Bitmap load failed, updating metadata with URI only: $finalUrl")
                          updateMediaMetadata(null, finalUrl)
                     }
                 }
