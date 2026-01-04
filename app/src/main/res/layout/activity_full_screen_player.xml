@@ -82,8 +82,8 @@
             android:layout_height="wrap_content"
             android:text="Now Playing Info"
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textAlignment="center" />
+            android:textColor="?attr/colorOnSurface"
+            android:gravity="center" />
 
     </LinearLayout>
 

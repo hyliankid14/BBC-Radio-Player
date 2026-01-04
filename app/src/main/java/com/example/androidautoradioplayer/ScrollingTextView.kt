@@ -21,11 +21,25 @@ class ScrollingTextView @JvmOverloads constructor(
         val contentWidth = width - paddingLeft - paddingRight
         
         if (contentWidth > 0 && textWidth > contentWidth) {
+            // Calculate start position based on gravity
+            // If centered, the text is drawn starting at a negative coordinate relative to 0
+            // We need to scroll starting from that negative coordinate to show the beginning
+            val absoluteGravity = android.view.Gravity.getAbsoluteGravity(gravity, layoutDirection)
+            val horizontalGravity = absoluteGravity and android.view.Gravity.HORIZONTAL_GRAVITY_MASK
+            
+            val startX = if (horizontalGravity == android.view.Gravity.CENTER_HORIZONTAL) {
+                (contentWidth - textWidth) / 2
+            } else {
+                0
+            }
+            
             val scrollDistance = textWidth - contentWidth + 100 // Scroll a bit past the end
+            val endX = startX + scrollDistance
+            
             // Calculate duration based on distance to ensure consistent speed (approx 50px/sec)
             val scrollDuration = (scrollDistance * 20).toLong()
             
-            animator = ValueAnimator.ofInt(0, scrollDistance).apply {
+            animator = ValueAnimator.ofInt(startX, endX).apply {
                 duration = scrollDuration
                 interpolator = LinearInterpolator()
                 startDelay = 2000 // 2 seconds pause at start
@@ -45,7 +59,7 @@ class ScrollingTextView @JvmOverloads constructor(
                         if (cancelled) return
                         
                         // Reset to start
-                        scrollTo(0, 0)
+                        scrollTo(startX, 0)
                         // Restart (will wait startDelay again)
                         if (isAttachedToWindow) {
                             start()
@@ -54,6 +68,9 @@ class ScrollingTextView @JvmOverloads constructor(
                 })
                 start()
             }
+        } else {
+            // Ensure we are reset if text fits
+            scrollTo(0, 0)
         }
     }
 

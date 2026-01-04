@@ -141,20 +141,21 @@ object ShowInfoFetcher {
     
     private fun parseShowFromRmsResponse(json: String): CurrentShow? {
         try {
-            // Extract all three titles and image URL
-            val primaryRegex = "\"primary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
-            val secondaryRegex = "\"secondary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
-            val tertiaryRegex = "\"tertiary\"\\s*:\\s*\"([^\"]+)\"".toRegex()
-            val imageUrlRegex = "\"image_url\"\\s*:\\s*\"([^\"]*)\"".toRegex()
+            val jsonObject = org.json.JSONObject(json)
+            val dataArray = jsonObject.optJSONArray("data") ?: return null
+            if (dataArray.length() == 0) return null
             
-            val primary = primaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
-            val secondary = secondaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
-            val tertiary = tertiaryRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
-            val rawImageUrl = imageUrlRegex.find(json)?.groupValues?.getOrNull(1)?.trim()
+            val item = dataArray.getJSONObject(0)
+            val titles = item.optJSONObject("titles") ?: return null
             
-            // Validate and unescape the URL if it contains escaped characters
+            val primary = titles.optString("primary")
+            val secondary = titles.optString("secondary")
+            val tertiary = titles.optString("tertiary")
+            val rawImageUrl = item.optString("image_url")
+            
+            // Validate and unescape the URL
             var imageUrl: String? = null
-            if (!rawImageUrl.isNullOrEmpty()) {
+            if (rawImageUrl.isNotEmpty()) {
                 var unescapedUrl = rawImageUrl.replace("\\/", "/").replace("\\\\", "\\")
                 
                 // Replace BBC image recipe placeholder if present
@@ -163,7 +164,6 @@ object ShowInfoFetcher {
                 }
                 
                 // Only use URL if it looks valid and isn't a known placeholder pattern
-                // p01tqv8z is the standard BBC "blocks" placeholder
                 if (unescapedUrl.isNotEmpty() && 
                     unescapedUrl.startsWith("http") && 
                     !unescapedUrl.contains("default", ignoreCase = true) &&
@@ -172,12 +172,12 @@ object ShowInfoFetcher {
                 }
             }
             
-            if (primary != null) {
+            if (primary.isNotEmpty()) {
                 Log.d(TAG, "Found RMS: primary=$primary, secondary=$secondary, tertiary=$tertiary, imageUrl=$imageUrl")
                 return CurrentShow(
                     title = primary,
-                    secondary = secondary,
-                    tertiary = tertiary,
+                    secondary = if (secondary.isNotEmpty()) secondary else null,
+                    tertiary = if (tertiary.isNotEmpty()) tertiary else null,
                     imageUrl = imageUrl
                 )
             }
