@@ -155,50 +155,44 @@ object ShowInfoFetcher {
     
     private fun parseShowFromEssResponse(json: String): CurrentShow? {
         try {
-            // We need to find the item that is currently on air
-            // The JSON structure is {"items": [{"published_time": {"start": "...", "end": "..."}, "brand": {"title": "..."}, "episode": {"title": "..."}}, ...]}
+            val jsonObject = org.json.JSONObject(json)
+            val items = jsonObject.optJSONArray("items") ?: return null
             
-            val now = java.time.Instant.now()
-            val itemsArrayStart = json.indexOf("\"items\":[")
-            if (itemsArrayStart == -1) return null
+            val now = System.currentTimeMillis()
+            // Handle ISO 8601 with potential millis and Z
+            // Examples: "2026-01-04T18:00:53.092Z", "2026-01-04T18:00:00.000Z"
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
             
-            // Simple manual parsing to avoid heavy JSON library if not present
-            // Split by "published_time" to find segments
-            val segments = json.substring(itemsArrayStart).split("{\"id\":")
-            
-            for (segment in segments) {
-                if (!segment.contains("published_time")) continue
+            for (i in 0 until items.length()) {
+                val item = items.getJSONObject(i)
+                val publishedTime = item.optJSONObject("published_time") ?: continue
                 
-                try {
-                    // Extract start and end times
-                    val startMatch = "\"start\":\"([^\"]+)\"".toRegex().find(segment)
-                    val endMatch = "\"end\":\"([^\"]+)\"".toRegex().find(segment)
-                    
-                    if (startMatch != null && endMatch != null) {
-                        val startTimeStr = startMatch.groupValues[1]
-                        val endTimeStr = endMatch.groupValues[1]
+                val startStr = publishedTime.optString("start")
+                val endStr = publishedTime.optString("end")
+                
+                if (startStr.isNotEmpty() && endStr.isNotEmpty()) {
+                    try {
+                        val start = sdf.parse(startStr)?.time ?: continue
+                        val end = sdf.parse(endStr)?.time ?: continue
                         
-                        val start = java.time.Instant.parse(startTimeStr)
-                        val end = java.time.Instant.parse(endTimeStr)
-                        
-                        if (now.isAfter(start) && now.isBefore(end)) {
-                            // This is the current show
-                            val brandMatch = "\"brand\":\\{\"title\":\"([^\"]+)\"".toRegex().find(segment)
-                            val episodeMatch = "\"episode\":\\{.*\"title\":\"([^\"]+)\"".toRegex().find(segment)
+                        if (now in start until end) {
+                            val brand = item.optJSONObject("brand")
+                            val episode = item.optJSONObject("episode")
                             
-                            val brandTitle = brandMatch?.groupValues?.get(1)
-                            val episodeTitle = episodeMatch?.groupValues?.get(1)
+                            val brandTitle = brand?.optString("title")
+                            val episodeTitle = episode?.optString("title")
                             
-                            // Prefer Brand Title (Show Name), fallback to Episode Title
-                            val title = brandTitle ?: episodeTitle ?: "BBC Radio"
-                            val subtitle = if (brandTitle != null && episodeTitle != null) episodeTitle else null
+                            val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
+                            val subtitle = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
                             
                             Log.d(TAG, "Found current ESS show: $title ($subtitle)")
                             return CurrentShow(title = title, secondary = subtitle)
                         }
+                    } catch (e: java.text.ParseException) {
+                        Log.w(TAG, "Date parse error: ${e.message}")
+                        continue
                     }
-                } catch (e: Exception) {
-                    continue
                 }
             }
             
