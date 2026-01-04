@@ -13,7 +13,14 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.RadioGroup
 import android.view.View
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
@@ -331,10 +338,30 @@ class MainActivity : AppCompatActivity() {
             // Only reload if URL changed to prevent flashing
             if (artworkUrl != lastArtworkUrl) {
                 lastArtworkUrl = artworkUrl
+                val fallbackUrl = station.logoUrl
+                
                 Glide.with(this)
                     .load(artworkUrl)
-                    .placeholder(R.drawable.ic_launcher_foreground) 
-                    .error(R.drawable.ic_launcher_foreground)
+                    .placeholder(R.drawable.ic_launcher_foreground)
+                    .error(Glide.with(this).load(fallbackUrl))
+                    .listener(object : RequestListener<Drawable> {
+                        override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                            return false
+                        }
+
+                        override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                            if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
+                                Log.d("MainActivity", "Detected placeholder image, falling back to logo")
+                                miniPlayerArtwork.post {
+                                    Glide.with(this@MainActivity)
+                                        .load(fallbackUrl)
+                                        .into(miniPlayerArtwork)
+                                }
+                                return true
+                            }
+                            return false
+                        }
+                    })
                     .into(miniPlayerArtwork)
                 Log.d("MainActivity", "Loading artwork from: $artworkUrl")
             }
@@ -374,10 +401,30 @@ class MainActivity : AppCompatActivity() {
         // Only reload if URL changed
         if (artworkUrl != null && artworkUrl != lastArtworkUrl) {
             lastArtworkUrl = artworkUrl
+            val fallbackUrl = PlaybackStateHelper.getCurrentStation()?.logoUrl
+            
             Glide.with(this)
                 .load(artworkUrl)
                 .placeholder(R.drawable.ic_launcher_foreground)
-                .error(R.drawable.ic_launcher_foreground)
+                .error(Glide.with(this).load(fallbackUrl))
+                .listener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                        return false
+                    }
+
+                    override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                        if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
+                            Log.d("MainActivity", "Detected placeholder image, falling back to logo")
+                            miniPlayerArtwork.post {
+                                Glide.with(this@MainActivity)
+                                    .load(fallbackUrl)
+                                    .into(miniPlayerArtwork)
+                            }
+                            return true
+                        }
+                        return false
+                    }
+                })
                 .into(miniPlayerArtwork)
             Log.d("MainActivity", "Loading artwork from: $artworkUrl")
         }
@@ -459,6 +506,54 @@ class MainActivity : AppCompatActivity() {
         }
         
         playStation(stations[prevIndex].id)
+    }
+
+    private fun isPlaceholderImage(bitmap: Bitmap): Boolean {
+        val width = bitmap.width
+        val height = bitmap.height
+        
+        if (width < 10 || height < 10) return false
+        
+        // Sample 5 points: corners and center
+        val p1 = bitmap.getPixel(5, 5)
+        val p2 = bitmap.getPixel(width - 5, 5)
+        val p3 = bitmap.getPixel(5, height - 5)
+        val p4 = bitmap.getPixel(width - 5, height - 5)
+        val p5 = bitmap.getPixel(width / 2, height / 2)
+        
+        val pixels = listOf(p1, p2, p3, p4, p5)
+        val first = pixels[0]
+        
+        // Check if all sampled pixels are similar to the first one
+        for (p in pixels) {
+            if (!areColorsSimilar(first, p)) return false
+        }
+        
+        // Check if the color is grey-ish (R ~= G ~= B)
+        return isGrey(first)
+    }
+    
+    private fun areColorsSimilar(c1: Int, c2: Int): Boolean {
+        val r1 = (c1 shr 16) and 0xFF
+        val g1 = (c1 shr 8) and 0xFF
+        val b1 = c1 and 0xFF
+        
+        val r2 = (c2 shr 16) and 0xFF
+        val g2 = (c2 shr 8) and 0xFF
+        val b2 = c2 and 0xFF
+        
+        val diff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2)
+        return diff < 30 // Tolerance
+    }
+    
+    private fun isGrey(color: Int): Boolean {
+        val r = (color shr 16) and 0xFF
+        val g = (color shr 8) and 0xFF
+        val b = color and 0xFF
+        
+        // Grey means R, G, and B are close to each other
+        val maxDiff = Math.max(Math.abs(r - g), Math.max(Math.abs(r - b), Math.abs(g - b)))
+        return maxDiff < 20
     }
 }
 
