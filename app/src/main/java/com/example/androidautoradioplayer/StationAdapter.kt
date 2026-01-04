@@ -19,8 +19,10 @@ class StationAdapter(
 ) : RecyclerView.Adapter<StationAdapter.StationViewHolder>() {
     
     private val adapterScope = CoroutineScope(Dispatchers.Main + Job())
-    private val showCache = mutableMapOf<String, String>()
+    // Cache stores Pair<ShowTitle, Timestamp>
+    private val showCache = mutableMapOf<String, Pair<String, Long>>()
     private val fetchingIds = mutableSetOf<String>()
+    private val CACHE_DURATION_MS = 120_000L // 2 minutes
 
     class StationViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imageView: ImageView = view.findViewById(R.id.station_artwork)
@@ -51,12 +53,21 @@ class StationAdapter(
         holder.textView.text = station.title
         
         // Handle subtitle (Show Name)
-        val cachedShow = showCache[station.id]
-        if (cachedShow != null) {
-            holder.subtitleView.text = cachedShow
+        val cachedEntry = showCache[station.id]
+        val isCacheValid = cachedEntry != null && (System.currentTimeMillis() - cachedEntry.second < CACHE_DURATION_MS)
+        
+        if (isCacheValid) {
+            holder.subtitleView.text = cachedEntry!!.first
             holder.subtitleView.visibility = View.VISIBLE
         } else {
-            holder.subtitleView.visibility = View.GONE
+            // If cache is invalid or missing, hide view (or keep old value if available) and fetch
+            if (cachedEntry != null) {
+                holder.subtitleView.text = cachedEntry.first
+                holder.subtitleView.visibility = View.VISIBLE
+            } else {
+                holder.subtitleView.visibility = View.GONE
+            }
+            
             if (!fetchingIds.contains(station.id)) {
                 fetchingIds.add(station.id)
                 adapterScope.launch {
@@ -67,7 +78,7 @@ class StationAdapter(
                         val showTitle = show.title
                         // Only show if it's not the generic default
                         if (showTitle != "BBC Radio") {
-                            showCache[station.id] = showTitle
+                            showCache[station.id] = Pair(showTitle, System.currentTimeMillis())
                             // Update the item if it's still visible/bound to the same position
                             val currentPos = holder.bindingAdapterPosition
                             if (currentPos != RecyclerView.NO_POSITION && currentPos < stations.size && stations[currentPos].id == station.id) {
