@@ -5,19 +5,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 data class CurrentShow(
-    val title: String,
-    val secondary: String? = null,
-    val tertiary: String? = null,
+    val title: String, // Show Name (Programme)
+    val secondary: String? = null, // Artist (from Segment)
+    val tertiary: String? = null, // Track (from Segment)
     val imageUrl: String? = null,
     val startTime: String? = null,
     val endTime: String? = null
 ) {
     // Format the full subtitle as "primary - secondary - tertiary"
     fun getFormattedTitle(): String {
-        val parts = mutableListOf(title)
-        if (!secondary.isNullOrEmpty()) parts.add(secondary)
-        if (!tertiary.isNullOrEmpty()) parts.add(tertiary)
-        return parts.joinToString(" - ")
+        // For the list view, we want "Show Name"
+        // If we have artist/track, we might want to append it, but for now let's stick to Show Name
+        return title
     }
 }
 
@@ -31,6 +30,12 @@ object ShowInfoFetcher {
     suspend fun getCurrentShow(stationId: String): CurrentShow = withContext(Dispatchers.IO) {
         try {
             val serviceId = serviceIdMap[stationId] ?: return@withContext CurrentShow("BBC Radio")
+            
+            // 1. Fetch Schedule (Show Name) from ESS
+            val scheduleShow = fetchShowFromEss(serviceId)
+            val showName = if (scheduleShow.title != "BBC Radio") scheduleShow.title else ""
+            
+            // 2. Fetch Segment (Now Playing) from RMS
             // Add timestamp to prevent caching
             val url = "https://rms.api.bbc.co.uk/v2/services/$serviceId/segments/latest?t=${System.currentTimeMillis()}"
             
@@ -42,34 +47,46 @@ object ShowInfoFetcher {
             connection.setRequestProperty("User-Agent", "AndroidAutoRadioPlayer/1.0")
             
             val responseCode = connection.responseCode
-            Log.d(TAG, "Response code: $responseCode")
             
-            if (responseCode != 200) {
-                Log.w(TAG, "RMS API returned HTTP $responseCode, trying ESS API as fallback")
+            var artist: String? = null
+            var track: String? = null
+            var imageUrl: String? = null
+            
+            if (responseCode == 200) {
+                val response = connection.inputStream.bufferedReader().readText()
                 connection.disconnect()
                 
-                // Try ESS API for schedule info
-                return@withContext fetchShowFromEss(serviceId)
+                val segmentShow = parseShowFromRmsResponse(response)
+                if (segmentShow != null) {
+                    // RMS returns Artist in 'title' (primary) and Track in 'secondary'
+                    artist = segmentShow.title
+                    track = segmentShow.secondary
+                    imageUrl = segmentShow.imageUrl
+                }
+            } else {
+                connection.disconnect()
             }
             
-            val response = connection.inputStream.bufferedReader().readText()
-            connection.disconnect()
+            // Combine info
+            // If we have a show name, use it as title. If not, fallback to "BBC Radio"
+            val finalTitle = if (showName.isNotEmpty()) showName else "BBC Radio"
             
-            Log.d(TAG, "RMS Response length: ${response.length} bytes")
+            // Use RMS image if available, otherwise ESS image
+            val finalImageUrl = imageUrl ?: scheduleShow.imageUrl
             
-            val show = parseShowFromRmsResponse(response)
-            Log.d(TAG, "Parsed show: $show")
+            return@withContext CurrentShow(
+                title = finalTitle,
+                secondary = artist,
+                tertiary = track,
+                imageUrl = finalImageUrl,
+                startTime = scheduleShow.startTime,
+                endTime = scheduleShow.endTime
+            )
             
-            if (show != null) {
-                return@withContext show
-            }
-            
-            Log.d(TAG, "RMS returned 200 but no valid show info, trying ESS")
-            return@withContext fetchShowFromEss(serviceId)
         } catch (e: Exception) {
             Log.w(TAG, "Error fetching show info: ${e.message}", e)
-            // Try ESS as a last resort if RMS threw an exception
-            try {
+            // Fallback to just ESS if RMS fails completely
+             try {
                 val serviceId = serviceIdMap[stationId]
                 if (serviceId != null) {
                     return@withContext fetchShowFromEss(serviceId)

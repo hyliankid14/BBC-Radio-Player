@@ -34,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerPrevious: ImageButton
     private lateinit var miniPlayerPlayPause: ImageButton
     private lateinit var miniPlayerNext: ImageButton
+    private lateinit var miniPlayerStop: ImageButton
     private lateinit var miniPlayerFavorite: ImageButton
     
     private var currentMode = "list" // "favorites", "list", or "settings"
@@ -93,11 +94,13 @@ class MainActivity : AppCompatActivity() {
         miniPlayerPrevious = findViewById(R.id.mini_player_previous)
         miniPlayerPlayPause = findViewById(R.id.mini_player_play_pause)
         miniPlayerNext = findViewById(R.id.mini_player_next)
+        miniPlayerStop = findViewById(R.id.mini_player_stop)
         miniPlayerFavorite = findViewById(R.id.mini_player_favorite)
         
         miniPlayerPrevious.setOnClickListener { skipToPrevious() }
         miniPlayerPlayPause.setOnClickListener { togglePlayPause() }
         miniPlayerNext.setOnClickListener { skipToNext() }
+        miniPlayerStop.setOnClickListener { stopPlayback() }
         miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
         
         // Open full screen player when clicking artwork

@@ -147,13 +147,14 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
         titleView.text = station.title
         
-        // Update Show Title
+        // Update Show Title (Programme Name)
         val showTitle = show?.title ?: ""
         if (showTitleView.text.toString() != showTitle) {
             showTitleView.text = showTitle
         }
         
-        // Update Now Playing Info (Secondary + Tertiary)
+        // Update Now Playing Info (Artist - Track)
+        // secondary = Artist, tertiary = Track
         val parts = mutableListOf<String>()
         if (!show?.secondary.isNullOrEmpty()) parts.add(show!!.secondary!!)
         if (!show?.tertiary.isNullOrEmpty()) parts.add(show!!.tertiary!!)
