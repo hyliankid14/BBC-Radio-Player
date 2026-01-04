@@ -28,6 +28,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 
 class RadioService : MediaBrowserServiceCompat() {
     private lateinit var mediaSession: MediaSessionCompat
@@ -459,22 +460,25 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     private fun fetchAndUpdateShowInfo() {
-        serviceScope.launch(Dispatchers.IO) {
+        Log.d(TAG, "fetchAndUpdateShowInfo called for station: $currentStationId")
+        Thread {
             try {
-                val show = ShowInfoFetcher.getCurrentShow(currentStationId)
+                Log.d(TAG, "Fetching show info in background thread")
+                val show = runBlocking { ShowInfoFetcher.getCurrentShow(currentStationId) }
                 currentShowTitle = show.title
                 PlaybackStateHelper.setCurrentShowTitle(show.title)
                 Log.d(TAG, "Fetched show info: ${show.title}")
                 
                 // Switch to main thread to update UI
                 handler.post {
+                    Log.d(TAG, "Updating UI with show title: $currentShowTitle")
                     updateMediaMetadata()
                     startForegroundNotification()
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Error fetching show info: ${e.message}")
+                Log.w(TAG, "Error fetching show info: ${e.message}", e)
             }
-        }
+        }.start()
     }
     
     private fun scheduleShowInfoRefresh() {

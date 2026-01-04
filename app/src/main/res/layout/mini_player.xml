@@ -56,19 +56,19 @@
         <!-- Controls -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="8dp">
+            android:layout_marginTop="4dp">
 
             <!-- Play/Pause Button -->
             <ImageButton
                 android:id="@+id/mini_player_play_pause"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@drawable/ic_play_arrow"
                 android:scaleType="centerInside"
-                android:padding="10dp"
+                android:padding="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Play/Pause"
                 android:tint="@color/mini_player_icon_tint" />
@@ -76,22 +76,28 @@
             <!-- Stop Button -->
             <ImageButton
                 android:id="@+id/mini_player_stop"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:src="@drawable/ic_stop"
                 android:scaleType="centerInside"
-                android:padding="10dp"
+                android:padding="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Stop"
                 android:tint="@color/mini_player_icon_tint" />
 
+            <!-- Spacer to push favorite to right -->
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
             <!-- Favorites Button -->
             <ImageButton
                 android:id="@+id/mini_player_favorite"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:scaleType="centerInside"
-                android:padding="10dp"
+                android:padding="8dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Add to Favorites" />
 
