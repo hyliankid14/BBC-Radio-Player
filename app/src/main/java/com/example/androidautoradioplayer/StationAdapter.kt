@@ -9,6 +9,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.graphics.Color
 import com.bumptech.glide.Glide
+import kotlinx.coroutines.*
 
 class StationAdapter(
     private val context: Context,
@@ -17,10 +18,20 @@ class StationAdapter(
     private val onFavoriteToggle: ((String) -> Unit)? = null
 ) : RecyclerView.Adapter<StationAdapter.StationViewHolder>() {
     
+    private val adapterScope = CoroutineScope(Dispatchers.Main + Job())
+    private val showCache = mutableMapOf<String, String>()
+    private val fetchingIds = mutableSetOf<String>()
+
     class StationViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imageView: ImageView = view.findViewById(R.id.station_artwork)
         val textView: TextView = view.findViewById(R.id.station_title)
+        val subtitleView: TextView = view.findViewById(R.id.station_subtitle)
         val starView: ImageView = view.findViewById(R.id.station_favorite_star)
+    }
+    
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        adapterScope.cancel()
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StationViewHolder {
@@ -38,6 +49,39 @@ class StationAdapter(
         val station = stations[position]
         
         holder.textView.text = station.title
+        
+        // Handle subtitle (Show Name)
+        val cachedShow = showCache[station.id]
+        if (cachedShow != null) {
+            holder.subtitleView.text = cachedShow
+            holder.subtitleView.visibility = View.VISIBLE
+        } else {
+            holder.subtitleView.visibility = View.GONE
+            if (!fetchingIds.contains(station.id)) {
+                fetchingIds.add(station.id)
+                adapterScope.launch {
+                    try {
+                        val show = withContext(Dispatchers.IO) {
+                            ShowInfoFetcher.getCurrentShow(station.id)
+                        }
+                        val showTitle = show.getFormattedTitle()
+                        // Only show if it's not the generic default
+                        if (showTitle != "BBC Radio") {
+                            showCache[station.id] = showTitle
+                            // Update the item if it's still visible/bound to the same position
+                            val currentPos = holder.bindingAdapterPosition
+                            if (currentPos != RecyclerView.NO_POSITION && currentPos < stations.size && stations[currentPos].id == station.id) {
+                                notifyItemChanged(currentPos)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Ignore errors
+                    } finally {
+                        fetchingIds.remove(station.id)
+                    }
+                }
+            }
+        }
         
         Glide.with(context)
             .load(station.logoUrl)
