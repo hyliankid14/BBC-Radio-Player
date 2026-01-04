@@ -34,6 +34,8 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentStationId: String = ""
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var currentStationLogo: String = ""
+    private var currentShowTitle: String = "BBC Radio"
+    private var showInfoRefreshRunnable: Runnable? = null
 
     companion object {
         const val ACTION_PLAY_STATION = "com.example.androidautoradioplayer.ACTION_PLAY_STATION"
@@ -330,7 +332,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-            .setContentText("Live Stream")
+            .setContentText(currentShowTitle)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -365,7 +367,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 // Update notification with the logo
                 val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
                     .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-                    .setContentText("Live Stream")
+                    .setContentText(currentShowTitle)
                     .setSmallIcon(android.R.drawable.ic_media_play)
                     .setLargeIcon(bitmap)
                     .setOngoing(true)
@@ -415,6 +417,13 @@ class RadioService : MediaBrowserServiceCompat() {
         currentStationTitle = station.title
         currentStationId = station.id
         currentStationLogo = station.logoUrl
+        currentShowTitle = "BBC Radio" // Reset to default
+        
+        // Cancel existing show refresh
+        showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
+        
+        // Fetch current show information
+        fetchAndUpdateShowInfo()
         
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(station)
@@ -429,16 +438,7 @@ class RadioService : MediaBrowserServiceCompat() {
         startForegroundNotification()
         
         // Set metadata for Android Auto display with album art
-        val metadata = android.support.v4.media.MediaMetadataCompat.Builder()
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, station.id)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, station.title)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, "BBC Radio")
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, station.logoUrl)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, station.logoUrl)
-            .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1)
-            .build()
-        mediaSession.setMetadata(metadata)
+        updateMediaMetadata()
         
         // Indicate buffering immediately to prevent UI from showing "Stopped"
         updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
@@ -448,12 +448,65 @@ class RadioService : MediaBrowserServiceCompat() {
             setMediaItem(ExoMediaItem.fromUri(streamUri))
             prepare()
         }
+        
+        // Schedule periodic show info refresh (every 5 minutes)
+        scheduleShowInfoRefresh()
+    }
+
+    private fun fetchAndUpdateShowInfo() {
+        Thread {
+            try {
+                val show = ShowInfoFetcher.getCurrentShow(currentStationId)
+                currentShowTitle = show.title
+                PlaybackStateHelper.setCurrentShowTitle(show.title)
+                Log.d(TAG, "Fetched show info: ${show.title}")
+                
+                // Update metadata and notification with new show info
+                updateMediaMetadata()
+                startForegroundNotification()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error fetching show info: ${e.message}")
+            }
+        }.start()
+    }
+    
+    private fun scheduleShowInfoRefresh() {
+        // Cancel existing scheduled refresh
+        showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
+        
+        // Create new refresh runnable
+        showInfoRefreshRunnable = Runnable {
+            if (currentStationId.isNotEmpty() && PlaybackStateHelper.getIsPlaying()) {
+                fetchAndUpdateShowInfo()
+                // Schedule next refresh in 5 minutes
+                handler.postDelayed(showInfoRefreshRunnable!!, 5 * 60 * 1000) // 5 minutes
+            }
+        }
+        
+        // Schedule first refresh in 5 minutes
+        handler.postDelayed(showInfoRefreshRunnable!!, 5 * 60 * 1000)
+    }
+    
+    private fun updateMediaMetadata() {
+        val metadata = android.support.v4.media.MediaMetadataCompat.Builder()
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentStationId)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentStationTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentShowTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentStationLogo)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, currentStationLogo)
+            .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1)
+            .build()
+        mediaSession.setMetadata(metadata)
     }
 
     private fun stopPlayback() {
         player?.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
         updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+        
+        // Cancel show refresh
+        showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
         
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(null)

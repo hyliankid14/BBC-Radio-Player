@@ -20,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
+    private lateinit var miniPlayerSubtitle: TextView
     private lateinit var miniPlayerArtwork: ImageView
     private lateinit var miniPlayerPlayPause: ImageButton
     private lateinit var miniPlayerStop: ImageButton
@@ -73,6 +74,7 @@ class MainActivity : AppCompatActivity() {
         // Mini player views
         miniPlayer = findViewById(R.id.mini_player)
         miniPlayerTitle = findViewById(R.id.mini_player_title)
+        miniPlayerSubtitle = findViewById(R.id.mini_player_subtitle)
         miniPlayerArtwork = findViewById(R.id.mini_player_artwork)
         miniPlayerPlayPause = findViewById(R.id.mini_player_play_pause)
         miniPlayerStop = findViewById(R.id.mini_player_stop)
@@ -282,6 +284,10 @@ class MainActivity : AppCompatActivity() {
             // Show mini player
             miniPlayer.visibility = android.view.View.VISIBLE
             miniPlayerTitle.text = station.title
+            
+            // Get the current show title from the metadata's ARTIST field
+            val showTitle = PlaybackStateHelper.getCurrentShowTitle()
+            miniPlayerSubtitle.text = showTitle
             
             // Load artwork
             Glide.with(this)

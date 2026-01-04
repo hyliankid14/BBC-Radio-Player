@@ -6,6 +6,7 @@ package com.example.androidautoradioplayer
 object PlaybackStateHelper {
     private var currentStation: Station? = null
     private var isPlaying: Boolean = false
+    private var currentShowTitle: String = "BBC Radio"
     
     fun setCurrentStation(station: Station?) {
         currentStation = station
@@ -18,6 +19,12 @@ object PlaybackStateHelper {
     }
     
     fun getIsPlaying(): Boolean = isPlaying
+    
+    fun setCurrentShowTitle(title: String) {
+        currentShowTitle = title
+    }
+    
+    fun getCurrentShowTitle(): String = currentShowTitle
     
     fun isPlayingAny(): Boolean = currentStation != null && isPlaying
 }
