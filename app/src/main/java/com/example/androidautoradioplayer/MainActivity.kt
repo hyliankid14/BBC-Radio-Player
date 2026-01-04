@@ -315,7 +315,11 @@ class MainActivity : AppCompatActivity() {
             miniPlayerTitle.text = station.title
             
             // Display formatted show title (primary - secondary - tertiary)
-            miniPlayerSubtitle.text = show.getFormattedTitle()
+            val newTitle = show.getFormattedTitle()
+            if (miniPlayerSubtitle.text.toString() != newTitle) {
+                miniPlayerSubtitle.text = newTitle
+                miniPlayerSubtitle.isSelected = true // Trigger marquee if using native, but we use custom
+            }
             
             // Load artwork: Use image_url from API if available and valid, otherwise station logo
             val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
@@ -329,8 +333,8 @@ class MainActivity : AppCompatActivity() {
                 lastArtworkUrl = artworkUrl
                 Glide.with(this)
                     .load(artworkUrl)
-                    .placeholder(android.R.drawable.ic_media_play) // Show play icon while loading
-                    .error(android.R.drawable.ic_media_play) // Show play icon on error
+                    .placeholder(R.drawable.ic_launcher_foreground) 
+                    .error(R.drawable.ic_launcher_foreground)
                     .into(miniPlayerArtwork)
                 Log.d("MainActivity", "Loading artwork from: $artworkUrl")
             }
@@ -355,7 +359,10 @@ class MainActivity : AppCompatActivity() {
     
     private fun updateMiniPlayerFromShow(show: CurrentShow) {
         // Update subtitle with formatted show title
-        miniPlayerSubtitle.text = show.getFormattedTitle()
+        val newTitle = show.getFormattedTitle()
+        if (miniPlayerSubtitle.text.toString() != newTitle) {
+            miniPlayerSubtitle.text = newTitle
+        }
         
         // Load new artwork - use image_url if available and valid, otherwise station logo
         val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
@@ -369,8 +376,8 @@ class MainActivity : AppCompatActivity() {
             lastArtworkUrl = artworkUrl
             Glide.with(this)
                 .load(artworkUrl)
-                .placeholder(android.R.drawable.ic_media_play)
-                .error(android.R.drawable.ic_media_play)
+                .placeholder(R.drawable.ic_launcher_foreground)
+                .error(R.drawable.ic_launcher_foreground)
                 .into(miniPlayerArtwork)
             Log.d("MainActivity", "Loading artwork from: $artworkUrl")
         }
