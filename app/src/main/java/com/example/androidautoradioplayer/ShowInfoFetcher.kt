@@ -24,31 +24,9 @@ data class CurrentShow(
 object ShowInfoFetcher {
     private const val TAG = "ShowInfoFetcher"
     
-    // Mapping of station IDs to BBC RMS service IDs
-    private val serviceIdMap = mapOf(
-        "radio1" to "bbc_radio_one",
-        "1xtra" to "bbc_1xtra",
-        "radio2" to "bbc_radio_two",
-        "radio3" to "bbc_radio_three",
-        "radio4" to "bbc_radio_fourfm",
-        "radio4extra" to "bbc_radio_four_extra",
-        "radio5live" to "bbc_radio_five_live",
-        "radio6" to "bbc_6music",
-        "asiannetwork" to "bbc_asian_network",
-        "radiobristol" to "bbc_radio_bristol",
-        "radiodevon" to "bbc_radio_devon",
-        "radioleeds" to "bbc_radio_leeds",
-        "radiolon" to "bbc_london",
-        "radionorthampton" to "bbc_radio_northampton",
-        "radionottingham" to "bbc_radio_nottingham",
-        "radiosolent" to "bbc_radio_solent",
-        "radiotees" to "bbc_radio_tees",
-        "radioscotland" to "bbc_radio_scotland_fm",
-        "radiowales" to "bbc_radio_wales_fm",
-        "radiocymru" to "bbc_radio_cymru",
-        "radioulster" to "bbc_radio_ulster",
-        "radiofoyle" to "bbc_radio_foyle"
-    )
+    private val serviceIdMap by lazy {
+        StationRepository.getStations().associate { it.id to it.serviceId }
+    }
     
     suspend fun getCurrentShow(stationId: String): CurrentShow = withContext(Dispatchers.IO) {
         try {
