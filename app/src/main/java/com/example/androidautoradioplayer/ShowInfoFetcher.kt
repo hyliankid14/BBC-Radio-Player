@@ -14,8 +14,14 @@ data class CurrentShow(
 ) {
     // Format the full subtitle as "primary - secondary - tertiary"
     fun getFormattedTitle(): String {
-        // For the list view, we want "Show Name"
-        // If we have artist/track, we might want to append it, but for now let's stick to Show Name
+        // Prioritize "Artist - Track" if available, otherwise use Show Name
+        val parts = mutableListOf<String>()
+        if (!secondary.isNullOrEmpty()) parts.add(secondary)
+        if (!tertiary.isNullOrEmpty()) parts.add(tertiary)
+        
+        if (parts.isNotEmpty()) {
+            return parts.joinToString(" - ")
+        }
         return title
     }
 }
