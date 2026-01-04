@@ -133,7 +133,13 @@ object ShowInfoFetcher {
             // Validate and unescape the URL if it contains escaped characters
             var imageUrl: String? = null
             if (!rawImageUrl.isNullOrEmpty()) {
-                val unescapedUrl = rawImageUrl.replace("\\/", "/").replace("\\\\", "\\")
+                var unescapedUrl = rawImageUrl.replace("\\/", "/").replace("\\\\", "\\")
+                
+                // Replace BBC image recipe placeholder if present
+                if (unescapedUrl.contains("{recipe}")) {
+                    unescapedUrl = unescapedUrl.replace("{recipe}", "320x320")
+                }
+                
                 // Only use URL if it looks valid
                 if (unescapedUrl.isNotEmpty() && unescapedUrl.startsWith("http")) {
                     imageUrl = unescapedUrl

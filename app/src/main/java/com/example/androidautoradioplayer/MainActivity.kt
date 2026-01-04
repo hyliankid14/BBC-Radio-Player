@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
+    private var lastArtworkUrl: String? = null
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateMiniPlayerFromShow(show) }
     }
@@ -297,6 +298,7 @@ class MainActivity : AppCompatActivity() {
             
             // Display formatted show title (primary - secondary - tertiary)
             miniPlayerSubtitle.text = show.getFormattedTitle()
+            miniPlayerSubtitle.isSelected = true // Enable marquee scrolling
             
             // Load artwork: Use image_url from API if available and valid, otherwise station logo
             val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
@@ -305,11 +307,16 @@ class MainActivity : AppCompatActivity() {
                 station.logoUrl
             }
             
-            Glide.with(this)
-                .load(artworkUrl)
-                .error(android.R.drawable.ic_media_play)
-                .into(miniPlayerArtwork)
-            Log.d("MainActivity", "Loading artwork from: $artworkUrl")
+            // Only reload if URL changed to prevent flashing
+            if (artworkUrl != lastArtworkUrl) {
+                lastArtworkUrl = artworkUrl
+                Glide.with(this)
+                    .load(artworkUrl)
+                    .placeholder(android.R.drawable.ic_media_play) // Show play icon while loading
+                    .error(android.R.drawable.ic_media_play) // Show play icon on error
+                    .into(miniPlayerArtwork)
+                Log.d("MainActivity", "Loading artwork from: $artworkUrl")
+            }
             
             // Update play/pause button - always show the correct state
             miniPlayerPlayPause.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
@@ -332,6 +339,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateMiniPlayerFromShow(show: CurrentShow) {
         // Update subtitle with formatted show title
         miniPlayerSubtitle.text = show.getFormattedTitle()
+        miniPlayerSubtitle.isSelected = true // Enable marquee scrolling
         
         // Load new artwork - use image_url if available and valid, otherwise station logo
         val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
@@ -340,9 +348,12 @@ class MainActivity : AppCompatActivity() {
             PlaybackStateHelper.getCurrentStation()?.logoUrl
         }
         
-        if (artworkUrl != null) {
+        // Only reload if URL changed
+        if (artworkUrl != null && artworkUrl != lastArtworkUrl) {
+            lastArtworkUrl = artworkUrl
             Glide.with(this)
                 .load(artworkUrl)
+                .placeholder(android.R.drawable.ic_media_play)
                 .error(android.R.drawable.ic_media_play)
                 .into(miniPlayerArtwork)
             Log.d("MainActivity", "Loading artwork from: $artworkUrl")
