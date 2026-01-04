@@ -19,7 +19,9 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
     private lateinit var artworkView: ImageView
     private lateinit var titleView: TextView
-    private lateinit var subtitleView: ScrollingTextView
+    private lateinit var showTitleView: TextView
+    private lateinit var nowPlayingView: ScrollingTextView
+    private lateinit var backButton: ImageButton
     private lateinit var playPauseButton: ImageButton
     private lateinit var previousButton: ImageButton
     private lateinit var nextButton: ImageButton
@@ -42,7 +44,9 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
         artworkView = findViewById(R.id.player_artwork)
         titleView = findViewById(R.id.player_station_title)
-        subtitleView = findViewById(R.id.player_show_title)
+        showTitleView = findViewById(R.id.player_show_title)
+        nowPlayingView = findViewById(R.id.player_now_playing)
+        backButton = findViewById(R.id.player_back)
         playPauseButton = findViewById(R.id.player_play_pause)
         previousButton = findViewById(R.id.player_previous)
         nextButton = findViewById(R.id.player_next)
@@ -54,6 +58,10 @@ class FullScreenPlayerActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
+        backButton.setOnClickListener {
+            finish()
+        }
+
         playPauseButton.setOnClickListener {
             val isPlaying = PlaybackStateHelper.getIsPlaying()
             PlaybackStateHelper.setIsPlaying(!isPlaying)
@@ -139,11 +147,25 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
         titleView.text = station.title
         
-        val showTitle = show?.getFormattedTitle() ?: ""
-        if (subtitleView.text.toString() != showTitle) {
-            subtitleView.text = showTitle
-            subtitleView.isSelected = true
-            subtitleView.startScrolling()
+        // Update Show Title
+        val showTitle = show?.title ?: ""
+        if (showTitleView.text.toString() != showTitle) {
+            showTitleView.text = showTitle
+        }
+        
+        // Update Now Playing Info (Secondary + Tertiary)
+        val parts = mutableListOf<String>()
+        if (!show?.secondary.isNullOrEmpty()) parts.add(show!!.secondary!!)
+        if (!show?.tertiary.isNullOrEmpty()) parts.add(show!!.tertiary!!)
+        val nowPlaying = parts.joinToString(" - ")
+        
+        if (nowPlayingView.text.toString() != nowPlaying) {
+            nowPlayingView.text = nowPlaying
+            nowPlayingView.isSelected = true
+            nowPlayingView.startScrolling()
+            
+            // Hide if empty
+            nowPlayingView.visibility = if (nowPlaying.isNotEmpty()) android.view.View.VISIBLE else android.view.View.GONE
         }
 
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
