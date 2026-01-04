@@ -60,9 +60,23 @@ object ShowInfoFetcher {
             val show = parseShowFromRmsResponse(response)
             Log.d(TAG, "Parsed show: $show")
             
-            show ?: CurrentShow("BBC Radio")
+            if (show != null) {
+                return@withContext show
+            }
+            
+            Log.d(TAG, "RMS returned 200 but no valid show info, trying ESS")
+            return@withContext fetchShowFromEss(serviceId)
         } catch (e: Exception) {
             Log.w(TAG, "Error fetching show info: ${e.message}", e)
+            // Try ESS as a last resort if RMS threw an exception
+            try {
+                val serviceId = serviceIdMap[stationId]
+                if (serviceId != null) {
+                    return@withContext fetchShowFromEss(serviceId)
+                }
+            } catch (e2: Exception) {
+                Log.w(TAG, "ESS fallback also failed: ${e2.message}")
+            }
             CurrentShow("BBC Radio")
         }
     }
