@@ -44,13 +44,15 @@ object ShowInfoFetcher {
     
     suspend fun getCurrentShow(stationId: String): CurrentShow = withContext(Dispatchers.IO) {
         try {
-            // For BBC Radio 2 as an example, the show info endpoint
             val bbcId = stationIdMap[stationId] ?: return@withContext CurrentShow("BBC Radio")
             
-            // Try the main BBC Programmes API endpoint
-            val url = "https://www.bbc.co.uk/programmes/$bbcId.json"
+            // Get today's date for the schedule URL
+            val calendar = Calendar.getInstance()
+            val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.US)
+            val dateStr = dateFormat.format(calendar.time)
+            val url = "https://www.bbc.co.uk/schedules/$bbcId/$dateStr"
             
-            Log.d(TAG, "Fetching show info for station $stationId (bbcId: $bbcId) from $url")
+            Log.d(TAG, "Fetching schedule for station $stationId from $url")
             
             val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
             connection.connectTimeout = 5000
@@ -61,47 +63,17 @@ object ShowInfoFetcher {
             Log.d(TAG, "Response code: $responseCode")
             
             if (responseCode != 200) {
-                Log.w(TAG, "Failed to fetch show info: HTTP $responseCode, trying alternate endpoint")
-                
-                // Try alternate endpoint
-                val altUrl = "https://www.bbc.co.uk/schedules/$bbcId.json"
-                val altConnection = java.net.URL(altUrl).openConnection() as java.net.HttpURLConnection
-                altConnection.connectTimeout = 5000
-                altConnection.readTimeout = 5000
-                altConnection.setRequestProperty("User-Agent", "AndroidAutoRadioPlayer/1.0")
-                
-                val altResponseCode = altConnection.responseCode
-                Log.d(TAG, "Alternate endpoint response code: $altResponseCode")
-                
-                if (altResponseCode != 200) {
-                    Log.w(TAG, "Alternate endpoint also failed: HTTP $altResponseCode")
-                    return@withContext CurrentShow("BBC Radio")
-                }
-                
-                val response = altConnection.inputStream.bufferedReader().readText()
-                altConnection.disconnect()
-                
-                Log.d(TAG, "Response length: ${response.length} bytes")
-                if (response.length < 500) {
-                    Log.d(TAG, "Response: $response")
-                }
-                
-                val showTitle = parseShowFromJson(response)
-                Log.d(TAG, "Parsed show title: $showTitle")
-                
-                return@withContext CurrentShow(showTitle ?: "BBC Radio")
+                Log.w(TAG, "Failed to fetch schedule: HTTP $responseCode")
+                return@withContext CurrentShow("BBC Radio")
             }
             
-            val response = connection.inputStream.bufferedReader().readText()
+            val html = connection.inputStream.bufferedReader().readText()
             connection.disconnect()
             
-            Log.d(TAG, "Response length: ${response.length} bytes")
-            if (response.length < 500) {
-                Log.d(TAG, "Response: $response")
-            }
+            Log.d(TAG, "HTML response length: ${html.length} bytes")
             
-            // Parse JSON response
-            val showTitle = parseShowFromJson(response)
+            // Parse HTML to find current show
+            val showTitle = parseCurrentShowFromHtml(html)
             Log.d(TAG, "Parsed show title: $showTitle")
             
             CurrentShow(showTitle ?: "BBC Radio")
@@ -111,30 +83,52 @@ object ShowInfoFetcher {
         }
     }
     
-    private fun parseShowFromJson(json: String): String? {
+    private fun parseCurrentShowFromHtml(html: String): String? {
         try {
-            // Find the first "title" field in the JSON which represents the current/upcoming show
-            val titleRegex = "\"title\"\\s*:\\s*\"([^\"]+)\"".toRegex()
-            val match = titleRegex.find(json)
+            // Get current time
+            val calendar = Calendar.getInstance()
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+            val currentTimeInMinutes = hour * 60 + minute
             
-            if (match == null) {
-                Log.w(TAG, "No title match found in JSON")
-                return null
+            // Find the ON AIR section which marks the currently playing show
+            val onAirRegex = "ON AIR[\\s\\S]*?#### \\[\\d+ [A-Za-z]+ (\\d+):\\d+: (.+?),".toRegex()
+            val match = onAirRegex.find(html)
+            
+            if (match != null) {
+                val showHour = match.groupValues.getOrNull(1)?.toIntOrNull() ?: return null
+                val showTitle = match.groupValues.getOrNull(2)?.trim()
+                
+                Log.d(TAG, "Found ON AIR show at $showHour:00 - $showTitle")
+                return showTitle
             }
             
-            val title = match.groupValues.getOrNull(1)
-            Log.d(TAG, "Found title match: $title")
+            // Alternative: find show by looking for most recent hour before current time
+            val hourPattern = "#### \\[(\\d{1,2}) [A-Za-z]+ \\d+:00: (.+?),".toRegex()
+            val matches = hourPattern.findAll(html)
             
-            return title?.let { t ->
-                // Clean up HTML entities if present
-                t.replace("&quot;", "\"")
-                    .replace("&amp;", "&")
-                    .replace("&lt;", "<")
-                    .replace("&gt;", ">")
+            var closestShow: String? = null
+            var closestTime = -1
+            
+            for (m in matches) {
+                val showHour = m.groupValues.getOrNull(1)?.toIntOrNull() ?: continue
+                val showTitle = m.groupValues.getOrNull(2)?.trim() ?: continue
+                
+                if (showHour <= hour && showHour > closestTime) {
+                    closestTime = showHour
+                    closestShow = showTitle
+                }
             }
+            
+            if (closestShow != null) {
+                Log.d(TAG, "Found closest show: $closestShow at $closestTime:00")
+                return closestShow
+            }
+            
+            Log.w(TAG, "Could not parse current show from HTML")
+            return null
         } catch (e: Exception) {
-            Log.w(TAG, "Error parsing show from JSON: ${e.message}")
+            Log.w(TAG, "Error parsing HTML: ${e.message}")
             return null
         }
     }
-}
