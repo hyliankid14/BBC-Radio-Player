@@ -24,6 +24,10 @@ import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.MediaItem as ExoMediaItem
 import com.google.android.exoplayer2.audio.AudioAttributes as ExoAudioAttributes
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 
 class RadioService : MediaBrowserServiceCompat() {
     private lateinit var mediaSession: MediaSessionCompat
@@ -36,6 +40,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentStationLogo: String = ""
     private var currentShowTitle: String = "BBC Radio"
     private var showInfoRefreshRunnable: Runnable? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main)
 
     companion object {
         const val ACTION_PLAY_STATION = "com.example.androidautoradioplayer.ACTION_PLAY_STATION"
@@ -454,20 +459,22 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     private fun fetchAndUpdateShowInfo() {
-        Thread {
+        serviceScope.launch(Dispatchers.IO) {
             try {
                 val show = ShowInfoFetcher.getCurrentShow(currentStationId)
                 currentShowTitle = show.title
                 PlaybackStateHelper.setCurrentShowTitle(show.title)
                 Log.d(TAG, "Fetched show info: ${show.title}")
                 
-                // Update metadata and notification with new show info
-                updateMediaMetadata()
-                startForegroundNotification()
+                // Switch to main thread to update UI
+                handler.post {
+                    updateMediaMetadata()
+                    startForegroundNotification()
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Error fetching show info: ${e.message}")
             }
-        }.start()
+        }
     }
     
     private fun scheduleShowInfoRefresh() {
@@ -572,6 +579,7 @@ class RadioService : MediaBrowserServiceCompat() {
     override fun onDestroy() {
         player?.release()
         mediaSession.release()
+        serviceScope.cancel()
         super.onDestroy()
     }
 }
