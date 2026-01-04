@@ -71,6 +71,9 @@ object ShowInfoFetcher {
                 }
             } else {
                 connection.disconnect()
+                // If RMS fails (e.g. 404, 500), throw exception to prevent overwriting valid data with empty data
+                // This ensures that if we have a transient error, we keep the previous metadata
+                throw java.io.IOException("RMS API returned $responseCode")
             }
             
             // Combine info
