@@ -1,5 +1,7 @@
 package com.example.androidautoradioplayer
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
@@ -29,6 +31,7 @@ class ScrollingTextView @JvmOverloads constructor(
     }
 
     private fun startScrolling() {
+        animator?.removeAllListeners()
         animator?.cancel()
         scrollTo(0, 0)
 
@@ -46,12 +49,29 @@ class ScrollingTextView @JvmOverloads constructor(
                     duration = scrollDuration
                     interpolator = LinearInterpolator()
                     startDelay = 2000 // 2 seconds pause at start
-                    repeatCount = ValueAnimator.INFINITE
-                    repeatMode = ValueAnimator.RESTART
                     
                     addUpdateListener { animation ->
                         scrollTo(animation.animatedValue as Int, 0)
                     }
+                    
+                    addListener(object : AnimatorListenerAdapter() {
+                        var cancelled = false
+                        
+                        override fun onAnimationCancel(animation: Animator) {
+                            cancelled = true
+                        }
+                        
+                        override fun onAnimationEnd(animation: Animator) {
+                            if (cancelled) return
+                            
+                            // Reset to start
+                            scrollTo(0, 0)
+                            // Restart (will wait startDelay again)
+                            if (isAttachedToWindow) {
+                                start()
+                            }
+                        }
+                    })
                     start()
                 }
             }
@@ -59,6 +79,7 @@ class ScrollingTextView @JvmOverloads constructor(
     }
     
     override fun onDetachedFromWindow() {
+        animator?.removeAllListeners()
         animator?.cancel()
         super.onDetachedFromWindow()
     }
@@ -68,6 +89,7 @@ class ScrollingTextView @JvmOverloads constructor(
         if (hasWindowFocus) {
             startScrolling()
         } else {
+            animator?.removeAllListeners()
             animator?.cancel()
             scrollTo(0, 0)
         }
