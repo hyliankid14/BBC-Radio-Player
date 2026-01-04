@@ -40,9 +40,10 @@ class ScrollingTextView @JvmOverloads constructor(
         animator?.cancel()
         scrollTo(0, 0)
 
-        if (textWidth > viewWidth) {
-            val scrollDistance = textWidth - viewWidth + 100 // Scroll a bit past the end
-            val scrollDuration = (textWidth.toFloat() / 100f * 1000).toLong() // Speed control
+        val contentWidth = width - paddingLeft - paddingRight
+        if (textWidth > contentWidth) {
+            val scrollDistance = textWidth - contentWidth + 100 // Scroll a bit past the end
+            val scrollDuration = (textWidth.toFloat() / 100f * 2000).toLong() // Slower speed
             
             animator = ValueAnimator.ofInt(0, scrollDistance).apply {
                 duration = scrollDuration
@@ -53,6 +54,7 @@ class ScrollingTextView @JvmOverloads constructor(
                 
                 addUpdateListener { animation ->
                     scrollTo(animation.animatedValue as Int, 0)
+                    invalidate()
                 }
                 start()
             }

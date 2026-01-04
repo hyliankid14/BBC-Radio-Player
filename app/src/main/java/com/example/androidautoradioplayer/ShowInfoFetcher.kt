@@ -143,9 +143,11 @@ object ShowInfoFetcher {
                 }
                 
                 // Only use URL if it looks valid and isn't a known placeholder pattern
+                // p01tqv8z is the standard BBC "blocks" placeholder
                 if (unescapedUrl.isNotEmpty() && 
                     unescapedUrl.startsWith("http") && 
-                    !unescapedUrl.contains("default", ignoreCase = true)) {
+                    !unescapedUrl.contains("default", ignoreCase = true) &&
+                    !unescapedUrl.contains("p01tqv8z", ignoreCase = true)) {
                     imageUrl = unescapedUrl
                 }
             }

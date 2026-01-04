@@ -74,6 +74,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 player?.play()
                 updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
                 PlaybackStateHelper.setIsPlaying(true)
+                scheduleShowInfoRefresh()
             }
 
             override fun onPause() {
