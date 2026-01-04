@@ -27,7 +27,7 @@ object StationRepository {
         id = id,
         title = title,
         serviceId = serviceId,
-        logoUrl = "$LOGO_BASE/$logoServiceId/blocks-colour-black_320x320.png"
+        logoUrl = "$LOGO_BASE/$logoServiceId/blocks-colour-black_128x128.png"
     )
 
     private val stations = listOf(

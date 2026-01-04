@@ -593,8 +593,8 @@ class RadioService : MediaBrowserServiceCompat() {
         fetchAndUpdateShowInfo(station.id)
         
         // Update global playback state
+        PlaybackStateHelper.setCurrentShow(currentShowInfo) // Clear show info in helper FIRST to prevent flashing old metadata
         PlaybackStateHelper.setCurrentStation(station)
-        PlaybackStateHelper.setCurrentShow(currentShowInfo) // Clear show info in helper
         PlaybackStateHelper.setIsPlaying(true)
         
         // Release existing player to ensure clean state
