@@ -91,16 +91,9 @@ object ShowInfoFetcher {
             
         } catch (e: Exception) {
             Log.w(TAG, "Error fetching show info: ${e.message}", e)
-            // Fallback to just ESS if RMS fails completely
-             try {
-                val serviceId = serviceIdMap[stationId]
-                if (serviceId != null) {
-                    return@withContext fetchShowFromEss(serviceId)
-                }
-            } catch (e2: Exception) {
-                Log.w(TAG, "ESS fallback also failed: ${e2.message}")
-            }
-            CurrentShow("BBC Radio")
+            // Propagate exception to caller (RadioService) so it can decide whether to keep old data
+            // This prevents clearing the "Now Playing" info on transient network errors
+            throw e
         }
     }
     

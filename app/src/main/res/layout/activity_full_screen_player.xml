@@ -13,7 +13,9 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:background="#6200EE"
+        android:elevation="4dp">
 
         <ImageButton
             android:id="@+id/player_back"
@@ -22,7 +24,7 @@
             android:src="@drawable/ic_arrow_back"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:scaleType="centerInside"
-            android:tint="?attr/colorOnSurface"
+            android:tint="#FFFFFF"
             android:contentDescription="Back" />
             
         <TextView
@@ -32,7 +34,7 @@
             android:layout_weight="1"
             android:text="Station Name"
             android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-            android:textColor="?attr/colorOnSurface"
+            android:textColor="#FFFFFF"
             android:layout_marginStart="16dp"
             android:maxLines="1"
             android:ellipsize="end" />
