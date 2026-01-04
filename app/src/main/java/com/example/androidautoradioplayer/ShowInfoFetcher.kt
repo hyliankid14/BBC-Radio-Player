@@ -53,7 +53,8 @@ object ShowInfoFetcher {
     suspend fun getCurrentShow(stationId: String): CurrentShow = withContext(Dispatchers.IO) {
         try {
             val serviceId = serviceIdMap[stationId] ?: return@withContext CurrentShow("BBC Radio")
-            val url = "https://rms.api.bbc.co.uk/v2/services/$serviceId/segments/latest"
+            // Add timestamp to prevent caching
+            val url = "https://rms.api.bbc.co.uk/v2/services/$serviceId/segments/latest?t=${System.currentTimeMillis()}"
             
             Log.d(TAG, "Fetching now playing info for $stationId ($serviceId) from $url")
             
@@ -90,7 +91,8 @@ object ShowInfoFetcher {
     
     private suspend fun fetchShowFromEss(serviceId: String): CurrentShow {
         return try {
-            val url = "https://ess.api.bbci.co.uk/schedules?serviceId=$serviceId"
+            // Add timestamp to prevent caching
+            val url = "https://ess.api.bbci.co.uk/schedules?serviceId=$serviceId&t=${System.currentTimeMillis()}"
             Log.d(TAG, "Fetching from ESS API: $url")
             
             val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
@@ -140,8 +142,10 @@ object ShowInfoFetcher {
                     unescapedUrl = unescapedUrl.replace("{recipe}", "320x320")
                 }
                 
-                // Only use URL if it looks valid
-                if (unescapedUrl.isNotEmpty() && unescapedUrl.startsWith("http")) {
+                // Only use URL if it looks valid and isn't a known placeholder pattern
+                if (unescapedUrl.isNotEmpty() && 
+                    unescapedUrl.startsWith("http") && 
+                    !unescapedUrl.contains("default", ignoreCase = true)) {
                     imageUrl = unescapedUrl
                 }
             }

@@ -22,7 +22,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
-    private lateinit var miniPlayerSubtitle: TextView
+    private lateinit var miniPlayerSubtitle: com.example.androidautoradioplayer.ScrollingTextView
     private lateinit var miniPlayerArtwork: ImageView
     private lateinit var miniPlayerPlayPause: ImageButton
     private lateinit var miniPlayerStop: ImageButton
@@ -316,7 +316,6 @@ class MainActivity : AppCompatActivity() {
             
             // Display formatted show title (primary - secondary - tertiary)
             miniPlayerSubtitle.text = show.getFormattedTitle()
-            miniPlayerSubtitle.isSelected = true // Enable marquee scrolling
             
             // Load artwork: Use image_url from API if available and valid, otherwise station logo
             val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
@@ -357,7 +356,6 @@ class MainActivity : AppCompatActivity() {
     private fun updateMiniPlayerFromShow(show: CurrentShow) {
         // Update subtitle with formatted show title
         miniPlayerSubtitle.text = show.getFormattedTitle()
-        miniPlayerSubtitle.isSelected = true // Enable marquee scrolling
         
         // Load new artwork - use image_url if available and valid, otherwise station logo
         val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {

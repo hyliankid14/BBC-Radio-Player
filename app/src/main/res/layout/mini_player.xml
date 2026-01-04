@@ -42,20 +42,13 @@
             android:ellipsize="end" />
 
         <!-- Station Subtitle (Current Show) -->
-        <com.example.androidautoradioplayer.MarqueeTextView
+        <com.example.androidautoradioplayer.ScrollingTextView
             android:id="@+id/mini_player_subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="BBC Radio"
             android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:singleLine="true"
-            android:scrollHorizontally="true"
-            android:ellipsize="marquee"
-            android:marqueeRepeatLimit="marquee_forever"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
-            android:freezesText="true" />
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <!-- Controls -->
         <LinearLayout
