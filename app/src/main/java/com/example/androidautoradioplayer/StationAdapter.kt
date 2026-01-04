@@ -62,9 +62,9 @@ class StationAdapter(
                 adapterScope.launch {
                     try {
                         val show = withContext(Dispatchers.IO) {
-                            ShowInfoFetcher.getCurrentShow(station.id)
+                            ShowInfoFetcher.getScheduleCurrentShow(station.id)
                         }
-                        val showTitle = show.getFormattedTitle()
+                        val showTitle = show.title
                         // Only show if it's not the generic default
                         if (showTitle != "BBC Radio") {
                             showCache[station.id] = showTitle

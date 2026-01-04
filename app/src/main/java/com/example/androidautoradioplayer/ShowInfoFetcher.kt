@@ -67,6 +67,11 @@ object ShowInfoFetcher {
         }
     }
     
+    suspend fun getScheduleCurrentShow(stationId: String): CurrentShow = withContext(Dispatchers.IO) {
+        val serviceId = serviceIdMap[stationId] ?: return@withContext CurrentShow("BBC Radio")
+        return@withContext fetchShowFromEss(serviceId)
+    }
+    
     private suspend fun fetchShowFromEss(serviceId: String): CurrentShow {
         return try {
             // Add timestamp to prevent caching
@@ -150,18 +155,54 @@ object ShowInfoFetcher {
     
     private fun parseShowFromEssResponse(json: String): CurrentShow? {
         try {
-            // Look for program title in ESS response
-            // This is typically in the schedule for the current time
-            val titleRegex = "\"title\"\\s*:\\s*\"([^\"]+)\"".toRegex()
-            val match = titleRegex.find(json)
+            // We need to find the item that is currently on air
+            // The JSON structure is {"items": [{"published_time": {"start": "...", "end": "..."}, "brand": {"title": "..."}, "episode": {"title": "..."}}, ...]}
             
-            if (match != null) {
-                val title = match.groupValues.getOrNull(1)?.trim()
-                Log.d(TAG, "Found ESS title: $title")
-                return CurrentShow(title = title ?: "BBC Radio")
+            val now = java.time.Instant.now()
+            val itemsArrayStart = json.indexOf("\"items\":[")
+            if (itemsArrayStart == -1) return null
+            
+            // Simple manual parsing to avoid heavy JSON library if not present
+            // Split by "published_time" to find segments
+            val segments = json.substring(itemsArrayStart).split("{\"id\":")
+            
+            for (segment in segments) {
+                if (!segment.contains("published_time")) continue
+                
+                try {
+                    // Extract start and end times
+                    val startMatch = "\"start\":\"([^\"]+)\"".toRegex().find(segment)
+                    val endMatch = "\"end\":\"([^\"]+)\"".toRegex().find(segment)
+                    
+                    if (startMatch != null && endMatch != null) {
+                        val startTimeStr = startMatch.groupValues[1]
+                        val endTimeStr = endMatch.groupValues[1]
+                        
+                        val start = java.time.Instant.parse(startTimeStr)
+                        val end = java.time.Instant.parse(endTimeStr)
+                        
+                        if (now.isAfter(start) && now.isBefore(end)) {
+                            // This is the current show
+                            val brandMatch = "\"brand\":\\{\"title\":\"([^\"]+)\"".toRegex().find(segment)
+                            val episodeMatch = "\"episode\":\\{.*\"title\":\"([^\"]+)\"".toRegex().find(segment)
+                            
+                            val brandTitle = brandMatch?.groupValues?.get(1)
+                            val episodeTitle = episodeMatch?.groupValues?.get(1)
+                            
+                            // Prefer Brand Title (Show Name), fallback to Episode Title
+                            val title = brandTitle ?: episodeTitle ?: "BBC Radio"
+                            val subtitle = if (brandTitle != null && episodeTitle != null) episodeTitle else null
+                            
+                            Log.d(TAG, "Found current ESS show: $title ($subtitle)")
+                            return CurrentShow(title = title, secondary = subtitle)
+                        }
+                    }
+                } catch (e: Exception) {
+                    continue
+                }
             }
             
-            Log.w(TAG, "No title found in ESS response")
+            Log.w(TAG, "No current show found in ESS schedule")
             return null
         } catch (e: Exception) {
             Log.w(TAG, "Error parsing ESS response: ${e.message}")
