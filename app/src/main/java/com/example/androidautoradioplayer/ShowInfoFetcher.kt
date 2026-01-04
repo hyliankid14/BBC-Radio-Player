@@ -172,7 +172,7 @@ object ShowInfoFetcher {
                 }
             }
             
-            if (primary.isNotEmpty()) {
+            if (primary.isNotEmpty() || secondary.isNotEmpty()) {
                 Log.d(TAG, "Found RMS: primary=$primary, secondary=$secondary, tertiary=$tertiary, imageUrl=$imageUrl")
                 return CurrentShow(
                     title = primary,
@@ -182,7 +182,7 @@ object ShowInfoFetcher {
                 )
             }
             
-            Log.w(TAG, "No primary title found in RMS response")
+            Log.w(TAG, "No primary or secondary title found in RMS response")
             return null
         } catch (e: Exception) {
             Log.w(TAG, "Error parsing RMS response: ${e.message}")
