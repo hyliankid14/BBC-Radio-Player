@@ -345,7 +345,6 @@ class MainActivity : AppCompatActivity() {
                     .load(artworkUrl)
                     .placeholder(android.R.color.transparent)
                     .error(Glide.with(this).load(fallbackUrl))
-                    .fallback(Glide.with(this).load(fallbackUrl))
                     .listener(object : RequestListener<Drawable> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
                             return false
@@ -411,7 +410,6 @@ class MainActivity : AppCompatActivity() {
                 .load(artworkUrl)
                 .placeholder(android.R.color.transparent)
                 .error(Glide.with(this).load(fallbackUrl))
-                .fallback(Glide.with(this).load(fallbackUrl))
                 .listener(object : RequestListener<Drawable> {
                     override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
                         return false
