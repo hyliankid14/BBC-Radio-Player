@@ -103,6 +103,12 @@ class MainActivity : AppCompatActivity() {
         miniPlayerStop.setOnClickListener { stopPlayback() }
         miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
         
+        // Open full screen player when clicking artwork
+        miniPlayerArtwork.setOnClickListener {
+            val intent = Intent(this, FullScreenPlayerActivity::class.java)
+            startActivity(intent)
+        }
+        
         // Ensure mini player state is in sync immediately (avoids flicker on theme change)
         updateMiniPlayer()
         

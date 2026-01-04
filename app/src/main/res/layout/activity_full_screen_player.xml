@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?attr/colorSurface"
+    android:gravity="center_horizontal">
+
+    <!-- Large Artwork -->
+    <ImageView
+        android:id="@+id/player_artwork"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scaleType="centerCrop"
+        android:contentDescription="Station Artwork"
+        android:layout_margin="32dp"
+        android:elevation="8dp" />
+
+    <!-- Metadata Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/player_station_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Station Name"
+            android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
+            android:textColor="?attr/colorOnSurface"
+            android:textAlignment="center"
+            android:layout_marginBottom="8dp" />
+
+        <com.example.androidautoradioplayer.ScrollingTextView
+            android:id="@+id/player_show_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Show Name"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textAlignment="center" />
+
+    </LinearLayout>
+
+    <!-- Controls -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingBottom="48dp">
+
+        <ImageButton
+            android:id="@+id/player_previous"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@drawable/ic_skip_previous"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:tint="?attr/colorOnSurface"
+            android:contentDescription="Previous" />
+
+        <ImageButton
+            android:id="@+id/player_play_pause"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_play_arrow"
+            android:background="@drawable/button_background"
+            android:scaleType="centerInside"
+            android:tint="?attr/colorOnPrimary"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
+            android:contentDescription="Play/Pause" />
+
+        <ImageButton
+            android:id="@+id/player_next"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@drawable/ic_skip_next"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:tint="?attr/colorOnSurface"
+            android:contentDescription="Next" />
+
+    </LinearLayout>
+    
+    <!-- Bottom Actions -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingBottom="32dp">
+        
+        <ImageButton
+            android:id="@+id/player_favorite"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_star_outline"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:tint="?attr/colorOnSurfaceVariant"
+            android:contentDescription="Favorite"
+            android:layout_marginEnd="32dp"/>
+
+        <ImageButton
+            android:id="@+id/player_stop"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_stop"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:tint="?attr/colorOnSurfaceVariant"
+            android:contentDescription="Stop" />
+            
+    </LinearLayout>
+
+</LinearLayout>

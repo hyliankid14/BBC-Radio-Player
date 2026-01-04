@@ -25,6 +25,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".FullScreenPlayerActivity" android:exported="false" />
+
         <service
             android:name=".RadioService"
             android:exported="true"

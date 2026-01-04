@@ -45,14 +45,14 @@ object StationRepository {
         station("asiannetwork", "BBC Asian Network", "bbc_asian_network"),
 
         // BBC Nations Stations
+        station("radiocymru", "BBC Radio Cymru", "bbc_radio_cymru"),
+        station("radiocymru2", "BBC Radio Cymru 2", "bbc_radio_cymru_2"),
+        station("radiofoyle", "BBC Radio Foyle", "bbc_radio_foyle"),
         station("radiogaidheal", "BBC Radio nan Gaidheal", "bbc_radio_nan_gaidheal"),
         station("radioscotland", "BBC Radio Scotland", "bbc_radio_scotland_fm"),
         station("radioscotlandmw", "BBC Radio Scotland MW", "bbc_radio_scotland_mw"),
-        station("radiowales", "BBC Radio Wales", "bbc_radio_wales_fm"),
-        station("radiocymru", "BBC Radio Cymru", "bbc_radio_cymru"),
-        station("radiocymru2", "BBC Radio Cymru 2", "bbc_radio_cymru_2"),
         station("radioulster", "BBC Radio Ulster", "bbc_radio_ulster"),
-        station("radiofoyle", "BBC Radio Foyle", "bbc_radio_foyle"),
+        station("radiowales", "BBC Radio Wales", "bbc_radio_wales_fm"),
 
         // BBC Local/Regional Stations (England and Channel Islands)
         station("radioberkshire", "BBC Radio Berkshire", "bbc_radio_berkshire"),
