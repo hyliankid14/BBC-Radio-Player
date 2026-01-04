@@ -212,55 +212,67 @@ class RadioService : MediaBrowserServiceCompat() {
     override fun onLoadChildren(parentId: String, result: Result<List<MediaItem>>) {
         Log.d(TAG, "onLoadChildren - parentId: $parentId")
         
-        val items = mutableListOf<MediaItem>()
+        result.detach()
+        serviceScope.launch {
+            val items = mutableListOf<MediaItem>()
 
-        when (parentId) {
-            MEDIA_ID_ROOT -> {
-                // Add "Favorites" folder
-                items.add(MediaItem(
-                    MediaDescriptionCompat.Builder()
-                        .setMediaId(MEDIA_ID_FAVORITES)
-                        .setTitle("Favorites")
-                        .build(),
-                    MediaItem.FLAG_BROWSABLE
-                ))
-                
-                // Add "All Stations" folder
-                items.add(MediaItem(
-                    MediaDescriptionCompat.Builder()
-                        .setMediaId(MEDIA_ID_ALL_STATIONS)
-                        .setTitle("All Stations")
-                        .build(),
-                    MediaItem.FLAG_BROWSABLE
-                ))
-            }
-            MEDIA_ID_FAVORITES -> {
-                val favorites = FavoritesPreference.getFavorites(this)
-                favorites.forEach { station ->
-                    items.add(createMediaItem(station))
+            when (parentId) {
+                MEDIA_ID_ROOT -> {
+                    // Add "Favorites" folder
+                    items.add(MediaItem(
+                        MediaDescriptionCompat.Builder()
+                            .setMediaId(MEDIA_ID_FAVORITES)
+                            .setTitle("Favorites")
+                            .build(),
+                        MediaItem.FLAG_BROWSABLE
+                    ))
+                    
+                    // Add "All Stations" folder
+                    items.add(MediaItem(
+                        MediaDescriptionCompat.Builder()
+                            .setMediaId(MEDIA_ID_ALL_STATIONS)
+                            .setTitle("All Stations")
+                            .build(),
+                        MediaItem.FLAG_BROWSABLE
+                    ))
+                    result.sendResult(items)
                 }
-            }
-            MEDIA_ID_ALL_STATIONS -> {
-                val stations = StationRepository.getStations()
-                stations.forEach { station ->
-                    items.add(createMediaItem(station))
+                MEDIA_ID_FAVORITES -> {
+                    val favorites = FavoritesPreference.getFavorites(this@RadioService)
+                    val itemsWithShowInfo = favorites.map { station ->
+                        async(Dispatchers.IO) {
+                            val show = ShowInfoFetcher.getScheduleCurrentShow(station.id)
+                            createMediaItem(station, show.title)
+                        }
+                    }.awaitAll()
+                    result.sendResult(itemsWithShowInfo)
                 }
-            }
-            else -> {
-                Log.d(TAG, "Unknown parentId: $parentId")
+                MEDIA_ID_ALL_STATIONS -> {
+                    val stations = StationRepository.getStations()
+                    val itemsWithShowInfo = stations.map { station ->
+                        async(Dispatchers.IO) {
+                            val show = ShowInfoFetcher.getScheduleCurrentShow(station.id)
+                            createMediaItem(station, show.title)
+                        }
+                    }.awaitAll()
+                    result.sendResult(itemsWithShowInfo)
+                }
+                else -> {
+                    Log.d(TAG, "Unknown parentId: $parentId")
+                    result.sendResult(null)
+                }
             }
         }
-        
-        Log.d(TAG, "Sending ${items.size} items for parentId: $parentId")
-        result.sendResult(items)
     }
 
-    private fun createMediaItem(station: Station): MediaItem {
+    private fun createMediaItem(station: Station, subtitle: String = ""): MediaItem {
+        // If subtitle is "BBC Radio", treat it as empty to avoid redundancy
+        val displaySubtitle = if (subtitle == "BBC Radio") "" else subtitle
         return MediaItem(
             MediaDescriptionCompat.Builder()
                 .setMediaId(station.id)
                 .setTitle(station.title)
-                .setSubtitle("BBC Radio")
+                .setSubtitle(displaySubtitle)
                 .setIconUri(android.net.Uri.parse(station.logoUrl))
                 .build(),
             MediaItem.FLAG_PLAYABLE
@@ -549,8 +561,8 @@ class RadioService : MediaBrowserServiceCompat() {
         currentStationTitle = station.title
         currentStationId = station.id
         currentStationLogo = station.logoUrl
-        currentShowInfo = CurrentShow("BBC Radio") // Reset to default
-        currentShowTitle = "BBC Radio"
+        currentShowInfo = CurrentShow("") // Reset to empty to avoid "BBC Radio" flash
+        currentShowTitle = ""
         
         // Cancel existing show refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
@@ -597,7 +609,10 @@ class RadioService : MediaBrowserServiceCompat() {
                 
                 // Update show info
                 currentShowInfo = show
-                currentShowTitle = show.getFormattedTitle()
+                val formattedTitle = show.getFormattedTitle()
+                // If the title is just the generic default, treat it as empty to avoid redundancy
+                currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
+                
                 PlaybackStateHelper.setCurrentShow(show)
                 Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, imageUrl: ${show.imageUrl}")
                 
