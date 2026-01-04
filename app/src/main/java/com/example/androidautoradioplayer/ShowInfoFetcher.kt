@@ -160,7 +160,7 @@ object ShowInfoFetcher {
                 
                 // Replace BBC image recipe placeholder if present
                 if (unescapedUrl.contains("{recipe}")) {
-                    unescapedUrl = unescapedUrl.replace("{recipe}", "320x320")
+                    unescapedUrl = unescapedUrl.replace("{recipe}", "640x640")
                 }
                 
                 // Only use URL if it looks valid and isn't a known placeholder pattern

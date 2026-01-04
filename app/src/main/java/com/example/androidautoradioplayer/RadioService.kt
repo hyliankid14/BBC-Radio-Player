@@ -590,10 +590,11 @@ class RadioService : MediaBrowserServiceCompat() {
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
         
         // Fetch current show information
-        fetchAndUpdateShowInfo()
+        fetchAndUpdateShowInfo(station.id)
         
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(station)
+        PlaybackStateHelper.setCurrentShow(currentShowInfo) // Clear show info in helper
         PlaybackStateHelper.setIsPlaying(true)
         
         // Release existing player to ensure clean state
@@ -621,12 +622,19 @@ class RadioService : MediaBrowserServiceCompat() {
         scheduleShowInfoRefresh()
     }
 
-    private fun fetchAndUpdateShowInfo() {
-        Log.d(TAG, "fetchAndUpdateShowInfo called for station: $currentStationId")
+    private fun fetchAndUpdateShowInfo(stationId: String) {
+        Log.d(TAG, "fetchAndUpdateShowInfo called for station: $stationId")
         Thread {
             try {
-                Log.d(TAG, "Fetching show info in background thread for station: $currentStationId")
-                val show = runBlocking { ShowInfoFetcher.getCurrentShow(currentStationId) }
+                Log.d(TAG, "Fetching show info in background thread for station: $stationId")
+                val show = runBlocking { ShowInfoFetcher.getCurrentShow(stationId) }
+                
+                // Check if we are still playing the requested station
+                if (stationId != currentStationId) {
+                    Log.d(TAG, "Station changed during fetch (requested: $stationId, current: $currentStationId), ignoring result")
+                    return@Thread
+                }
+
                 Log.d(TAG, "ShowInfoFetcher returned: ${show.title}")
                 
                 // Update show info
@@ -657,7 +665,7 @@ class RadioService : MediaBrowserServiceCompat() {
         // Create new refresh runnable - poll every 30 seconds (within BBC's 30-60 sec recommendation)
         showInfoRefreshRunnable = Runnable {
             if (currentStationId.isNotEmpty() && PlaybackStateHelper.getIsPlaying()) {
-                fetchAndUpdateShowInfo()
+                fetchAndUpdateShowInfo(currentStationId)
                 // Schedule next refresh in 30 seconds
                 handler.postDelayed(showInfoRefreshRunnable!!, 30 * 1000)
             }
