@@ -3,6 +3,7 @@ package com.example.androidautoradioplayer
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -143,6 +144,7 @@ class MainActivity : AppCompatActivity() {
         val themeGroup: RadioGroup = findViewById(R.id.theme_radio_group)
         val qualityGroup: RadioGroup = findViewById(R.id.quality_radio_group)
         val autoQualityCheckbox: android.widget.CheckBox = findViewById(R.id.auto_quality_checkbox)
+        val scrollingModeGroup: RadioGroup = findViewById(R.id.scrolling_mode_radio_group)
         
         // Set current theme selection
         val currentTheme = ThemePreference.getTheme(this)
@@ -212,6 +214,22 @@ class MainActivity : AppCompatActivity() {
                     startService(intent)
                 }
             }
+        }
+        
+        // Set current scrolling mode selection
+        val currentScrollMode = ScrollingPreference.getScrollMode(this)
+        when (currentScrollMode) {
+            ScrollingPreference.MODE_ALL_STATIONS -> scrollingModeGroup.check(R.id.radio_scroll_all_stations)
+            ScrollingPreference.MODE_FAVORITES -> scrollingModeGroup.check(R.id.radio_scroll_favorites)
+        }
+        
+        scrollingModeGroup.setOnCheckedChangeListener { _, checkedId ->
+            val selectedMode = when (checkedId) {
+                R.id.radio_scroll_all_stations -> ScrollingPreference.MODE_ALL_STATIONS
+                R.id.radio_scroll_favorites -> ScrollingPreference.MODE_FAVORITES
+                else -> ScrollingPreference.MODE_ALL_STATIONS
+            }
+            ScrollingPreference.setScrollMode(this, selectedMode)
         }
     }
 
@@ -372,6 +390,70 @@ class MainActivity : AppCompatActivity() {
                 "favorites" -> showFavorites()
             }
         }
+    }
+    
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                scrollToNextStation()
+                true
+            }
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                scrollToPreviousStation()
+                true
+            }
+            else -> super.onKeyDown(keyCode, event)
+        }
+    }
+    
+    private fun scrollToNextStation() {
+        val scrollMode = ScrollingPreference.getScrollMode(this)
+        val stations = if (scrollMode == ScrollingPreference.MODE_FAVORITES) {
+            val favorites = FavoritesPreference.getFavorites(this)
+            if (favorites.isEmpty()) {
+                Log.w("MainActivity", "No favorites available for scrolling")
+                return
+            }
+            favorites
+        } else {
+            StationRepository.getStations()
+        }
+        
+        val currentStation = PlaybackStateHelper.getCurrentStation()
+        val currentIndex = stations.indexOfFirst { it.id == currentStation?.id }
+        
+        val nextIndex = if (currentIndex == -1) {
+            0
+        } else {
+            (currentIndex + 1) % stations.size
+        }
+        
+        playStation(stations[nextIndex].id)
+    }
+    
+    private fun scrollToPreviousStation() {
+        val scrollMode = ScrollingPreference.getScrollMode(this)
+        val stations = if (scrollMode == ScrollingPreference.MODE_FAVORITES) {
+            val favorites = FavoritesPreference.getFavorites(this)
+            if (favorites.isEmpty()) {
+                Log.w("MainActivity", "No favorites available for scrolling")
+                return
+            }
+            favorites
+        } else {
+            StationRepository.getStations()
+        }
+        
+        val currentStation = PlaybackStateHelper.getCurrentStation()
+        val currentIndex = stations.indexOfFirst { it.id == currentStation?.id }
+        
+        val prevIndex = if (currentIndex == -1) {
+            stations.size - 1
+        } else {
+            (currentIndex - 1 + stations.size) % stations.size
+        }
+        
+        playStation(stations[prevIndex].id)
     }
 }
 

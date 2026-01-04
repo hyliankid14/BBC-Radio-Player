@@ -123,6 +123,37 @@
 
                 </RadioGroup>
 
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Steering Wheel Scrolling"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="32dp"
+                    android:layout_marginBottom="16dp" />
+
+                <RadioGroup
+                    android:id="@+id/scrolling_mode_radio_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/radio_scroll_all_stations"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Scroll All Stations"
+                        android:padding="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio_scroll_favorites"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Scroll Favorites Only"
+                        android:padding="12dp" />
+
+                </RadioGroup>
+
             </LinearLayout>
 
         </ScrollView>
