@@ -30,6 +30,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
     private var updateThread: Thread? = null
     private var lastArtworkUrl: String? = null
+    private var lastUpdateTitle: String? = null // Track last update to force refresh when needed
     
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateUI() }
@@ -113,6 +114,10 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Reset tracking to force fresh update when activity becomes visible
+        lastUpdateTitle = null
+        lastArtworkUrl = null
+        updateUI()
         startUpdateThread()
     }
 
@@ -162,12 +167,14 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         // Update Show Title (Programme Name) - show is never null, it has a default
         showTitleView.text = show.title
         
-        // Update Now Playing Info - Use EXACT same logic as Mini Player
+        // Update Now Playing Info - Always update to ensure fresh display
         val newTitle = show.getFormattedTitle()
-        if (nowPlayingView.text.toString() != newTitle) {
+        // Force update if this is first load (lastUpdateTitle is null) or if content changed
+        if (lastUpdateTitle == null || nowPlayingView.text.toString() != newTitle) {
             nowPlayingView.text = newTitle
             nowPlayingView.isSelected = true
             nowPlayingView.startScrolling()
+            lastUpdateTitle = newTitle
         }
 
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
