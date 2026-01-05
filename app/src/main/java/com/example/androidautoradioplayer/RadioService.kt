@@ -46,8 +46,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentShowTitle: String = "BBC Radio"
     private var currentShowInfo: CurrentShow = CurrentShow("BBC Radio")
     private var lastSongSignature: String? = null
-    private var lastSongUpdatedAt: Long = 0L
-    private val songMetadataTtlMs = 5 * 60 * 1000L // Drop stale songs after 5 minutes
+    private val showInfoPollIntervalMs = 30_000L // Poll RMS at BBC's sweet spot (30s)
     private var currentArtworkBitmap: android.graphics.Bitmap? = null
     private var currentArtworkUri: String? = null
     private var showInfoRefreshRunnable: Runnable? = null
@@ -699,7 +698,7 @@ class RadioService : MediaBrowserServiceCompat() {
             prepare()
         }
         
-        // Schedule periodic show info refresh (every 5 minutes)
+        // Schedule periodic show info refresh (every 30 seconds)
         scheduleShowInfoRefresh()
     }
 
@@ -727,18 +726,22 @@ class RadioService : MediaBrowserServiceCompat() {
                     if (songSignature != lastSongSignature) {
                         lastSongSignature = songSignature
                         lastSongUpdatedAt = System.currentTimeMillis()
+                        sameSongPolls = 1
                     } else {
+                        sameSongPolls += 1
                         val age = System.currentTimeMillis() - lastSongUpdatedAt
-                        if (age > songMetadataTtlMs) {
-                            Log.d(TAG, "Song metadata stale (age=${age}ms). Clearing to show name.")
+                        if (sameSongPolls >= maxSameSongPolls && age >= showInfoPollIntervalMs * maxSameSongPolls) {
+                            Log.d(TAG, "Song metadata stale after ${sameSongPolls} polls (~${age}ms). Clearing to show name.")
                             show = show.copy(secondary = null, tertiary = null)
                             lastSongSignature = null
                             lastSongUpdatedAt = 0L
+                            sameSongPolls = 0
                         }
                     }
                 } else {
                     lastSongSignature = null
                     lastSongUpdatedAt = 0L
+                    sameSongPolls = 0
                 }
                 
                 // Update show info (clear song data when RMS returns none)
@@ -771,17 +774,17 @@ class RadioService : MediaBrowserServiceCompat() {
         // Cancel existing scheduled refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
         
-        // Create new refresh runnable - poll every 30 seconds (within BBC's 30-60 sec recommendation)
+        // Create new refresh runnable - poll every 30 seconds (BBC's optimal cadence)
         showInfoRefreshRunnable = Runnable {
             if (currentStationId.isNotEmpty() && PlaybackStateHelper.getIsPlaying()) {
                 fetchAndUpdateShowInfo(currentStationId)
-                // Schedule next refresh in 30 seconds
-                handler.postDelayed(showInfoRefreshRunnable!!, 30 * 1000)
+                // Schedule next refresh
+                handler.postDelayed(showInfoRefreshRunnable!!, showInfoPollIntervalMs)
             }
         }
         
-        // Schedule first refresh in 30 seconds
-        handler.postDelayed(showInfoRefreshRunnable!!, 30 * 1000)
+        // Schedule first refresh
+        handler.postDelayed(showInfoRefreshRunnable!!, showInfoPollIntervalMs)
     }
 
     private fun skipStation(step: Int) {

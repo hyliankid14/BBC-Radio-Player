@@ -10,7 +10,9 @@ data class CurrentShow(
     val tertiary: String? = null, // Track (from Segment)
     val imageUrl: String? = null,
     val startTime: String? = null,
-    val endTime: String? = null
+    val endTime: String? = null,
+    val segmentStartMs: Long? = null,
+    val segmentDurationMs: Long? = null
 ) {
     // Format the full subtitle as "primary - secondary - tertiary"
     fun getFormattedTitle(): String {
@@ -28,6 +30,8 @@ data class CurrentShow(
 
 object ShowInfoFetcher {
     private const val TAG = "ShowInfoFetcher"
+    
+    var lastRmsCacheMaxAgeMs = 30_000L // Track server-reported cache TTL
     
     private val serviceIdMap by lazy {
         StationRepository.getStations().associate { it.id to it.serviceId }
@@ -57,9 +61,16 @@ object ShowInfoFetcher {
             var artist: String? = null
             var track: String? = null
             var imageUrl: String? = null
+            var segmentStartMs: Long? = null
+            var segmentDurationMs: Long? = null
             
             if (responseCode == 200) {
                 val response = connection.inputStream.bufferedReader().readText()
+                // Extract Cache-Control max-age from response headers if present
+                val cacheControl = connection.getHeaderField("Cache-Control") ?: ""
+                lastRmsCacheMaxAgeMs = parseCacheControlMaxAge(cacheControl).also { ttl ->
+                    if (ttl > 0) Log.d(TAG, "RMS Cache-Control max-age: ${ttl}ms")
+                }
                 connection.disconnect()
                 
                 val segmentShow = parseShowFromRmsResponse(response)
@@ -68,6 +79,8 @@ object ShowInfoFetcher {
                     artist = segmentShow.title
                     track = segmentShow.secondary
                     imageUrl = segmentShow.imageUrl
+                    segmentStartMs = segmentShow.segmentStartMs
+                    segmentDurationMs = segmentShow.segmentDurationMs
                 }
             } else {
                 connection.disconnect()
@@ -89,7 +102,9 @@ object ShowInfoFetcher {
                 tertiary = track,
                 imageUrl = finalImageUrl,
                 startTime = scheduleShow.startTime,
-                endTime = scheduleShow.endTime
+                endTime = scheduleShow.endTime,
+                segmentStartMs = segmentStartMs,
+                segmentDurationMs = segmentDurationMs
             )
             
         } catch (e: Exception) {
@@ -149,6 +164,26 @@ object ShowInfoFetcher {
             val tertiary = titles.optString("tertiary")
             val rawImageUrl = item.optString("image_url")
             
+            // Parse segment timing (RFC 2822 format)
+            var segmentStartMs: Long? = null
+            var segmentDurationMs: Long? = null
+            val startStr = item.optString("start")
+            val durationStr = item.optString("duration")
+            if (startStr.isNotEmpty()) {
+                try {
+                    segmentStartMs = parseRfc2822Date(startStr)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse segment start time: $startStr")
+                }
+            }
+            if (durationStr.isNotEmpty()) {
+                try {
+                    segmentDurationMs = durationStr.toLong() * 1000L // BBC returns duration in seconds
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse segment duration: $durationStr")
+                }
+            }
+            
             // Validate and unescape the URL
             var imageUrl: String? = null
             if (rawImageUrl.isNotEmpty()) {
@@ -169,12 +204,14 @@ object ShowInfoFetcher {
             }
             
             if (primary.isNotEmpty() || secondary.isNotEmpty()) {
-                Log.d(TAG, "Found RMS: primary=$primary, secondary=$secondary, tertiary=$tertiary, imageUrl=$imageUrl")
+                Log.d(TAG, "Found RMS: primary=$primary, secondary=$secondary, tertiary=$tertiary, start=$segmentStartMs, duration=$segmentDurationMs")
                 return CurrentShow(
                     title = primary,
                     secondary = if (secondary.isNotEmpty()) secondary else null,
                     tertiary = if (tertiary.isNotEmpty()) tertiary else null,
-                    imageUrl = imageUrl
+                    imageUrl = imageUrl,
+                    segmentStartMs = segmentStartMs,
+                    segmentDurationMs = segmentDurationMs
                 )
             }
             
@@ -234,6 +271,29 @@ object ShowInfoFetcher {
         } catch (e: Exception) {
             Log.w(TAG, "Error parsing ESS response: ${e.message}")
             return null
+        }
+    }
+    
+    private fun parseCacheControlMaxAge(cacheControl: String): Long {
+        if (cacheControl.isEmpty()) return 30_000L // Default 30s
+        val maxAgeRegex = """max-age\s*=\s*(\d+)""".toRegex()
+        val match = maxAgeRegex.find(cacheControl)
+        return if (match != null) {
+            val seconds = match.groupValues[1].toLongOrNull() ?: 30L
+            (seconds * 1000L).coerceAtLeast(5_000L) // Minimum 5s, maximum extracted value
+        } else {
+            30_000L
+        }
+    }
+    
+    private fun parseRfc2822Date(dateStr: String): Long {
+        // BBC typically uses RFC 2822 format: "Fri, 05 Jan 2026 12:34:56 +0000"
+        try {
+            val sdf = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", java.util.Locale.US)
+            return sdf.parse(dateStr)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse RFC 2822 date: $dateStr - ${e.message}")
+            return System.currentTimeMillis()
         }
     }
 }
