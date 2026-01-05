@@ -728,7 +728,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 handler.post {
                     Log.d(TAG, "Updating UI with show title: $currentShowTitle")
                     // If we got a now-playing image URL, prefer it for subsequent metadata/notification updates.
-                    val nowPlayingImageUrl = finalShow.imageUrl
+                    val nowPlayingImageUrl = show.imageUrl
                     if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
                         currentArtworkUri = nowPlayingImageUrl
                     }
