@@ -30,6 +30,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
     private var updateThread: Thread? = null
     private var lastArtworkUrl: String? = null
+    private var lastStationId: String = ""
     
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         Log.d("FullScreenPlayer", "showChangeListener triggered: title='${show.title}', secondary='${show.secondary}', tertiary='${show.tertiary}'")
@@ -116,6 +117,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         super.onResume()
         // Clear artwork cache to force reload on resume
         lastArtworkUrl = null
+        lastStationId = ""  // Reset to force UI update
         updateUI()
         startUpdateThread()
     }
@@ -161,18 +163,31 @@ class FullScreenPlayerActivity : AppCompatActivity() {
             return
         }
 
-        // Station Name
+        // Station Name - always update
         titleView.text = station.title
         
-        // Show Name (Programme Name)
-        showTitleView.text = show.title
+        // Detect if station has changed
+        val stationChanged = station.id != lastStationId
+        if (stationChanged) {
+            lastStationId = station.id
+        }
         
-        // Now Playing Artist and Song (if available)
+        // Show Name and Now Playing - only update if not empty placeholder
+        // When a station changes, we get an empty placeholder briefly before real data arrives
+        val showTitle = show.title
         val nowPlayingText = show.getFormattedTitle()
+        
+        // Only update if we have real data (not empty placeholder)
+        if (showTitle.isNotEmpty() || nowPlayingText.isNotEmpty()) {
+            showTitleView.text = showTitle
+            nowPlayingView.text = nowPlayingText
+            nowPlayingView.isSelected = true
+            nowPlayingView.startScrolling()
+        }
+        // If it's an empty placeholder on a station change, keep previous data visible
+        // The real data will arrive shortly and update the UI
+        
         Log.d("FullScreenPlayer", "Updating UI - Station: ${station.title}, Show: ${show.title}, NowPlaying: '$nowPlayingText', secondary: '${show.secondary}', tertiary: '${show.tertiary}'")
-        nowPlayingView.text = nowPlayingText
-        nowPlayingView.isSelected = true
-        nowPlayingView.startScrolling()
 
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
 
