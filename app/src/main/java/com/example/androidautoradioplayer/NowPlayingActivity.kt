@@ -17,7 +17,6 @@ import com.bumptech.glide.request.target.Target
 
 class NowPlayingActivity : AppCompatActivity() {
     private lateinit var stationArtwork: ImageView
-    private lateinit var stationName: TextView
     private lateinit var showName: TextView
     private lateinit var artistTrack: TextView
     private lateinit var stopButton: ImageButton
@@ -46,7 +45,6 @@ class NowPlayingActivity : AppCompatActivity() {
 
         // Initialize views
         stationArtwork = findViewById(R.id.now_playing_artwork)
-        stationName = findViewById(R.id.now_playing_station_name)
         showName = findViewById(R.id.now_playing_show_name)
         artistTrack = findViewById(R.id.now_playing_artist_track)
         stopButton = findViewById(R.id.now_playing_stop)
