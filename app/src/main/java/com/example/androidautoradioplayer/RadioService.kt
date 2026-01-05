@@ -438,6 +438,8 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     private fun loadStationLogoAndUpdateNotification() {
+        // Snapshot play state on the main thread; ExoPlayer is not thread-safe.
+        val isPlayingSnapshot = PlaybackStateHelper.getIsPlaying()
         Thread {
             try {
                 // Use image_url from API if available and valid, otherwise fall back to station logo
@@ -504,7 +506,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         "Next",
                         createPendingIntent(ACTION_SKIP_TO_NEXT, "next_action")
                     )
-                    val playPauseAction = if (player?.isPlaying == true) {
+                    val playPauseAction = if (isPlayingSnapshot) {
                         NotificationCompat.Action(
                             android.R.drawable.ic_media_pause,
                             "Pause",
