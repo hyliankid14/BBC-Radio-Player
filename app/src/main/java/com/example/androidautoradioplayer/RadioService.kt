@@ -649,13 +649,8 @@ class RadioService : MediaBrowserServiceCompat() {
                         Log.d(TAG, "New show has no song info. Preserving previous song info: ${currentShowInfo.secondary} - ${currentShowInfo.tertiary}")
                         finalShow = show.copy(
                             secondary = currentShowInfo.secondary,
-                            tertiary = currentShowInfo.tertiary
-                            // We don't preserve imageUrl because the new one (likely ESS show image) might be better than nothing,
-                            // or the user might prefer the Show Image over the stale Album Art.
-                            // However, the user said "metadata disappears when artwork is refreshed".
-                            // If we keep the text, we should probably keep the artwork too if it was associated with that text?
-                            // Let's try keeping the artwork too if we are keeping the text.
-                            , imageUrl = if (show.imageUrl == null) currentShowInfo.imageUrl else show.imageUrl
+                            tertiary = currentShowInfo.tertiary,
+                            imageUrl = if (show.imageUrl == null) currentShowInfo.imageUrl else show.imageUrl
                         )
                     }
                 }
