@@ -463,7 +463,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 try {
                     bitmap = com.bumptech.glide.Glide.with(this)
                         .asBitmap()
-                        .load(imageUrl)
+                        .load(ImageLoader.getGlideUrl(imageUrl))
                         .submit(256, 256) // Request 256x256 bitmap
                         .get() // Block until loaded
                         
@@ -482,7 +482,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         try {
                             bitmap = com.bumptech.glide.Glide.with(this)
                                 .asBitmap()
-                                .load(finalUrl)
+                                .load(ImageLoader.getGlideUrl(finalUrl))
                                 .submit(256, 256)
                                 .get()
                         } catch (e2: Exception) {

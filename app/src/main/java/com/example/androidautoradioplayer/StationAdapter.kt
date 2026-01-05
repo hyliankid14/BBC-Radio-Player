@@ -96,7 +96,7 @@ class StationAdapter(
         }
         
         Glide.with(context)
-            .load(station.logoUrl)
+            .load(ImageLoader.getGlideUrl(station.logoUrl))
             .into(holder.imageView)
         
         // Update star icon
