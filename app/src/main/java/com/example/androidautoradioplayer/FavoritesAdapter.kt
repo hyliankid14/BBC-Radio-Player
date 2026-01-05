@@ -96,7 +96,7 @@ class FavoritesAdapter(
         }
         
         Glide.with(context)
-            .load(ImageLoader.getGlideUrl(station.logoUrl))
+            .load(station.logoUrl)
             .into(holder.imageView)
         
         // Update star icon

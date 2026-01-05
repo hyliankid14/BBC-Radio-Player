@@ -132,9 +132,9 @@ class NowPlayingActivity : AppCompatActivity() {
                 val fallbackUrl = station.logoUrl
                 
                 Glide.with(this)
-                    .load(ImageLoader.getGlideUrl(artworkUrl))
+                    .load(artworkUrl)
                     .placeholder(android.R.color.transparent)
-                    .error(Glide.with(this).load(ImageLoader.getGlideUrl(fallbackUrl)))
+                    .error(Glide.with(this).load(fallbackUrl))
                     .listener(object : RequestListener<Drawable> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
                             return false
@@ -144,7 +144,7 @@ class NowPlayingActivity : AppCompatActivity() {
                             if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
                                 stationArtwork.post {
                                     Glide.with(this@NowPlayingActivity)
-                                        .load(ImageLoader.getGlideUrl(fallbackUrl))
+                                        .load(fallbackUrl)
                                         .into(stationArtwork)
                                 }
                                 return true

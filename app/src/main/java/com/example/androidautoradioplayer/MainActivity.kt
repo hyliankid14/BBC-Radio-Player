@@ -467,9 +467,9 @@ class MainActivity : AppCompatActivity() {
                 val fallbackUrl = station.logoUrl
                 
                 Glide.with(this)
-                    .load(ImageLoader.getGlideUrl(artworkUrl))
+                    .load(artworkUrl)
                     .placeholder(android.R.color.transparent)
-                    .error(Glide.with(this).load(ImageLoader.getGlideUrl(fallbackUrl)))
+                    .error(Glide.with(this).load(fallbackUrl))
                     .listener(object : RequestListener<Drawable> {
                         override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
                             return false
@@ -480,7 +480,7 @@ class MainActivity : AppCompatActivity() {
                                 Log.d("MainActivity", "Detected placeholder image, falling back to logo")
                                 miniPlayerArtwork.post {
                                     Glide.with(this@MainActivity)
-                                        .load(ImageLoader.getGlideUrl(fallbackUrl))
+                                        .load(fallbackUrl)
                                         .into(miniPlayerArtwork)
                                 }
                                 return true
@@ -541,9 +541,9 @@ class MainActivity : AppCompatActivity() {
             val fallbackUrl = PlaybackStateHelper.getCurrentStation()?.logoUrl
             
             Glide.with(this)
-                .load(ImageLoader.getGlideUrl(artworkUrl))
+                .load(artworkUrl)
                 .placeholder(android.R.color.transparent)
-                .error(Glide.with(this).load(ImageLoader.getGlideUrl(fallbackUrl)))
+                .error(Glide.with(this).load(fallbackUrl))
                 .listener(object : RequestListener<Drawable> {
                     override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
                         return false
@@ -554,7 +554,7 @@ class MainActivity : AppCompatActivity() {
                             Log.d("MainActivity", "Detected placeholder image, falling back to logo")
                             miniPlayerArtwork.post {
                                 Glide.with(this@MainActivity)
-                                    .load(ImageLoader.getGlideUrl(fallbackUrl))
+                                    .load(fallbackUrl)
                                     .into(miniPlayerArtwork)
                             }
                             return true

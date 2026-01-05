@@ -83,7 +83,7 @@ class CategorizedStationAdapter(
         
         // Load image
         Glide.with(context)
-            .load(ImageLoader.getGlideUrl(station.logoUrl))
+            .load(station.logoUrl)
             .into(holder.imageView)
         
         // Handle favorite star
