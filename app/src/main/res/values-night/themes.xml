@@ -2,11 +2,9 @@
 <resources>
     <!-- Material Design 3 Theme - Dark -->
     <style name="Theme.AndroidAutoRadioPlayer" parent="Theme.Material3.DayNight">
-        <!-- Override primary color to use darker purple (#6200EE) -->
-        <item name="colorPrimary">#6200EE</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        
         <!-- Primary brand color -->
+        <item name="colorPrimary">@color/md_theme_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
         <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>
         <item name="colorOnPrimaryContainer">@color/md_theme_onPrimaryContainer</item>
         
