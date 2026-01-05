@@ -24,7 +24,6 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 
 class MainActivity : AppCompatActivity() {
