@@ -744,8 +744,9 @@ class RadioService : MediaBrowserServiceCompat() {
                 handler.post {
                     Log.d(TAG, "Updating UI with show title: $currentShowTitle")
                     // If we got a now-playing image URL, prefer it for subsequent metadata/notification updates.
-                    if (!finalShow.imageUrl.isNullOrEmpty() && finalShow.imageUrl.startsWith("http")) {
-                        currentArtworkUri = finalShow.imageUrl
+                    val nowPlayingImageUrl = finalShow.imageUrl
+                    if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
+                        currentArtworkUri = nowPlayingImageUrl
                     }
                     updateMediaMetadata()
                     startForegroundNotification()
