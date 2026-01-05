@@ -66,6 +66,7 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val NOTIFICATION_ID = 1
         private const val CUSTOM_ACTION_TOGGLE_FAVORITE = "TOGGLE_FAVORITE"
         private const val CUSTOM_ACTION_SPACER = "SPACER"
+        private const val CUSTOM_ACTION_STOP = "STOP"
         
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
@@ -117,8 +118,13 @@ class RadioService : MediaBrowserServiceCompat() {
 
             override fun onCustomAction(action: String?, extras: Bundle?) {
                 Log.d(TAG, "onCustomAction called with action: $action")
-                if (action == CUSTOM_ACTION_TOGGLE_FAVORITE && currentStationId.isNotEmpty()) {
-                    toggleFavoriteAndNotify(currentStationId)
+                when (action) {
+                    CUSTOM_ACTION_STOP -> stopPlayback()
+                    CUSTOM_ACTION_TOGGLE_FAVORITE -> {
+                        if (currentStationId.isNotEmpty()) {
+                            toggleFavoriteAndNotify(currentStationId)
+                        }
+                    }
                 }
             }
         })
@@ -187,11 +193,11 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_PLAY_PAUSE
             )
             .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
-            // Add a spacer action first to push the favorite star to the right
+            // Use the left custom-action slot for Stop (some Android media UIs don't show ACTION_STOP)
             .addCustomAction(
-                CUSTOM_ACTION_SPACER,
-                " ",
-                R.drawable.ic_transparent
+                CUSTOM_ACTION_STOP,
+                "Stop",
+                R.drawable.ic_stop
             )
             .addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAVORITE, 
@@ -664,8 +670,8 @@ class RadioService : MediaBrowserServiceCompat() {
         ensurePlayer()
         requestAudioFocus()
         
-        // Set metadata immediately with placeholder to clear old artwork
-        updateMediaMetadata(artworkBitmap = placeholderBitmap)
+        // Set metadata immediately with station logo URI (lets the system show artwork ASAP)
+        updateMediaMetadata(artworkBitmap = null, artworkUri = currentStationLogo)
         
         startForegroundNotification()
         
