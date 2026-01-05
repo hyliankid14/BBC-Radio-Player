@@ -41,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerFavorite: ImageButton
     private lateinit var filterButtonsContainer: View
     private var categorizedAdapter: CategorizedStationAdapter? = null
+    private var currentTabIndex = 0
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
@@ -167,10 +168,19 @@ class MainActivity : AppCompatActivity() {
         
         tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
-                when (tab.position) {
-                    0 -> showCategoryStations(StationCategory.NATIONAL)
-                    1 -> showCategoryStations(StationCategory.REGIONS)
-                    2 -> showCategoryStations(StationCategory.LOCAL)
+                val newIndex = tab.position
+                val direction = if (newIndex > currentTabIndex) 1 else -1
+                currentTabIndex = newIndex
+                
+                val category = when (newIndex) {
+                    0 -> StationCategory.NATIONAL
+                    1 -> StationCategory.REGIONS
+                    2 -> StationCategory.LOCAL
+                    else -> StationCategory.NATIONAL
+                }
+                
+                animateListTransition(direction) {
+                    showCategoryStations(category)
                 }
             }
 
@@ -180,6 +190,27 @@ class MainActivity : AppCompatActivity() {
         
         // Set National as default selected
         showCategoryStations(StationCategory.NATIONAL)
+    }
+
+    private fun animateListTransition(direction: Int, onFadeOutComplete: () -> Unit) {
+        val screenWidth = stationsList.width.toFloat()
+        val exitTranslation = if (direction > 0) -screenWidth else screenWidth
+        val enterTranslation = if (direction > 0) screenWidth else -screenWidth
+        
+        stationsList.animate()
+            .translationX(exitTranslation)
+            .alpha(0f)
+            .setDuration(200)
+            .withEndAction {
+                onFadeOutComplete()
+                stationsList.translationX = enterTranslation
+                stationsList.animate()
+                    .translationX(0f)
+                    .alpha(1f)
+                    .setDuration(200)
+                    .start()
+            }
+            .start()
     }
     
     private fun showCategoryStations(category: StationCategory) {
