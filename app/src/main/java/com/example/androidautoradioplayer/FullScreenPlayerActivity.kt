@@ -32,6 +32,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
     private var lastArtworkUrl: String? = null
     
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
+        Log.d("FullScreenPlayer", "showChangeListener triggered: title='${show.title}', secondary='${show.secondary}', tertiary='${show.tertiary}'")
         runOnUiThread { updateUI() }
     }
 
