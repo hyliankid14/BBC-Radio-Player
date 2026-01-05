@@ -86,7 +86,8 @@
             android:id="@+id/player_now_playing"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Now Playing Info"
+            xmlns:tools="http://schemas.android.com/tools"
+            tools:text="Now Playing Info"
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
             android:textColor="?attr/colorOnSurface"
             android:gravity="center" />
@@ -100,6 +101,17 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:paddingBottom="48dp">
+
+        <ImageButton
+            android:id="@+id/player_stop"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_stop"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:tint="?attr/colorOnSurface"
+            android:contentDescription="Stop"
+            android:layout_marginEnd="16dp" />
 
         <ImageButton
             android:id="@+id/player_previous"
@@ -119,8 +131,8 @@
             android:background="@drawable/button_background"
             android:scaleType="centerInside"
             android:tint="?attr/colorOnPrimary"
-            android:layout_marginStart="24dp"
-            android:layout_marginEnd="24dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
             android:contentDescription="Play/Pause" />
 
         <ImageButton
@@ -133,16 +145,6 @@
             android:tint="?attr/colorOnSurface"
             android:contentDescription="Next" />
 
-    </LinearLayout>
-    
-    <!-- Bottom Actions -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingBottom="32dp">
-        
         <ImageButton
             android:id="@+id/player_favorite"
             android:layout_width="48dp"
@@ -152,18 +154,8 @@
             android:scaleType="centerInside"
             android:tint="?attr/colorOnSurfaceVariant"
             android:contentDescription="Favorite"
-            android:layout_marginEnd="32dp"/>
+            android:layout_marginStart="16dp" />
 
-        <ImageButton
-            android:id="@+id/player_stop"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/ic_stop"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:scaleType="centerInside"
-            android:tint="?attr/colorOnSurfaceVariant"
-            android:contentDescription="Stop" />
-            
     </LinearLayout>
 
 </LinearLayout>

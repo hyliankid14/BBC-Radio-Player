@@ -637,13 +637,35 @@ class RadioService : MediaBrowserServiceCompat() {
 
                 Log.d(TAG, "ShowInfoFetcher returned: ${show.title}")
                 
+                // Sticky Metadata Logic:
+                // If the new show info has no song data (secondary/tertiary), but the previous one did,
+                // AND the Show Name (title) hasn't changed, then preserve the old song data.
+                // This prevents metadata from disappearing during transient API drops or when falling back to ESS.
+                var finalShow = show
+                if (show.secondary.isNullOrEmpty() && show.tertiary.isNullOrEmpty()) {
+                    if (currentShowInfo.title == show.title && 
+                        (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty())) {
+                        Log.d(TAG, "New show has no song info. Preserving previous song info: ${currentShowInfo.secondary} - ${currentShowInfo.tertiary}")
+                        finalShow = show.copy(
+                            secondary = currentShowInfo.secondary,
+                            tertiary = currentShowInfo.tertiary
+                            // We don't preserve imageUrl because the new one (likely ESS show image) might be better than nothing,
+                            // or the user might prefer the Show Image over the stale Album Art.
+                            // However, the user said "metadata disappears when artwork is refreshed".
+                            // If we keep the text, we should probably keep the artwork too if it was associated with that text?
+                            // Let's try keeping the artwork too if we are keeping the text.
+                            , imageUrl = if (show.imageUrl == null) currentShowInfo.imageUrl else show.imageUrl
+                        )
+                    }
+                }
+                
                 // Update show info
-                currentShowInfo = show
-                val formattedTitle = show.getFormattedTitle()
+                currentShowInfo = finalShow
+                val formattedTitle = finalShow.getFormattedTitle()
                 // If the title is just the generic default, treat it as empty to avoid redundancy
                 currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
                 
-                PlaybackStateHelper.setCurrentShow(show)
+                PlaybackStateHelper.setCurrentShow(finalShow)
                 Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, imageUrl: ${show.imageUrl}")
                 
                 // Switch to main thread to update UI
