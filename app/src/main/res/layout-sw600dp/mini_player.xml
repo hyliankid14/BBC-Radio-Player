@@ -22,19 +22,23 @@
         android:contentDescription="Station artwork"
         android:layout_marginEnd="20dp" />
 
-    <!-- Station Info and Controls -->
+    <!-- Station Info and Controls Container (Horizontal) -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:gravity="center_vertical">
 
+        <!-- Text Info (Vertical Stack) -->
         <LinearLayout
             android:id="@+id/mini_player_text_container"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:orientation="vertical"
+            android:gravity="center_vertical"
+            android:layout_marginEnd="16dp"
             android:background="?attr/selectableItemBackground">
 
             <!-- Station Title -->
@@ -60,13 +64,10 @@
 
         <!-- Controls -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            style="@style/MiniPlayerControlsLayout"
-            android:layout_marginTop="12dp"
-            android:layout_marginStart="@dimen/mini_player_controls_margin_horizontal"
-            android:layout_marginEnd="@dimen/mini_player_controls_margin_horizontal">
+            android:gravity="center_vertical">
 
             <!-- Stop Button -->
             <ImageButton
@@ -121,6 +122,7 @@
                 android:id="@+id/mini_player_favorite"
                 android:layout_width="@dimen/mini_player_button_size"
                 android:layout_height="@dimen/mini_player_button_size"
+                android:src="@drawable/ic_star_border"
                 android:scaleType="centerInside"
                 android:padding="@dimen/mini_player_button_padding"
                 android:background="?attr/selectableItemBackgroundBorderless"

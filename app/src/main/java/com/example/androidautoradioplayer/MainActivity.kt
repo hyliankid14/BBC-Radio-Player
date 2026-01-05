@@ -104,6 +104,7 @@ class MainActivity : AppCompatActivity() {
         miniPlayerNext = findViewById(R.id.mini_player_next)
         miniPlayerStop = findViewById(R.id.mini_player_stop)
         miniPlayerFavorite = findViewById(R.id.mini_player_favorite)
+        val miniPlayerTextContainer = findViewById<View>(R.id.mini_player_text_container)
         
         miniPlayerPrevious.setOnClickListener { skipToPrevious() }
         miniPlayerPlayPause.setOnClickListener { togglePlayPause() }
@@ -111,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         miniPlayerStop.setOnClickListener { stopPlayback() }
         miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
         miniPlayerArtwork.setOnClickListener { openNowPlaying() }
+        miniPlayerTextContainer.setOnClickListener { openNowPlaying() }
 
         
         // Ensure mini player state is in sync immediately (avoids flicker on theme change)
