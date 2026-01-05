@@ -77,18 +77,24 @@ class NowPlayingActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        PlaybackStateHelper.onShowChange(showChangeListener)
         startPlaybackStateUpdates()
         updateUI()
     }
 
     override fun onPause() {
         super.onPause()
+        stopPlaybackStateUpdates()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
         PlaybackStateHelper.removeShowChangeListener(showChangeListener)
         stopPlaybackStateUpdates()
     }
 
     private fun updateUI() {
+        if (isFinishing || isDestroyed) return
+        
         val station = PlaybackStateHelper.getCurrentStation()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
         val show = PlaybackStateHelper.getCurrentShow()
@@ -119,7 +125,7 @@ class NowPlayingActivity : AppCompatActivity() {
             }
             
             // Only reload if URL changed
-            if (artworkUrl != null && artworkUrl != lastArtworkUrl) {
+            if (artworkUrl != null && artworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
                 lastArtworkUrl = artworkUrl
                 val fallbackUrl = station.logoUrl
                 
@@ -163,6 +169,8 @@ class NowPlayingActivity : AppCompatActivity() {
     }
     
     private fun updateFromShow(show: CurrentShow) {
+        if (isFinishing || isDestroyed) return
+        
         // Update show name
         showName.text = show.title.ifEmpty { "BBC Radio" }
         
@@ -185,7 +193,7 @@ class NowPlayingActivity : AppCompatActivity() {
         }
         
         // Only reload if URL changed
-        if (artworkUrl != null && artworkUrl != lastArtworkUrl) {
+        if (artworkUrl != null && artworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
             lastArtworkUrl = artworkUrl
             val fallbackUrl = PlaybackStateHelper.getCurrentStation()?.logoUrl
             
@@ -270,7 +278,9 @@ class NowPlayingActivity : AppCompatActivity() {
             while (!Thread.currentThread().isInterrupted) {
                 try {
                     Thread.sleep(500) // Update every 500ms
-                    runOnUiThread { updateUI() }
+                    if (!isFinishing && !isDestroyed) {
+                        runOnUiThread { updateUI() }
+                    }
                 } catch (e: InterruptedException) {
                     break
                 }
