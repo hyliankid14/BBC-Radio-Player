@@ -160,10 +160,8 @@ class NowPlayingActivity : AppCompatActivity() {
             val isFavorited = FavoritesPreference.isFavorite(this, station.id)
             if (isFavorited) {
                 favoriteButton.setImageResource(R.drawable.ic_star_filled)
-                favoriteButton.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
             } else {
                 favoriteButton.setImageResource(R.drawable.ic_star_outline)
-                favoriteButton.clearColorFilter()
             }
         }
     }
