@@ -159,18 +159,16 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
         titleView.text = station.title
         
-        // Update Show Title (Programme Name)
-        val currentShowTitle = show.title
-        if (showTitleView.text.toString() != currentShowTitle) {
-            showTitleView.text = currentShowTitle
-        }
+        // Update Show Title (Programme Name) - show is never null, it has a default
+        showTitleView.text = show.title
         
-        // Update Now Playing Info - Use same logic as Mini Player
-        val formattedTitle = show.getFormattedTitle()
-        // Always update to ensure consistency - don't skip if "same"
-        nowPlayingView.text = formattedTitle
-        nowPlayingView.isSelected = true
-        nowPlayingView.startScrolling()
+        // Update Now Playing Info - Use EXACT same logic as Mini Player
+        val newTitle = show.getFormattedTitle()
+        if (nowPlayingView.text.toString() != newTitle) {
+            nowPlayingView.text = newTitle
+            nowPlayingView.isSelected = true
+            nowPlayingView.startScrolling()
+        }
 
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
 
