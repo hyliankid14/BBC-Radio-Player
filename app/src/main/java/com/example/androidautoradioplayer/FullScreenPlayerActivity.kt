@@ -30,7 +30,6 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
     private var updateThread: Thread? = null
     private var lastArtworkUrl: String? = null
-    private var lastUpdateTitle: String? = null // Track last update to force refresh when needed
     
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateUI() }
@@ -114,8 +113,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Reset tracking to force fresh update when activity becomes visible
-        lastUpdateTitle = null
+        // Clear artwork cache to force reload on resume
         lastArtworkUrl = null
         updateUI()
         startUpdateThread()
@@ -162,20 +160,17 @@ class FullScreenPlayerActivity : AppCompatActivity() {
             return
         }
 
+        // Station Name
         titleView.text = station.title
         
-        // Update Show Title (Programme Name) - show is never null, it has a default
+        // Show Name (Programme Name)
         showTitleView.text = show.title
         
-        // Update Now Playing Info - Always update to ensure fresh display
-        val newTitle = show.getFormattedTitle()
-        // Force update if this is first load (lastUpdateTitle is null) or if content changed
-        if (lastUpdateTitle == null || nowPlayingView.text.toString() != newTitle) {
-            nowPlayingView.text = newTitle
-            nowPlayingView.isSelected = true
-            nowPlayingView.startScrolling()
-            lastUpdateTitle = newTitle
-        }
+        // Now Playing Artist and Song (if available)
+        val nowPlayingText = show.getFormattedTitle()
+        nowPlayingView.text = nowPlayingText
+        nowPlayingView.isSelected = true
+        nowPlayingView.startScrolling()
 
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
 
