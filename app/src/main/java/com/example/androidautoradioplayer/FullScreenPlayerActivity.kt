@@ -170,7 +170,9 @@ class FullScreenPlayerActivity : AppCompatActivity() {
             nowPlayingView.text = newTitle
             nowPlayingView.isSelected = true
             nowPlayingView.startScrolling()
-            // Show view when we have content
+        }
+        // Always ensure visibility if we have any text (even if it didn't just change)
+        if (nowPlayingView.text.isNotEmpty()) {
             nowPlayingView.visibility = android.view.View.VISIBLE
         }
 
