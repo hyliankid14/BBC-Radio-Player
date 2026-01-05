@@ -79,9 +79,13 @@
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:layout_margin="6dp"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 app:icon="@drawable/ic_stop"
                 app:iconTint="?attr/colorOnSurface"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
                 android:contentDescription="Stop" />
 
             <!-- Previous Icon Button -->
@@ -90,9 +94,13 @@
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:layout_margin="6dp"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 app:icon="@drawable/ic_skip_previous"
                 app:iconTint="?attr/colorOnSurface"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
                 android:contentDescription="Previous" />
 
             <!-- Play/Pause Filled Button (High Emphasis) -->
@@ -105,6 +113,10 @@
                 app:icon="@drawable/ic_play_arrow"
                 app:iconTint="@color/md_theme_onPrimary"
                 app:backgroundTint="@color/md_theme_primary"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
                 android:contentDescription="Play/Pause" />
 
             <!-- Next Icon Button -->
@@ -113,9 +125,13 @@
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:layout_margin="6dp"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 app:icon="@drawable/ic_skip_next"
                 app:iconTint="?attr/colorOnSurface"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
                 android:contentDescription="Next" />
 
             <!-- Favorite Icon Button -->
@@ -124,9 +140,13 @@
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:layout_margin="6dp"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 app:icon="@drawable/ic_star_outline"
                 app:iconTint="?attr/colorOnSurface"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
                 android:contentDescription="Add to Favorites" />
 
         </LinearLayout>
