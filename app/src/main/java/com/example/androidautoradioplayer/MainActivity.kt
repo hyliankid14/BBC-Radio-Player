@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
+import android.content.res.ColorStateList
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -22,6 +23,8 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 
 class MainActivity : AppCompatActivity() {
     private lateinit var stationsList: RecyclerView
@@ -198,20 +201,23 @@ class MainActivity : AppCompatActivity() {
         val filterNational = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_national)
         val filterRegions = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_regions)
         val filterLocal = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_local)
-        
-        val primaryColor = android.graphics.Color.parseColor("#6200EE")
-        val transparentPrimary = (0x26 shl 24) or (primaryColor and 0xFFFFFF)
-        
-        // Reset all buttons to transparent background
-        filterNational.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        filterRegions.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        filterLocal.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        
-        // Highlight the selected category button with primary color
+
+        val primaryColor = ContextCompat.getColor(this, R.color.md_theme_primary)
+        val surfaceColor = ContextCompat.getColor(this, R.color.md_theme_surface)
+        val highlightColor = ColorUtils.compositeColors(
+            ColorUtils.setAlphaComponent(primaryColor, 0x26),
+            surfaceColor
+        )
+
+        val buttons = listOf(filterNational, filterRegions, filterLocal)
+        buttons.forEach { button ->
+            button.backgroundTintList = ColorStateList.valueOf(surfaceColor)
+        }
+
         when (selectedCategory) {
-            StationCategory.NATIONAL -> filterNational.setBackgroundColor(transparentPrimary)
-            StationCategory.REGIONS -> filterRegions.setBackgroundColor(transparentPrimary)
-            StationCategory.LOCAL -> filterLocal.setBackgroundColor(transparentPrimary)
+            StationCategory.NATIONAL -> filterNational.backgroundTintList = ColorStateList.valueOf(highlightColor)
+            StationCategory.REGIONS -> filterRegions.backgroundTintList = ColorStateList.valueOf(highlightColor)
+            StationCategory.LOCAL -> filterLocal.backgroundTintList = ColorStateList.valueOf(highlightColor)
         }
     }
 

@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:padding="12dp"
-    android:background="?attr/colorSurface"
+    android:background="@color/md_theme_surfaceContainer"
     android:gravity="center"
     android:elevation="8dp">
 
@@ -20,7 +20,12 @@
         android:textColor="?attr/colorOnSurface"
         app:elevation="4dp"
         style="@style/Widget.Material3.Button.OutlinedButton"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        app:backgroundTint="@color/md_theme_surface"
+        app:strokeColor="@color/md_theme_outline"
+        app:strokeWidth="1dp"
+        app:cornerRadius="14dp"
+        app:rippleColor="@color/md_theme_primaryContainer" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/filter_regions"
@@ -32,7 +37,12 @@
         android:textColor="?attr/colorOnSurface"
         app:elevation="4dp"
         style="@style/Widget.Material3.Button.OutlinedButton"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        app:backgroundTint="@color/md_theme_surface"
+        app:strokeColor="@color/md_theme_outline"
+        app:strokeWidth="1dp"
+        app:cornerRadius="14dp"
+        app:rippleColor="@color/md_theme_primaryContainer" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/filter_local"
@@ -44,6 +54,11 @@
         android:textColor="?attr/colorOnSurface"
         app:elevation="4dp"
         style="@style/Widget.Material3.Button.OutlinedButton"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        app:backgroundTint="@color/md_theme_surface"
+        app:strokeColor="@color/md_theme_outline"
+        app:strokeWidth="1dp"
+        app:cornerRadius="14dp"
+        app:rippleColor="@color/md_theme_primaryContainer" />
 
 </LinearLayout>
