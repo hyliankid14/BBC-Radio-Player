@@ -90,7 +90,8 @@
             tools:text="Now Playing Info"
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
             android:textColor="?attr/colorOnSurface"
-            android:gravity="center" />
+            android:gravity="center"
+            android:visibility="visible" />
 
     </LinearLayout>
 
