@@ -10,6 +10,7 @@ object PlaybackStateHelper {
     private val showChangeListeners = mutableListOf<(CurrentShow) -> Unit>()
     
     fun setCurrentStation(station: Station?) {
+        android.util.Log.d("PlaybackStateHelper", "setCurrentStation called: ${station?.title}")
         currentStation = station
     }
     
