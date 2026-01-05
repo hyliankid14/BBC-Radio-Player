@@ -202,36 +202,12 @@ class MainActivity : AppCompatActivity() {
         val filterRegions = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_regions)
         val filterLocal = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_local)
 
-        val primaryColor = ContextCompat.getColor(this, R.color.md_theme_primary)
-        val surfaceColor = ContextCompat.getColor(this, R.color.md_theme_surface)
-        val outlineColor = ContextCompat.getColor(this, R.color.md_theme_outline)
-        val highlightColor = ColorUtils.compositeColors(
-            ColorUtils.setAlphaComponent(primaryColor, 0x26),
-            surfaceColor
-        )
+        // Reset all checked states first
+        filterNational.isChecked = false
+        filterRegions.isChecked = false
+        filterLocal.isChecked = false
 
-        val backgroundColors = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(highlightColor, surfaceColor)
-        )
-        val strokeColors = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(primaryColor, outlineColor)
-        )
-        val rippleColors = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_pressed), intArrayOf()),
-            intArrayOf(ColorUtils.setAlphaComponent(primaryColor, 0x4D), ColorUtils.setAlphaComponent(primaryColor, 0x26))
-        )
-
-        val buttons = listOf(filterNational, filterRegions, filterLocal)
-        buttons.forEach { button ->
-            button.isCheckable = true
-            button.backgroundTintList = backgroundColors
-            button.strokeColor = strokeColors
-            button.rippleColor = rippleColors
-            button.isChecked = false
-        }
-
+        // Set the checked state based on selection
         when (selectedCategory) {
             StationCategory.NATIONAL -> filterNational.isChecked = true
             StationCategory.REGIONS -> filterRegions.isChecked = true
