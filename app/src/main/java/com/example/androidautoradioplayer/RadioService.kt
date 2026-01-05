@@ -758,6 +758,9 @@ class RadioService : MediaBrowserServiceCompat() {
                     val nowPlayingImageUrl = finalShow.imageUrl
                     if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
                         currentArtworkUri = nowPlayingImageUrl
+                    } else {
+                        // If no valid image URL, clear the sticky artwork URI so we fall back to station logo
+                        currentArtworkUri = null
                     }
                     updateMediaMetadata()
                     startForegroundNotification()

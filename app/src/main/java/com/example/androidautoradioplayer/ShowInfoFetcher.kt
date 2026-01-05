@@ -260,8 +260,16 @@ object ShowInfoFetcher {
                             val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
                             val subtitle = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
                             
-                            Log.d(TAG, "Found current ESS show: $title ($subtitle)")
-                            return CurrentShow(title = title, secondary = subtitle)
+                            // Extract image from episode or brand
+                            val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
+                            val imageTemplate = imageObj?.optString("template_url")
+                            var imageUrl: String? = null
+                            if (!imageTemplate.isNullOrEmpty()) {
+                                imageUrl = imageTemplate.replace("{recipe}", "640x640")
+                            }
+                            
+                            Log.d(TAG, "Found current ESS show: $title ($subtitle), imageUrl=$imageUrl")
+                            return CurrentShow(title = title, secondary = subtitle, imageUrl = imageUrl)
                         }
                     } catch (e: java.text.ParseException) {
                         Log.w(TAG, "Date parse error: ${e.message}")
