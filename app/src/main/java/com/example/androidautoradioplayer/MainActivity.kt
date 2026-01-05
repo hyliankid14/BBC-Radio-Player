@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity() {
         if (categorizedAdapter != null) {
             val position = categorizedAdapter!!.getPositionForCategory(category)
             if (position >= 0) {
-                stationsList.smoothScrollToPosition(position)
+                (stationsList.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(position, 0)
             }
         }
     }

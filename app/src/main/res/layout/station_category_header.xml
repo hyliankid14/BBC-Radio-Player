@@ -14,9 +14,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-        android:textColor="?attr/colorPrimary"
+        android:textColor="?attr/colorOnSurface"
         android:textStyle="bold"
-        android:letterSpacing="0.15"
-        android:alpha="0.8" />
+        android:letterSpacing="0.15" />
 
 </LinearLayout>
