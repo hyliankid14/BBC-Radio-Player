@@ -43,4 +43,7 @@
     
     <!-- Mini player icon tint - dark in light mode -->
     <color name="mini_player_icon_tint">#424242</color>
+    
+    <!-- Now Playing screen colors -->
+    <color name="now_playing_play_pause_tint">#6200EE</color>
 </resources>
