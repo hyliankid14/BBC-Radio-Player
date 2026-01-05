@@ -221,8 +221,54 @@ class NowPlayingActivity : AppCompatActivity() {
     }
     
     private fun isPlaceholderImage(bitmap: Bitmap): Boolean {
-        // Check if bitmap is a 1x1 transparent placeholder
-        return bitmap.width == 1 && bitmap.height == 1
+        val width = bitmap.width
+        val height = bitmap.height
+        
+        // Check for 1x1 placeholder
+        if (width == 1 && height == 1) return true
+        
+        if (width < 10 || height < 10) return false
+        
+        // Sample 5 points: corners and center
+        val p1 = bitmap.getPixel(5, 5)
+        val p2 = bitmap.getPixel(width - 5, 5)
+        val p3 = bitmap.getPixel(5, height - 5)
+        val p4 = bitmap.getPixel(width - 5, height - 5)
+        val p5 = bitmap.getPixel(width / 2, height / 2)
+        
+        val pixels = listOf(p1, p2, p3, p4, p5)
+        val first = pixels[0]
+        
+        // Check if all sampled pixels are similar to the first one
+        for (p in pixels) {
+            if (!areColorsSimilar(first, p)) return false
+        }
+        
+        // Check if the color is grey-ish (R ~= G ~= B)
+        return isGrey(first)
+    }
+    
+    private fun areColorsSimilar(c1: Int, c2: Int): Boolean {
+        val r1 = (c1 shr 16) and 0xFF
+        val g1 = (c1 shr 8) and 0xFF
+        val b1 = c1 and 0xFF
+        
+        val r2 = (c2 shr 16) and 0xFF
+        val g2 = (c2 shr 8) and 0xFF
+        val b2 = c2 and 0xFF
+        
+        val diff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2)
+        return diff < 30 // Tolerance
+    }
+    
+    private fun isGrey(color: Int): Boolean {
+        val r = (color shr 16) and 0xFF
+        val g = (color shr 8) and 0xFF
+        val b = color and 0xFF
+        
+        // Grey means R, G, and B are close to each other
+        val maxDiff = Math.max(Math.abs(r - g), Math.max(Math.abs(r - b), Math.abs(g - b)))
+        return maxDiff < 20
     }
 
     private fun stopPlayback() {
