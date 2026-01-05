@@ -743,6 +743,10 @@ class RadioService : MediaBrowserServiceCompat() {
                 // Switch to main thread to update UI
                 handler.post {
                     Log.d(TAG, "Updating UI with show title: $currentShowTitle")
+                    // If we got a now-playing image URL, prefer it for subsequent metadata/notification updates.
+                    if (!finalShow.imageUrl.isNullOrEmpty() && finalShow.imageUrl.startsWith("http")) {
+                        currentArtworkUri = finalShow.imageUrl
+                    }
                     updateMediaMetadata()
                     startForegroundNotification()
                 }
@@ -796,9 +800,10 @@ class RadioService : MediaBrowserServiceCompat() {
     private fun updateMediaMetadata(artworkBitmap: android.graphics.Bitmap? = null, artworkUri: String? = null) {
         // Keep artwork sticky across metadata refreshes. Some OEM media UIs only show art
         // if a bitmap is present in the MediaSession metadata.
+        // Prefer the latest now-playing artwork URL (RMS) when available.
         val displayUri = artworkUri
-            ?: currentArtworkUri
             ?: currentShowInfo.imageUrl
+            ?: currentArtworkUri
             ?: currentStationLogo
 
         val displayBitmap = artworkBitmap ?: currentArtworkBitmap
