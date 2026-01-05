@@ -30,28 +30,40 @@ object StationRepository {
         title: String,
         serviceId: String,
         logoServiceId: String = serviceId,
-        category: StationCategory = StationCategory.LOCAL
-    ): Station = Station(
-        id = id,
-        title = title,
-        serviceId = serviceId,
-        logoUrl = "$LOGO_BASE/$logoServiceId/blocks-colour-black_128x128.png",
-        category = category
-    )
+        category: StationCategory = StationCategory.LOCAL,
+        highResSvgPath: String? = null,
+        isEnWiki: Boolean = false
+    ): Station {
+        val url = if (highResSvgPath != null) {
+            val wikiBase = if (isEnWiki) "https://upload.wikimedia.org/wikipedia/en/thumb" else "https://upload.wikimedia.org/wikipedia/commons/thumb"
+            val filename = highResSvgPath.substringAfterLast("/")
+            "$wikiBase/$highResSvgPath/480px-$filename.png"
+        } else {
+            "$LOGO_BASE/$logoServiceId/blocks-colour-black_128x128.png"
+        }
+
+        return Station(
+            id = id,
+            title = title,
+            serviceId = serviceId,
+            logoUrl = url,
+            category = category
+        )
+    }
 
     private val stations = listOf(
         // BBC National and Digital Stations
-        station("radio1", "BBC Radio 1", "bbc_radio_one", category = StationCategory.NATIONAL),
-        station("1xtra", "BBC Radio 1Xtra", "bbc_1xtra", category = StationCategory.NATIONAL),
+        station("radio1", "BBC Radio 1", "bbc_radio_one", category = StationCategory.NATIONAL, highResSvgPath = "3/3d/BBC_Radio_1_2021.svg"),
+        station("1xtra", "BBC Radio 1Xtra", "bbc_1xtra", category = StationCategory.NATIONAL, highResSvgPath = "d/d7/BBC_Radio_1Xtra_2021.svg"),
         station("radio1dance", "BBC Radio 1 Dance", "bbc_radio_one_dance", category = StationCategory.NATIONAL),
-        station("radio2", "BBC Radio 2", "bbc_radio_two", category = StationCategory.NATIONAL),
-        station("radio3", "BBC Radio 3", "bbc_radio_three", category = StationCategory.NATIONAL),
-        station("radio4", "BBC Radio 4", "bbc_radio_fourfm", category = StationCategory.NATIONAL),
-        station("radio4extra", "BBC Radio 4 Extra", "bbc_radio_four_extra", category = StationCategory.NATIONAL),
-        station("radio5live", "BBC Radio 5 Live", "bbc_radio_five_live", category = StationCategory.NATIONAL),
-        station("radio6", "BBC Radio 6 Music", "bbc_6music", category = StationCategory.NATIONAL),
-        station("worldservice", "BBC World Service", "bbc_world_service", category = StationCategory.NATIONAL),
-        station("asiannetwork", "BBC Asian Network", "bbc_asian_network", category = StationCategory.NATIONAL),
+        station("radio2", "BBC Radio 2", "bbc_radio_two", category = StationCategory.NATIONAL, highResSvgPath = "1/16/BBC_Radio_2_2022.svg"),
+        station("radio3", "BBC Radio 3", "bbc_radio_three", category = StationCategory.NATIONAL, highResSvgPath = "3/3c/BBC_Radio_3_2022.svg"),
+        station("radio4", "BBC Radio 4", "bbc_radio_fourfm", category = StationCategory.NATIONAL, highResSvgPath = "5/54/BBC_Radio_4_2022.svg"),
+        station("radio4extra", "BBC Radio 4 Extra", "bbc_radio_four_extra", category = StationCategory.NATIONAL, highResSvgPath = "1/1f/BBC_Radio_4_Extra.svg", isEnWiki = true),
+        station("radio5live", "BBC Radio 5 Live", "bbc_radio_five_live", category = StationCategory.NATIONAL, highResSvgPath = "0/04/BBC_Radio_5_Live_2022.svg"),
+        station("radio6", "BBC Radio 6 Music", "bbc_6music", category = StationCategory.NATIONAL, highResSvgPath = "e/e7/BBC_Radio_6_Music_2022.svg"),
+        station("worldservice", "BBC World Service", "bbc_world_service", category = StationCategory.NATIONAL, highResSvgPath = "d/d6/BBC_World_Service_2022.svg"),
+        station("asiannetwork", "BBC Asian Network", "bbc_asian_network", category = StationCategory.NATIONAL, highResSvgPath = "8/80/BBC_Asian_Network_2022.svg"),
 
         // BBC Nations Stations
         station("radiocymru", "BBC Radio Cymru", "bbc_radio_cymru", category = StationCategory.REGIONS),
