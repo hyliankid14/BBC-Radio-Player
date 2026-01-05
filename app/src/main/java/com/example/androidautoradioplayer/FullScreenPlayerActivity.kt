@@ -30,6 +30,10 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
     private var updateThread: Thread? = null
     private var lastArtworkUrl: String? = null
+    
+    private val showChangeListener: (CurrentShow) -> Unit = { show ->
+        runOnUiThread { updateUI() }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme
@@ -55,6 +59,9 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
         setupClickListeners()
         updateUI()
+        
+        // Register listener for show changes - same as mini player
+        PlaybackStateHelper.onShowChange(showChangeListener)
     }
 
     private fun setupClickListeners() {
@@ -112,6 +119,11 @@ class FullScreenPlayerActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         stopUpdateThread()
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        PlaybackStateHelper.removeShowChangeListener(showChangeListener)
     }
 
     private fun startUpdateThread() {
