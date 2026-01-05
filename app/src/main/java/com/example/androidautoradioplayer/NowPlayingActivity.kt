@@ -163,9 +163,11 @@ class NowPlayingActivity : AppCompatActivity() {
             if (isFavorited) {
                 favoriteButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_star_filled)
                 favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
+                favoriteButton.setBackgroundColor(ContextCompat.getColor(this, R.color.md_theme_primaryContainer))
             } else {
                 favoriteButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_star_outline)
                 favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_onSurfaceVariant))
+                favoriteButton.setBackgroundColor(android.graphics.Color.TRANSPARENT)
             }
         }
     }

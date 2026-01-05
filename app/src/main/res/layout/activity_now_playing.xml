@@ -66,116 +66,67 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
         android:layout_marginBottom="48dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-            <!-- Stop Button -->
+            <!-- Stop Icon Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/now_playing_stop"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_margin="6dp"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
                 app:icon="@drawable/ic_stop"
-                app:iconPadding="0dp"
                 app:iconTint="?attr/colorOnSurface"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                app:cornerRadius="18dp"
-                app:strokeColor="@color/md_theme_outline"
-                app:strokeWidth="1dp"
-                app:backgroundTint="@color/md_theme_surface"
-                app:rippleColor="@color/md_theme_primaryContainer"
                 android:contentDescription="Stop" />
 
-            <!-- Previous Button -->
+            <!-- Previous Icon Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/now_playing_previous"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_margin="6dp"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
                 app:icon="@drawable/ic_skip_previous"
-                app:iconPadding="0dp"
                 app:iconTint="?attr/colorOnSurface"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                app:cornerRadius="18dp"
-                app:strokeColor="@color/md_theme_outline"
-                app:strokeWidth="1dp"
-                app:backgroundTint="@color/md_theme_surface"
-                app:rippleColor="@color/md_theme_primaryContainer"
                 android:contentDescription="Previous" />
 
-            <!-- Play/Pause Button -->
+            <!-- Play/Pause Filled Button (High Emphasis) -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/now_playing_play_pause"
-                android:layout_width="0dp"
+                android:layout_width="72dp"
                 android:layout_height="72dp"
-                android:layout_weight="1"
-                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_margin="6dp"
+                style="@style/Widget.Material3.Button.FilledButton"
                 app:icon="@drawable/ic_play_arrow"
-                app:iconPadding="0dp"
-                app:iconTint="@color/md_theme_onPrimaryContainer"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                app:cornerRadius="20dp"
-                app:strokeColor="@color/md_theme_primary"
-                app:strokeWidth="1dp"
-                app:backgroundTint="@color/md_theme_primaryContainer"
-                app:rippleColor="@color/md_theme_primary"
+                app:iconTint="@color/md_theme_onPrimary"
+                app:backgroundTint="@color/md_theme_primary"
                 android:contentDescription="Play/Pause" />
 
-            <!-- Next Button -->
+            <!-- Next Icon Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/now_playing_next"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_margin="6dp"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
                 app:icon="@drawable/ic_skip_next"
-                app:iconPadding="0dp"
                 app:iconTint="?attr/colorOnSurface"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                app:cornerRadius="18dp"
-                app:strokeColor="@color/md_theme_outline"
-                app:strokeWidth="1dp"
-                app:backgroundTint="@color/md_theme_surface"
-                app:rippleColor="@color/md_theme_primaryContainer"
                 android:contentDescription="Next" />
 
-            <!-- Star/Favorite Button -->
+            <!-- Favorite Icon Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/now_playing_favorite"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_margin="6dp"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
                 app:icon="@drawable/ic_star_outline"
-                app:iconPadding="0dp"
                 app:iconTint="?attr/colorOnSurface"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                app:cornerRadius="18dp"
-                app:strokeColor="@color/md_theme_outline"
-                app:strokeWidth="1dp"
-                app:backgroundTint="@color/md_theme_surface"
-                app:rippleColor="@color/md_theme_primaryContainer"
                 android:contentDescription="Add to Favorites" />
 
         </LinearLayout>
