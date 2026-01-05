@@ -30,11 +30,10 @@ class FullScreenPlayerActivity : AppCompatActivity() {
 
     private var updateThread: Thread? = null
     private var lastArtworkUrl: String? = null
-    private var lastStationId: String = ""
     
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         Log.d("FullScreenPlayer", "showChangeListener triggered: title='${show.title}', secondary='${show.secondary}', tertiary='${show.tertiary}'")
-        runOnUiThread { updateUI() }
+        runOnUiThread { updateUIFromShow(show) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,7 +116,6 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         super.onResume()
         // Clear artwork cache to force reload on resume
         lastArtworkUrl = null
-        lastStationId = ""  // Reset to force UI update
         updateUI()
         startUpdateThread()
     }
@@ -152,13 +150,12 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         updateThread = null
     }
 
-    private fun updateUI() {
+    // Update UI from the show object passed by listener (like mini player)
+    private fun updateUIFromShow(show: CurrentShow) {
         val station = PlaybackStateHelper.getCurrentStation()
-        val show = PlaybackStateHelper.getCurrentShow()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
 
         if (station == null) {
-            // If nothing is playing, close the player
             finish()
             return
         }
@@ -166,25 +163,87 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         // Station Name - always update
         titleView.text = station.title
         
-        // Detect if station has changed
-        val stationChanged = station.id != lastStationId
-        if (stationChanged) {
-            lastStationId = station.id
+        // Show Name and Now Playing - use the show parameter directly
+        showTitleView.text = show.title
+        val nowPlayingText = show.getFormattedTitle()
+        nowPlayingView.text = nowPlayingText
+        nowPlayingView.isSelected = true
+        nowPlayingView.startScrolling()
+        
+        Log.d("FullScreenPlayer", "Updating UI from show - Station: ${station.title}, Show: ${show.title}, NowPlaying: '$nowPlayingText'")
+
+        playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
+
+        // Update favorite icon
+        val isFavorited = FavoritesPreference.isFavorite(this, station.id)
+        if (isFavorited) {
+            favoriteButton.setImageResource(R.drawable.ic_star_filled)
+            favoriteButton.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
+        } else {
+            favoriteButton.setImageResource(R.drawable.ic_star_outline)
+            favoriteButton.clearColorFilter()
         }
+
+        // Artwork logic
+        val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
+            show.imageUrl
+        } else {
+            station.logoUrl
+        }
+
+        if (artworkUrl != null && artworkUrl != lastArtworkUrl) {
+            lastArtworkUrl = artworkUrl
+            val fallbackUrl = station.logoUrl
+            
+            Glide.with(this)
+                .load(artworkUrl)
+                .placeholder(android.R.color.transparent)
+                .error(Glide.with(this).load(fallbackUrl))
+                .listener(object : RequestListener<Drawable> {
+                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                        return false
+                    }
+
+                    override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                        if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
+                            Log.d("FullScreenPlayer", "Detected placeholder image, falling back to logo")
+                            artworkView.post {
+                                Glide.with(this@FullScreenPlayerActivity)
+                                    .load(fallbackUrl)
+                                    .into(artworkView)
+                            }
+                            return true
+                        }
+                        return false
+                    }
+                })
+                .into(artworkView)
+            Log.d("FullScreenPlayer", "Loading artwork from: $artworkUrl")
+        }
+    }
+
+    // Periodic UI update via polling thread
+    private fun updateUI() {
+        val station = PlaybackStateHelper.getCurrentStation()
+        val show = PlaybackStateHelper.getCurrentShow()
+        val isPlaying = PlaybackStateHelper.getIsPlaying()
+
+        if (station == null) {
+            finish()
+            return
+        }
+
+        // Station Name - always update
+        titleView.text = station.title
         
         // Show Name and Now Playing
-        val showTitle = show.title
+        showTitleView.text = show.title
         val nowPlayingText = show.getFormattedTitle()
+        nowPlayingView.text = nowPlayingText
+        nowPlayingView.isSelected = true
+        nowPlayingView.startScrolling()
         
-        // Always update when station changes, or when we have real data
-        if (stationChanged || showTitle.isNotEmpty() || nowPlayingText.isNotEmpty()) {
-            showTitleView.text = showTitle
-            nowPlayingView.text = nowPlayingText
-            nowPlayingView.isSelected = true
-            nowPlayingView.startScrolling()
-        }
-        
-        Log.d("FullScreenPlayer", "Updating UI - Station: ${station.title}, Show: ${show.title}, NowPlaying: '$nowPlayingText', secondary: '${show.secondary}', tertiary: '${show.tertiary}'")
+        Log.d("FullScreenPlayer", "Polling UI update - Station: ${station.title}, Show: ${show.title}, NowPlaying: '$nowPlayingText'")
 
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
 
