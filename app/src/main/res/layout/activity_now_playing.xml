@@ -73,6 +73,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+            <!-- Stop Button -->
+            <ImageButton
+                android:id="@+id/now_playing_stop"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_stop"
+                android:scaleType="centerInside"
+                android:padding="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Stop"
+                android:tint="?attr/colorOnSurface" />
+
             <!-- Previous Button -->
             <ImageButton
                 android:id="@+id/now_playing_previous"
@@ -110,19 +123,6 @@
                 android:padding="16dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Next"
-                android:tint="?attr/colorOnSurface" />
-
-            <!-- Stop Button -->
-            <ImageButton
-                android:id="@+id/now_playing_stop"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:src="@drawable/ic_stop"
-                android:scaleType="centerInside"
-                android:padding="16dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Stop"
                 android:tint="?attr/colorOnSurface" />
 
             <!-- Star/Favorite Button -->

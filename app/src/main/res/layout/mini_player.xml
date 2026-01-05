@@ -59,6 +59,18 @@
             android:layout_marginTop="12dp"
             android:layout_marginStart="-12dp">
 
+            <!-- Stop Button -->
+            <ImageButton
+                android:id="@+id/mini_player_stop"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:src="@drawable/ic_stop"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Stop"
+                android:tint="@color/mini_player_icon_tint" />
+
             <!-- Previous Button -->
             <ImageButton
                 android:id="@+id/mini_player_previous"
@@ -93,18 +105,6 @@
                 android:padding="12dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Next"
-                android:tint="@color/mini_player_icon_tint" />
-
-            <!-- Stop Button -->
-            <ImageButton
-                android:id="@+id/mini_player_stop"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:src="@drawable/ic_stop"
-                android:scaleType="centerInside"
-                android:padding="12dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Stop"
                 android:tint="@color/mini_player_icon_tint" />
 
             <!-- Favorites Button -->
