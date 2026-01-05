@@ -168,6 +168,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         
         // Now Playing Artist and Song (if available)
         val nowPlayingText = show.getFormattedTitle()
+        Log.d("FullScreenPlayer", "Updating UI - Station: ${station.title}, Show: ${show.title}, NowPlaying: '$nowPlayingText', secondary: '${show.secondary}', tertiary: '${show.tertiary}'")
         nowPlayingView.text = nowPlayingText
         nowPlayingView.isSelected = true
         nowPlayingView.startScrolling()
