@@ -45,6 +45,8 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentStationLogo: String = ""
     private var currentShowTitle: String = "BBC Radio"
     private var currentShowInfo: CurrentShow = CurrentShow("BBC Radio")
+    private var currentArtworkBitmap: android.graphics.Bitmap? = null
+    private var currentArtworkUri: String? = null
     private var showInfoRefreshRunnable: Runnable? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main)
     
@@ -486,6 +488,10 @@ class RadioService : MediaBrowserServiceCompat() {
                 }
 
                 if (bitmap != null) {
+                    // Cache artwork so later metadata refreshes don't wipe it
+                    currentArtworkBitmap = bitmap
+                    currentArtworkUri = finalUrl
+
                     // Update notification with the artwork
                     // Recreate all actions to maintain functionality
                     val previousAction = NotificationCompat.Action(
@@ -564,6 +570,8 @@ class RadioService : MediaBrowserServiceCompat() {
                     // This ensures AA at least has a valid URI to try, rather than the broken one or the placeholder
                     if (finalUrl.isNotEmpty()) {
                          Log.d(TAG, "Bitmap load failed, updating metadata with URI only: $finalUrl")
+                         currentArtworkBitmap = null
+                         currentArtworkUri = finalUrl
                          updateMediaMetadata(null, finalUrl)
                     }
                 }
@@ -651,6 +659,8 @@ class RadioService : MediaBrowserServiceCompat() {
         currentStationLogo = station.logoUrl
         currentShowInfo = CurrentShow("") // Reset to empty to avoid "BBC Radio" flash
         currentShowTitle = ""
+        currentArtworkBitmap = null
+        currentArtworkUri = currentStationLogo
         
         // Cancel existing show refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
@@ -784,8 +794,14 @@ class RadioService : MediaBrowserServiceCompat() {
     }
     
     private fun updateMediaMetadata(artworkBitmap: android.graphics.Bitmap? = null, artworkUri: String? = null) {
-        // Determine the URI to display in metadata (fallback to station logo if needed)
-        val displayUri = artworkUri ?: currentShowInfo.imageUrl ?: currentStationLogo
+        // Keep artwork sticky across metadata refreshes. Some OEM media UIs only show art
+        // if a bitmap is present in the MediaSession metadata.
+        val displayUri = artworkUri
+            ?: currentArtworkUri
+            ?: currentShowInfo.imageUrl
+            ?: currentStationLogo
+
+        val displayBitmap = artworkBitmap ?: currentArtworkBitmap
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentStationId)
@@ -798,11 +814,13 @@ class RadioService : MediaBrowserServiceCompat() {
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
             .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1)
             
-        if (artworkBitmap != null) {
-            metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artworkBitmap)
-            metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, artworkBitmap)
+        if (displayBitmap != null) {
+            metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, displayBitmap)
+            metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, displayBitmap)
+            metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART, displayBitmap)
         }
 
         mediaSession.setMetadata(metadataBuilder.build())
