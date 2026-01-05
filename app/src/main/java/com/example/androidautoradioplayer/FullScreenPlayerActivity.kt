@@ -154,21 +154,11 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         }
         
         // Update Now Playing Info - Use same logic as Mini Player
-        // Display formatted show title (Artist - Track, or Show Name if no song info)
         val formattedTitle = show?.getFormattedTitle() ?: ""
-        
         if (nowPlayingView.text.toString() != formattedTitle) {
             nowPlayingView.text = formattedTitle
             nowPlayingView.isSelected = true
             nowPlayingView.startScrolling()
-        }
-        
-        // Always show the Now Playing view if we have any content
-        val shouldBeVisible = formattedTitle.isNotEmpty()
-        if (shouldBeVisible && nowPlayingView.visibility != android.view.View.VISIBLE) {
-            nowPlayingView.visibility = android.view.View.VISIBLE
-        } else if (!shouldBeVisible && nowPlayingView.visibility != android.view.View.GONE) {
-            nowPlayingView.visibility = android.view.View.GONE
         }
 
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
