@@ -416,7 +416,7 @@ class RadioService : MediaBrowserServiceCompat() {
             .addAction(favoriteAction)
             .setStyle(MediaStyle()
                 .setMediaSession(mediaSession.sessionToken)
-                .setShowActionsInCompactView(1, 2, 3)
+                .setShowActionsInCompactView(0, 1, 2)
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
 
