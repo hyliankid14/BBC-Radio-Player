@@ -164,8 +164,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         
         // Update Now Playing Info - Use EXACT same logic as Mini Player
         val newTitle = show.getFormattedTitle()
-        // Only update if newTitle is not empty AND different from current (prevents blank flash during station changes)
-        if (newTitle.isNotEmpty() && nowPlayingView.text.toString() != newTitle) {
+        if (nowPlayingView.text.toString() != newTitle) {
             nowPlayingView.text = newTitle
             nowPlayingView.isSelected = true
             nowPlayingView.startScrolling()
