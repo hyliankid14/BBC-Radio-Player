@@ -715,31 +715,13 @@ class RadioService : MediaBrowserServiceCompat() {
 
                 Log.d(TAG, "ShowInfoFetcher returned: ${show.title}")
                 
-                // Sticky Metadata Logic:
-                // If the new show info has no song data (secondary/tertiary), but the previous one did,
-                // AND the Show Name (title) hasn't changed, then preserve the old song data.
-                // This prevents metadata from disappearing during transient API drops or when falling back to ESS.
-                var finalShow = show
-                if (show.secondary.isNullOrEmpty() && show.tertiary.isNullOrEmpty()) {
-                    // Relaxed check: If we have old song data, keep it.
-                    // We trust that if the station changed, currentShowInfo was reset elsewhere.
-                    if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
-                        Log.d(TAG, "New show has no song info. Preserving previous song info: ${currentShowInfo.secondary} - ${currentShowInfo.tertiary}")
-                        finalShow = show.copy(
-                            secondary = currentShowInfo.secondary,
-                            tertiary = currentShowInfo.tertiary,
-                            imageUrl = if (show.imageUrl == null) currentShowInfo.imageUrl else show.imageUrl
-                        )
-                    }
-                }
-                
-                // Update show info
-                currentShowInfo = finalShow
-                val formattedTitle = finalShow.getFormattedTitle()
+                // Update show info (clear song data when RMS returns none)
+                currentShowInfo = show
+                val formattedTitle = show.getFormattedTitle()
                 // If the title is just the generic default, treat it as empty to avoid redundancy
                 currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
                 
-                PlaybackStateHelper.setCurrentShow(finalShow)
+                PlaybackStateHelper.setCurrentShow(show)
                 Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, imageUrl: ${show.imageUrl}")
                 
                 // Switch to main thread to update UI
