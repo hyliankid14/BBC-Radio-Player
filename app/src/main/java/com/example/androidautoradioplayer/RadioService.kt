@@ -717,6 +717,11 @@ class RadioService : MediaBrowserServiceCompat() {
 
                 Log.d(TAG, "ShowInfoFetcher returned: ${show.title}")
 
+                // Track RMS server cache TTL for smarter polling
+                Log.d(TAG, "RMS Cache-Control max-age: ${ShowInfoFetcher.lastRmsCacheMaxAgeMs}ms")
+                
+                // Only update song data when RMS explicitly returns it
+                // If RMS returns empty secondary/tertiary, clear song data immediately
                 val songSignature = listOf(show.secondary, show.tertiary)
                     .filter { !it.isNullOrEmpty() }
                     .joinToString("|")
@@ -725,23 +730,14 @@ class RadioService : MediaBrowserServiceCompat() {
                 if (songSignature != null) {
                     if (songSignature != lastSongSignature) {
                         lastSongSignature = songSignature
-                        lastSongUpdatedAt = System.currentTimeMillis()
-                        sameSongPolls = 1
-                    } else {
-                        sameSongPolls += 1
-                        val age = System.currentTimeMillis() - lastSongUpdatedAt
-                        if (sameSongPolls >= maxSameSongPolls && age >= showInfoPollIntervalMs * maxSameSongPolls) {
-                            Log.d(TAG, "Song metadata stale after ${sameSongPolls} polls (~${age}ms). Clearing to show name.")
-                            show = show.copy(secondary = null, tertiary = null)
-                            lastSongSignature = null
-                            lastSongUpdatedAt = 0L
-                            sameSongPolls = 0
-                        }
+                        Log.d(TAG, "New song detected: $songSignature")
                     }
                 } else {
-                    lastSongSignature = null
-                    lastSongUpdatedAt = 0L
-                    sameSongPolls = 0
+                    // RMS returned no song data - clear immediately
+                    if (lastSongSignature != null) {
+                        Log.d(TAG, "RMS stopped returning song data. Reverting to show name.")
+                        lastSongSignature = null
+                    }
                 }
                 
                 // Update show info (clear song data when RMS returns none)
