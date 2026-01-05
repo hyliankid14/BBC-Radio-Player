@@ -154,25 +154,28 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         }
         
         // Update Now Playing Info (Artist - Track)
-        // Use getFormattedTitle() to match Mini Player behavior
-        val formattedTitle = show?.getFormattedTitle() ?: ""
+        // Only show if we have actual song data (secondary/tertiary), not just show title
+        val hasSongInfo = !show?.secondary.isNullOrEmpty() || !show?.tertiary.isNullOrEmpty()
+        val nowPlaying = if (hasSongInfo) {
+            val parts = mutableListOf<String>()
+            if (!show?.secondary.isNullOrEmpty()) parts.add(show!!.secondary!!)
+            if (!show?.tertiary.isNullOrEmpty()) parts.add(show!!.tertiary!!)
+            parts.joinToString(" - ")
+        } else {
+            ""
+        }
         
-        // If the formatted title is just the show title, and we are already displaying the show title separately,
-        // then we don't want to show it again in the "Now Playing" slot.
-        val nowPlaying = if (formattedTitle == currentShowTitle) "" else formattedTitle
-        
-        // Always update text and visibility
+        // Always update text
         if (nowPlayingView.text.toString() != nowPlaying) {
             nowPlayingView.text = nowPlaying
             nowPlayingView.isSelected = true
             nowPlayingView.startScrolling()
         }
         
-        // Ensure visibility is correct regardless of text change
-        val shouldBeVisible = nowPlaying.isNotEmpty()
-        if (shouldBeVisible && nowPlayingView.visibility != android.view.View.VISIBLE) {
+        // Update visibility based on whether we have song info
+        if (hasSongInfo && nowPlayingView.visibility != android.view.View.VISIBLE) {
             nowPlayingView.visibility = android.view.View.VISIBLE
-        } else if (!shouldBeVisible && nowPlayingView.visibility != android.view.View.GONE) {
+        } else if (!hasSongInfo && nowPlayingView.visibility != android.view.View.GONE) {
             nowPlayingView.visibility = android.view.View.GONE
         }
 
