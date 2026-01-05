@@ -172,20 +172,17 @@ class FullScreenPlayerActivity : AppCompatActivity() {
             lastStationId = station.id
         }
         
-        // Show Name and Now Playing - only update if not empty placeholder
-        // When a station changes, we get an empty placeholder briefly before real data arrives
+        // Show Name and Now Playing
         val showTitle = show.title
         val nowPlayingText = show.getFormattedTitle()
         
-        // Only update if we have real data (not empty placeholder)
-        if (showTitle.isNotEmpty() || nowPlayingText.isNotEmpty()) {
+        // Always update when station changes, or when we have real data
+        if (stationChanged || showTitle.isNotEmpty() || nowPlayingText.isNotEmpty()) {
             showTitleView.text = showTitle
             nowPlayingView.text = nowPlayingText
             nowPlayingView.isSelected = true
             nowPlayingView.startScrolling()
         }
-        // If it's an empty placeholder on a station change, keep previous data visible
-        // The real data will arrive shortly and update the UI
         
         Log.d("FullScreenPlayer", "Updating UI - Station: ${station.title}, Show: ${show.title}, NowPlaying: '$nowPlayingText', secondary: '${show.secondary}', tertiary: '${show.tertiary}'")
 
