@@ -22,6 +22,7 @@ object PlaybackStateHelper {
     fun getIsPlaying(): Boolean = isPlaying
     
     fun setCurrentShow(show: CurrentShow) {
+        android.util.Log.d("PlaybackStateHelper", "setCurrentShow called: title='${show.title}', listeners count=${showChangeListeners.size}")
         currentShow = show
         notifyShowChangeListeners()
     }
@@ -32,13 +33,16 @@ object PlaybackStateHelper {
     
     fun onShowChange(listener: (CurrentShow) -> Unit) {
         showChangeListeners.add(listener)
+        android.util.Log.d("PlaybackStateHelper", "Listener registered, total listeners now: ${showChangeListeners.size}")
     }
     
     fun removeShowChangeListener(listener: (CurrentShow) -> Unit) {
         showChangeListeners.remove(listener)
+        android.util.Log.d("PlaybackStateHelper", "Listener removed, total listeners now: ${showChangeListeners.size}")
     }
     
     private fun notifyShowChangeListeners() {
+        android.util.Log.d("PlaybackStateHelper", "notifyShowChangeListeners: notifying ${showChangeListeners.size} listeners")
         showChangeListeners.forEach { it(currentShow) }
     }
     
