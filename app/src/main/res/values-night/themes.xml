@@ -53,8 +53,15 @@
 
     <style name="CustomActionBar" parent="Widget.AppCompat.ActionBar.Solid">
         <item name="titleTextColor">@android:color/white</item>
+        <item name="android:titleTextColor">@android:color/white</item>
+        <item name="titleTextStyle">@style/CustomTitleTextStyle</item>
         <item name="android:textColorPrimary">@android:color/white</item>
         <item name="android:textColorSecondary">@android:color/white</item>
-        <item name="background">@color/md_theme_primary</item>
+        <item name="background">@color/md_theme_surface</item>
+        <item name="android:background">@color/md_theme_surface</item>
+    </style>
+
+    <style name="CustomTitleTextStyle" parent="TextAppearance.AppCompat.Widget.ActionBar.Title">
+        <item name="android:textColor">@android:color/white</item>
     </style>
 </resources>
