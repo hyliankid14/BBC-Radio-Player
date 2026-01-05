@@ -34,7 +34,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
     
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         Log.d("FullScreenPlayer", "showChangeListener triggered: title='${show.title}'")
-        runOnUiThread { updateUIFromShow(show) }
+        runOnUiThread { updateUI() }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -151,49 +151,60 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         updateThread = null
     }
 
-    // Update from show listener - like MainActivity's updateMiniPlayerFromShow
-    private fun updateUIFromShow(show: CurrentShow) {
+    private fun updateUI() {
         val station = PlaybackStateHelper.getCurrentStation()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
+        val show = PlaybackStateHelper.getCurrentShow()
 
         if (station == null) {
             finish()
             return
         }
 
-        // Station title
+        // Station
         titleView.text = station.title
-        
-        // Show title and now playing - directly from show parameter
-        val newTitle = show.getFormattedTitle()
-        showTitleView.text = show.title
-        nowPlayingView.text = newTitle
-        nowPlayingView.isSelected = true
-        nowPlayingView.startScrolling()
-        
-        Log.d("FullScreenPlayer", "UpdateFromShow - Station: ${station.title}, Show: ${show.title}, NowPlaying: '$newTitle'")
 
-        // Update artwork exactly like mini player
+        // Show + Now Playing (mirror mini player behavior, but keep show title separate)
+        showTitleView.text = show.title
+        val newTitle = show.getFormattedTitle()
+        if (nowPlayingView.text.toString() != newTitle) {
+            nowPlayingView.text = newTitle
+            nowPlayingView.isSelected = true
+            nowPlayingView.startScrolling()
+        }
+
+        // Artwork (mirror mini player)
         val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
             show.imageUrl
         } else {
             station.logoUrl
         }
-        
-        if (artworkUrl != null && artworkUrl != lastArtworkUrl) {
+
+        if (artworkUrl != lastArtworkUrl) {
             lastArtworkUrl = artworkUrl
             val fallbackUrl = station.logoUrl
-            
+
             Glide.with(this)
                 .load(artworkUrl)
                 .placeholder(android.R.color.transparent)
                 .error(Glide.with(this).load(fallbackUrl))
                 .listener(object : RequestListener<Drawable> {
-                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                    override fun onLoadFailed(
+                        e: GlideException?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        isFirstResource: Boolean
+                    ): Boolean {
                         return false
                     }
 
-                    override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                    override fun onResourceReady(
+                        resource: Drawable?,
+                        model: Any?,
+                        target: Target<Drawable>?,
+                        dataSource: DataSource?,
+                        isFirstResource: Boolean
+                    ): Boolean {
                         if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
                             Log.d("FullScreenPlayer", "Detected placeholder image, falling back to logo")
                             artworkView.post {
@@ -210,32 +221,7 @@ class FullScreenPlayerActivity : AppCompatActivity() {
             Log.d("FullScreenPlayer", "Loading artwork from: $artworkUrl")
         }
 
-        // Update buttons
-        playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
-
-        val isFavorited = FavoritesPreference.isFavorite(this, station.id)
-        if (isFavorited) {
-            favoriteButton.setImageResource(R.drawable.ic_star_filled)
-            favoriteButton.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
-        } else {
-            favoriteButton.setImageResource(R.drawable.ic_star_outline)
-            favoriteButton.clearColorFilter()
-        }
-    }
-
-    // Periodic update like mini player's updateMiniPlayer
-    private fun updateUI() {
-        val station = PlaybackStateHelper.getCurrentStation()
-        val isPlaying = PlaybackStateHelper.getIsPlaying()
-
-        if (station == null) {
-            finish()
-            return
-        }
-
-        titleView.text = station.title
-        
-        // Update buttons based on current state
+        // Buttons (mirror mini player)
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
 
         val isFavorited = FavoritesPreference.isFavorite(this, station.id)
