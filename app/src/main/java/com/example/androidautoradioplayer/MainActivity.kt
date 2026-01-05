@@ -137,7 +137,6 @@ class MainActivity : AppCompatActivity() {
         showCategoryStations(StationCategory.NATIONAL)
         setupFilterButtons()
     }
-    }
 
     private fun showFavorites() {
         currentMode = "favorites"
