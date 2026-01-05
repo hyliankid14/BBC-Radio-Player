@@ -122,7 +122,7 @@
                 android:id="@+id/mini_player_favorite"
                 android:layout_width="@dimen/mini_player_button_size"
                 android:layout_height="@dimen/mini_player_button_size"
-                android:src="@drawable/ic_star_border"
+                android:src="@drawable/ic_star_outline"
                 android:scaleType="centerInside"
                 android:padding="@dimen/mini_player_button_padding"
                 android:background="?attr/selectableItemBackgroundBorderless"
