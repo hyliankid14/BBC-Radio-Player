@@ -121,7 +121,7 @@
                 android:layout_width="0dp"
                 android:layout_height="72dp"
                 android:layout_weight="1"
-                style="@style/Widget.Material3.Button.FilledTonalButton"
+                style="@style/Widget.Material3.Button.TonalButton"
                 app:icon="@drawable/ic_play_arrow"
                 app:iconPadding="0dp"
                 app:iconTint="@color/md_theme_onPrimaryContainer"
