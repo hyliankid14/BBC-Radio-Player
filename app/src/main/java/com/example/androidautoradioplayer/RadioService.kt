@@ -665,6 +665,7 @@ class RadioService : MediaBrowserServiceCompat() {
         currentShowTitle = ""
         currentArtworkBitmap = null
         currentArtworkUri = currentStationLogo
+        lastSongSignature = null // Reset last song signature for new station
         
         // Cancel existing show refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }

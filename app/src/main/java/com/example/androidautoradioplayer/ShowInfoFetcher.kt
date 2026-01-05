@@ -75,25 +75,12 @@ object ShowInfoFetcher {
                 
                 val segmentShow = parseShowFromRmsResponse(response)
                 if (segmentShow != null) {
-                    // Check if segment is expired
-                    val now = System.currentTimeMillis()
-                    val start = segmentShow.segmentStartMs ?: 0L
-                    val duration = segmentShow.segmentDurationMs ?: 0L
-                    val end = start + duration
-                    
-                    // Allow a small buffer (e.g. 10 seconds) for latency/clock drift
-                    // Only expire if we have valid start and duration
-                    if (segmentShow.segmentStartMs != null && segmentShow.segmentDurationMs != null && now > end + 10_000) {
-                         Log.d(TAG, "RMS returned expired segment (ended ${(now - end)/1000}s ago). Ignoring.")
-                         // Leave artist/track as null to indicate no song playing
-                    } else {
-                        // RMS returns Artist in 'title' (primary) and Track in 'secondary'
-                        artist = segmentShow.title
-                        track = segmentShow.secondary
-                        imageUrl = segmentShow.imageUrl
-                        segmentStartMs = segmentShow.segmentStartMs
-                        segmentDurationMs = segmentShow.segmentDurationMs
-                    }
+                    // RMS returns Artist in 'title' (primary) and Track in 'secondary'
+                    artist = segmentShow.title
+                    track = segmentShow.secondary
+                    imageUrl = segmentShow.imageUrl
+                    segmentStartMs = segmentShow.segmentStartMs
+                    segmentDurationMs = segmentShow.segmentDurationMs
                 }
             } else if (responseCode == 404) {
                 Log.d(TAG, "RMS returned 404 (No Content), assuming no song playing")
@@ -174,6 +161,17 @@ object ShowInfoFetcher {
             if (dataArray.length() == 0) return null
             
             val item = dataArray.getJSONObject(0)
+            
+            // Check 'now_playing' flag in 'offset' object
+            // If 'now_playing' is false, it means the song has finished or is not currently on air
+            val offsetObj = item.optJSONObject("offset")
+            val isNowPlaying = offsetObj?.optBoolean("now_playing", true) ?: true
+            
+            if (!isNowPlaying) {
+                Log.d(TAG, "Latest segment is not 'now_playing'. Ignoring.")
+                return null
+            }
+
             val titles = item.optJSONObject("titles") ?: return null
             
             val primary = titles.optString("primary")
