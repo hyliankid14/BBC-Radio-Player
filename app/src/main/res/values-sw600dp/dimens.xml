@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="now_playing_artwork_width">400dp</dimen>
+    <dimen name="mini_player_button_size">64dp</dimen>
+    <dimen name="mini_player_button_padding">12dp</dimen>
+    <dimen name="mini_player_controls_margin_horizontal">0dp</dimen>
+</resources>

@@ -55,19 +55,19 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical|start"
+            style="@style/MiniPlayerControlsLayout"
             android:layout_marginTop="12dp"
-            android:layout_marginStart="-12dp"
-            android:layout_marginEnd="-12dp">
+            android:layout_marginStart="@dimen/mini_player_controls_margin_horizontal"
+            android:layout_marginEnd="@dimen/mini_player_controls_margin_horizontal">
 
             <!-- Stop Button -->
             <ImageButton
                 android:id="@+id/mini_player_stop"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="@dimen/mini_player_button_size"
+                android:layout_height="@dimen/mini_player_button_size"
                 android:src="@drawable/ic_stop"
                 android:scaleType="centerInside"
-                android:padding="6dp"
+                android:padding="@dimen/mini_player_button_padding"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Stop"
                 android:tint="@color/mini_player_icon_tint" />
@@ -75,11 +75,11 @@
             <!-- Previous Button -->
             <ImageButton
                 android:id="@+id/mini_player_previous"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="@dimen/mini_player_button_size"
+                android:layout_height="@dimen/mini_player_button_size"
                 android:src="@drawable/ic_skip_previous"
                 android:scaleType="centerInside"
-                android:padding="6dp"
+                android:padding="@dimen/mini_player_button_padding"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Previous"
                 android:tint="@color/mini_player_icon_tint" />
@@ -87,11 +87,11 @@
             <!-- Play/Pause Button -->
             <ImageButton
                 android:id="@+id/mini_player_play_pause"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="@dimen/mini_player_button_size"
+                android:layout_height="@dimen/mini_player_button_size"
                 android:src="@drawable/ic_play_arrow"
                 android:scaleType="centerInside"
-                android:padding="6dp"
+                android:padding="@dimen/mini_player_button_padding"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Play/Pause"
                 android:tint="@color/mini_player_icon_tint" />
@@ -99,11 +99,11 @@
             <!-- Next Button -->
             <ImageButton
                 android:id="@+id/mini_player_next"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="@dimen/mini_player_button_size"
+                android:layout_height="@dimen/mini_player_button_size"
                 android:src="@drawable/ic_skip_next"
                 android:scaleType="centerInside"
-                android:padding="6dp"
+                android:padding="@dimen/mini_player_button_padding"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Next"
                 android:tint="@color/mini_player_icon_tint" />
@@ -111,10 +111,10 @@
             <!-- Favorites Button -->
             <ImageButton
                 android:id="@+id/mini_player_favorite"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="@dimen/mini_player_button_size"
+                android:layout_height="@dimen/mini_player_button_size"
                 android:scaleType="centerInside"
-                android:padding="6dp"
+                android:padding="@dimen/mini_player_button_padding"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Add to Favorites" />
 

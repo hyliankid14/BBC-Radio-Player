@@ -8,7 +8,7 @@
     <!-- Station Artwork (Square) -->
     <com.example.androidautoradioplayer.SquareImageView
         android:id="@+id/now_playing_artwork"
-        android:layout_width="0dp"
+        android:layout_width="@dimen/now_playing_artwork_width"
         android:layout_height="wrap_content"
         android:scaleType="centerCrop"
         android:contentDescription="Station artwork"
