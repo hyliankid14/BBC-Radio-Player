@@ -100,27 +100,22 @@ class StationAdapter(
         
         // Update star icon
         val isFavorite = FavoritesPreference.isFavorite(context, station.id)
-        holder.starView.setImageResource(
-            if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline
-        )
         if (isFavorite) {
+            holder.starView.setImageResource(R.drawable.ic_star_filled)
             holder.starView.setColorFilter(Color.parseColor("#FFC107"))
         } else {
+            holder.starView.setImageResource(R.drawable.ic_star_outline)
             holder.starView.clearColorFilter()
         }
         
         holder.starView.setOnClickListener {
             FavoritesPreference.toggleFavorite(context, station.id)
-            holder.starView.setImageResource(
-                if (FavoritesPreference.isFavorite(context, station.id))
-                    R.drawable.ic_star_filled
-                else
-                    R.drawable.ic_star_outline
-            )
             val nowFavorite = FavoritesPreference.isFavorite(context, station.id)
             if (nowFavorite) {
+                holder.starView.setImageResource(R.drawable.ic_star_filled)
                 holder.starView.setColorFilter(Color.parseColor("#FFC107"))
             } else {
+                holder.starView.setImageResource(R.drawable.ic_star_outline)
                 holder.starView.clearColorFilter()
             }
             onFavoriteToggle?.invoke(station.id)

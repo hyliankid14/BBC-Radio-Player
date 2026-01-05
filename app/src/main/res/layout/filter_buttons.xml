@@ -6,6 +6,7 @@
     android:layout_height="wrap_content"
     app:tabMode="fixed"
     app:tabGravity="fill"
+    app:tabMaxWidth="0dp"
     android:background="@color/md_theme_surface">
 
     <com.google.android.material.tabs.TabItem
