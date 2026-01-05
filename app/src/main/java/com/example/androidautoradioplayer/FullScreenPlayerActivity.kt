@@ -165,13 +165,14 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         // Update Now Playing Info - Use EXACT same logic as Mini Player
         val newTitle = show.getFormattedTitle()
         Log.d("FullScreenPlayer", "Updating metadata: newTitle='$newTitle', current='${nowPlayingView.text}', secondary='${show.secondary}', tertiary='${show.tertiary}'")
-        if (nowPlayingView.text.toString() != newTitle) {
+        // Only update if newTitle is not empty AND different from current (prevents blank flash during station changes)
+        if (newTitle.isNotEmpty() && nowPlayingView.text.toString() != newTitle) {
             nowPlayingView.text = newTitle
             nowPlayingView.isSelected = true
             nowPlayingView.startScrolling()
+            // Show view when we have content
+            nowPlayingView.visibility = android.view.View.VISIBLE
         }
-        // Ensure view is always visible
-        nowPlayingView.visibility = android.view.View.VISIBLE
 
         playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
 
