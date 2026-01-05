@@ -138,3 +138,12 @@
                 android:layout_margin="6dp"
                 style="@style/Widget.Material3.Button.IconButton"
                 app:icon="@drawable/ic_star_outline"
+                android:insetLeft="0dp"
+                android:insetRight="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:contentDescription="Add to Favorites" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
