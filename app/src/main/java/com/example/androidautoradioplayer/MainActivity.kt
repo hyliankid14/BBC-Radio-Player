@@ -133,16 +133,10 @@ class MainActivity : AppCompatActivity() {
         filterButtonsContainer.visibility = View.VISIBLE
         settingsContainer.visibility = View.GONE
         
-        val categorizedStations = StationRepository.getCategorizedStations()
-        categorizedAdapter = CategorizedStationAdapter(this, categorizedStations, { stationId ->
-            playStation(stationId)
-        }, { _ ->
-            // Do nothing to prevent list jump
-        })
-        stationsList.adapter = categorizedAdapter
-        
-        // Setup filter buttons
+        // Default to National category
+        showCategoryStations(StationCategory.NATIONAL)
         setupFilterButtons()
+    }
     }
 
     private fun showFavorites() {
@@ -172,24 +166,50 @@ class MainActivity : AppCompatActivity() {
         val filterLocal = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_local)
         
         filterNational.setOnClickListener {
-            scrollToCategorySection(StationCategory.NATIONAL)
+            showCategoryStations(StationCategory.NATIONAL)
+            updateFilterButtonStates(StationCategory.NATIONAL)
         }
         
         filterRegions.setOnClickListener {
-            scrollToCategorySection(StationCategory.REGIONS)
+            showCategoryStations(StationCategory.REGIONS)
+            updateFilterButtonStates(StationCategory.REGIONS)
         }
         
         filterLocal.setOnClickListener {
-            scrollToCategorySection(StationCategory.LOCAL)
+            showCategoryStations(StationCategory.LOCAL)
+            updateFilterButtonStates(StationCategory.LOCAL)
         }
+        
+        // Set National as default selected
+        updateFilterButtonStates(StationCategory.NATIONAL)
     }
     
-    private fun scrollToCategorySection(category: StationCategory) {
-        if (categorizedAdapter != null) {
-            val position = categorizedAdapter!!.getPositionForCategory(category)
-            if (position >= 0) {
-                (stationsList.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(position, 0)
-            }
+    private fun showCategoryStations(category: StationCategory) {
+        val stations = StationRepository.getStationsByCategory(category)
+        categorizedAdapter = CategorizedStationAdapter(this, stations, { stationId ->
+            playStation(stationId)
+        }, { _ ->
+            // Do nothing to prevent list jump
+        })
+        stationsList.adapter = categorizedAdapter
+        stationsList.scrollToPosition(0)
+    }
+    
+    private fun updateFilterButtonStates(selectedCategory: StationCategory) {
+        val filterNational = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_national)
+        val filterRegions = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_regions)
+        val filterLocal = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_local)
+        
+        // Reset all buttons
+        filterNational.isChecked = false
+        filterRegions.isChecked = false
+        filterLocal.isChecked = false
+        
+        // Highlight the selected category button
+        when (selectedCategory) {
+            StationCategory.NATIONAL -> filterNational.isChecked = true
+            StationCategory.REGIONS -> filterRegions.isChecked = true
+            StationCategory.LOCAL -> filterLocal.isChecked = true
         }
     }
 
