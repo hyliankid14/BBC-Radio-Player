@@ -727,6 +727,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     .joinToString("|")
                     .ifEmpty { null }
 
+                var finalShow = show
                 if (songSignature != null) {
                     if (songSignature != lastSongSignature) {
                         lastSongSignature = songSignature
@@ -736,24 +737,25 @@ class RadioService : MediaBrowserServiceCompat() {
                     // RMS returned no song data - clear immediately
                     if (lastSongSignature != null) {
                         Log.d(TAG, "RMS stopped returning song data. Reverting to show name.")
+                        finalShow = show.copy(secondary = null, tertiary = null)
                         lastSongSignature = null
                     }
                 }
                 
                 // Update show info (clear song data when RMS returns none)
-                currentShowInfo = show
-                val formattedTitle = show.getFormattedTitle()
+                currentShowInfo = finalShow
+                val formattedTitle = finalShow.getFormattedTitle()
                 // If the title is just the generic default, treat it as empty to avoid redundancy
                 currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
                 
-                PlaybackStateHelper.setCurrentShow(show)
-                Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, imageUrl: ${show.imageUrl}")
+                PlaybackStateHelper.setCurrentShow(finalShow)
+                Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, imageUrl: ${finalShow.imageUrl}")
                 
                 // Switch to main thread to update UI
                 handler.post {
                     Log.d(TAG, "Updating UI with show title: $currentShowTitle")
                     // If we got a now-playing image URL, prefer it for subsequent metadata/notification updates.
-                    val nowPlayingImageUrl = show.imageUrl
+                    val nowPlayingImageUrl = finalShow.imageUrl
                     if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
                         currentArtworkUri = nowPlayingImageUrl
                     }
