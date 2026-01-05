@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:paddingBottom="32dp">
+
+        <!-- Station Artwork -->
+        <ImageView
+            android:id="@+id/now_playing_artwork"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="300dp"
+            android:maxHeight="400dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="Station artwork"
+            android:layout_marginTop="24dp"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp" />
+
+        <!-- Show Name -->
+        <TextView
+            android:id="@+id/now_playing_show_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="BBC Radio"
+            android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+            android:textColor="?attr/colorOnSurface"
+            android:gravity="center"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:layout_marginTop="32dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp" />
+
+        <!-- Artist/Track Info -->
+        <TextView
+            android:id="@+id/now_playing_artist_track"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:gravity="center"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:layout_marginTop="8dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:visibility="gone" />
+
+        <!-- Playback Controls -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="40dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <!-- Stop Button -->
+            <ImageButton
+                android:id="@+id/now_playing_stop"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_stop"
+                android:scaleType="centerInside"
+                android:padding="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Stop"
+                android:tint="?attr/colorOnSurface" />
+
+            <!-- Previous Button -->
+            <ImageButton
+                android:id="@+id/now_playing_previous"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_skip_previous"
+                android:scaleType="centerInside"
+                android:padding="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Previous"
+                android:tint="?attr/colorOnSurface" />
+
+            <!-- Play/Pause Button -->
+            <ImageButton
+                android:id="@+id/now_playing_play_pause"
+                android:layout_width="0dp"
+                android:layout_height="72dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_play_arrow"
+                android:scaleType="centerInside"
+                android:padding="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Play/Pause"
+                android:tint="?attr/colorPrimary" />
+
+            <!-- Next Button -->
+            <ImageButton
+                android:id="@+id/now_playing_next"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_skip_next"
+                android:scaleType="centerInside"
+                android:padding="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Next"
+                android:tint="?attr/colorOnSurface" />
+
+            <!-- Star/Favorite Button -->
+            <ImageButton
+                android:id="@+id/now_playing_favorite"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:src="@drawable/ic_star_outline"
+                android:scaleType="centerInside"
+                android:padding="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Add to Favorites" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>

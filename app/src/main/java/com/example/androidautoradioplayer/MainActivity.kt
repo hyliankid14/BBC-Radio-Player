@@ -102,6 +102,7 @@ class MainActivity : AppCompatActivity() {
         miniPlayerNext.setOnClickListener { skipToNext() }
         miniPlayerStop.setOnClickListener { stopPlayback() }
         miniPlayerFavorite.setOnClickListener { toggleMiniPlayerFavorite() }
+        miniPlayerArtwork.setOnClickListener { openNowPlaying() }
 
         
         // Ensure mini player state is in sync immediately (avoids flicker on theme change)
@@ -272,6 +273,11 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
         outState.putString("currentMode", currentMode)
         outState.putInt("selectedNavId", bottomNavigation.selectedItemId)
+    }
+
+    private fun openNowPlaying() {
+        val intent = Intent(this, NowPlayingActivity::class.java)
+        startActivity(intent)
     }
 
     private fun stopPlayback() {

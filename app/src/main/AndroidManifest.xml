@@ -25,6 +25,16 @@
             </intent-filter>
         </activity>
 
+        <activity 
+            android:name=".NowPlayingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AndroidAutoRadioPlayer"
+            android:parentActivityName=".MainActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".MainActivity" />
+        </activity>
+
         <service
             android:name=".RadioService"
             android:exported="true"
