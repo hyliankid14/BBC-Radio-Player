@@ -163,27 +163,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupFilterButtons() {
-        val filterNational = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_national)
-        val filterRegions = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_regions)
-        val filterLocal = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_local)
+        val tabLayout = findViewById<com.google.android.material.tabs.TabLayout>(R.id.filter_buttons_include)
         
-        filterNational.setOnClickListener {
-            showCategoryStations(StationCategory.NATIONAL)
-            updateFilterButtonStates(StationCategory.NATIONAL)
-        }
-        
-        filterRegions.setOnClickListener {
-            showCategoryStations(StationCategory.REGIONS)
-            updateFilterButtonStates(StationCategory.REGIONS)
-        }
-        
-        filterLocal.setOnClickListener {
-            showCategoryStations(StationCategory.LOCAL)
-            updateFilterButtonStates(StationCategory.LOCAL)
-        }
+        tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
+                when (tab.position) {
+                    0 -> showCategoryStations(StationCategory.NATIONAL)
+                    1 -> showCategoryStations(StationCategory.REGIONS)
+                    2 -> showCategoryStations(StationCategory.LOCAL)
+                }
+            }
+
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
+        })
         
         // Set National as default selected
-        updateFilterButtonStates(StationCategory.NATIONAL)
+        showCategoryStations(StationCategory.NATIONAL)
     }
     
     private fun showCategoryStations(category: StationCategory) {
@@ -195,24 +191,6 @@ class MainActivity : AppCompatActivity() {
         })
         stationsList.adapter = categorizedAdapter
         stationsList.scrollToPosition(0)
-    }
-    
-    private fun updateFilterButtonStates(selectedCategory: StationCategory) {
-        val filterNational = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_national)
-        val filterRegions = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_regions)
-        val filterLocal = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_local)
-
-        // Reset all checked states first
-        filterNational.isChecked = false
-        filterRegions.isChecked = false
-        filterLocal.isChecked = false
-
-        // Set the checked state based on selection
-        when (selectedCategory) {
-            StationCategory.NATIONAL -> filterNational.isChecked = true
-            StationCategory.REGIONS -> filterRegions.isChecked = true
-            StationCategory.LOCAL -> filterLocal.isChecked = true
-        }
     }
 
     private fun setupSettings() {
