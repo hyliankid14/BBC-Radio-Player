@@ -155,8 +155,6 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         
         // Update Now Playing Info (Artist - Track)
         // Use getFormattedTitle() to match Mini Player behavior
-        // This ensures that if Artist/Track is missing, we show the Show Name instead of nothing
-        // This prevents the "disappearing" issue when RMS data is missing
         val nowPlaying = show?.getFormattedTitle() ?: ""
         
         // Always update text and visibility
