@@ -388,7 +388,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
         // Create stop action
         val stopAction = NotificationCompat.Action(
-            android.R.drawable.ic_media_pause,
+            R.drawable.ic_stop,
             "Stop",
             createPendingIntent(ACTION_STOP, "stop_action")
         )
