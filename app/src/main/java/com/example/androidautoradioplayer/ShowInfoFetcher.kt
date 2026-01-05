@@ -75,12 +75,25 @@ object ShowInfoFetcher {
                 
                 val segmentShow = parseShowFromRmsResponse(response)
                 if (segmentShow != null) {
-                    // RMS returns Artist in 'title' (primary) and Track in 'secondary'
-                    artist = segmentShow.title
-                    track = segmentShow.secondary
-                    imageUrl = segmentShow.imageUrl
-                    segmentStartMs = segmentShow.segmentStartMs
-                    segmentDurationMs = segmentShow.segmentDurationMs
+                    // Check if segment is expired
+                    val now = System.currentTimeMillis()
+                    val start = segmentShow.segmentStartMs ?: 0L
+                    val duration = segmentShow.segmentDurationMs ?: 0L
+                    val end = start + duration
+                    
+                    // Allow a small buffer (e.g. 10 seconds) for latency/clock drift
+                    // Only expire if we have valid start and duration
+                    if (segmentShow.segmentStartMs != null && segmentShow.segmentDurationMs != null && now > end + 10_000) {
+                         Log.d(TAG, "RMS returned expired segment (ended ${(now - end)/1000}s ago). Ignoring.")
+                         // Leave artist/track as null to indicate no song playing
+                    } else {
+                        // RMS returns Artist in 'title' (primary) and Track in 'secondary'
+                        artist = segmentShow.title
+                        track = segmentShow.secondary
+                        imageUrl = segmentShow.imageUrl
+                        segmentStartMs = segmentShow.segmentStartMs
+                        segmentDurationMs = segmentShow.segmentDurationMs
+                    }
                 }
             } else if (responseCode == 404) {
                 Log.d(TAG, "RMS returned 404 (No Content), assuming no song playing")
