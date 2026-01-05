@@ -5,25 +5,27 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
+import com.google.android.material.button.MaterialButton
+import android.content.res.ColorStateList
 
 class NowPlayingActivity : AppCompatActivity() {
     private lateinit var stationArtwork: ImageView
     private lateinit var showName: TextView
     private lateinit var artistTrack: TextView
-    private lateinit var stopButton: ImageButton
-    private lateinit var previousButton: ImageButton
-    private lateinit var playPauseButton: ImageButton
-    private lateinit var nextButton: ImageButton
-    private lateinit var favoriteButton: ImageButton
+    private lateinit var stopButton: MaterialButton
+    private lateinit var previousButton: MaterialButton
+    private lateinit var playPauseButton: MaterialButton
+    private lateinit var nextButton: MaterialButton
+    private lateinit var favoriteButton: MaterialButton
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
@@ -154,14 +156,16 @@ class NowPlayingActivity : AppCompatActivity() {
             }
             
             // Update play/pause button
-            playPauseButton.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
+            playPauseButton.icon = ContextCompat.getDrawable(this, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
             // Update favorite button state
             val isFavorited = FavoritesPreference.isFavorite(this, station.id)
             if (isFavorited) {
-                favoriteButton.setImageResource(R.drawable.ic_star_filled)
+                favoriteButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_star_filled)
+                favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
             } else {
-                favoriteButton.setImageResource(R.drawable.ic_star_outline)
+                favoriteButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_star_outline)
+                favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_onSurfaceVariant))
             }
         }
     }
