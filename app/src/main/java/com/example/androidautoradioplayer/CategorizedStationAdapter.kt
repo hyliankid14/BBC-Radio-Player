@@ -109,7 +109,7 @@ class CategorizedStationAdapter(
                 val cachedEntry = showCache[station.id]
                 val isCacheValid = cachedEntry != null && (System.currentTimeMillis() - cachedEntry.second < CACHE_DURATION_MS)
                 
-                if (isCacheValid) {
+                if (isCacheValid && cachedEntry != null) {
                     stationHolder.subtitleView.text = cachedEntry.first
                     stationHolder.subtitleView.visibility = View.VISIBLE
                 } else {
