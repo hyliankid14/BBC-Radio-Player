@@ -5,7 +5,7 @@ import android.content.Context
 object FavoritesPreference {
     private const val PREFS_NAME = "favorites_prefs"
     private const val KEY_FAVORITES = "favorite_stations"
-    private const val KEY_FAVORITES_ORDER = "favorite_stations_order"
+    private const val KEY_FAVORITES_ORDER_STRING = "favorite_stations_order_string"
 
     fun isFavorite(context: Context, stationId: String): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -17,13 +17,21 @@ object FavoritesPreference {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val favorites = prefs.getStringSet(KEY_FAVORITES, emptySet())?.toMutableSet() ?: mutableSetOf()
         
+        // Get current order
+        val currentOrder = getFavoritesOrder(context).toMutableList()
+
         if (favorites.contains(stationId)) {
             favorites.remove(stationId)
+            currentOrder.remove(stationId)
         } else {
             favorites.add(stationId)
+            if (!currentOrder.contains(stationId)) {
+                currentOrder.add(stationId) // Add to bottom
+            }
         }
         
         prefs.edit().putStringSet(KEY_FAVORITES, favorites).apply()
+        saveFavoritesOrder(context, currentOrder)
     }
 
     fun getFavoriteIds(context: Context): Set<String> {
@@ -33,24 +41,25 @@ object FavoritesPreference {
 
     fun saveFavoritesOrder(context: Context, orderedIds: List<String>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putStringSet(KEY_FAVORITES_ORDER, orderedIds.toSet()).apply()
+        val orderString = orderedIds.joinToString(",")
+        prefs.edit().putString(KEY_FAVORITES_ORDER_STRING, orderString).apply()
     }
 
     fun getFavoritesOrder(context: Context): List<String> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getStringSet(KEY_FAVORITES_ORDER, emptySet())?.toList() ?: emptyList()
+        val orderString = prefs.getString(KEY_FAVORITES_ORDER_STRING, null)
+        return orderString?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
     }
 
     fun getFavorites(context: Context): List<Station> {
         val favoriteIds = getFavoriteIds(context)
         val allStations = StationRepository.getStations().filter { favoriteIds.contains(it.id) }
-        
-        // Try to maintain saved order
         val savedOrder = getFavoritesOrder(context)
-        if (savedOrder.isNotEmpty()) {
-            return savedOrder.mapNotNull { id -> allStations.find { it.id == id } }
-        }
         
-        return allStations
+        // Sort by saved order, putting any unsorted ones at the end
+        return allStations.sortedBy { station ->
+            val index = savedOrder.indexOf(station.id)
+            if (index != -1) index else Int.MAX_VALUE
+        }
     }
 }
