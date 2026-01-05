@@ -22,10 +22,7 @@ data class CurrentShow(
         if (parts.isNotEmpty()) {
             return parts.joinToString(" - ")
         }
-        // If no song info, return empty string instead of Show Name
-        // This allows the UI to hide the "Now Playing" view or show a placeholder
-        // instead of duplicating the Show Name which is already displayed in the header
-        return ""
+        return title
     }
 }
 

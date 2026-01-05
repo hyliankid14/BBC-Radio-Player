@@ -643,8 +643,9 @@ class RadioService : MediaBrowserServiceCompat() {
                 // This prevents metadata from disappearing during transient API drops or when falling back to ESS.
                 var finalShow = show
                 if (show.secondary.isNullOrEmpty() && show.tertiary.isNullOrEmpty()) {
-                    if (currentShowInfo.title == show.title && 
-                        (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty())) {
+                    // Relaxed check: If we have old song data, keep it.
+                    // We trust that if the station changed, currentShowInfo was reset elsewhere.
+                    if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
                         Log.d(TAG, "New show has no song info. Preserving previous song info: ${currentShowInfo.secondary} - ${currentShowInfo.tertiary}")
                         finalShow = show.copy(
                             secondary = currentShowInfo.secondary,
