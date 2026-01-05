@@ -199,16 +199,19 @@ class MainActivity : AppCompatActivity() {
         val filterRegions = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_regions)
         val filterLocal = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_local)
         
-        // Reset all buttons
-        filterNational.isChecked = false
-        filterRegions.isChecked = false
-        filterLocal.isChecked = false
+        val primaryColor = android.graphics.Color.parseColor("#6200EE")
+        val transparentPrimary = (0x26 shl 24) or (primaryColor and 0xFFFFFF)
         
-        // Highlight the selected category button
+        // Reset all buttons to transparent background
+        filterNational.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        filterRegions.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        filterLocal.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        
+        // Highlight the selected category button with primary color
         when (selectedCategory) {
-            StationCategory.NATIONAL -> filterNational.isChecked = true
-            StationCategory.REGIONS -> filterRegions.isChecked = true
-            StationCategory.LOCAL -> filterLocal.isChecked = true
+            StationCategory.NATIONAL -> filterNational.setBackgroundColor(transparentPrimary)
+            StationCategory.REGIONS -> filterRegions.setBackgroundColor(transparentPrimary)
+            StationCategory.LOCAL -> filterLocal.setBackgroundColor(transparentPrimary)
         }
     }
 
@@ -470,6 +473,15 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun updateMiniPlayerFromShow(show: CurrentShow) {
+        if (isFinishing || isDestroyed) {
+            Log.w("MainActivity", "Ignoring show update because activity is finishing/destroyed")
+            return
+        }
+        if (!miniPlayerArtwork.isAttachedToWindow) {
+            Log.w("MainActivity", "Ignoring show update because mini player view is detached")
+            return
+        }
+
         // Update subtitle with formatted show title
         val newTitle = show.getFormattedTitle()
         if (miniPlayerSubtitle.text.toString() != newTitle) {
@@ -618,6 +630,11 @@ class MainActivity : AppCompatActivity() {
         
         // Check if the color is grey-ish (R ~= G ~= B)
         return isGrey(first)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        PlaybackStateHelper.removeShowChangeListener(showChangeListener)
     }
     
     private fun areColorsSimilar(c1: Int, c2: Int): Boolean {
