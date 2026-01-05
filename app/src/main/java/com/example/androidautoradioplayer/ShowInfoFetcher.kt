@@ -82,9 +82,13 @@ object ShowInfoFetcher {
                     segmentStartMs = segmentShow.segmentStartMs
                     segmentDurationMs = segmentShow.segmentDurationMs
                 }
+            } else if (responseCode == 404) {
+                Log.d(TAG, "RMS returned 404 (No Content), assuming no song playing")
+                connection.disconnect()
+                // artist/track remain null, effectively clearing song data
             } else {
                 connection.disconnect()
-                // If RMS fails (e.g. 404, 500), throw exception to prevent overwriting valid data with empty data
+                // If RMS fails (e.g. 500), throw exception to prevent overwriting valid data with empty data
                 // This ensures that if we have a transient error, we keep the previous metadata
                 throw java.io.IOException("RMS API returned $responseCode")
             }
