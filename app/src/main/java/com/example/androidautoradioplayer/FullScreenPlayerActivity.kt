@@ -148,19 +148,18 @@ class FullScreenPlayerActivity : AppCompatActivity() {
         titleView.text = station.title
         
         // Update Show Title (Programme Name)
-        val showTitle = show?.title ?: ""
-        if (showTitleView.text.toString() != showTitle) {
-            showTitleView.text = showTitle
+        val currentShowTitle = show?.title ?: ""
+        if (showTitleView.text.toString() != currentShowTitle) {
+            showTitleView.text = currentShowTitle
         }
         
         // Update Now Playing Info (Artist - Track)
         // Use getFormattedTitle() to match Mini Player behavior
         val formattedTitle = show?.getFormattedTitle() ?: ""
-        val showTitle = show?.title ?: ""
         
         // If the formatted title is just the show title, and we are already displaying the show title separately,
         // then we don't want to show it again in the "Now Playing" slot.
-        val nowPlaying = if (formattedTitle == showTitle) "" else formattedTitle
+        val nowPlaying = if (formattedTitle == currentShowTitle) "" else formattedTitle
         
         // Always update text and visibility
         if (nowPlayingView.text.toString() != nowPlaying) {
