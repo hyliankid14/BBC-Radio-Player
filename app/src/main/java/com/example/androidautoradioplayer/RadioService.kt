@@ -45,6 +45,9 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentStationLogo: String = ""
     private var currentShowTitle: String = "BBC Radio"
     private var currentShowInfo: CurrentShow = CurrentShow("BBC Radio")
+    private var lastSongSignature: String? = null
+    private var lastSongUpdatedAt: Long = 0L
+    private val songMetadataTtlMs = 5 * 60 * 1000L // Drop stale songs after 5 minutes
     private var currentArtworkBitmap: android.graphics.Bitmap? = null
     private var currentArtworkUri: String? = null
     private var showInfoRefreshRunnable: Runnable? = null
@@ -705,7 +708,7 @@ class RadioService : MediaBrowserServiceCompat() {
         Thread {
             try {
                 Log.d(TAG, "Fetching show info in background thread for station: $stationId")
-                val show = runBlocking { ShowInfoFetcher.getCurrentShow(stationId) }
+                var show = runBlocking { ShowInfoFetcher.getCurrentShow(stationId) }
                 
                 // Check if we are still playing the requested station
                 if (stationId != currentStationId) {
@@ -714,6 +717,29 @@ class RadioService : MediaBrowserServiceCompat() {
                 }
 
                 Log.d(TAG, "ShowInfoFetcher returned: ${show.title}")
+
+                val songSignature = listOf(show.secondary, show.tertiary)
+                    .filter { !it.isNullOrEmpty() }
+                    .joinToString("|")
+                    .ifEmpty { null }
+
+                if (songSignature != null) {
+                    if (songSignature != lastSongSignature) {
+                        lastSongSignature = songSignature
+                        lastSongUpdatedAt = System.currentTimeMillis()
+                    } else {
+                        val age = System.currentTimeMillis() - lastSongUpdatedAt
+                        if (age > songMetadataTtlMs) {
+                            Log.d(TAG, "Song metadata stale (age=${age}ms). Clearing to show name.")
+                            show = show.copy(secondary = null, tertiary = null)
+                            lastSongSignature = null
+                            lastSongUpdatedAt = 0L
+                        }
+                    }
+                } else {
+                    lastSongSignature = null
+                    lastSongUpdatedAt = 0L
+                }
                 
                 // Update show info (clear song data when RMS returns none)
                 currentShowInfo = show
