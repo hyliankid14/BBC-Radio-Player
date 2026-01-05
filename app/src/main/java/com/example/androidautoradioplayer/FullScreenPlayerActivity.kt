@@ -153,29 +153,21 @@ class FullScreenPlayerActivity : AppCompatActivity() {
             showTitleView.text = currentShowTitle
         }
         
-        // Update Now Playing Info (Artist - Track)
-        // Only show if we have actual song data (secondary/tertiary), not just show title
-        val hasSongInfo = !show?.secondary.isNullOrEmpty() || !show?.tertiary.isNullOrEmpty()
-        val nowPlaying = if (hasSongInfo) {
-            val parts = mutableListOf<String>()
-            if (!show?.secondary.isNullOrEmpty()) parts.add(show!!.secondary!!)
-            if (!show?.tertiary.isNullOrEmpty()) parts.add(show!!.tertiary!!)
-            parts.joinToString(" - ")
-        } else {
-            ""
-        }
+        // Update Now Playing Info - Use same logic as Mini Player
+        // Display formatted show title (Artist - Track, or Show Name if no song info)
+        val formattedTitle = show?.getFormattedTitle() ?: ""
         
-        // Always update text
-        if (nowPlayingView.text.toString() != nowPlaying) {
-            nowPlayingView.text = nowPlaying
+        if (nowPlayingView.text.toString() != formattedTitle) {
+            nowPlayingView.text = formattedTitle
             nowPlayingView.isSelected = true
             nowPlayingView.startScrolling()
         }
         
-        // Update visibility based on whether we have song info
-        if (hasSongInfo && nowPlayingView.visibility != android.view.View.VISIBLE) {
+        // Always show the Now Playing view if we have any content
+        val shouldBeVisible = formattedTitle.isNotEmpty()
+        if (shouldBeVisible && nowPlayingView.visibility != android.view.View.VISIBLE) {
             nowPlayingView.visibility = android.view.View.VISIBLE
-        } else if (!hasSongInfo && nowPlayingView.visibility != android.view.View.GONE) {
+        } else if (!shouldBeVisible && nowPlayingView.visibility != android.view.View.GONE) {
             nowPlayingView.visibility = android.view.View.GONE
         }
 
