@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import android.widget.ImageView
 import android.widget.TextView
 import android.graphics.Color
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.*
 
@@ -86,11 +87,12 @@ class CategorizedStationAdapter(
             .into(holder.imageView)
         
         // Handle favorite star
-        holder.starView.setImageResource(R.drawable.ic_star)
         val isFavorite = FavoritesPreference.isFavorite(context, station.id)
         if (isFavorite) {
-            holder.starView.setColorFilter(Color.parseColor("#FFC107"))
+            holder.starView.setImageResource(R.drawable.ic_star_filled)
+            holder.starView.setColorFilter(ContextCompat.getColor(context, R.color.favorite_star_color))
         } else {
+            holder.starView.setImageResource(R.drawable.ic_star_outline)
             holder.starView.clearColorFilter()
         }
         
@@ -98,8 +100,10 @@ class CategorizedStationAdapter(
             FavoritesPreference.toggleFavorite(context, station.id)
             val nowFavorite = FavoritesPreference.isFavorite(context, station.id)
             if (nowFavorite) {
-                holder.starView.setColorFilter(Color.parseColor("#FFC107"))
+                holder.starView.setImageResource(R.drawable.ic_star_filled)
+                holder.starView.setColorFilter(ContextCompat.getColor(context, R.color.favorite_star_color))
             } else {
+                holder.starView.setImageResource(R.drawable.ic_star_outline)
                 holder.starView.clearColorFilter()
             }
             onFavoriteToggle?.invoke(station.id)

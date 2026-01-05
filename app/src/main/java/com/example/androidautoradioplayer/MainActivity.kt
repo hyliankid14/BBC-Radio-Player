@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.content.res.ColorStateList
+import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -472,7 +473,7 @@ class MainActivity : AppCompatActivity() {
             val isFavorited = FavoritesPreference.isFavorite(this, station.id)
             if (isFavorited) {
                 miniPlayerFavorite.setImageResource(R.drawable.ic_star_filled)
-                miniPlayerFavorite.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
+                miniPlayerFavorite.setColorFilter(ContextCompat.getColor(this, R.color.favorite_star_color))
             } else {
                 miniPlayerFavorite.setImageResource(R.drawable.ic_star_outline)
                 miniPlayerFavorite.clearColorFilter()
