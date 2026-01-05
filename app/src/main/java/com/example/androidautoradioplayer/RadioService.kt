@@ -481,17 +481,68 @@ class RadioService : MediaBrowserServiceCompat() {
 
                 if (bitmap != null) {
                     // Update notification with the artwork
+                    // Recreate all actions to maintain functionality
+                    val previousAction = NotificationCompat.Action(
+                        android.R.drawable.ic_media_previous,
+                        "Previous",
+                        createPendingIntent(ACTION_SKIP_TO_PREVIOUS, "previous_action")
+                    )
+                    val nextAction = NotificationCompat.Action(
+                        android.R.drawable.ic_media_next,
+                        "Next",
+                        createPendingIntent(ACTION_SKIP_TO_NEXT, "next_action")
+                    )
+                    val playPauseAction = if (player?.isPlaying == true) {
+                        NotificationCompat.Action(
+                            android.R.drawable.ic_media_pause,
+                            "Pause",
+                            createPendingIntent(ACTION_PAUSE, "pause_action")
+                        )
+                    } else {
+                        NotificationCompat.Action(
+                            android.R.drawable.ic_media_play,
+                            "Play",
+                            createPendingIntent(ACTION_PLAY, "play_action")
+                        )
+                    }
+                    val stopAction = NotificationCompat.Action(
+                        android.R.drawable.ic_media_pause,
+                        "Stop",
+                        createPendingIntent(ACTION_STOP, "stop_action")
+                    )
+                    val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
+                    val favoriteAction = NotificationCompat.Action(
+                        if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
+                        if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+                        createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+                    )
+
+                    // Create intent to launch app when notification is tapped
+                    val intent = Intent(this, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                    val pendingIntent = PendingIntent.getActivity(
+                        this, 0, intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+
                     val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
                         .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
                         .setContentText(currentShowTitle)
                         .setSmallIcon(android.R.drawable.ic_media_play)
                         .setLargeIcon(bitmap)
+                        .setContentIntent(pendingIntent)
                         .setOngoing(true)
                         .setSound(null)
                         .setVibrate(null)
+                        .addAction(previousAction)
+                        .addAction(playPauseAction)
+                        .addAction(nextAction)
+                        .addAction(stopAction)
+                        .addAction(favoriteAction)
                         .setStyle(MediaStyle()
                             .setMediaSession(mediaSession.sessionToken)
-                            .setShowActionsInCompactView(0, 1)
+                            .setShowActionsInCompactView(0, 1, 2)
                         )
                         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                         .build()
