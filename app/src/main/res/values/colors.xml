@@ -46,5 +46,5 @@
     
     <!-- Now Playing screen colors -->
     <color name="now_playing_play_pause_tint">#6200EE</color>
-    <color name="favorite_star_color">#4A148C</color>
+    <color name="favorite_star_color">#6200EE</color>
 </resources>
