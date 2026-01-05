@@ -36,6 +36,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerNext: ImageButton
     private lateinit var miniPlayerStop: ImageButton
     private lateinit var miniPlayerFavorite: ImageButton
+    private lateinit var filterButtonsContainer: View
+    private var categorizedAdapter: CategorizedStationAdapter? = null
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
@@ -61,6 +63,8 @@ class MainActivity : AppCompatActivity() {
 
         stationsList = findViewById(R.id.stations_list)
         stationsList.layoutManager = LinearLayoutManager(this)
+        
+        filterButtonsContainer = findViewById(R.id.filter_buttons_include)
         
         settingsContainer = findViewById(R.id.settings_container)
         
@@ -126,19 +130,25 @@ class MainActivity : AppCompatActivity() {
     private fun showAllStations() {
         currentMode = "list"
         stationsList.visibility = View.VISIBLE
+        filterButtonsContainer.visibility = View.VISIBLE
         settingsContainer.visibility = View.GONE
-        val stations = StationRepository.getStations()
-        val adapter = StationAdapter(this, stations, { stationId ->
+        
+        val categorizedStations = StationRepository.getCategorizedStations()
+        categorizedAdapter = CategorizedStationAdapter(this, categorizedStations, { stationId ->
             playStation(stationId)
         }, { _ ->
             // Do nothing to prevent list jump
         })
-        stationsList.adapter = adapter
+        stationsList.adapter = categorizedAdapter
+        
+        // Setup filter buttons
+        setupFilterButtons()
     }
 
     private fun showFavorites() {
         currentMode = "favorites"
         stationsList.visibility = View.VISIBLE
+        filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
         val stations = FavoritesPreference.getFavorites(this)
         val adapter = StationAdapter(this, stations, { stationId ->
@@ -152,7 +162,35 @@ class MainActivity : AppCompatActivity() {
     private fun showSettings() {
         currentMode = "settings"
         stationsList.visibility = View.GONE
+        filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.VISIBLE
+    }
+
+    private fun setupFilterButtons() {
+        val filterNational = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_national)
+        val filterRegions = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_regions)
+        val filterLocal = findViewById<com.google.android.material.button.MaterialButton>(R.id.filter_local)
+        
+        filterNational.setOnClickListener {
+            scrollToCategorySection(StationCategory.NATIONAL)
+        }
+        
+        filterRegions.setOnClickListener {
+            scrollToCategorySection(StationCategory.REGIONS)
+        }
+        
+        filterLocal.setOnClickListener {
+            scrollToCategorySection(StationCategory.LOCAL)
+        }
+    }
+    
+    private fun scrollToCategorySection(category: StationCategory) {
+        if (categorizedAdapter != null) {
+            val position = categorizedAdapter!!.getPositionForCategory(category)
+            if (position >= 0) {
+                stationsList.smoothScrollToPosition(position)
+            }
+        }
     }
 
     private fun setupSettings() {

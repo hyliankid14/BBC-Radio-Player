@@ -12,14 +12,30 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/stations_list"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingStart="0dp"
-            android:paddingEnd="0dp"
-            android:clipToPadding="false"
-            android:scrollbars="vertical" />
+            android:orientation="vertical">
+
+            <!-- Filter Buttons -->
+            <include
+                layout="@layout/filter_buttons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:id="@+id/filter_buttons_include" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/stations_list"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                android:clipToPadding="false"
+                android:scrollbars="vertical" />
+
+        </LinearLayout>
 
         <!-- Settings View -->
         <ScrollView
