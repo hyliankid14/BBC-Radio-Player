@@ -393,6 +393,14 @@ class RadioService : MediaBrowserServiceCompat() {
             createPendingIntent(ACTION_STOP, "stop_action")
         )
 
+        // Create favorite action
+        val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
+        val favoriteAction = NotificationCompat.Action(
+            if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
+            if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+            createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+        )
+
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
             .setContentText(currentShowTitle)
@@ -405,9 +413,10 @@ class RadioService : MediaBrowserServiceCompat() {
             .addAction(previousAction)
             .addAction(playPauseAction)
             .addAction(nextAction)
+            .addAction(favoriteAction)
             .setStyle(MediaStyle()
                 .setMediaSession(mediaSession.sessionToken)
-                .setShowActionsInCompactView(0, 1, 2)
+                .setShowActionsInCompactView(1, 2, 3)
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
 
