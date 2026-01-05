@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.ItemTouchHelper
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -149,13 +150,39 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
-        val stations = FavoritesPreference.getFavorites(this)
-        val adapter = StationAdapter(this, stations, { stationId ->
+        val stations = FavoritesPreference.getFavorites(this).toMutableList()
+        val adapter = FavoritesAdapter(this, stations, { stationId ->
             playStation(stationId)
         }, { _ ->
             // Do nothing to prevent list jump
+        }, {
+            // Save the new order when changed
+            FavoritesPreference.saveFavoritesOrder(this, stations.map { it.id })
         })
         stationsList.adapter = adapter
+        
+        // Setup ItemTouchHelper for drag-and-drop
+        val itemTouchHelperCallback = object : ItemTouchHelper.Callback() {
+            override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+                val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
+                return makeMovementFlags(dragFlags, 0)
+            }
+            
+            override fun onMove(recyclerView: RecyclerView, source: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                if (adapter is FavoritesAdapter) {
+                    adapter.moveItem(source.bindingAdapterPosition, target.bindingAdapterPosition)
+                    return true
+                }
+                return false
+            }
+            
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+            
+            override fun isLongPressDragEnabled(): Boolean = true
+        }
+        
+        val itemTouchHelper = ItemTouchHelper(itemTouchHelperCallback)
+        itemTouchHelper.attachToRecyclerView(stationsList)
     }
 
     private fun showSettings() {

@@ -48,6 +48,17 @@
         </LinearLayout>
 
         <ImageView
+            android:id="@+id/drag_handle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="Drag to reorder"
+            android:scaleType="center"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_drag_handle"
+            android:tint="?attr/colorOutline"
+            android:visibility="gone" />
+
+        <ImageView
             android:id="@+id/station_favorite_star"
             android:layout_width="40dp"
             android:layout_height="40dp"
