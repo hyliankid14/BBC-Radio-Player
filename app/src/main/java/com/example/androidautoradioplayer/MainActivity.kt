@@ -278,48 +278,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSwipeNavigation() {
-        val swipeThresholdDistance = (60 * resources.displayMetrics.density).toInt()
-        var downX = 0f
-        var downY = 0f
-        var swipeHandled = false
+        val swipeThresholdDistance = (24 * resources.displayMetrics.density).toInt()
+        stationsList.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
+            var downX = 0f
+            var downY = 0f
+            var swipeHandled = false
 
-        stationsList.setOnTouchListener { v, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    downX = event.x
-                    downY = event.y
-                    swipeHandled = false
-                    // Capture the gesture sequence
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if (!swipeHandled) {
-                        val dx = event.x - downX
-                        val dy = event.y - downY
-                        val isHorizontal = Math.abs(dx) > Math.abs(dy)
-                        val distanceOk = Math.abs(dx) > swipeThresholdDistance
-                        if (isHorizontal && distanceOk) {
-                            v.parent?.requestDisallowInterceptTouchEvent(true)
-                            if (dx < 0) {
-                                navigateToTab(currentTabIndex + 1)
-                            } else {
-                                navigateToTab(currentTabIndex - 1)
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downX = e.x
+                        downY = e.y
+                        swipeHandled = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!swipeHandled) {
+                            val dx = e.x - downX
+                            val dy = e.y - downY
+                            val horizontalEnough = Math.abs(dx) > Math.abs(dy) * 1.2f
+                            val distanceOk = Math.abs(dx) > swipeThresholdDistance
+                            if (horizontalEnough && distanceOk) {
+                                if (dx < 0) {
+                                    navigateToTab(currentTabIndex + 1)
+                                } else {
+                                    navigateToTab(currentTabIndex - 1)
+                                }
+                                swipeHandled = true
+                                // Do not intercept; allow vertical scroll to continue
+                                return false
                             }
-                            swipeHandled = true
-                            return@setOnTouchListener true
                         }
                     }
-                    true
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        swipeHandled = false
+                    }
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    v.parent?.requestDisallowInterceptTouchEvent(false)
-                    swipeHandled = false
-                    v.performClick()
-                    true
-                }
-                else -> false
+                return false
             }
-        }
+
+            override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {
+                // No-op; we don't need to consume events
+            }
+
+            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
+                // No-op
+            }
+        })
     }
 
     private fun navigateToTab(index: Int) {
