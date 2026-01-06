@@ -26,6 +26,9 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.core.graphics.ColorUtils
+import android.view.GestureDetector
+import android.view.MotionEvent
+import com.google.android.material.tabs.TabLayout
 
 class MainActivity : AppCompatActivity() {
     private lateinit var stationsList: RecyclerView
@@ -41,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerStop: ImageButton
     private lateinit var miniPlayerFavorite: ImageButton
     private lateinit var filterButtonsContainer: View
+    private lateinit var tabLayout: TabLayout
     private var categorizedAdapter: CategorizedStationAdapter? = null
     private var currentTabIndex = 0
     
@@ -208,7 +212,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupFilterButtons() {
-        val tabLayout = findViewById<com.google.android.material.tabs.TabLayout>(R.id.filter_buttons_include)
+        tabLayout = findViewById(R.id.filter_buttons_include)
         
         tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
@@ -232,8 +236,13 @@ class MainActivity : AppCompatActivity() {
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
         })
         
-        // Set National as default selected
+        // Set National as default selected and sync index
+        tabLayout.getTabAt(0)?.select()
+        currentTabIndex = 0
         showCategoryStations(StationCategory.NATIONAL)
+
+        // Enable swipe navigation on the stations list
+        setupSwipeNavigation()
     }
 
     private fun animateListTransition(direction: Int, onFadeOutComplete: () -> Unit) {
@@ -266,6 +275,44 @@ class MainActivity : AppCompatActivity() {
         })
         stationsList.adapter = categorizedAdapter
         stationsList.scrollToPosition(0)
+    }
+
+    private fun setupSwipeNavigation() {
+        val swipeThresholdDistance = 100
+        val swipeThresholdVelocity = 800
+
+        val gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent?, velocityX: Float, velocityY: Float): Boolean {
+                if (e1 == null || e2 == null) return false
+                val dx = e2.x - e1.x
+                val dy = e2.y - e1.y
+                val isHorizontal = Math.abs(dx) > Math.abs(dy)
+                if (isHorizontal && Math.abs(dx) > swipeThresholdDistance && Math.abs(velocityX) > swipeThresholdVelocity) {
+                    if (dx < 0) {
+                        // Swipe left -> next tab
+                        navigateToTab(currentTabIndex + 1)
+                    } else {
+                        // Swipe right -> previous tab
+                        navigateToTab(currentTabIndex - 1)
+                    }
+                    return true
+                }
+                return false
+            }
+        })
+
+        stationsList.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+        }
+    }
+
+    private fun navigateToTab(index: Int) {
+        if (!::tabLayout.isInitialized) return
+        val maxIndex = tabLayout.tabCount - 1
+        val target = index.coerceIn(0, maxIndex)
+        if (target != currentTabIndex) {
+            tabLayout.getTabAt(target)?.select()
+        }
     }
 
     private fun setupSettings() {

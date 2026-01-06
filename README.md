@@ -115,3 +115,43 @@ The app implements Material Design 3 best practices:
 - The app gracefully handles network errors and missing devices
 - Follows Material Design 3 guidelines at https://m3.material.io/
 
+## Troubleshooting: Using Gradle Wrapper (Linux)
+
+If `./gradlew` fails locally, try these steps:
+
+- Permissions: make the wrapper executable
+  - `chmod +x gradlew`
+
+- JDK 17: ensure Java 17 is installed and active
+  - Install (Ubuntu/Debian):
+    - `sudo apt-get update`
+    - `sudo apt-get install -y openjdk-17-jdk`
+  - Verify: `java -version` should report 17
+  - Optional: set `JAVA_HOME` and `PATH`
+    - `export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))`
+    - `export PATH="$JAVA_HOME/bin:$PATH"`
+
+- Android SDK: install via Android Studio or command-line tools
+  - Set `ANDROID_SDK_ROOT` and add `platform-tools` to `PATH`
+  - Accept licenses: `yes | sdkmanager --licenses`
+
+- Network/Proxy: wrapper downloads Gradle from services.gradle.org
+  - If blocked, configure proxy (`GRADLE_OPTS`), or build via CI (below)
+
+- Quick checks
+  - `./gradlew -v` — confirms Gradle + Java detection
+  - `./gradlew tasks` — basic connectivity test
+
+### Build without local Gradle
+
+Use CI to build and deploy without a local Gradle/SDK setup:
+
+- VS Code Task: Deploy to Device (runs `scripts/deploy.sh`)
+  - Triggers [.github/workflows/android-build.yml](.github/workflows/android-build.yml)
+  - Downloads the APK artifact and installs via `adb`
+
+- Manual run:
+  - `./scripts/deploy.sh "Your commit message"`
+
+If problems persist, share the exact error output so we can tailor fixes (permissions, env vars, proxy, or missing SDK components).
+
