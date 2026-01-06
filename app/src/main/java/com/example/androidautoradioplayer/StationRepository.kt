@@ -3,7 +3,7 @@ package com.example.androidautoradioplayer
 private const val STREAM_BASE = "https://lsn.lv/bbcradio.m3u8"
 private const val HQ_BITRATE = "320000"
 private const val LQ_BITRATE = "128000"
-private const val LOGO_BASE = "https://sounds.files.bbci.co.uk/3.11.0/services"
+private const val LOGO_BASE = "https://sounds.files.bbci.co.uk/3.11.1/services"
 
 data class Station(
     val id: String,
@@ -35,7 +35,7 @@ object StationRepository {
         id = id,
         title = title,
         serviceId = serviceId,
-        logoUrl = "$LOGO_BASE/$logoServiceId/blocks-colour-black_128x128.png",
+        logoUrl = "$LOGO_BASE/$logoServiceId/blocks-colour-black_600x600.png",
         category = category
     )
 
