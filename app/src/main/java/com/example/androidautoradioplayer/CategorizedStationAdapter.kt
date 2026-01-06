@@ -115,4 +115,9 @@ class CategorizedStationAdapter(
         holder.textView.setOnClickListener(clickListener)
         holder.itemView.setOnClickListener(clickListener)
     }
+    
+    fun clearShowCache() {
+        showCache.clear()
+        fetchingIds.clear()
+    }
 }

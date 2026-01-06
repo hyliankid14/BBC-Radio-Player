@@ -133,6 +133,21 @@ class MainActivity : AppCompatActivity() {
         // Start polling for playback state updates
         startPlaybackStateUpdates()
     }
+    
+    private fun refreshCurrentView() {
+        // Clear show cache in the current adapter and refresh the view
+        when (currentMode) {
+            "list" -> {
+                // Clear cache in categorized adapter if it exists
+                categorizedAdapter?.clearShowCache()
+                categorizedAdapter?.notifyDataSetChanged()
+            }
+            "favorites" -> {
+                // Recreate favorites view to clear its cache
+                showFavorites()
+            }
+        }
+    }
 
     private fun showAllStations() {
         currentMode = "list"
@@ -359,6 +374,9 @@ class MainActivity : AppCompatActivity() {
         // Restore view when returning from settings
         PlaybackStateHelper.onShowChange(showChangeListener)
         startPlaybackStateUpdates()
+        
+        // Clear show cache and refresh the current view to prevent stale show names
+        refreshCurrentView()
     }
     
     override fun onPause() {

@@ -146,4 +146,9 @@ class FavoritesAdapter(
         notifyItemMoved(fromPosition, toPosition)
         onOrderChanged()
     }
+    
+    fun clearShowCache() {
+        showCache.clear()
+        fetchingIds.clear()
+    }
 }
