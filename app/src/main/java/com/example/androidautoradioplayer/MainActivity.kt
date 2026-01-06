@@ -281,34 +281,39 @@ class MainActivity : AppCompatActivity() {
         val swipeThresholdDistance = 100
         var downX = 0f
         var downY = 0f
-        var downTime = 0L
+        var swipeHandled = false
 
-        stationsList.setOnTouchListener { _, event ->
+        stationsList.setOnTouchListener { v, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = event.x
                     downY = event.y
-                    downTime = event.eventTime
+                    swipeHandled = false
                     false
                 }
-                MotionEvent.ACTION_UP -> {
-                    val dx = event.x - downX
-                    val dy = event.y - downY
-                    val dt = (event.eventTime - downTime).coerceAtLeast(1L)
-                    val isHorizontal = Math.abs(dx) > Math.abs(dy)
-                    val distanceOk = Math.abs(dx) > swipeThresholdDistance
-                    val velocityX = Math.abs(dx) / dt.toFloat() * 1000f
-                    val velocityOk = velocityX > 800f
-                    if (isHorizontal && (distanceOk || velocityOk)) {
-                        if (dx < 0) {
-                            navigateToTab(currentTabIndex + 1)
-                        } else {
-                            navigateToTab(currentTabIndex - 1)
+                MotionEvent.ACTION_MOVE -> {
+                    if (!swipeHandled) {
+                        val dx = event.x - downX
+                        val dy = event.y - downY
+                        val isHorizontal = Math.abs(dx) > Math.abs(dy)
+                        val distanceOk = Math.abs(dx) > swipeThresholdDistance
+                        if (isHorizontal && distanceOk) {
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                            if (dx < 0) {
+                                navigateToTab(currentTabIndex + 1)
+                            } else {
+                                navigateToTab(currentTabIndex - 1)
+                            }
+                            swipeHandled = true
+                            return@setOnTouchListener true
                         }
-                        true
-                    } else {
-                        false
                     }
+                    false
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.parent?.requestDisallowInterceptTouchEvent(false)
+                    swipeHandled = false
+                    false
                 }
                 else -> false
             }
