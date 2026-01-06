@@ -282,8 +282,7 @@ class MainActivity : AppCompatActivity() {
         val swipeThresholdVelocity = 800
 
         val gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onFling(e1: MotionEvent?, e2: MotionEvent?, velocityX: Float, velocityY: Float): Boolean {
-                if (e1 == null || e2 == null) return false
+            override fun onFling(e1: MotionEvent, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
                 val dx = e2.x - e1.x
                 val dy = e2.y - e1.y
                 val isHorizontal = Math.abs(dx) > Math.abs(dy)
