@@ -51,6 +51,8 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentArtworkUri: String? = null
     private var showInfoRefreshRunnable: Runnable? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main)
+    private var lastAndroidAutoClientUid: Int? = null
+    private var lastAndroidAutoRefreshMs: Long = 0L
     
     private val placeholderBitmap by lazy {
         android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
@@ -75,6 +77,8 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
         private const val MEDIA_ID_ALL_STATIONS = "all_stations"
+        private const val ANDROID_AUTO_CLIENT_HINT = "gearhead"
+        private const val AUTO_RECONNECT_REFRESH_COOLDOWN_MS = 5_000L
     }
 
     override fun onCreate() {
@@ -214,6 +218,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
     override fun onGetRoot(clientName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot {
         Log.d(TAG, "onGetRoot called for client: $clientName, uid: $clientUid")
+        maybeHandleAndroidAutoReconnect(clientName, clientUid)
         
         val extras = Bundle().apply {
             putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
@@ -223,6 +228,25 @@ class RadioService : MediaBrowserServiceCompat() {
         
         Log.d(TAG, "onGetRoot returning root with extras")
         return BrowserRoot("root", extras)
+    }
+
+    private fun maybeHandleAndroidAutoReconnect(clientName: String, clientUid: Int) {
+        val isAndroidAutoClient = clientName.contains(ANDROID_AUTO_CLIENT_HINT, ignoreCase = true)
+        if (!isAndroidAutoClient) return
+
+        val now = System.currentTimeMillis()
+        val isNewClient = lastAndroidAutoClientUid == null || lastAndroidAutoClientUid != clientUid
+        val canRefresh = PlaybackStateHelper.getIsPlaying() &&
+            currentStationId.isNotEmpty() &&
+            (isNewClient || now - lastAndroidAutoRefreshMs >= AUTO_RECONNECT_REFRESH_COOLDOWN_MS)
+
+        if (canRefresh) {
+            Log.d(TAG, "Android Auto reconnect detected (client=$clientName, uid=$clientUid). Refreshing live stream.")
+            handler.post { refreshCurrentStream("Android Auto reconnect") }
+            lastAndroidAutoRefreshMs = now
+        }
+
+        lastAndroidAutoClientUid = clientUid
     }
 
     override fun onLoadChildren(parentId: String, result: Result<List<MediaItem>>) {
@@ -701,6 +725,42 @@ class RadioService : MediaBrowserServiceCompat() {
         
         // Schedule periodic show info refresh (every 30 seconds)
         scheduleShowInfoRefresh()
+    }
+
+    private fun refreshCurrentStream(reason: String) {
+        val stationId = currentStationId
+        if (stationId.isEmpty()) {
+            Log.d(TAG, "refreshCurrentStream skipped ($reason): no active station")
+            return
+        }
+
+        val station = StationRepository.getStationById(stationId)
+        if (station == null) {
+            Log.w(TAG, "refreshCurrentStream skipped ($reason): station not found for id=$stationId")
+            return
+        }
+
+        val highQuality = ThemePreference.getHighQuality(this)
+        val streamUri = station.getUri(highQuality)
+
+        Log.d(TAG, "Refreshing stream due to $reason. Station=${station.title}, HQ=$highQuality")
+        lastSongSignature = null
+
+        player?.release()
+        player = null
+        ensurePlayer()
+        requestAudioFocus()
+
+        updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
+        player?.apply {
+            playWhenReady = true
+            setMediaItem(ExoMediaItem.fromUri(streamUri))
+            prepare()
+        }
+
+        fetchAndUpdateShowInfo(stationId)
+        scheduleShowInfoRefresh()
+        startForegroundNotification()
     }
 
     private fun fetchAndUpdateShowInfo(stationId: String) {
