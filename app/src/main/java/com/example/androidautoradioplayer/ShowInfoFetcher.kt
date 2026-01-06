@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 
 data class CurrentShow(
     val title: String, // Show Name (Programme)
+    val episodeTitle: String? = null, // Episode title (from ESS)
     val secondary: String? = null, // Artist (from Segment)
     val tertiary: String? = null, // Track (from Segment)
     val imageUrl: String? = null,
@@ -102,6 +103,7 @@ object ShowInfoFetcher {
             
             return@withContext CurrentShow(
                 title = finalTitle,
+                episodeTitle = scheduleShow.episodeTitle,
                 secondary = artist,
                 tertiary = track,
                 imageUrl = finalImageUrl,
@@ -272,18 +274,18 @@ object ShowInfoFetcher {
                             val episodeTitle = episode?.optString("title")
                             
                             val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
-                            val subtitle = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
+                            val episode = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
                             
                             // Extract image from episode or brand
-                            val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
+                            val imageObj = item.optJSONObject("episode")?.optJSONObject("image") ?: brand?.optJSONObject("image")
                             val imageTemplate = imageObj?.optString("template_url")
                             var imageUrl: String? = null
                             if (!imageTemplate.isNullOrEmpty()) {
                                 imageUrl = imageTemplate.replace("{recipe}", "640x640")
                             }
                             
-                            Log.d(TAG, "Found current ESS show: $title ($subtitle), imageUrl=$imageUrl")
-                            return CurrentShow(title = title, secondary = subtitle, imageUrl = imageUrl)
+                            Log.d(TAG, "Found current ESS show: $title (episode: $episode), imageUrl=$imageUrl")
+                            return CurrentShow(title = title, episodeTitle = episode, imageUrl = imageUrl)
                         }
                         
                         // Track the next upcoming show (in case no current show is found)
@@ -295,10 +297,10 @@ object ShowInfoFetcher {
                             val episodeTitle = episode?.optString("title")
                             
                             val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
-                            val subtitle = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
+                            val episode = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
                             
                             // Extract image from episode or brand
-                            val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
+                            val imageObj = item.optJSONObject("episode")?.optJSONObject("image") ?: brand?.optJSONObject("image")
                             val imageTemplate = imageObj?.optString("template_url")
                             var imageUrl: String? = null
                             if (!imageTemplate.isNullOrEmpty()) {
@@ -306,7 +308,7 @@ object ShowInfoFetcher {
                             }
                             
                             nextShowStart = start
-                            nextShow = CurrentShow(title = title, secondary = subtitle, imageUrl = imageUrl)
+                            nextShow = CurrentShow(title = title, episodeTitle = episode, imageUrl = imageUrl)
                         }
                     } catch (e: java.text.ParseException) {
                         Log.w(TAG, "Date parse error: ${e.message}")

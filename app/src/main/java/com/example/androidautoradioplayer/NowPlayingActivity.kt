@@ -20,6 +20,7 @@ import android.content.res.ColorStateList
 class NowPlayingActivity : AppCompatActivity() {
     private lateinit var stationArtwork: ImageView
     private lateinit var showName: TextView
+    private lateinit var episodeTitle: TextView
     private lateinit var artistTrack: TextView
     private lateinit var stopButton: MaterialButton
     private lateinit var previousButton: MaterialButton
@@ -48,6 +49,7 @@ class NowPlayingActivity : AppCompatActivity() {
         // Initialize views
         stationArtwork = findViewById(R.id.now_playing_artwork)
         showName = findViewById(R.id.now_playing_show_name)
+        episodeTitle = findViewById(R.id.now_playing_episode_title)
         artistTrack = findViewById(R.id.now_playing_artist_track)
         stopButton = findViewById(R.id.now_playing_stop)
         previousButton = findViewById(R.id.now_playing_previous)
@@ -107,6 +109,14 @@ class NowPlayingActivity : AppCompatActivity() {
             
             // Update show name
             showName.text = show.title.ifEmpty { "BBC Radio" }
+            
+            // Update episode title if available
+            if (!show.episodeTitle.isNullOrEmpty()) {
+                episodeTitle.text = show.episodeTitle
+                episodeTitle.visibility = android.view.View.VISIBLE
+            } else {
+                episodeTitle.visibility = android.view.View.GONE
+            }
             
             // Update artist/track info if available
             if (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) {
@@ -177,6 +187,14 @@ class NowPlayingActivity : AppCompatActivity() {
         
         // Update show name
         showName.text = show.title.ifEmpty { "BBC Radio" }
+        
+        // Update episode title if available
+        if (!show.episodeTitle.isNullOrEmpty()) {
+            episodeTitle.text = show.episodeTitle
+            episodeTitle.visibility = android.view.View.VISIBLE
+        } else {
+            episodeTitle.visibility = android.view.View.GONE
+        }
         
         // Update artist/track info if available
         if (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) {
