@@ -249,6 +249,9 @@ object ShowInfoFetcher {
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
             sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
             
+            var nextShow: CurrentShow? = null
+            var nextShowStart: Long = Long.MAX_VALUE
+            
             for (i in 0 until items.length()) {
                 val item = items.getJSONObject(i)
                 val publishedTime = item.optJSONObject("published_time") ?: continue
@@ -282,6 +285,29 @@ object ShowInfoFetcher {
                             Log.d(TAG, "Found current ESS show: $title ($subtitle), imageUrl=$imageUrl")
                             return CurrentShow(title = title, secondary = subtitle, imageUrl = imageUrl)
                         }
+                        
+                        // Track the next upcoming show (in case no current show is found)
+                        if (start > now && start < nextShowStart) {
+                            val brand = item.optJSONObject("brand")
+                            val episode = item.optJSONObject("episode")
+                            
+                            val brandTitle = brand?.optString("title")
+                            val episodeTitle = episode?.optString("title")
+                            
+                            val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
+                            val subtitle = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
+                            
+                            // Extract image from episode or brand
+                            val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
+                            val imageTemplate = imageObj?.optString("template_url")
+                            var imageUrl: String? = null
+                            if (!imageTemplate.isNullOrEmpty()) {
+                                imageUrl = imageTemplate.replace("{recipe}", "640x640")
+                            }
+                            
+                            nextShowStart = start
+                            nextShow = CurrentShow(title = title, secondary = subtitle, imageUrl = imageUrl)
+                        }
                     } catch (e: java.text.ParseException) {
                         Log.w(TAG, "Date parse error: ${e.message}")
                         continue
@@ -289,7 +315,13 @@ object ShowInfoFetcher {
                 }
             }
             
-            Log.w(TAG, "No current show found in ESS schedule")
+            // If no current show found but there's an upcoming show, use that
+            if (nextShow != null) {
+                Log.d(TAG, "No current show found, using next upcoming show: ${nextShow.title}")
+                return nextShow
+            }
+            
+            Log.w(TAG, "No current or upcoming show found in ESS schedule")
             return null
         } catch (e: Exception) {
             Log.w(TAG, "Error parsing ESS response: ${e.message}")
