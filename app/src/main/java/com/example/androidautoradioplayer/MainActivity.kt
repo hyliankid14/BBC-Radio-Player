@@ -278,7 +278,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSwipeNavigation() {
-        val swipeThresholdDistance = 100
+        val swipeThresholdDistance = (60 * resources.displayMetrics.density).toInt()
         var downX = 0f
         var downY = 0f
         var swipeHandled = false
@@ -289,7 +289,8 @@ class MainActivity : AppCompatActivity() {
                     downX = event.x
                     downY = event.y
                     swipeHandled = false
-                    false
+                    // Capture the gesture sequence
+                    true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (!swipeHandled) {
@@ -308,12 +309,13 @@ class MainActivity : AppCompatActivity() {
                             return@setOnTouchListener true
                         }
                     }
-                    false
+                    true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.parent?.requestDisallowInterceptTouchEvent(false)
                     swipeHandled = false
-                    false
+                    v.performClick()
+                    true
                 }
                 else -> false
             }
