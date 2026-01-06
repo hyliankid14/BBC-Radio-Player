@@ -109,44 +109,34 @@ class CategorizedStationAdapter(
             onFavoriteToggle?.invoke(station.id)
         }
         
-        // Safer tap handling to avoid accidental plays during scroll/swipe
+        // Safer tap handling: gate clicks by movement slop; keep scrolling responsive
         val tapSlop = (12 * context.resources.displayMetrics.density).toInt()
-        fun attachSafeTap(view: View) {
-            view.setOnTouchListener(object : View.OnTouchListener {
-                var downX = 0f
-                var downY = 0f
-                var downTime = 0L
-                var movedBeyondSlop = false
-                override fun onTouch(v: View, event: android.view.MotionEvent): Boolean {
-                    when (event.actionMasked) {
-                        android.view.MotionEvent.ACTION_DOWN -> {
-                            downX = event.x
-                            downY = event.y
-                            downTime = event.eventTime
-                            movedBeyondSlop = false
-                        }
-                        android.view.MotionEvent.ACTION_MOVE -> {
-                            val dx = Math.abs(event.x - downX)
-                            val dy = Math.abs(event.y - downY)
-                            if (dx > tapSlop || dy > tapSlop) {
-                                movedBeyondSlop = true
-                            }
-                        }
-                        android.view.MotionEvent.ACTION_UP -> {
-                            val duration = event.eventTime - downTime
-                            if (!movedBeyondSlop && duration >= 120) {
-                                onStationClick(station.id)
-                            }
-                        }
+        fun attachTapGuard(view: View, click: () -> Unit) {
+            var downX = 0f
+            var downY = 0f
+            var movedBeyondSlop = false
+            view.setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        downX = event.x
+                        downY = event.y
+                        movedBeyondSlop = false
                     }
-                    // Do not consume; allow RecyclerView to handle scrolling
-                    return false
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val dx = Math.abs(event.x - downX)
+                        val dy = Math.abs(event.y - downY)
+                        if (dx > tapSlop || dy > tapSlop) movedBeyondSlop = true
+                    }
                 }
-            })
+                false
+            }
+            view.setOnClickListener {
+                if (!movedBeyondSlop) click()
+            }
         }
-        attachSafeTap(holder.itemView)
-        attachSafeTap(holder.imageView)
-        attachSafeTap(holder.textView)
+        attachTapGuard(holder.itemView) { onStationClick(station.id) }
+        attachTapGuard(holder.imageView) { onStationClick(station.id) }
+        attachTapGuard(holder.textView) { onStationClick(station.id) }
     }
     
     fun clearShowCache() {

@@ -278,7 +278,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSwipeNavigation() {
-        val swipeThresholdDistance = (24 * resources.displayMetrics.density).toInt()
+        val swipeThresholdDistance = (32 * resources.displayMetrics.density).toInt()
         stationsList.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
             var downX = 0f
             var downY = 0f
@@ -295,7 +295,7 @@ class MainActivity : AppCompatActivity() {
                         if (!swipeHandled) {
                             val dx = e.x - downX
                             val dy = e.y - downY
-                            val horizontalEnough = Math.abs(dx) > Math.abs(dy) * 1.2f
+                            val horizontalEnough = Math.abs(dx) > Math.abs(dy) * 1.5f
                             val distanceOk = Math.abs(dx) > swipeThresholdDistance
                             if (horizontalEnough && distanceOk) {
                                 if (dx < 0) {
