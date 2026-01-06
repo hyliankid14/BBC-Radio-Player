@@ -274,18 +274,18 @@ object ShowInfoFetcher {
                             val episodeTitle = episode?.optString("title")
                             
                             val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
-                            val episode = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
+                            val episodeTitleString = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
                             
                             // Extract image from episode or brand
-                            val imageObj = item.optJSONObject("episode")?.optJSONObject("image") ?: brand?.optJSONObject("image")
+                            val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
                             val imageTemplate = imageObj?.optString("template_url")
                             var imageUrl: String? = null
                             if (!imageTemplate.isNullOrEmpty()) {
                                 imageUrl = imageTemplate.replace("{recipe}", "640x640")
                             }
                             
-                            Log.d(TAG, "Found current ESS show: $title (episode: $episode), imageUrl=$imageUrl")
-                            return CurrentShow(title = title, episodeTitle = episode, imageUrl = imageUrl)
+                            Log.d(TAG, "Found current ESS show: $title (episode: $episodeTitleString), imageUrl=$imageUrl")
+                            return CurrentShow(title = title, episodeTitle = episodeTitleString, imageUrl = imageUrl)
                         }
                         
                         // Track the next upcoming show (in case no current show is found)
@@ -297,10 +297,10 @@ object ShowInfoFetcher {
                             val episodeTitle = episode?.optString("title")
                             
                             val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
-                            val episode = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
+                            val episodeTitleString = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
                             
                             // Extract image from episode or brand
-                            val imageObj = item.optJSONObject("episode")?.optJSONObject("image") ?: brand?.optJSONObject("image")
+                            val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
                             val imageTemplate = imageObj?.optString("template_url")
                             var imageUrl: String? = null
                             if (!imageTemplate.isNullOrEmpty()) {
@@ -308,7 +308,7 @@ object ShowInfoFetcher {
                             }
                             
                             nextShowStart = start
-                            nextShow = CurrentShow(title = title, episodeTitle = episode, imageUrl = imageUrl)
+                            nextShow = CurrentShow(title = title, episodeTitle = episodeTitleString, imageUrl = imageUrl)
                         }
                     } catch (e: java.text.ParseException) {
                         Log.w(TAG, "Date parse error: ${e.message}")
