@@ -279,29 +279,39 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupSwipeNavigation() {
         val swipeThresholdDistance = 100
-        val swipeThresholdVelocity = 800
-
-        val gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onFling(e1: MotionEvent, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
-                val dx = e2.x - e1.x
-                val dy = e2.y - e1.y
-                val isHorizontal = Math.abs(dx) > Math.abs(dy)
-                if (isHorizontal && Math.abs(dx) > swipeThresholdDistance && Math.abs(velocityX) > swipeThresholdVelocity) {
-                    if (dx < 0) {
-                        // Swipe left -> next tab
-                        navigateToTab(currentTabIndex + 1)
-                    } else {
-                        // Swipe right -> previous tab
-                        navigateToTab(currentTabIndex - 1)
-                    }
-                    return true
-                }
-                return false
-            }
-        })
+        var downX = 0f
+        var downY = 0f
+        var downTime = 0L
 
         stationsList.setOnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.x
+                    downY = event.y
+                    downTime = event.eventTime
+                    false
+                }
+                MotionEvent.ACTION_UP -> {
+                    val dx = event.x - downX
+                    val dy = event.y - downY
+                    val dt = (event.eventTime - downTime).coerceAtLeast(1L)
+                    val isHorizontal = Math.abs(dx) > Math.abs(dy)
+                    val distanceOk = Math.abs(dx) > swipeThresholdDistance
+                    val velocityX = Math.abs(dx) / dt.toFloat() * 1000f
+                    val velocityOk = velocityX > 800f
+                    if (isHorizontal && (distanceOk || velocityOk)) {
+                        if (dx < 0) {
+                            navigateToTab(currentTabIndex + 1)
+                        } else {
+                            navigateToTab(currentTabIndex - 1)
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                }
+                else -> false
+            }
         }
     }
 
