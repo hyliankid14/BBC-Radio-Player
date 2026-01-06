@@ -273,6 +273,7 @@ class MainActivity : AppCompatActivity() {
         val qualityGroup: RadioGroup = findViewById(R.id.quality_radio_group)
         val autoQualityCheckbox: android.widget.CheckBox = findViewById(R.id.auto_quality_checkbox)
         val scrollingModeGroup: RadioGroup = findViewById(R.id.scrolling_mode_radio_group)
+        val autoResumeAndroidAutoCheckbox: android.widget.CheckBox = findViewById(R.id.auto_resume_android_auto_checkbox)
         
         // Set current theme selection
         val currentTheme = ThemePreference.getTheme(this)
@@ -358,6 +359,11 @@ class MainActivity : AppCompatActivity() {
                 else -> ScrollingPreference.MODE_ALL_STATIONS
             }
             ScrollingPreference.setScrollMode(this, selectedMode)
+        }
+
+        autoResumeAndroidAutoCheckbox.isChecked = PlaybackPreference.isAutoResumeAndroidAutoEnabled(this)
+        autoResumeAndroidAutoCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            PlaybackPreference.setAutoResumeAndroidAuto(this, isChecked)
         }
     }
 

@@ -53,6 +53,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private val serviceScope = CoroutineScope(Dispatchers.Main)
     private var lastAndroidAutoClientUid: Int? = null
     private var lastAndroidAutoRefreshMs: Long = 0L
+    private var lastAndroidAutoAutoplayMs: Long = 0L
     
     private val placeholderBitmap by lazy {
         android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
@@ -236,9 +237,20 @@ class RadioService : MediaBrowserServiceCompat() {
 
         val now = System.currentTimeMillis()
         val isNewClient = lastAndroidAutoClientUid == null || lastAndroidAutoClientUid != clientUid
+        val lastStationId = PlaybackPreference.getLastStationId(this)
+        val canAutoResume = PlaybackPreference.isAutoResumeAndroidAutoEnabled(this) &&
+            !PlaybackStateHelper.getIsPlaying() &&
+            !lastStationId.isNullOrEmpty() &&
+            (isNewClient || now - lastAndroidAutoAutoplayMs >= AUTO_RECONNECT_REFRESH_COOLDOWN_MS)
         val canRefresh = PlaybackStateHelper.getIsPlaying() &&
             currentStationId.isNotEmpty() &&
             (isNewClient || now - lastAndroidAutoRefreshMs >= AUTO_RECONNECT_REFRESH_COOLDOWN_MS)
+
+        if (canAutoResume) {
+            Log.d(TAG, "Android Auto reconnect detected (client=$clientName, uid=$clientUid). Auto-playing last station: $lastStationId")
+            handler.post { lastStationId?.let { playStation(it) } }
+            lastAndroidAutoAutoplayMs = now
+        }
 
         if (canRefresh) {
             Log.d(TAG, "Android Auto reconnect detected (client=$clientName, uid=$clientUid). Refreshing live stream.")
@@ -675,6 +687,7 @@ class RadioService : MediaBrowserServiceCompat() {
             Log.w(TAG, "Unknown station: $stationId")
             return
         }
+        PlaybackPreference.setLastStationId(this, station.id)
         
         // Get quality preference
         val highQuality = ThemePreference.getHighQuality(this)
