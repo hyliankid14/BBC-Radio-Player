@@ -109,11 +109,44 @@ class CategorizedStationAdapter(
             onFavoriteToggle?.invoke(station.id)
         }
         
-        // Make image and text clickable to play
-        val clickListener = View.OnClickListener { onStationClick(station.id) }
-        holder.imageView.setOnClickListener(clickListener)
-        holder.textView.setOnClickListener(clickListener)
-        holder.itemView.setOnClickListener(clickListener)
+        // Safer tap handling to avoid accidental plays during scroll/swipe
+        val tapSlop = (12 * context.resources.displayMetrics.density).toInt()
+        fun attachSafeTap(view: View) {
+            view.setOnTouchListener(object : View.OnTouchListener {
+                var downX = 0f
+                var downY = 0f
+                var downTime = 0L
+                var movedBeyondSlop = false
+                override fun onTouch(v: View, event: android.view.MotionEvent): Boolean {
+                    when (event.actionMasked) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            downX = event.x
+                            downY = event.y
+                            downTime = event.eventTime
+                            movedBeyondSlop = false
+                        }
+                        android.view.MotionEvent.ACTION_MOVE -> {
+                            val dx = Math.abs(event.x - downX)
+                            val dy = Math.abs(event.y - downY)
+                            if (dx > tapSlop || dy > tapSlop) {
+                                movedBeyondSlop = true
+                            }
+                        }
+                        android.view.MotionEvent.ACTION_UP -> {
+                            val duration = event.eventTime - downTime
+                            if (!movedBeyondSlop && duration >= 120) {
+                                onStationClick(station.id)
+                            }
+                        }
+                    }
+                    // Do not consume; allow RecyclerView to handle scrolling
+                    return false
+                }
+            })
+        }
+        attachSafeTap(holder.itemView)
+        attachSafeTap(holder.imageView)
+        attachSafeTap(holder.textView)
     }
     
     fun clearShowCache() {
