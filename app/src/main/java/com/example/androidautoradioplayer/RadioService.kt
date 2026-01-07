@@ -909,9 +909,9 @@ class RadioService : MediaBrowserServiceCompat() {
             // Episode Title as Composer
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle)
-            // Build display subtitle as: Show Name + Episode Title (if available)
+            // Build display subtitle as: Show Name on first line, Episode Title on second line (if available)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, 
-                if (currentEpisodeTitle.isNotEmpty()) "$currentShowTitle | $currentEpisodeTitle" else currentShowTitle)
+                if (currentEpisodeTitle.isNotEmpty()) "$currentShowTitle\n$currentEpisodeTitle" else currentShowTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
