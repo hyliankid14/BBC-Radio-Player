@@ -44,6 +44,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var currentStationLogo: String = ""
     private var currentShowTitle: String = "BBC Radio"
+    private var currentEpisodeTitle: String = ""
     private var currentShowInfo: CurrentShow = CurrentShow("BBC Radio")
     private var lastSongSignature: String? = null
     private val showInfoPollIntervalMs = 30_000L // Poll RMS at BBC's sweet spot (30s)
@@ -700,6 +701,7 @@ class RadioService : MediaBrowserServiceCompat() {
         currentStationLogo = station.logoUrl
         currentShowInfo = CurrentShow("") // Reset to empty to avoid "BBC Radio" flash
         currentShowTitle = ""
+        currentEpisodeTitle = ""
         currentArtworkBitmap = null
         currentArtworkUri = currentStationLogo
         lastSongSignature = null // Reset last song signature for new station
@@ -821,9 +823,10 @@ class RadioService : MediaBrowserServiceCompat() {
                 val formattedTitle = finalShow.getFormattedTitle()
                 // If the title is just the generic default, treat it as empty to avoid redundancy
                 currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
+                currentEpisodeTitle = finalShow.episodeTitle ?: ""
                 
                 PlaybackStateHelper.setCurrentShow(finalShow)
-                Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, imageUrl: ${finalShow.imageUrl}")
+                Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, episodeTitle: $currentEpisodeTitle, imageUrl: ${finalShow.imageUrl}")
                 
                 // Switch to main thread to update UI
                 handler.post {
@@ -903,8 +906,12 @@ class RadioService : MediaBrowserServiceCompat() {
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentStationTitle)
             // Show Name as Artist (Small)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentShowTitle)
+            // Episode Title as Composer
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, currentShowTitle)
+            // Build display subtitle as: Show Name + Episode Title (if available)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, 
+                if (currentEpisodeTitle.isNotEmpty()) "$currentShowTitle | $currentEpisodeTitle" else currentShowTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
