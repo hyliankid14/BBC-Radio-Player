@@ -43,6 +43,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentStationId: String = ""
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var currentStationLogo: String = ""
+    private var currentShowName: String = "" // Actual show name (not artist-track)
     private var currentShowTitle: String = "BBC Radio"
     private var currentEpisodeTitle: String = ""
     private var currentShowInfo: CurrentShow = CurrentShow("BBC Radio")
@@ -700,6 +701,7 @@ class RadioService : MediaBrowserServiceCompat() {
         currentStationId = station.id
         currentStationLogo = station.logoUrl
         currentShowInfo = CurrentShow("") // Reset to empty to avoid "BBC Radio" flash
+        currentShowName = ""
         currentShowTitle = ""
         currentEpisodeTitle = ""
         currentArtworkBitmap = null
@@ -820,13 +822,14 @@ class RadioService : MediaBrowserServiceCompat() {
                 
                 // Update show info (clear song data when RMS returns none)
                 currentShowInfo = finalShow
+                currentShowName = finalShow.title // Store the actual show name
                 val formattedTitle = finalShow.getFormattedTitle()
                 // If the title is just the generic default, treat it as empty to avoid redundancy
                 currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
                 currentEpisodeTitle = finalShow.episodeTitle ?: ""
                 
                 PlaybackStateHelper.setCurrentShow(finalShow)
-                Log.d(TAG, "Set currentShowTitle to: $currentShowTitle, episodeTitle: $currentEpisodeTitle, imageUrl: ${finalShow.imageUrl}")
+                Log.d(TAG, "Set currentShowName to: $currentShowName, currentShowTitle to: $currentShowTitle, episodeTitle: $currentEpisodeTitle, imageUrl: ${finalShow.imageUrl}")
                 
                 // Switch to main thread to update UI
                 handler.post {
@@ -909,9 +912,16 @@ class RadioService : MediaBrowserServiceCompat() {
             // Episode Title as Composer
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle)
-            // Build display subtitle as: Show Name on first line, Episode Title on second line (if available)
+            // Build display subtitle: Show "Artist - Track" when song is playing, otherwise "Show Name | Episode Title"
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, 
-                if (currentEpisodeTitle.isNotEmpty()) "$currentShowTitle\n$currentEpisodeTitle" else currentShowTitle)
+                when {
+                    // If currentShowInfo has artist/track (secondary/tertiary), show the formatted artist-track
+                    !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> currentShowTitle
+                    // Otherwise show show name with episode title if available
+                    currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
+                    // Fallback to just the current show title
+                    else -> currentShowTitle
+                })
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
