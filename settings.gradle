@@ -1,2 +1,2 @@
-rootProject.name = 'Android Auto Radio Player'
+rootProject.name = 'BBC Radio Player'
 include ':app'

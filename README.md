@@ -1,4 +1,4 @@
-# Android Auto Radio Player
+# BBC Radio Player
 
 A feature-rich Android app for streaming BBC Radio stations with seamless Android Auto integration, intelligent playback features, and a modern Material Design 3 interface.
 

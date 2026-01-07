@@ -3,7 +3,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 
 # Configuration Variables - Change these for other projects
 WORKFLOW_FILE="android-build.yml"
-PACKAGE_NAME="com.example.androidautoradioplayer"
+PACKAGE_NAME="com.example.bbcradioplayer"
 ARTIFACT_NAME="app-debug-apk"
 BRANCH="main"
 
@@ -78,4 +78,20 @@ if adb install "$APK_FILE"; then
 else
     echo "❌ Failed to install APK"
     exit 1
+fi
+
+# Create GitHub Release (optional)
+read -p "📦 Create a GitHub release with this APK? (y/n): " CREATE_RELEASE
+if [ "$CREATE_RELEASE" = "y" ]; then
+    read -p "Enter release tag (e.g., v1.0.0): " TAG
+    read -p "Enter release title: " TITLE
+    
+    echo "🏷️ Creating release $TAG..."
+    gh release create "$TAG" "$APK_FILE" \
+        --title "$TITLE" \
+        --notes "Auto-generated release from commit: $COMMIT_MSG" \
+        --target "$BRANCH"
+    
+    echo "✅ Release created! Users can download the APK directly from:"
+    echo "   https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/releases/tag/$TAG"
 fi

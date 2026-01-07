@@ -1,5 +1,6 @@
 SShots/
 build/
+scripts/
 .gradle/
 artifacts/
 local.properties
