@@ -1,4 +1,4 @@
-package com.example.androidautoradioplayer
+package com.hyliankid14.bbcradioplayer
 
 import android.content.Intent
 import android.os.Bundle
@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
-    private lateinit var miniPlayerSubtitle: com.example.androidautoradioplayer.ScrollingTextView
+    private lateinit var miniPlayerSubtitle: com.hyliankid14.bbcradioplayer.ScrollingTextView
     private lateinit var miniPlayerArtwork: ImageView
     private lateinit var miniPlayerPrevious: ImageButton
     private lateinit var miniPlayerPlayPause: ImageButton

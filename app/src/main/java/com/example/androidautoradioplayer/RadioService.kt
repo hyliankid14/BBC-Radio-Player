@@ -1,4 +1,4 @@
-package com.example.androidautoradioplayer
+package com.hyliankid14.bbcradioplayer
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -62,14 +62,14 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     companion object {
-        const val ACTION_PLAY_STATION = "com.example.androidautoradioplayer.ACTION_PLAY_STATION"
-        const val ACTION_PLAY = "com.example.androidautoradioplayer.ACTION_PLAY"
-        const val ACTION_PAUSE = "com.example.androidautoradioplayer.ACTION_PAUSE"
-        const val ACTION_STOP = "com.example.androidautoradioplayer.ACTION_STOP"
-        const val ACTION_SKIP_TO_NEXT = "com.example.androidautoradioplayer.ACTION_SKIP_TO_NEXT"
-        const val ACTION_SKIP_TO_PREVIOUS = "com.example.androidautoradioplayer.ACTION_SKIP_TO_PREVIOUS"
-        const val ACTION_TOGGLE_FAVORITE = "com.example.androidautoradioplayer.ACTION_TOGGLE_FAVORITE"
-        const val EXTRA_STATION_ID = "com.example.androidautoradioplayer.EXTRA_STATION_ID"
+        const val ACTION_PLAY_STATION = "com.hyliankid14.bbcradioplayer.ACTION_PLAY_STATION"
+        const val ACTION_PLAY = "com.hyliankid14.bbcradioplayer.ACTION_PLAY"
+        const val ACTION_PAUSE = "com.hyliankid14.bbcradioplayer.ACTION_PAUSE"
+        const val ACTION_STOP = "com.hyliankid14.bbcradioplayer.ACTION_STOP"
+        const val ACTION_SKIP_TO_NEXT = "com.hyliankid14.bbcradioplayer.ACTION_SKIP_TO_NEXT"
+        const val ACTION_SKIP_TO_PREVIOUS = "com.hyliankid14.bbcradioplayer.ACTION_SKIP_TO_PREVIOUS"
+        const val ACTION_TOGGLE_FAVORITE = "com.hyliankid14.bbcradioplayer.ACTION_TOGGLE_FAVORITE"
+        const val EXTRA_STATION_ID = "com.hyliankid14.bbcradioplayer.EXTRA_STATION_ID"
         private const val TAG = "RadioService"
         private const val CHANNEL_ID = "radio_playback"
         private const val NOTIFICATION_ID = 1

@@ -49,7 +49,7 @@
                 android:ellipsize="end" />
 
             <!-- Station Subtitle (Current Show) -->
-            <com.example.androidautoradioplayer.ScrollingTextView
+            <com.hyliankid14.bbcradioplayer.ScrollingTextView
                 android:id="@+id/mini_player_subtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

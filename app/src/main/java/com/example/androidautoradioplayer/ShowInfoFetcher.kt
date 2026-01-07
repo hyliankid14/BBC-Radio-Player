@@ -1,4 +1,4 @@
-package com.example.androidautoradioplayer
+package com.hyliankid14.bbcradioplayer
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers

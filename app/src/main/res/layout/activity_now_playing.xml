@@ -6,7 +6,7 @@
     android:background="?attr/colorSurface">
 
     <!-- Station Artwork (Square) -->
-    <com.example.androidautoradioplayer.SquareImageView
+    <com.hyliankid14.bbcradioplayer.SquareImageView
         android:id="@+id/now_playing_artwork"
         android:layout_width="@dimen/now_playing_artwork_width"
         android:layout_height="wrap_content"

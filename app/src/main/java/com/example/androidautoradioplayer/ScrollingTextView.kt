@@ -1,4 +1,4 @@
-package com.example.androidautoradioplayer
+package com.hyliankid14.bbcradioplayer
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter

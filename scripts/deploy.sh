@@ -3,8 +3,8 @@ set -e # Exit immediately if a command exits with a non-zero status.
 
 # Configuration Variables - Change these for other projects
 WORKFLOW_FILE="android-build.yml"
-PACKAGE_NAME="com.example.bbcradioplayer"
-OLD_PACKAGE_NAME="com.example.androidautoradioplayer"
+PACKAGE_NAME="com.hyliankid14.bbcradioplayer"
+
 ARTIFACT_NAME="app-debug-apk"
 BRANCH="main"
 
@@ -70,10 +70,8 @@ fi
 
 echo "Found APK: $APK_FILE"
 
-echo "🗑️ Uninstalling existing app(s) to avoid signature conflicts..."
-# Try uninstalling both the new and old package IDs to prevent INSTALL_FAILED_UPDATE_INCOMPATIBLE
-adb uninstall "$PACKAGE_NAME" || echo "⚠️ $PACKAGE_NAME not installed, skipping"
-adb uninstall "$OLD_PACKAGE_NAME" || echo "⚠️ $OLD_PACKAGE_NAME not installed, skipping"
+echo "🗑️ Uninstalling any installed 'bbcradioplayer' packages..."
+adb shell pm list packages | grep -E 'bbcradioplayer' | cut -d: -f2 | xargs -r -n1 adb uninstall || echo "⚠️ No matching packages found"
 
 echo "📲 Installing new APK..."
 if adb install "$APK_FILE"; then
