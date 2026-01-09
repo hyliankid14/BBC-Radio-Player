@@ -88,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         filterButtonsContainer = findViewById(R.id.filter_buttons_include)
         
         settingsContainer = findViewById(R.id.settings_container)
+        podcastsContainer = findViewById(R.id.podcasts_container)
         
         bottomNavigation = findViewById(R.id.bottom_navigation)
         bottomNavigation.setOnItemSelectedListener { item ->
