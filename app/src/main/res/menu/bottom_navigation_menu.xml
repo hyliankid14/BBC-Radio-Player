@@ -9,7 +9,12 @@
         android:id="@+id/navigation_list"
         android:enabled="true"
         android:icon="@drawable/ic_list"
-        android:title="All Stations" />
+        android:title="Stations" />
+    <item
+        android:id="@+id/navigation_podcasts"
+        android:enabled="true"
+        android:icon="@drawable/ic_podcast"
+        android:title="Podcasts" />
     <item
         android:id="@+id/navigation_settings"
         android:enabled="true"

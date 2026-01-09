@@ -15,6 +15,11 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.RadioGroup
+import android.widget.Spinner
+import android.widget.ArrayAdapter
+import android.widget.AdapterView
+import android.widget.ProgressBar
+import android.widget.Toast
 import android.view.View
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
@@ -29,10 +34,15 @@ import androidx.core.graphics.ColorUtils
 import android.view.GestureDetector
 import android.view.MotionEvent
 import com.google.android.material.tabs.TabLayout
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var stationsList: RecyclerView
     private lateinit var settingsContainer: View
+    private lateinit var podcastsContainer: View
+    private lateinit var podcastsFilterSpinner: Spinner
+    private lateinit var podcastsProgressBar: ProgressBar
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
@@ -46,9 +56,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var filterButtonsContainer: View
     private lateinit var tabLayout: TabLayout
     private var categorizedAdapter: CategorizedStationAdapter? = null
+    private var podcastAdapter: PodcastAdapter? = null
+    private var allPodcasts: List<Podcast> = emptyList()
     private var currentTabIndex = 0
     
-    private var currentMode = "list" // "favorites", "list", or "settings"
+    private var currentMode = "list" // "favorites", "list", "podcasts", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
@@ -86,6 +98,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.navigation_list -> {
                     showAllStations()
+                    true
+                }
+                R.id.navigation_podcasts -> {
+                    showPodcasts()
                     true
                 }
                 R.id.navigation_settings -> {
@@ -157,6 +173,7 @@ class MainActivity : AppCompatActivity() {
         currentMode = "list"
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.VISIBLE
+        podcastsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
         
         // Default to National category
@@ -168,6 +185,7 @@ class MainActivity : AppCompatActivity() {
         currentMode = "favorites"
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.GONE
+        podcastsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
         val stations = FavoritesPreference.getFavorites(this).toMutableList()
         val adapter = FavoritesAdapter(this, stations, { stationId ->
@@ -208,7 +226,85 @@ class MainActivity : AppCompatActivity() {
         currentMode = "settings"
         stationsList.visibility = View.GONE
         filterButtonsContainer.visibility = View.GONE
+        podcastsContainer.visibility = View.GONE
         settingsContainer.visibility = View.VISIBLE
+    }
+
+    private fun showPodcasts() {
+        currentMode = "podcasts"
+        stationsList.visibility = View.GONE
+        filterButtonsContainer.visibility = View.GONE
+        settingsContainer.visibility = View.GONE
+        podcastsContainer.visibility = View.VISIBLE
+        
+        // Initialize podcasts container if not already done
+        if (podcastAdapter == null) {
+            setupPodcastsView()
+            loadPodcasts()
+        }
+    }
+
+    private fun setupPodcastsView() {
+        podcastsFilterSpinner = findViewById(R.id.podcasts_filter_spinner)
+        podcastsProgressBar = findViewById(R.id.podcasts_progress)
+        val podcastsList: RecyclerView = findViewById(R.id.podcasts_list)
+        
+        podcastsList.layoutManager = LinearLayoutManager(this)
+        podcastAdapter = PodcastAdapter(this, emptyList()) { podcast ->
+            openPodcastDetail(podcast)
+        }
+        podcastsList.adapter = podcastAdapter
+    }
+
+    private fun loadPodcasts() {
+        podcastsProgressBar.visibility = View.VISIBLE
+        
+        lifecycleScope.launch {
+            try {
+                val podcasts = PodcastRepository.fetchPodcasts()
+                allPodcasts = podcasts
+                podcastAdapter?.updatePodcasts(podcasts)
+                
+                setupPodcastGenreFilter(podcasts)
+                
+                podcastsProgressBar.visibility = View.GONE
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading podcasts", e)
+                podcastsProgressBar.visibility = View.GONE
+                Toast.makeText(this@MainActivity, "Failed to load podcasts", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun setupPodcastGenreFilter(podcasts: List<Podcast>) {
+        val genres = listOf("All") + PodcastRepository.getUniqueGenres(podcasts)
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, genres)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        podcastsFilterSpinner.adapter = adapter
+        
+        podcastsFilterSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedGenre = if (position == 0) null else genres[position]
+                podcastAdapter?.filterByGenre(selectedGenre)
+            }
+            
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                // Do nothing
+            }
+        }
+    }
+
+    private fun openPodcastDetail(podcast: Podcast) {
+        val intent = Intent(this, PodcastDetailActivity::class.java).apply {
+            putExtra(PodcastDetailActivity.EXTRA_PODCAST_ID, podcast.id)
+            putExtra(PodcastDetailActivity.EXTRA_PODCAST_TITLE, podcast.title)
+            putExtra(PodcastDetailActivity.EXTRA_PODCAST_DESCRIPTION, podcast.description)
+            putExtra(PodcastDetailActivity.EXTRA_PODCAST_XML_URL, podcast.xmlUrl)
+            putExtra(PodcastDetailActivity.EXTRA_PODCAST_HTML_URL, podcast.htmlUrl)
+            putExtra(PodcastDetailActivity.EXTRA_PODCAST_IMAGE_URL, podcast.imageUrl)
+            putExtra(PodcastDetailActivity.EXTRA_PODCAST_GENRE, podcast.genre)
+        }
+        startActivity(intent)
     }
 
     private fun setupFilterButtons() {
