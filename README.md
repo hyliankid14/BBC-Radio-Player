@@ -32,6 +32,15 @@ Access the complete BBC Radio network, organized into three categories:
 #### Local Stations (60+ stations)
 All BBC Local Radio stations across England and the Channel Islands (Berkshire, Bristol, Cambridge, Cornwall, Coventry & Warwickshire, Cumbria, Derby, Devon, Essex, Gloucestershire, Guernsey, Hereford & Worcester, Humberside, Jersey, Kent, Lancashire, Leeds, Leicester, Lincolnshire, London, Manchester, Merseyside, Newcastle, Norfolk, Northampton, Nottingham, Oxford, Sheffield, Shropshire, Solent, Somerset, Stoke, Suffolk, Surrey, Sussex, Tees, Three Counties, West Midlands, Wiltshire, York, and more)
 
+### 🎙️ Podcasts Section
+- **BBC Podcast Library**: Browse the complete BBC podcast catalog from the official OPML feed
+- **Genre Filtering**: Filter podcasts by category (News, Comedy, Drama, Science, History, Arts, Music, Sport, and more)
+- **Episode Duration Filtering**: Find episodes by length - Short (0-15 min), Medium (15-45 min), or Long (45+ min)
+- **Rich Episode Metadata**: View episode titles, descriptions, durations, and publication dates
+- **Podcast Artwork**: Display podcast and episode images with caching
+- **Episode Browsing**: Tap any podcast to see its full episode list with filtering options
+- _Note: Audio playback for podcast episodes is not yet implemented_
+
 ### ⭐ Favorites Management
 - **Quick Favorites Access**: Dedicated favorites section in both mobile app and Android Auto
 - **Drag-and-Drop Reordering**: Long-press and drag to rearrange your favorite stations
@@ -54,7 +63,7 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
 - **Smooth Animations**: Polished transitions between screens and station categories
 
 ### 📱 Mobile App Features
-- **Bottom Navigation**: Three main sections - Favorites, All Stations, Settings
+- **Bottom Navigation**: Four main sections - Favorites, Stations, Podcasts, Settings
 - **Categorized Station Browser**: 
   - Tab-based navigation (National, Regions, Local)
   - Swipe gesture support to switch between categories
@@ -239,7 +248,8 @@ This is an unofficial third-party app for streaming BBC Radio. BBC Radio, BBC So
 
 Contributions are welcome! Areas for potential enhancement:
 - Additional radio networks (other countries)
-- Podcast integration
+- Podcast playback implementation (currently browsing only)
+- Podcast episode downloads
 - Sleep timer functionality
 - Android Auto custom actions
 - Widget support
@@ -249,6 +259,12 @@ Contributions are welcome! Areas for potential enhancement:
 
 See commit history for detailed changes. Major milestones:
 - **v1.0**: Initial release with Android Auto support
+- **v1.1**: Material Design 3 implementation
+- **v1.2**: Live metadata integration (show names, artist/track)
+- **v1.3**: Adaptive quality streaming
+- **v1.4**: Drag-and-drop favorites reordering
+- **v1.5**: Auto-resume on Android Auto connection
+- **v1.6**: Podcasts section with genre and duration filters
 - **v1.1**: Material Design 3 implementation
 - **v1.2**: Live metadata integration (show names, artist/track)
 - **v1.3**: Adaptive quality streaming
