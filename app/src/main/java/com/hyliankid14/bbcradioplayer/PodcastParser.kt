@@ -47,7 +47,8 @@ object OPMLParser {
             var redirectUrl = url
             var redirects = 0
             while (redirects < 5) {
-                val connection = (URL(redirectUrl).openConnection() as java.net.HttpURLConnection).apply {
+                val currentUrl = URL(redirectUrl)
+                val connection = (currentUrl.openConnection() as java.net.HttpURLConnection).apply {
                     instanceFollowRedirects = false // handle manually to keep headers
                     connectTimeout = 15000
                     readTimeout = 15000
@@ -64,7 +65,12 @@ object OPMLParser {
                     code == java.net.HttpURLConnection.HTTP_SEE_OTHER ||
                     code == 307 || code == 308
                 ) {
-                    redirectUrl = connection.getHeaderField("Location") ?: break
+                    val location = connection.getHeaderField("Location") ?: break
+                    redirectUrl = URL(currentUrl, location).toString()
+                    // Some BBC endpoints redirect to http; prefer https when available
+                    if (redirectUrl.startsWith("http://podcasts.files.bbci.co.uk")) {
+                        redirectUrl = redirectUrl.replaceFirst("http://", "https://")
+                    }
                     redirects++
                     continue
                 }
