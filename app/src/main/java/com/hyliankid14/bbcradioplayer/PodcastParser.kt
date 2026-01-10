@@ -13,6 +13,7 @@ object OPMLParser {
 
     fun parseOPML(inputStream: InputStream): List<Podcast> {
         val podcasts = mutableListOf<Podcast>()
+        val seenIds = mutableSetOf<String>()
         return try {
             val parser = Xml.newPullParser()
             parser.setInput(inputStream, null)
@@ -21,11 +22,14 @@ object OPMLParser {
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 if (eventType == XmlPullParser.START_TAG && parser.name == OUTLINE) {
                     val podcast = parsePodcastOutline(parser)
-                    if (podcast != null) {
+                    if (podcast != null && seenIds.add(podcast.id)) {
                         podcasts.add(podcast)
                     }
                 }
                 eventType = parser.next()
+            }
+            if (podcasts.isEmpty()) {
+                Log.w(TAG, "Parsed OPML but found zero podcasts; check feed structure or filters")
             }
             podcasts
         } catch (e: Exception) {
@@ -36,20 +40,47 @@ object OPMLParser {
 
     fun fetchAndParseOPML(url: String): List<Podcast> {
         return try {
-            val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
-                connectTimeout = 15000
-                readTimeout = 15000
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
-                setRequestProperty("Accept", "application/xml,text/xml,application/rss+xml,*/*")
+            var redirectUrl = url
+            var redirects = 0
+            while (redirects < 5) {
+                val connection = (URL(redirectUrl).openConnection() as java.net.HttpURLConnection).apply {
+                    instanceFollowRedirects = false // handle manually to keep headers
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+                    setRequestProperty("Accept", "application/xml,text/xml,application/rss+xml,*/*")
+                    setRequestProperty("Accept-Encoding", "gzip")
+                    doInput = true
+                }
+
+                val code = connection.responseCode
+                if (code == java.net.HttpURLConnection.HTTP_MOVED_PERM ||
+                    code == java.net.HttpURLConnection.HTTP_MOVED_TEMP ||
+                    code == java.net.HttpURLConnection.HTTP_SEE_OTHER ||
+                    code == 307 || code == 308
+                ) {
+                    redirectUrl = connection.getHeaderField("Location") ?: break
+                    redirects++
+                    continue
+                }
+
+                if (code != java.net.HttpURLConnection.HTTP_OK) {
+                    Log.e(TAG, "HTTP $code while fetching OPML")
+                    return emptyList()
+                }
+
+                val stream = if ("gzip".equals(connection.getHeaderField("Content-Encoding"), true)) {
+                    java.util.zip.GZIPInputStream(connection.inputStream)
+                } else {
+                    connection.inputStream
+                }
+
+                stream.use { return parseOPML(it) }
             }
 
-            if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
-                Log.e(TAG, "HTTP ${connection.responseCode} while fetching OPML")
-                return emptyList()
-            }
-
-            connection.inputStream.use { parseOPML(it) }
+            Log.e(TAG, "Too many redirects while fetching OPML")
+            emptyList()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching OPML from $url", e)
             emptyList()
@@ -57,6 +88,9 @@ object OPMLParser {
     }
 
     private fun parsePodcastOutline(parser: XmlPullParser): Podcast? {
+        val type = parser.getAttributeValue(null, "type") ?: ""
+        if (type.lowercase(Locale.US) != "rss") return null
+
         val text = parser.getAttributeValue(null, "text") ?: ""
         val description = parser.getAttributeValue(null, "description") ?: ""
         val xmlUrl = parser.getAttributeValue(null, "xmlUrl") ?: ""
