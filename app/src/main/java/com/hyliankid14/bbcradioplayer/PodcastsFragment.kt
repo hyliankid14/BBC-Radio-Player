@@ -53,12 +53,15 @@ class PodcastsFragment : Fragment() {
         val subscribedHeader: TextView = view.findViewById(R.id.subscribed_header)
         val subscribedRecycler: RecyclerView = view.findViewById(R.id.subscribed_recycler)
 
+        val subscribedHeader: TextView = view.findViewById(R.id.subscribed_header)
+        val subscribedRecycler: RecyclerView = view.findViewById(R.id.subscribed_recycler)
+
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 searchQuery = s?.toString() ?: ""
-                applyFilters(loadingIndicator, emptyState, recyclerView)
+                applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
             }
         })
 

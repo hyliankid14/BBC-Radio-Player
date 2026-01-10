@@ -971,7 +971,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 ACTION_PLAY_PODCAST_EPISODE -> {
                     val episode = it.getParcelableExtra<Episode>(EXTRA_EPISODE)
                     android.util.Log.d(TAG, "onStartCommand: ACTION_PLAY_PODCAST_EPISODE received, episode=$episode")
-                    episode?.let { playPodcastEpisode(it) }
+                    episode?.let { ep -> playPodcastEpisode(ep, it) }
                 }
                 ACTION_PLAY -> {
                     player?.play()
@@ -1006,11 +1006,11 @@ class RadioService : MediaBrowserServiceCompat() {
         return START_STICKY
     }
     
-    private fun playPodcastEpisode(episode: Episode) {
+    private fun playPodcastEpisode(episode: Episode, intent: Intent?) {
         try {
             // Create a synthetic station to drive the existing mini/full player UI
-            val podcastTitle = lastStartCommand?.getStringExtra(EXTRA_PODCAST_TITLE) ?: episode.title
-            val podcastImage = lastStartCommand?.getStringExtra(EXTRA_PODCAST_IMAGE)
+            val podcastTitle = intent?.getStringExtra(EXTRA_PODCAST_TITLE) ?: episode.title
+            val podcastImage = intent?.getStringExtra(EXTRA_PODCAST_IMAGE)
             val syntheticStation = Station(
                 id = "podcast_${episode.podcastId}",
                 title = podcastTitle,
