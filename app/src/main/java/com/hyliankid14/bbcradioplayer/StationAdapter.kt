@@ -1,10 +1,9 @@
-package com.bbc.radioplayer
+package com.hyliankid14.bbcradioplayer
 
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.ImageView
 import android.widget.TextView
@@ -13,15 +12,15 @@ import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.*
 
-class FavoritesAdapter(
+class StationAdapter(
     private val context: Context,
-    private val stations: MutableList<Station>,
+    private val stations: List<Station>,
     private val onStationClick: (String) -> Unit,
-    private val onFavoriteToggle: ((String) -> Unit)? = null,
-    private val onOrderChanged: () -> Unit = {}
-) : RecyclerView.Adapter<FavoritesAdapter.StationViewHolder>() {
+    private val onFavoriteToggle: ((String) -> Unit)? = null
+) : RecyclerView.Adapter<StationAdapter.StationViewHolder>() {
     
     private val adapterScope = CoroutineScope(Dispatchers.Main + Job())
+    // Cache stores Pair<ShowTitle, Timestamp>
     private val showCache = mutableMapOf<String, Pair<String, Long>>()
     private val fetchingIds = mutableSetOf<String>()
     private val CACHE_DURATION_MS = 120_000L // 2 minutes
@@ -31,7 +30,6 @@ class FavoritesAdapter(
         val textView: TextView = view.findViewById(R.id.station_title)
         val subtitleView: TextView = view.findViewById(R.id.station_subtitle)
         val starView: ImageView = view.findViewById(R.id.station_favorite_star)
-        val dragHandle: ImageView = view.findViewById(R.id.drag_handle)
     }
     
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
@@ -55,9 +53,6 @@ class FavoritesAdapter(
         
         holder.textView.text = station.title
         
-        // Show drag handle in favorites mode
-        holder.dragHandle.visibility = View.VISIBLE
-        
         // Handle subtitle (Show Name)
         val cachedEntry = showCache[station.id]
         val isCacheValid = cachedEntry != null && (System.currentTimeMillis() - cachedEntry.second < CACHE_DURATION_MS)
@@ -66,6 +61,7 @@ class FavoritesAdapter(
             holder.subtitleView.text = cachedEntry!!.first
             holder.subtitleView.visibility = View.VISIBLE
         } else {
+            // If cache is invalid or missing, hide view (or keep old value if available) and fetch
             if (cachedEntry != null) {
                 holder.subtitleView.text = cachedEntry.first
                 holder.subtitleView.visibility = View.VISIBLE
@@ -77,10 +73,14 @@ class FavoritesAdapter(
                 fetchingIds.add(station.id)
                 adapterScope.launch {
                     try {
-                        val show = ShowInfoFetcher.getScheduleCurrentShow(station.id)
+                        val show = withContext(Dispatchers.IO) {
+                            ShowInfoFetcher.getScheduleCurrentShow(station.id)
+                        }
                         val showTitle = show.title
+                        // Only show if it's not the generic default
                         if (showTitle != "BBC Radio") {
                             showCache[station.id] = Pair(showTitle, System.currentTimeMillis())
+                            // Update the item if it's still visible/bound to the same position
                             val currentPos = holder.bindingAdapterPosition
                             if (currentPos != RecyclerView.NO_POSITION && currentPos < stations.size && stations[currentPos].id == station.id) {
                                 notifyItemChanged(currentPos)
@@ -122,52 +122,11 @@ class FavoritesAdapter(
             onFavoriteToggle?.invoke(station.id)
         }
         
-        // Safer tap handling: gate clicks by movement slop; keep scrolling responsive
-        val tapSlop = (12 * context.resources.displayMetrics.density).toInt()
-        fun attachTapGuard(view: View, click: () -> Unit) {
-            var downX = 0f
-            var downY = 0f
-            var movedBeyondSlop = false
-            view.setOnTouchListener { _, event ->
-                when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
-                        downX = event.x
-                        downY = event.y
-                        movedBeyondSlop = false
-                    }
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        val dx = Math.abs(event.x - downX)
-                        val dy = Math.abs(event.y - downY)
-                        if (dx > tapSlop || dy > tapSlop) movedBeyondSlop = true
-                    }
-                }
-                false
-            }
-            view.setOnClickListener {
-                if (!movedBeyondSlop) click()
-            }
-        }
-        attachTapGuard(holder.itemView) { onStationClick(station.id) }
-        attachTapGuard(holder.imageView) { onStationClick(station.id) }
-        attachTapGuard(holder.textView) { onStationClick(station.id) }
-    }
-    
-    fun moveItem(fromPosition: Int, toPosition: Int) {
-        if (fromPosition < toPosition) {
-            for (i in fromPosition until toPosition) {
-                val temp = stations[i]
-                stations[i] = stations[i + 1]
-                stations[i + 1] = temp
-            }
-        } else {
-            for (i in fromPosition downTo toPosition + 1) {
-                val temp = stations[i]
-                stations[i] = stations[i - 1]
-                stations[i - 1] = temp
-            }
-        }
-        notifyItemMoved(fromPosition, toPosition)
-        onOrderChanged()
+        // Make image and text clickable to play
+        val clickListener = View.OnClickListener { onStationClick(station.id) }
+        holder.imageView.setOnClickListener(clickListener)
+        holder.textView.setOnClickListener(clickListener)
+        holder.itemView.setOnClickListener(clickListener)
     }
     
     fun clearShowCache() {

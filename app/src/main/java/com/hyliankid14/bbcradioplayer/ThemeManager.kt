@@ -1,4 +1,4 @@
-package com.bbc.radioplayer
+package com.hyliankid14.bbcradioplayer
 
 import android.os.Build
 import androidx.appcompat.app.AppCompatDelegate

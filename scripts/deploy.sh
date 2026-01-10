@@ -3,7 +3,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 
 # Configuration Variables - Change these for other projects
 WORKFLOW_FILE="android-build.yml"
-PACKAGE_NAME="com.bbc.radioplayer"
+PACKAGE_NAME="com.hyliankid14.bbcradioplayer"
 
 ARTIFACT_NAME="app-debug-apk"
 BRANCH="main"

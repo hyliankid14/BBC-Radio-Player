@@ -1,4 +1,4 @@
-package com.bbc.radioplayer
+package com.hyliankid14.bbcradioplayer
 
 /**
  * Helper to track playback state across the app
