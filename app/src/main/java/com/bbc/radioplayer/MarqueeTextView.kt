@@ -1,4 +1,4 @@
-package com.hyliankid14.bbcradioplayer
+package com.bbc.radioplayer
 
 import android.content.Context
 import android.text.TextUtils

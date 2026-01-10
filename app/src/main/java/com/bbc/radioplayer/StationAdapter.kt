@@ -1,4 +1,4 @@
-package com.hyliankid14.bbcradioplayer
+package com.bbc.radioplayer
 
 import android.content.Context
 import android.view.LayoutInflater
@@ -12,18 +12,19 @@ import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.*
 
-class CategorizedStationAdapter(
+class StationAdapter(
     private val context: Context,
     private val stations: List<Station>,
     private val onStationClick: (String) -> Unit,
     private val onFavoriteToggle: ((String) -> Unit)? = null
-) : RecyclerView.Adapter<CategorizedStationAdapter.StationViewHolder>() {
+) : RecyclerView.Adapter<StationAdapter.StationViewHolder>() {
     
     private val adapterScope = CoroutineScope(Dispatchers.Main + Job())
+    // Cache stores Pair<ShowTitle, Timestamp>
     private val showCache = mutableMapOf<String, Pair<String, Long>>()
     private val fetchingIds = mutableSetOf<String>()
     private val CACHE_DURATION_MS = 120_000L // 2 minutes
-    
+
     class StationViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imageView: ImageView = view.findViewById(R.id.station_artwork)
         val textView: TextView = view.findViewById(R.id.station_title)
@@ -56,24 +57,37 @@ class CategorizedStationAdapter(
         val cachedEntry = showCache[station.id]
         val isCacheValid = cachedEntry != null && (System.currentTimeMillis() - cachedEntry.second < CACHE_DURATION_MS)
         
-        if (isCacheValid && cachedEntry != null) {
-            holder.subtitleView.text = cachedEntry.first
+        if (isCacheValid) {
+            holder.subtitleView.text = cachedEntry!!.first
             holder.subtitleView.visibility = View.VISIBLE
         } else {
-            holder.subtitleView.visibility = View.GONE
+            // If cache is invalid or missing, hide view (or keep old value if available) and fetch
+            if (cachedEntry != null) {
+                holder.subtitleView.text = cachedEntry.first
+                holder.subtitleView.visibility = View.VISIBLE
+            } else {
+                holder.subtitleView.visibility = View.GONE
+            }
             
             if (!fetchingIds.contains(station.id)) {
                 fetchingIds.add(station.id)
                 adapterScope.launch {
                     try {
-                        val show = ShowInfoFetcher.getScheduleCurrentShow(station.id)
-                        if (show.title.isNotEmpty()) {
-                            showCache[station.id] = Pair(show.title, System.currentTimeMillis())
-                            holder.subtitleView.text = show.title
-                            holder.subtitleView.visibility = View.VISIBLE
+                        val show = withContext(Dispatchers.IO) {
+                            ShowInfoFetcher.getScheduleCurrentShow(station.id)
+                        }
+                        val showTitle = show.title
+                        // Only show if it's not the generic default
+                        if (showTitle != "BBC Radio") {
+                            showCache[station.id] = Pair(showTitle, System.currentTimeMillis())
+                            // Update the item if it's still visible/bound to the same position
+                            val currentPos = holder.bindingAdapterPosition
+                            if (currentPos != RecyclerView.NO_POSITION && currentPos < stations.size && stations[currentPos].id == station.id) {
+                                notifyItemChanged(currentPos)
+                            }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.w("CategorizedStationAdapter", "Failed to fetch show info for ${station.id}", e)
+                        // Ignore errors
                     } finally {
                         fetchingIds.remove(station.id)
                     }
@@ -81,12 +95,11 @@ class CategorizedStationAdapter(
             }
         }
         
-        // Load image
         Glide.with(context)
             .load(station.logoUrl)
             .into(holder.imageView)
         
-        // Handle favorite star
+        // Update star icon
         val isFavorite = FavoritesPreference.isFavorite(context, station.id)
         if (isFavorite) {
             holder.starView.setImageResource(R.drawable.ic_star_filled)
@@ -109,34 +122,11 @@ class CategorizedStationAdapter(
             onFavoriteToggle?.invoke(station.id)
         }
         
-        // Safer tap handling: gate clicks by movement slop; keep scrolling responsive
-        val tapSlop = (12 * context.resources.displayMetrics.density).toInt()
-        fun attachTapGuard(view: View, click: () -> Unit) {
-            var downX = 0f
-            var downY = 0f
-            var movedBeyondSlop = false
-            view.setOnTouchListener { _, event ->
-                when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
-                        downX = event.x
-                        downY = event.y
-                        movedBeyondSlop = false
-                    }
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        val dx = Math.abs(event.x - downX)
-                        val dy = Math.abs(event.y - downY)
-                        if (dx > tapSlop || dy > tapSlop) movedBeyondSlop = true
-                    }
-                }
-                false
-            }
-            view.setOnClickListener {
-                if (!movedBeyondSlop) click()
-            }
-        }
-        attachTapGuard(holder.itemView) { onStationClick(station.id) }
-        attachTapGuard(holder.imageView) { onStationClick(station.id) }
-        attachTapGuard(holder.textView) { onStationClick(station.id) }
+        // Make image and text clickable to play
+        val clickListener = View.OnClickListener { onStationClick(station.id) }
+        holder.imageView.setOnClickListener(clickListener)
+        holder.textView.setOnClickListener(clickListener)
+        holder.itemView.setOnClickListener(clickListener)
     }
     
     fun clearShowCache() {

@@ -1,4 +1,4 @@
-package com.hyliankid14.bbcradioplayer
+package com.bbc.radioplayer
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers

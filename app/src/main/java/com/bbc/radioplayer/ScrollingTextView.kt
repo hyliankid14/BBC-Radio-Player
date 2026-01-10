@@ -1,4 +1,4 @@
-package com.hyliankid14.bbcradioplayer
+package com.bbc.radioplayer
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter

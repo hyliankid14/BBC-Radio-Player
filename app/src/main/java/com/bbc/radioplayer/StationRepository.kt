@@ -1,4 +1,4 @@
-package com.hyliankid14.bbcradioplayer
+package com.bbc.radioplayer
 
 private const val STREAM_BASE = "https://lsn.lv/bbcradio.m3u8"
 private const val HQ_BITRATE = "320000"

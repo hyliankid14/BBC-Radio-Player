@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace "com.hyliankid14.bbcradioplayer"
+    namespace "com.bbc.radioplayer"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.hyliankid14.bbcradioplayer"
+        applicationId = "com.bbc.radioplayer"
         minSdk = 21
         targetSdk = 34
         versionCode = 1

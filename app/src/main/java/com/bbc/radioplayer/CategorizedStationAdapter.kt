@@ -1,10 +1,9 @@
-package com.hyliankid14.bbcradioplayer
+package com.bbc.radioplayer
 
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.ImageView
 import android.widget.TextView
@@ -13,25 +12,23 @@ import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.*
 
-class FavoritesAdapter(
+class CategorizedStationAdapter(
     private val context: Context,
-    private val stations: MutableList<Station>,
+    private val stations: List<Station>,
     private val onStationClick: (String) -> Unit,
-    private val onFavoriteToggle: ((String) -> Unit)? = null,
-    private val onOrderChanged: () -> Unit = {}
-) : RecyclerView.Adapter<FavoritesAdapter.StationViewHolder>() {
+    private val onFavoriteToggle: ((String) -> Unit)? = null
+) : RecyclerView.Adapter<CategorizedStationAdapter.StationViewHolder>() {
     
     private val adapterScope = CoroutineScope(Dispatchers.Main + Job())
     private val showCache = mutableMapOf<String, Pair<String, Long>>()
     private val fetchingIds = mutableSetOf<String>()
     private val CACHE_DURATION_MS = 120_000L // 2 minutes
-
+    
     class StationViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imageView: ImageView = view.findViewById(R.id.station_artwork)
         val textView: TextView = view.findViewById(R.id.station_title)
         val subtitleView: TextView = view.findViewById(R.id.station_subtitle)
         val starView: ImageView = view.findViewById(R.id.station_favorite_star)
-        val dragHandle: ImageView = view.findViewById(R.id.drag_handle)
     }
     
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
@@ -55,39 +52,28 @@ class FavoritesAdapter(
         
         holder.textView.text = station.title
         
-        // Show drag handle in favorites mode
-        holder.dragHandle.visibility = View.VISIBLE
-        
         // Handle subtitle (Show Name)
         val cachedEntry = showCache[station.id]
         val isCacheValid = cachedEntry != null && (System.currentTimeMillis() - cachedEntry.second < CACHE_DURATION_MS)
         
-        if (isCacheValid) {
-            holder.subtitleView.text = cachedEntry!!.first
+        if (isCacheValid && cachedEntry != null) {
+            holder.subtitleView.text = cachedEntry.first
             holder.subtitleView.visibility = View.VISIBLE
         } else {
-            if (cachedEntry != null) {
-                holder.subtitleView.text = cachedEntry.first
-                holder.subtitleView.visibility = View.VISIBLE
-            } else {
-                holder.subtitleView.visibility = View.GONE
-            }
+            holder.subtitleView.visibility = View.GONE
             
             if (!fetchingIds.contains(station.id)) {
                 fetchingIds.add(station.id)
                 adapterScope.launch {
                     try {
                         val show = ShowInfoFetcher.getScheduleCurrentShow(station.id)
-                        val showTitle = show.title
-                        if (showTitle != "BBC Radio") {
-                            showCache[station.id] = Pair(showTitle, System.currentTimeMillis())
-                            val currentPos = holder.bindingAdapterPosition
-                            if (currentPos != RecyclerView.NO_POSITION && currentPos < stations.size && stations[currentPos].id == station.id) {
-                                notifyItemChanged(currentPos)
-                            }
+                        if (show.title.isNotEmpty()) {
+                            showCache[station.id] = Pair(show.title, System.currentTimeMillis())
+                            holder.subtitleView.text = show.title
+                            holder.subtitleView.visibility = View.VISIBLE
                         }
                     } catch (e: Exception) {
-                        // Ignore errors
+                        android.util.Log.w("CategorizedStationAdapter", "Failed to fetch show info for ${station.id}", e)
                     } finally {
                         fetchingIds.remove(station.id)
                     }
@@ -95,11 +81,12 @@ class FavoritesAdapter(
             }
         }
         
+        // Load image
         Glide.with(context)
             .load(station.logoUrl)
             .into(holder.imageView)
         
-        // Update star icon
+        // Handle favorite star
         val isFavorite = FavoritesPreference.isFavorite(context, station.id)
         if (isFavorite) {
             holder.starView.setImageResource(R.drawable.ic_star_filled)
@@ -150,24 +137,6 @@ class FavoritesAdapter(
         attachTapGuard(holder.itemView) { onStationClick(station.id) }
         attachTapGuard(holder.imageView) { onStationClick(station.id) }
         attachTapGuard(holder.textView) { onStationClick(station.id) }
-    }
-    
-    fun moveItem(fromPosition: Int, toPosition: Int) {
-        if (fromPosition < toPosition) {
-            for (i in fromPosition until toPosition) {
-                val temp = stations[i]
-                stations[i] = stations[i + 1]
-                stations[i + 1] = temp
-            }
-        } else {
-            for (i in fromPosition downTo toPosition + 1) {
-                val temp = stations[i]
-                stations[i] = stations[i - 1]
-                stations[i - 1] = temp
-            }
-        }
-        notifyItemMoved(fromPosition, toPosition)
-        onOrderChanged()
     }
     
     fun clearShowCache() {

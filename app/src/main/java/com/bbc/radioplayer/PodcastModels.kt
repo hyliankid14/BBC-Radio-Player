@@ -1,0 +1,39 @@
+package com.bbc.radioplayer
+
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
+@Parcelize
+data class Podcast(
+    val id: String,
+    val title: String,
+    val description: String,
+    val rssUrl: String,
+    val htmlUrl: String,
+    val imageUrl: String,
+    val genres: List<String>,
+    val typicalDurationMins: Int
+) : Parcelable
+
+@Parcelize
+data class Episode(
+    val id: String,
+    val title: String,
+    val description: String,
+    val audioUrl: String,
+    val imageUrl: String,
+    val pubDate: String,
+    val durationMins: Int,
+    val podcastId: String
+) : Parcelable
+
+data class PodcastFilter(
+    val genres: Set<String> = emptySet(),
+    val minDuration: Int = 0,
+    val maxDuration: Int = 100
+)
+
+data class ParsedPodcast(
+    val podcast: Podcast,
+    val episodes: List<Episode>
+)

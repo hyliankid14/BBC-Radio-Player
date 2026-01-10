@@ -1,4 +1,4 @@
-package com.hyliankid14.bbcradioplayer
+package com.bbc.radioplayer
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -69,7 +69,10 @@ class RadioService : MediaBrowserServiceCompat() {
         const val ACTION_SKIP_TO_NEXT = "com.hyliankid14.bbcradioplayer.ACTION_SKIP_TO_NEXT"
         const val ACTION_SKIP_TO_PREVIOUS = "com.hyliankid14.bbcradioplayer.ACTION_SKIP_TO_PREVIOUS"
         const val ACTION_TOGGLE_FAVORITE = "com.hyliankid14.bbcradioplayer.ACTION_TOGGLE_FAVORITE"
+        const val ACTION_PLAY_PODCAST_EPISODE = "com.hyliankid14.bbcradioplayer.ACTION_PLAY_PODCAST_EPISODE"
         const val EXTRA_STATION_ID = "com.hyliankid14.bbcradioplayer.EXTRA_STATION_ID"
+        const val EXTRA_EPISODE = "com.hyliankid14.bbcradioplayer.EXTRA_EPISODE"
+        const val EXTRA_PODCAST_ID = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_ID"
         private const val TAG = "RadioService"
         private const val CHANNEL_ID = "radio_playback"
         private const val NOTIFICATION_ID = 1
@@ -960,6 +963,10 @@ class RadioService : MediaBrowserServiceCompat() {
                     val id = it.getStringExtra(EXTRA_STATION_ID)
                     id?.let { playStation(it) }
                 }
+                ACTION_PLAY_PODCAST_EPISODE -> {
+                    val episode = it.getParcelableExtra<Episode>(EXTRA_EPISODE)
+                    episode?.let { playPodcastEpisode(it) }
+                }
                 ACTION_PLAY -> {
                     player?.play()
                     updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
@@ -991,6 +998,27 @@ class RadioService : MediaBrowserServiceCompat() {
             }
         }
         return START_STICKY
+    }
+    
+    private fun playPodcastEpisode(episode: Episode) {
+        try {
+            currentStationId = episode.podcastId
+            val mediaItem = ExoMediaItem.Builder()
+                .setUri(episode.audioUrl)
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(episode.title)
+                        .build()
+                )
+                .build()
+            player?.setMediaItem(mediaItem)
+            player?.play()
+            updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+            startForegroundNotification()
+            Log.d(TAG, "Playing podcast episode: ${episode.title}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error playing podcast episode", e)
+        }
     }
     
     private fun toggleFavoriteAndNotify(stationId: String) {
