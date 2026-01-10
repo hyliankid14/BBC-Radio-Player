@@ -50,12 +50,22 @@ class PodcastAdapter(
         private val durationView: TextView = itemView.findViewById(R.id.podcast_duration)
 
         init {
-            itemView.setOnClickListener { onPodcastClick(currentPodcast) }
-            imageView.setOnClickListener { onOpenPlayer?.invoke() }
-            titleView.setOnClickListener { onOpenPlayer?.invoke() }
-            // Ensure tapping title or description starts playback as requested
-            titleView.setOnClickListener { onPodcastClick(currentPodcast) }
-            descriptionView.setOnClickListener { onPodcastClick(currentPodcast) }
+            itemView.setOnClickListener { 
+                android.util.Log.d("PodcastAdapter", "Tapped podcast row: ${currentPodcast.title}")
+                onPodcastClick(currentPodcast) 
+            }
+            titleView.setOnClickListener { 
+                android.util.Log.d("PodcastAdapter", "Tapped podcast title: ${currentPodcast.title}")
+                onPodcastClick(currentPodcast) 
+            }
+            descriptionView.setOnClickListener { 
+                android.util.Log.d("PodcastAdapter", "Tapped podcast description: ${currentPodcast.title}")
+                onPodcastClick(currentPodcast) 
+            }
+            imageView.setOnClickListener { 
+                android.util.Log.d("PodcastAdapter", "Tapped podcast image: ${currentPodcast.title}")
+                onOpenPlayer?.invoke() 
+            }
         }
 
         fun bind(podcast: Podcast) {
