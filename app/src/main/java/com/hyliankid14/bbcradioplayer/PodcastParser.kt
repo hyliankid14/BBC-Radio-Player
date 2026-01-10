@@ -20,15 +20,18 @@ object OPMLParser {
             parser.setInput(inputStream, null)
             var eventType = parser.eventType
 
+            var parsedCount = 0
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 if (eventType == XmlPullParser.START_TAG && parser.name == OUTLINE) {
                     val podcast = parsePodcastOutline(parser)
                     if (podcast != null && seenIds.add(podcast.id)) {
                         podcasts.add(podcast)
+                        parsedCount++
                     }
                 }
                 eventType = parser.next()
             }
+            Log.d(TAG, "Parsed $parsedCount unique podcasts from OPML")
             if (podcasts.isEmpty()) {
                 Log.w(TAG, "Parsed OPML but found zero podcasts; check feed structure or filters")
             }
@@ -90,8 +93,6 @@ object OPMLParser {
 
     private fun parsePodcastOutline(parser: XmlPullParser): Podcast? {
         val type = parser.getAttributeValue(null, "type") ?: ""
-        if (type.lowercase(Locale.US) != "rss") return null
-
         val text = parser.getAttributeValue(null, "text") ?: ""
         val description = parser.getAttributeValue(null, "description") ?: ""
         val xmlUrl = parser.getAttributeValue(null, "xmlUrl") ?: ""
@@ -104,7 +105,8 @@ object OPMLParser {
         val duration = durationStr.toIntOrNull() ?: 0
         val genres = genresStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-        return if (xmlUrl.isNotEmpty()) {
+        val isRssLike = type.isEmpty() || type.lowercase(Locale.US) == "rss"
+        return if (xmlUrl.isNotEmpty() && isRssLike) {
             Podcast(
                 id = keyName.hashCode().toString(),
                 title = text,
