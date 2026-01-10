@@ -7,6 +7,7 @@ import android.view.KeyEvent
 import android.content.res.ColorStateList
 import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -86,6 +87,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.navigation_list -> {
                     showAllStations()
+                    true
+                }
+                R.id.navigation_podcasts -> {
+                    showPodcasts()
                     true
                 }
                 R.id.navigation_settings -> {
@@ -209,6 +214,21 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.GONE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.VISIBLE
+    }
+
+    private fun showPodcasts() {
+        currentMode = "podcasts"
+        stationsList.visibility = View.GONE
+        filterButtonsContainer.visibility = View.GONE
+        settingsContainer.visibility = View.GONE
+        
+        // Create and show podcasts fragment
+        val podcastsFragment = PodcastsFragment()
+        supportFragmentManager.beginTransaction().apply {
+            replace(R.id.content_container, podcastsFragment)
+            addToBackStack(null)
+            commit()
+        }
     }
 
     private fun setupFilterButtons() {

@@ -11,6 +11,11 @@
         android:icon="@drawable/ic_list"
         android:title="All Stations" />
     <item
+        android:id="@+id/navigation_podcasts"
+        android:enabled="true"
+        android:icon="@drawable/ic_podcast"
+        android:title="Podcasts" />
+    <item
         android:id="@+id/navigation_settings"
         android:enabled="true"
         android:icon="@drawable/ic_settings"
