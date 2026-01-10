@@ -5,6 +5,7 @@ import android.util.Xml
 import org.xmlpull.v1.XmlPullParser
 import java.io.InputStream
 import java.net.URL
+import java.util.Locale
 
 object OPMLParser {
     private const val TAG = "OPMLParser"
