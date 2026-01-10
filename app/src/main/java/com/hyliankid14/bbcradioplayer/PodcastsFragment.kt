@@ -1,11 +1,14 @@
 package com.hyliankid14.bbcradioplayer
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.Spinner
@@ -24,6 +27,7 @@ class PodcastsFragment : Fragment() {
     private lateinit var adapter: PodcastAdapter
     private var allPodcasts: List<Podcast> = emptyList()
     private var currentFilter = PodcastFilter()
+    private var searchQuery = ""
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
 
     override fun onCreateView(
@@ -40,11 +44,21 @@ class PodcastsFragment : Fragment() {
         repository = PodcastRepository(requireContext())
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
+        val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
         val genreSpinner: Spinner = view.findViewById(R.id.genre_filter_spinner)
         val durationSeekBar: SeekBar = view.findViewById(R.id.duration_range_slider)
         val resetButton: android.widget.Button = view.findViewById(R.id.reset_filters_button)
         val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
         val emptyState: TextView = view.findViewById(R.id.empty_state_text)
+
+        searchEditText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                searchQuery = s?.toString() ?: ""
+                applyFilters(loadingIndicator, emptyState, recyclerView)
+            }
+        })
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         adapter = PodcastAdapter(requireContext()) { podcast ->
@@ -69,6 +83,8 @@ class PodcastsFragment : Fragment() {
         })
 
         resetButton.setOnClickListener {
+            searchQuery = ""
+            searchEditText.text.clear()
             currentFilter = PodcastFilter()
             genreSpinner.setSelection(0)
             durationSeekBar.progress = 100
@@ -86,34 +102,43 @@ class PodcastsFragment : Fragment() {
         durationSeekBar: SeekBar
     ) {
         loadingIndicator.visibility = View.VISIBLE
+        emptyState.text = "Loading podcasts..."
         fragmentScope.launch {
-            allPodcasts = repository.fetchPodcasts()
+            try {
+                allPodcasts = repository.fetchPodcasts()
+                android.util.Log.d("PodcastsFragment", "Loaded ${allPodcasts.size} podcasts")
 
-            val genres = listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
-            val spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, genres)
-            spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            genreSpinner.adapter = spinnerAdapter
+                val genres = listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
+                val spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, genres)
+                spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                genreSpinner.adapter = spinnerAdapter
 
-            genreSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    parent: AdapterView<*>?,
-                    view: View?,
-                    position: Int,
-                    id: Long
-                ) {
-                    currentFilter = if (position == 0) {
-                        currentFilter.copy(genres = emptySet())
-                    } else {
-                        currentFilter.copy(genres = setOf(genres[position]))
+                genreSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(
+                        parent: AdapterView<*>?,
+                        view: View?,
+                        position: Int,
+                        id: Long
+                    ) {
+                        currentFilter = if (position == 0) {
+                            currentFilter.copy(genres = emptySet())
+                        } else {
+                            currentFilter.copy(genres = setOf(genres[position]))
+                        }
+                        applyFilters(loadingIndicator, emptyState, recyclerView)
                     }
-                    applyFilters(loadingIndicator, emptyState, recyclerView)
+
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
                 }
 
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
+                applyFilters(loadingIndicator, emptyState, recyclerView)
+                loadingIndicator.visibility = View.GONE
+            } catch (e: Exception) {
+                android.util.Log.e("PodcastsFragment", "Error loading podcasts", e)
+                emptyState.text = "Error loading podcasts: ${e.message}"
+                emptyState.visibility = View.VISIBLE
+                loadingIndicator.visibility = View.GONE
             }
-
-            applyFilters(loadingIndicator, emptyState, recyclerView)
-            loadingIndicator.visibility = View.GONE
         }
     }
 
@@ -123,6 +148,11 @@ class PodcastsFragment : Fragment() {
         recyclerView: RecyclerView
     ) {
         val filtered = repository.filterPodcasts(allPodcasts, currentFilter)
+            .filter { podcast ->
+                if (searchQuery.isEmpty()) true
+                else podcast.title.contains(searchQuery, ignoreCase = true) ||
+                      podcast.description.contains(searchQuery, ignoreCase = true)
+            }
         adapter.updatePodcasts(filtered)
 
         if (filtered.isEmpty()) {

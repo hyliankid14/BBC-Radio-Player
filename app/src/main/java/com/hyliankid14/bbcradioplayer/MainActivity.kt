@@ -34,6 +34,7 @@ import com.google.android.material.tabs.TabLayout
 class MainActivity : AppCompatActivity() {
     private lateinit var stationsList: RecyclerView
     private lateinit var settingsContainer: View
+    private lateinit var contentContainer: View
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
@@ -73,6 +74,8 @@ class MainActivity : AppCompatActivity() {
 
         stationsList = findViewById(R.id.stations_list)
         stationsList.layoutManager = LinearLayoutManager(this)
+        
+        contentContainer = findViewById(R.id.content_container)
         
         filterButtonsContainer = findViewById(R.id.filter_buttons_include)
         
@@ -160,6 +163,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showAllStations() {
         currentMode = "list"
+        contentContainer.visibility = View.GONE
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.VISIBLE
         settingsContainer.visibility = View.GONE
@@ -171,6 +175,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFavorites() {
         currentMode = "favorites"
+        contentContainer.visibility = View.GONE
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
@@ -211,6 +216,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSettings() {
         currentMode = "settings"
+        contentContainer.visibility = View.GONE
         stationsList.visibility = View.GONE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.VISIBLE
@@ -218,6 +224,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPodcasts() {
         currentMode = "podcasts"
+        contentContainer.visibility = View.VISIBLE
         stationsList.visibility = View.GONE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
@@ -226,7 +233,6 @@ class MainActivity : AppCompatActivity() {
         val podcastsFragment = PodcastsFragment()
         supportFragmentManager.beginTransaction().apply {
             replace(R.id.content_container, podcastsFragment)
-            addToBackStack(null)
             commit()
         }
     }
