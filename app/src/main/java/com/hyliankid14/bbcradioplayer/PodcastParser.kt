@@ -213,7 +213,21 @@ object RSSParser {
 
     fun fetchAndParseRSS(url: String, podcastId: String): List<Episode> {
         return try {
-            val connection = URL(url).openConnection()
+            val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                instanceFollowRedirects = true
+                connectTimeout = 15000
+                readTimeout = 15000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+            }
+            
+            val responseCode = connection.responseCode
+            if (responseCode != 200) {
+                Log.w(TAG, "HTTP $responseCode while fetching RSS from $url")
+                connection.disconnect()
+                return emptyList()
+            }
+            
             connection.inputStream.use { parseRSS(it, podcastId) }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching RSS from $url", e)
