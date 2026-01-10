@@ -11,11 +11,10 @@
         android:layout_height="wrap_content"
         android:hint="Search podcasts..."
         android:inputType="text"
-        android:padding="12dp"
         android:layout_margin="8dp"
-        android:backgroundTint="@color/search_field_bg"
         android:textColor="@color/search_field_text"
-        android:hintTextColor="@color/search_field_hint" />
+        android:textColorHint="@color/search_field_hint"
+        android:background="@drawable/search_field_bg" />
 
     <!-- Genre Filter Spinner -->
     <LinearLayout
@@ -68,14 +67,6 @@
         android:layout_marginHorizontal="12dp"
         android:layout_marginVertical="8dp" />
 
-    <!-- Podcasts RecyclerView -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/podcasts_recycler"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:scrollbars="vertical" />
-
     <!-- Subscribed Header -->
     <TextView
         android:id="@+id/subscribed_header"
@@ -93,6 +84,14 @@
         android:layout_height="wrap_content"
         android:scrollbars="vertical"
         android:visibility="gone" />
+
+    <!-- Podcasts RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/podcasts_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="vertical" />
 
     <!-- Loading Indicator -->
     <ProgressBar
