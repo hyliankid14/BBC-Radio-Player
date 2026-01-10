@@ -154,14 +154,6 @@
                 android:layout_margin="4dp"
                 style="@style/Widget.Material3.Button.IconButton"
                 app:icon="@drawable/ic_skip_next"
-                    <!-- Playback progress indicator -->
-                    <ProgressBar
-                        android:id="@+id/playback_progress"
-                        style="@android:style/Widget.ProgressBar.Horizontal"
-                        android:layout_width="match_parent"
-                        android:layout_height="4dp"
-                        android:layout_marginTop="8dp"
-                        android:max="1000" />
                 app:iconSize="24dp"
                 app:iconGravity="textStart"
                 app:iconPadding="0dp"
@@ -171,6 +163,15 @@
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
                 android:contentDescription="Next" />
+
+            <!-- Playback progress indicator -->
+            <ProgressBar
+                android:id="@+id/playback_progress"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="8dp"
+                android:max="1000" />
 
             <!-- Favorite Icon Button -->
             <com.google.android.material.button.MaterialButton
