@@ -65,22 +65,15 @@ class PodcastsFragment : Fragment() {
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         adapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
             android.util.Log.d("PodcastsFragment", "onPodcastClick triggered for: ${podcast.title}")
-            fragmentScope.launch {
-                val episodes = withContext(Dispatchers.IO) { repository.fetchEpisodes(podcast) }
-                android.util.Log.d("PodcastsFragment", "Fetched ${episodes.size} episodes for: ${podcast.title}")
-                if (episodes.isNotEmpty()) {
-                    val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                        putExtra(RadioService.EXTRA_EPISODE, episodes[0])
-                        putExtra(RadioService.EXTRA_PODCAST_ID, podcast.id)
-                        putExtra(RadioService.EXTRA_PODCAST_TITLE, podcast.title)
-                        putExtra(RadioService.EXTRA_PODCAST_IMAGE, podcast.imageUrl)
-                    }
-                    android.util.Log.d("PodcastsFragment", "Starting service with episode: ${episodes[0].title}")
-                    requireContext().startService(intent)
-                } else {
-                    android.util.Log.w("PodcastsFragment", "No episodes found for: ${podcast.title}")
+            val detailFragment = PodcastDetailFragment().apply {
+                arguments = Bundle().apply {
+                    putParcelable("podcast", podcast)
                 }
+            }
+            parentFragmentManager.beginTransaction().apply {
+                replace(R.id.fragment_container, detailFragment)
+                addToBackStack(null)
+                commit()
             }
         }, onOpenPlayer = {
             startActivity(android.content.Intent(requireContext(), NowPlayingActivity::class.java))
@@ -89,18 +82,15 @@ class PodcastsFragment : Fragment() {
 
         // Subscribed list
         val subscribedAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
-            fragmentScope.launch {
-                val episodes = withContext(Dispatchers.IO) { repository.fetchEpisodes(podcast) }
-                if (episodes.isNotEmpty()) {
-                    val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                        putExtra(RadioService.EXTRA_EPISODE, episodes[0])
-                        putExtra(RadioService.EXTRA_PODCAST_ID, podcast.id)
-                        putExtra(RadioService.EXTRA_PODCAST_TITLE, podcast.title)
-                        putExtra(RadioService.EXTRA_PODCAST_IMAGE, podcast.imageUrl)
-                    }
-                    requireContext().startService(intent)
+            val detailFragment = PodcastDetailFragment().apply {
+                arguments = Bundle().apply {
+                    putParcelable("podcast", podcast)
                 }
+            }
+            parentFragmentManager.beginTransaction().apply {
+                replace(R.id.fragment_container, detailFragment)
+                addToBackStack(null)
+                commit()
             }
         }, onOpenPlayer = {
             startActivity(android.content.Intent(requireContext(), NowPlayingActivity::class.java))
