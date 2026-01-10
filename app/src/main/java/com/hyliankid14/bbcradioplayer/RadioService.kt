@@ -75,6 +75,8 @@ class RadioService : MediaBrowserServiceCompat() {
         const val EXTRA_STATION_ID = "com.hyliankid14.bbcradioplayer.EXTRA_STATION_ID"
         const val EXTRA_EPISODE = "com.hyliankid14.bbcradioplayer.EXTRA_EPISODE"
         const val EXTRA_PODCAST_ID = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_ID"
+        const val EXTRA_PODCAST_TITLE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_TITLE"
+        const val EXTRA_PODCAST_IMAGE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_IMAGE"
         private const val TAG = "RadioService"
         private const val CHANNEL_ID = "radio_playback"
         private const val NOTIFICATION_ID = 1
@@ -1005,7 +1007,27 @@ class RadioService : MediaBrowserServiceCompat() {
     
     private fun playPodcastEpisode(episode: Episode) {
         try {
-            currentStationId = episode.podcastId
+            // Create a synthetic station to drive the existing mini/full player UI
+            val podcastTitle = lastStartCommand?.getStringExtra(EXTRA_PODCAST_TITLE) ?: episode.title
+            val podcastImage = lastStartCommand?.getStringExtra(EXTRA_PODCAST_IMAGE)
+            val syntheticStation = Station(
+                id = "podcast_${episode.podcastId}",
+                title = podcastTitle,
+                serviceId = "podcast",
+                logoUrl = podcastImage ?: "https://assets.bbci.co.uk/sounds/3.11.1/img/icon-apple-podcast.png"
+            )
+
+            // Update playback helper & state
+            currentStationId = syntheticStation.id
+            PlaybackStateHelper.setCurrentStation(syntheticStation)
+            PlaybackStateHelper.setIsPlaying(true)
+
+            // Ensure player and focus
+            player?.release()
+            player = null
+            ensurePlayer()
+            requestAudioFocus()
+
             val mediaItem = ExoMediaItem.Builder()
                 .setUri(episode.audioUrl)
                 .setMediaMetadata(
@@ -1014,9 +1036,12 @@ class RadioService : MediaBrowserServiceCompat() {
                         .build()
                 )
                 .build()
-            player?.setMediaItem(mediaItem)
-            player?.play()
-            updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+            player?.apply {
+                playWhenReady = true
+                setMediaItem(mediaItem)
+                prepare()
+            }
+            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
             startForegroundNotification()
             Log.d(TAG, "Playing podcast episode: ${episode.title}")
 

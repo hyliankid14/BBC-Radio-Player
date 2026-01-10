@@ -92,6 +92,10 @@ class PodcastDetailFragment : Fragment() {
             action = RadioService.ACTION_PLAY_PODCAST_EPISODE
             putExtra(RadioService.EXTRA_EPISODE, episode)
             putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+            currentPodcast?.let {
+                putExtra(RadioService.EXTRA_PODCAST_TITLE, it.title)
+                putExtra(RadioService.EXTRA_PODCAST_IMAGE, it.imageUrl)
+            }
         }
         requireContext().startService(intent)
     }

@@ -71,6 +71,8 @@ class PodcastsFragment : Fragment() {
                         action = RadioService.ACTION_PLAY_PODCAST_EPISODE
                         putExtra(RadioService.EXTRA_EPISODE, episodes[0])
                         putExtra(RadioService.EXTRA_PODCAST_ID, podcast.id)
+                        putExtra(RadioService.EXTRA_PODCAST_TITLE, podcast.title)
+                        putExtra(RadioService.EXTRA_PODCAST_IMAGE, podcast.imageUrl)
                     }
                     requireContext().startService(intent)
                 }
@@ -89,6 +91,8 @@ class PodcastsFragment : Fragment() {
                         action = RadioService.ACTION_PLAY_PODCAST_EPISODE
                         putExtra(RadioService.EXTRA_EPISODE, episodes[0])
                         putExtra(RadioService.EXTRA_PODCAST_ID, podcast.id)
+                        putExtra(RadioService.EXTRA_PODCAST_TITLE, podcast.title)
+                        putExtra(RadioService.EXTRA_PODCAST_IMAGE, podcast.imageUrl)
                     }
                     requireContext().startService(intent)
                 }
