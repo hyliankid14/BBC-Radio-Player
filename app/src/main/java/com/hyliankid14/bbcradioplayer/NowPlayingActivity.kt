@@ -27,6 +27,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var playPauseButton: MaterialButton
     private lateinit var nextButton: MaterialButton
     private lateinit var favoriteButton: MaterialButton
+    private lateinit var playbackProgress: android.widget.ProgressBar
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
@@ -56,6 +57,7 @@ class NowPlayingActivity : AppCompatActivity() {
         playPauseButton = findViewById(R.id.now_playing_play_pause)
         nextButton = findViewById(R.id.now_playing_next)
         favoriteButton = findViewById(R.id.now_playing_favorite)
+        playbackProgress = findViewById(R.id.playback_progress)
 
         // Setup control button listeners
         stopButton.setOnClickListener { stopPlayback() }
@@ -165,6 +167,18 @@ class NowPlayingActivity : AppCompatActivity() {
                     .into(stationArtwork)
             }
             
+            // Update progress if available
+            val showProgress = PlaybackStateHelper.getCurrentShow()
+            val startMs = showProgress.segmentStartMs ?: 0L
+            val durMs = showProgress.segmentDurationMs ?: 0L
+            if (durMs > 0) {
+                val ratio = (startMs.coerceAtLeast(0L).toDouble() / durMs.toDouble()).coerceIn(0.0, 1.0)
+                playbackProgress.progress = (ratio * playbackProgress.max).toInt()
+                playbackProgress.visibility = android.view.View.VISIBLE
+            } else {
+                playbackProgress.visibility = android.view.View.GONE
+            }
+
             // Update play/pause button
             playPauseButton.icon = ContextCompat.getDrawable(this, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             

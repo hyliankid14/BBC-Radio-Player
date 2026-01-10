@@ -12,7 +12,8 @@ import com.bumptech.glide.Glide
 class PodcastAdapter(
     private val context: Context,
     private var podcasts: List<Podcast> = emptyList(),
-    private val onPodcastClick: (Podcast) -> Unit
+    private val onPodcastClick: (Podcast) -> Unit,
+    private val onOpenPlayer: (() -> Unit)? = null
 ) : RecyclerView.Adapter<PodcastAdapter.PodcastViewHolder>() {
 
     fun updatePodcasts(newPodcasts: List<Podcast>) {
@@ -27,7 +28,7 @@ class PodcastAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PodcastViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.item_podcast, parent, false)
-        return PodcastViewHolder(view, onPodcastClick)
+        return PodcastViewHolder(view, onPodcastClick, onOpenPlayer)
     }
 
     override fun onBindViewHolder(holder: PodcastViewHolder, position: Int) {
@@ -38,7 +39,8 @@ class PodcastAdapter(
 
     class PodcastViewHolder(
         itemView: View,
-        private val onPodcastClick: (Podcast) -> Unit
+        private val onPodcastClick: (Podcast) -> Unit,
+        private val onOpenPlayer: (() -> Unit)?
     ) : RecyclerView.ViewHolder(itemView) {
         private lateinit var currentPodcast: Podcast
         private val imageView: ImageView = itemView.findViewById(R.id.podcast_image)
@@ -49,6 +51,8 @@ class PodcastAdapter(
 
         init {
             itemView.setOnClickListener { onPodcastClick(currentPodcast) }
+            imageView.setOnClickListener { onOpenPlayer?.invoke() }
+            titleView.setOnClickListener { onOpenPlayer?.invoke() }
         }
 
         fun bind(podcast: Podcast) {

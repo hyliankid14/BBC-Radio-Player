@@ -53,6 +53,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentArtworkBitmap: android.graphics.Bitmap? = null
     private var currentArtworkUri: String? = null
     private var showInfoRefreshRunnable: Runnable? = null
+    private var podcastProgressRunnable: Runnable? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main)
     private var lastAndroidAutoClientUid: Int? = null
     private var lastAndroidAutoRefreshMs: Long = 0L
@@ -948,6 +949,7 @@ class RadioService : MediaBrowserServiceCompat() {
         
         // Cancel show refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
+        podcastProgressRunnable?.let { handler.removeCallbacks(it) }
         
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(null)
@@ -1017,6 +1019,28 @@ class RadioService : MediaBrowserServiceCompat() {
             updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
             startForegroundNotification()
             Log.d(TAG, "Playing podcast episode: ${episode.title}")
+
+            // Start progress updates for podcasts
+            podcastProgressRunnable?.let { handler.removeCallbacks(it) }
+            podcastProgressRunnable = object : Runnable {
+                override fun run() {
+                    try {
+                        val pos = player?.currentPosition ?: 0L
+                        val dur = player?.duration ?: 0L
+                        val show = CurrentShow(
+                            title = episode.title,
+                            episodeTitle = episode.title,
+                            imageUrl = null,
+                            segmentStartMs = pos,
+                            segmentDurationMs = if (dur > 0) dur else null
+                        )
+                        PlaybackStateHelper.setCurrentShow(show)
+                    } finally {
+                        handler.postDelayed(this, 500)
+                    }
+                }
+            }
+            handler.post(podcastProgressRunnable!!)
         } catch (e: Exception) {
             Log.e(TAG, "Error playing podcast episode", e)
         }

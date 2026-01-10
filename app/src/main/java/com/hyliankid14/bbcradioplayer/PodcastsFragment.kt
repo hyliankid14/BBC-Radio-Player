@@ -46,10 +46,12 @@ class PodcastsFragment : Fragment() {
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
         val genreSpinner: Spinner = view.findViewById(R.id.genre_filter_spinner)
-        val durationSeekBar: SeekBar = view.findViewById(R.id.duration_range_slider)
+        val durationSpinner: Spinner = view.findViewById(R.id.duration_filter_spinner)
         val resetButton: android.widget.Button = view.findViewById(R.id.reset_filters_button)
         val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
         val emptyState: TextView = view.findViewById(R.id.empty_state_text)
+        val subscribedHeader: TextView = view.findViewById(R.id.subscribed_header)
+        val subscribedRecycler: RecyclerView = view.findViewById(R.id.subscribed_recycler)
 
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -61,48 +63,79 @@ class PodcastsFragment : Fragment() {
         })
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        adapter = PodcastAdapter(requireContext()) { podcast ->
-            val detail = PodcastDetailFragment().apply {
-                arguments = Bundle().apply { putParcelable("podcast", podcast) }
+        adapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
+            fragmentScope.launch {
+                val episodes = withContext(Dispatchers.IO) { repository.fetchEpisodes(podcast) }
+                if (episodes.isNotEmpty()) {
+                    val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                        putExtra(RadioService.EXTRA_EPISODE, episodes[0])
+                        putExtra(RadioService.EXTRA_PODCAST_ID, podcast.id)
+                    }
+                    requireContext().startService(intent)
+                }
             }
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, detail)
-                .addToBackStack(null)
-                .commit()
-        }
+        }, onOpenPlayer = {
+            startActivity(android.content.Intent(requireContext(), NowPlayingActivity::class.java))
+        })
         recyclerView.adapter = adapter
 
-        // Default to the max duration so we do not hide long-form shows by default
-        durationSeekBar.progress = durationSeekBar.max
+        // Subscribed list
+        val subscribedAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
+            fragmentScope.launch {
+                val episodes = withContext(Dispatchers.IO) { repository.fetchEpisodes(podcast) }
+                if (episodes.isNotEmpty()) {
+                    val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                        putExtra(RadioService.EXTRA_EPISODE, episodes[0])
+                        putExtra(RadioService.EXTRA_PODCAST_ID, podcast.id)
+                    }
+                    requireContext().startService(intent)
+                }
+            }
+        }, onOpenPlayer = {
+            startActivity(android.content.Intent(requireContext(), NowPlayingActivity::class.java))
+        })
+        subscribedRecycler.layoutManager = LinearLayoutManager(requireContext())
+        subscribedRecycler.adapter = subscribedAdapter
 
-        durationSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                currentFilter = currentFilter.copy(maxDuration = progress)
-                applyFilters(loadingIndicator, emptyState, recyclerView)
+        val durationOptions = listOf("All", "Short (<15 mins)", "Medium (15–45 mins)", "Long (>45 mins)")
+        val durationAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, durationOptions)
+        durationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        durationSpinner.adapter = durationAdapter
+        durationSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                currentFilter = when (position) {
+                    1 -> currentFilter.copy(minDuration = 0, maxDuration = 15)
+                    2 -> currentFilter.copy(minDuration = 15, maxDuration = 45)
+                    3 -> currentFilter.copy(minDuration = 45, maxDuration = 300)
+                    else -> currentFilter.copy(minDuration = 0, maxDuration = 300)
+                }
+                applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
             }
 
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
         resetButton.setOnClickListener {
             searchQuery = ""
             searchEditText.text.clear()
             currentFilter = PodcastFilter()
             genreSpinner.setSelection(0)
-            durationSeekBar.progress = 100
-            applyFilters(loadingIndicator, emptyState, recyclerView)
+            durationSpinner.setSelection(0)
+            applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
         }
 
-        loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner, durationSeekBar)
+        loadPodcasts(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler, genreSpinner)
     }
 
     private fun loadPodcasts(
         loadingIndicator: ProgressBar,
         emptyState: TextView,
         recyclerView: RecyclerView,
-        genreSpinner: Spinner,
-        durationSeekBar: SeekBar
+        subscribedHeader: TextView,
+        subscribedRecycler: RecyclerView,
+        genreSpinner: Spinner
     ) {
         loadingIndicator.visibility = View.VISIBLE
         emptyState.text = "Loading podcasts..."
@@ -141,7 +174,7 @@ class PodcastsFragment : Fragment() {
                     override fun onNothingSelected(parent: AdapterView<*>?) {}
                 }
 
-                applyFilters(loadingIndicator, emptyState, recyclerView)
+                applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
                 loadingIndicator.visibility = View.GONE
             } catch (e: Exception) {
                 android.util.Log.e("PodcastsFragment", "Error loading podcasts", e)
@@ -155,11 +188,29 @@ class PodcastsFragment : Fragment() {
     private fun applyFilters(
         loadingIndicator: ProgressBar,
         emptyState: TextView,
-        recyclerView: RecyclerView
+        recyclerView: RecyclerView,
+        subscribedHeader: TextView,
+        subscribedRecycler: RecyclerView
     ) {
         val effectiveFilter = currentFilter.copy(searchQuery = searchQuery)
         val filtered = repository.filterPodcasts(allPodcasts, effectiveFilter)
         adapter.updatePodcasts(filtered)
+
+        val subscribedIds = PodcastSubscriptions.getSubscribedIds(requireContext())
+        val subscribedList = filtered.filter { it.id in subscribedIds }
+        val unsubscribedList = filtered.filter { it.id !in subscribedIds }
+        adapter.updatePodcasts(unsubscribedList)
+
+        val subscribedAdapter = (subscribedRecycler.adapter as PodcastAdapter)
+        if (subscribedList.isNotEmpty()) {
+            subscribedHeader.visibility = View.VISIBLE
+            subscribedRecycler.visibility = View.VISIBLE
+            subscribedAdapter.updatePodcasts(subscribedList)
+        } else {
+            subscribedHeader.visibility = View.GONE
+            subscribedRecycler.visibility = View.GONE
+            subscribedAdapter.updatePodcasts(emptyList())
+        }
 
         if (filtered.isEmpty()) {
             emptyState.visibility = View.VISIBLE

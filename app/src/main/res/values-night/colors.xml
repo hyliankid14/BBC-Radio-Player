@@ -47,4 +47,9 @@
     <!-- Now Playing screen colors -->
     <color name="now_playing_play_pause_tint">#FFFFFF</color>
     <color name="favorite_star_color">#D0BCFF</color>
+
+    <!-- Search field colors (dark) -->
+    <color name="search_field_bg">#49454E</color>
+    <color name="search_field_text">#E6E1E5</color>
+    <color name="search_field_hint">#CAC7D0</color>
 </resources>

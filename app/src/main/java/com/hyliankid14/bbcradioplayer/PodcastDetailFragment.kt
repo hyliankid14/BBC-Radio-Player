@@ -55,8 +55,13 @@ class PodcastDetailFragment : Fragment() {
                     .into(imageView)
             }
 
+            // Initialize subscribe button state
+            val isSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
+            subscribeButton.text = if (isSubscribed) "Subscribed" else "Subscribe"
             subscribeButton.setOnClickListener {
-                // Placeholder for subscription functionality
+                PodcastSubscriptions.toggleSubscription(requireContext(), podcast.id)
+                val nowSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
+                subscribeButton.text = if (nowSubscribed) "Subscribed" else "Subscribe"
             }
 
             episodesRecycler.layoutManager = LinearLayoutManager(requireContext())
