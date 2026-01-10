@@ -66,7 +66,7 @@ class PodcastsFragment : Fragment() {
                 arguments = Bundle().apply { putParcelable("podcast", podcast) }
             }
             parentFragmentManager.beginTransaction()
-                .replace(R.id.content_container, detail)
+                .replace(R.id.fragment_container, detail)
                 .addToBackStack(null)
                 .commit()
         }
