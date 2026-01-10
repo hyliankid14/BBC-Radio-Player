@@ -53,6 +53,9 @@ class PodcastAdapter(
             itemView.setOnClickListener { onPodcastClick(currentPodcast) }
             imageView.setOnClickListener { onOpenPlayer?.invoke() }
             titleView.setOnClickListener { onOpenPlayer?.invoke() }
+            // Ensure tapping title or description starts playback as requested
+            titleView.setOnClickListener { onPodcastClick(currentPodcast) }
+            descriptionView.setOnClickListener { onPodcastClick(currentPodcast) }
         }
 
         fun bind(podcast: Podcast) {
