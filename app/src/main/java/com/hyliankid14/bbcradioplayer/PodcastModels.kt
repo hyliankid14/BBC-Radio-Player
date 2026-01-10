@@ -30,7 +30,7 @@ data class Episode(
 data class PodcastFilter(
     val genres: Set<String> = emptySet(),
     val minDuration: Int = 0,
-    val maxDuration: Int = 100,
+    val maxDuration: Int = 300,
     val searchQuery: String = ""
 )
 

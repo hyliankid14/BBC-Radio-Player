@@ -72,6 +72,9 @@ class PodcastsFragment : Fragment() {
         }
         recyclerView.adapter = adapter
 
+        // Default to the max duration so we do not hide long-form shows by default
+        durationSeekBar.progress = durationSeekBar.max
+
         durationSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 currentFilter = currentFilter.copy(maxDuration = progress)
@@ -107,6 +110,13 @@ class PodcastsFragment : Fragment() {
             try {
                 allPodcasts = repository.fetchPodcasts()
                 android.util.Log.d("PodcastsFragment", "Loaded ${allPodcasts.size} podcasts")
+
+                if (allPodcasts.isEmpty()) {
+                    emptyState.text = "No podcasts found. Check your connection and try again."
+                    emptyState.visibility = View.VISIBLE
+                    loadingIndicator.visibility = View.GONE
+                    return@launch
+                }
 
                 val genres = listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
                 val spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, genres)
@@ -147,12 +157,8 @@ class PodcastsFragment : Fragment() {
         emptyState: TextView,
         recyclerView: RecyclerView
     ) {
-        val filtered = repository.filterPodcasts(allPodcasts, currentFilter)
-            .filter { podcast ->
-                if (searchQuery.isEmpty()) true
-                else podcast.title.contains(searchQuery, ignoreCase = true) ||
-                      podcast.description.contains(searchQuery, ignoreCase = true)
-            }
+        val effectiveFilter = currentFilter.copy(searchQuery = searchQuery)
+        val filtered = repository.filterPodcasts(allPodcasts, effectiveFilter)
         adapter.updatePodcasts(filtered)
 
         if (filtered.isEmpty()) {

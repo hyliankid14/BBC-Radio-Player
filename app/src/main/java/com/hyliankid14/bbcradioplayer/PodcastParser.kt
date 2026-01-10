@@ -36,7 +36,19 @@ object OPMLParser {
 
     fun fetchAndParseOPML(url: String): List<Podcast> {
         return try {
-            val connection = URL(url).openConnection()
+            val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                connectTimeout = 15000
+                readTimeout = 15000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+                setRequestProperty("Accept", "application/xml,text/xml,application/rss+xml,*/*")
+            }
+
+            if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
+                Log.e(TAG, "HTTP ${connection.responseCode} while fetching OPML")
+                return emptyList()
+            }
+
             connection.inputStream.use { parseOPML(it) }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching OPML from $url", e)
