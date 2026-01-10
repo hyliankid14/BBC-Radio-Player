@@ -15,11 +15,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class PodcastDetailFragment : Fragment() {
     private lateinit var repository: PodcastRepository
-    private lateinit var fragmentScope: CoroutineScope
+    private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
     private var currentPodcast: Podcast? = null
 
     override fun onCreateView(
@@ -33,7 +34,6 @@ class PodcastDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        fragmentScope = CoroutineScope(Dispatchers.Main)
         repository = PodcastRepository(requireContext())
 
         currentPodcast = arguments?.getParcelable("podcast")
@@ -93,6 +93,6 @@ class PodcastDetailFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        fragmentScope.cancel()
+        fragmentScope.coroutineContext[Job]?.cancel()
     }
 }

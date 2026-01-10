@@ -29,6 +29,7 @@ class PodcastRepository(private val context: Context) {
 
             if (podcasts.isNotEmpty()) {
                 cachePodcasts(podcasts)
+                podcasts
             } else {
                 // Try cache as fallback
                 getCachedPodcasts() ?: emptyList()

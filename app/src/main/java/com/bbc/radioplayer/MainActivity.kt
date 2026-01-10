@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
-    private lateinit var miniPlayerSubtitle: com.hyliankid14.bbcradioplayer.ScrollingTextView
+    private lateinit var miniPlayerSubtitle: ScrollingTextView
     private lateinit var miniPlayerArtwork: ImageView
     private lateinit var miniPlayerPrevious: ImageButton
     private lateinit var miniPlayerPlayPause: ImageButton

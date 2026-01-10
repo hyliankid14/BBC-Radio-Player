@@ -22,6 +22,7 @@ import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.MediaItem as ExoMediaItem
+import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.exoplayer2.audio.AudioAttributes as ExoAudioAttributes
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope

@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -23,7 +24,7 @@ class PodcastsFragment : Fragment() {
     private lateinit var adapter: PodcastAdapter
     private var allPodcasts: List<Podcast> = emptyList()
     private var currentFilter = PodcastFilter()
-    private lateinit var fragmentScope: CoroutineScope
+    private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -36,7 +37,6 @@ class PodcastsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        fragmentScope = CoroutineScope(Dispatchers.Main)
         repository = PodcastRepository(requireContext())
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
@@ -136,6 +136,6 @@ class PodcastsFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        fragmentScope.cancel()
+        fragmentScope.coroutineContext[Job]?.cancel()
     }
 }
