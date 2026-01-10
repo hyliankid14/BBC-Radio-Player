@@ -1,23 +1,22 @@
 package com.hyliankid14.bbcradioplayer
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 import java.util.*
 
 class PodcastRepository(private val context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("podcasts", Context.MODE_PRIVATE)
-    private val cacheKey = "podcast_cache"
-    private val cacheTimeKey = "podcast_cache_time"
+    private val cacheFile = File(context.cacheDir, "podcasts_cache.json")
     private val cacheTTL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
     suspend fun fetchPodcasts(forceRefresh: Boolean = false): List<Podcast> = withContext(Dispatchers.IO) {
         try {
             val cachedData = if (!forceRefresh) getCachedPodcasts() else null
-            if (cachedData != null) {
+            if (cachedData != null && cachedData.isNotEmpty()) {
                 Log.d("PodcastRepository", "Returning cached podcasts")
                 return@withContext cachedData
             }
@@ -55,7 +54,10 @@ class PodcastRepository(private val context: Context) {
             val genreMatch = if (filter.genres.isEmpty()) true
             else podcast.genres.any { it in filter.genres }
             val durationMatch = podcast.typicalDurationMins in filter.minDuration..filter.maxDuration
-            genreMatch && durationMatch
+            val searchMatch = if (filter.searchQuery.isEmpty()) true
+            else podcast.title.contains(filter.searchQuery, ignoreCase = true) || 
+                 podcast.description.contains(filter.searchQuery, ignoreCase = true)
+            genreMatch && durationMatch && searchMatch
         }
     }
 
@@ -68,14 +70,26 @@ class PodcastRepository(private val context: Context) {
 
     private fun cachePodcasts(podcasts: List<Podcast>) {
         try {
-            val json = podcasts.joinToString(",") { podcast ->
-                "\"${podcast.id}\":\"${podcast.title}|${podcast.rssUrl}|${podcast.imageUrl}|${podcast.genres.joinToString(";")}|${podcast.typicalDurationMins}\""
+            val jsonArray = JSONArray()
+            podcasts.forEach { podcast ->
+                val jsonObj = JSONObject().apply {
+                    put("id", podcast.id)
+                    put("title", podcast.title)
+                    put("description", podcast.description)
+                    put("rssUrl", podcast.rssUrl)
+                    put("htmlUrl", podcast.htmlUrl)
+                    put("imageUrl", podcast.imageUrl)
+                    put("typicalDurationMins", podcast.typicalDurationMins)
+                    put("genres", JSONArray(podcast.genres))
+                }
+                jsonArray.put(jsonObj)
             }
-            prefs.edit().apply {
-                putString(cacheKey, "{$json}")
-                putLong(cacheTimeKey, System.currentTimeMillis())
-                apply()
-            }
+            
+            val rootObj = JSONObject()
+            rootObj.put("timestamp", System.currentTimeMillis())
+            rootObj.put("data", jsonArray)
+            
+            cacheFile.writeText(rootObj.toString())
             Log.d("PodcastRepository", "Cached ${podcasts.size} podcasts")
         } catch (e: Exception) {
             Log.e("PodcastRepository", "Error caching podcasts", e)
@@ -83,38 +97,41 @@ class PodcastRepository(private val context: Context) {
     }
 
     private fun getCachedPodcasts(): List<Podcast>? {
+        if (!cacheFile.exists()) return null
+        
         return try {
-            val cacheTime = prefs.getLong(cacheTimeKey, 0)
-            if (System.currentTimeMillis() - cacheTime > cacheTTL) {
+            val content = cacheFile.readText()
+            if (content.isEmpty()) return null
+            
+            val rootObj = JSONObject(content)
+            val timestamp = rootObj.optLong("timestamp", 0)
+            
+            if (System.currentTimeMillis() - timestamp > cacheTTL) {
                 Log.d("PodcastRepository", "Cache expired")
                 return null
             }
-
-            val json = prefs.getString(cacheKey, null) ?: return null
+            
+            val jsonArray = rootObj.getJSONArray("data")
             val podcasts = mutableListOf<Podcast>()
-            val entries = json.substring(1, json.length - 1).split(",")
-            for (entry in entries) {
-                val parts = entry.split("\":\"")
-                if (parts.size == 2) {
-                    val id = parts[0].substring(1)
-                    val data = parts[1].substring(0, parts[1].length - 1).split("|")
-                    if (data.size >= 4) {
-                        val genres = data[3].split(";").filter { it.isNotEmpty() }
-                        val duration = data.getOrNull(4)?.toIntOrNull() ?: 0
-                        podcasts.add(
-                            Podcast(
-                                id = id,
-                                title = data[0],
-                                description = "",
-                                rssUrl = data[1],
-                                htmlUrl = "",
-                                imageUrl = data[2],
-                                genres = genres,
-                                typicalDurationMins = duration
-                            )
-                        )
-                    }
+            
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val genresJson = obj.getJSONArray("genres")
+                val genres = mutableListOf<String>()
+                for (j in 0 until genresJson.length()) {
+                    genres.add(genresJson.getString(j))
                 }
+                
+                podcasts.add(Podcast(
+                    id = obj.getString("id"),
+                    title = obj.getString("title"),
+                    description = obj.optString("description", ""),
+                    rssUrl = obj.getString("rssUrl"),
+                    htmlUrl = obj.optString("htmlUrl", ""),
+                    imageUrl = obj.optString("imageUrl", ""),
+                    genres = genres,
+                    typicalDurationMins = obj.optInt("typicalDurationMins", 0)
+                ))
             }
             if (podcasts.isNotEmpty()) {
                 Log.d("PodcastRepository", "Loaded ${podcasts.size} podcasts from cache")

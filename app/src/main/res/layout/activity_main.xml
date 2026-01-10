@@ -5,14 +5,23 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- Stations List Container -->
+    <!-- Dynamic Fragment Container (Podcasts) -->
     <FrameLayout
-        android:id="@+id/content_container"
+        android:id="@+id/fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
+
+    <!-- Static Content Container (Stations & Settings) -->
+    <FrameLayout
+        android:id="@+id/static_content_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
         <LinearLayout
+            android:id="@+id/stations_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical">
