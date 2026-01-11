@@ -91,7 +91,8 @@ class PodcastAdapter(
 class EpisodeAdapter(
     private val context: Context,
     private var episodes: List<Episode> = emptyList(),
-    private val onEpisodeClick: (Episode) -> Unit
+    private val onPlayClick: (Episode) -> Unit,
+    private val onOpenFull: (Episode) -> Unit
 ) : RecyclerView.Adapter<EpisodeAdapter.EpisodeViewHolder>() {
 
     fun updateEpisodes(newEpisodes: List<Episode>) {
@@ -101,7 +102,7 @@ class EpisodeAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.item_episode, parent, false)
-        return EpisodeViewHolder(view, onEpisodeClick)
+        return EpisodeViewHolder(view, onPlayClick, onOpenFull)
     }
 
     override fun onBindViewHolder(holder: EpisodeViewHolder, position: Int) {
@@ -112,7 +113,8 @@ class EpisodeAdapter(
 
     class EpisodeViewHolder(
         itemView: View,
-        private val onEpisodeClick: (Episode) -> Unit
+        private val onPlayClick: (Episode) -> Unit,
+        private val onOpenFull: (Episode) -> Unit
     ) : RecyclerView.ViewHolder(itemView) {
         private lateinit var currentEpisode: Episode
         private val titleView: TextView = itemView.findViewById(R.id.episode_title)
@@ -122,7 +124,7 @@ class EpisodeAdapter(
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
         private val playButton: MaterialButton = itemView.findViewById(R.id.episode_play_icon)
         private var isExpanded = false
-        private val collapsedLines = 4
+        private val collapsedLines = 2
 
         init {
             val playAction: (View) -> Unit = {
@@ -141,16 +143,18 @@ class EpisodeAdapter(
                     }
                     .setInterpolator(AccelerateDecelerateInterpolator())
                     .start()
-                onEpisodeClick(currentEpisode)
+                onPlayClick(currentEpisode)
             }
-
-            itemView.setOnClickListener(playAction)
+            // Play when the play button is tapped
             playButton.setOnClickListener(playAction)
-            
-            showMoreView.setOnClickListener {
-                // Episode items do not show an inline "Show more" popup anymore.
-                // Tapping an episode opens the player instead.
+
+            // Open full-screen preview when title or description or row tapped
+            val openAction: (View) -> Unit = {
+                onOpenFull(currentEpisode)
             }
+            itemView.setOnClickListener(openAction)
+            titleView.setOnClickListener(openAction)
+            descriptionView.setOnClickListener(openAction)
         }
 
         fun bind(episode: Episode) {

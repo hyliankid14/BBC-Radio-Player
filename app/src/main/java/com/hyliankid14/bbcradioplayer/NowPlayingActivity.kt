@@ -80,6 +80,14 @@ class NowPlayingActivity : AppCompatActivity() {
         showMoreLink.setOnClickListener { showFullDescription() }
         artistTrack.setOnClickListener { showFullDescription() }
 
+        // If we're opened in preview mode for an episode (no playback), show that episode's details
+        val previewEpisode: Episode? = intent.getParcelableExtra("preview_episode")
+        if (previewEpisode != null) {
+            val previewPodcastTitle = intent.getStringExtra("preview_podcast_title")
+            val previewPodcastImage = intent.getStringExtra("preview_podcast_image")
+            showPreviewEpisode(previewEpisode, previewPodcastTitle, previewPodcastImage)
+        }
+
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
@@ -250,6 +258,45 @@ class NowPlayingActivity : AppCompatActivity() {
             progressGroup.visibility = android.view.View.GONE
             seekBar.visibility = android.view.View.GONE
         }
+    }
+
+    private fun showPreviewEpisode(episode: Episode, podcastTitle: String?, podcastImage: String?) {
+        // Display podcast title or provided podcastTitle
+        showName.visibility = android.view.View.GONE
+
+        val episodeHeading = episode.title
+        episodeTitle.text = episodeHeading
+        episodeTitle.visibility = android.view.View.VISIBLE
+
+        val description = androidx.core.text.HtmlCompat.fromHtml(episode.description ?: "", androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
+        if (description.isNotEmpty()) {
+            fullDescription = description
+            artistTrack.text = description
+            artistTrack.maxLines = 4
+            artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
+            artistTrack.visibility = android.view.View.VISIBLE
+            artistTrack.post {
+                if (artistTrack.lineCount > 4) {
+                    showMoreLink.visibility = android.view.View.VISIBLE
+                } else {
+                    showMoreLink.visibility = android.view.View.GONE
+                }
+            }
+        } else {
+            artistTrack.visibility = android.view.View.GONE
+            showMoreLink.visibility = android.view.View.GONE
+        }
+
+        // Load artwork from episode or podcast image if provided
+        val artworkUrl = episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage
+        if (!artworkUrl.isNullOrEmpty()) {
+            Glide.with(this).load(artworkUrl).into(stationArtwork)
+            lastArtworkUrl = artworkUrl
+        }
+
+        // Hide podcast-specific scrubber controls unless running as podcast playback
+        progressGroup.visibility = android.view.View.GONE
+        seekBar.visibility = android.view.View.GONE
     }
 
     private fun updateProgressUi() {

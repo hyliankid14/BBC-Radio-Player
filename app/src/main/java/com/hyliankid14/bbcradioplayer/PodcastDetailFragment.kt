@@ -108,9 +108,11 @@ class PodcastDetailFragment : Fragment() {
             }
 
             episodesRecycler.layoutManager = LinearLayoutManager(requireContext())
-            val adapter = EpisodeAdapter(requireContext()) { episode ->
+            val adapter = EpisodeAdapter(requireContext(), { episode ->
                 playEpisode(episode)
-            }
+            }, { episode ->
+                openEpisodePreview(episode)
+            })
             episodesRecycler.adapter = adapter
 
             var isHeaderVisible = true
@@ -173,6 +175,17 @@ class PodcastDetailFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun openEpisodePreview(episode: Episode) {
+        val intent = Intent(requireContext(), NowPlayingActivity::class.java).apply {
+            putExtra("preview_episode", episode)
+            currentPodcast?.let {
+                putExtra("preview_podcast_title", it.title)
+                putExtra("preview_podcast_image", it.imageUrl)
+            }
+        }
+        startActivity(intent)
     }
 
     private fun playEpisode(episode: Episode) {

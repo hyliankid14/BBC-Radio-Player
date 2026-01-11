@@ -24,19 +24,21 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
         
         val textView = TextView(requireContext()).apply {
             text = description
-            textSize = 14f
-            setTextColor(
-                androidx.core.content.ContextCompat.getColor(
-                    requireContext(),
-                    android.R.color.black
-                )
-            )
-            setPadding(24, 24, 24, 24)
-            setLineSpacing(1.5f, 1.5f)
+            textSize = 16f
+            // Use themed on-surface color so text is legible in light and dark modes
+            setTextColor(resources.getColor(R.color.md_theme_onSurface, requireContext().theme))
+            // Convert 16dp padding to pixels
+            val pad = (16 * resources.displayMetrics.density + 0.5f).toInt()
+            setPadding(pad, pad, pad, pad)
+            setLineSpacing(1.4f, 1.1f)
         }
 
         val scrollView = android.widget.ScrollView(requireContext()).apply {
-            addView(textView)
+            isFillViewport = true
+            addView(textView, android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
         }
 
         return AlertDialog.Builder(requireContext())
