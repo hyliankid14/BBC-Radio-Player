@@ -155,7 +155,6 @@ class PodcastDetailFragment : Fragment() {
                         showMoreView.visibility = View.GONE
                         descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
                     }
-                    lastFirstVisible = firstVisible
                 }
             })
 
