@@ -171,9 +171,13 @@ class PodcastsFragment : Fragment() {
     ) {
         val effectiveFilter = currentFilter.copy(searchQuery = searchQuery)
         val filtered = repository.filterPodcasts(allPodcasts, effectiveFilter)
-        adapter.updatePodcasts(filtered)
+        
+        // Filter out subscribed podcasts (shown in Favorites instead)
+        val subscribedIds = PodcastSubscriptions.getSubscribedIds(requireContext())
+        val unsubscribed = filtered.filter { it.id !in subscribedIds }
+        adapter.updatePodcasts(unsubscribed)
 
-        if (filtered.isEmpty()) {
+        if (unsubscribed.isEmpty()) {
             emptyState.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
         } else {

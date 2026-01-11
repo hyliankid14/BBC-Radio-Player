@@ -47,7 +47,6 @@ class PodcastAdapter(
         private val titleView: TextView = itemView.findViewById(R.id.podcast_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.podcast_description)
         private val genresView: TextView = itemView.findViewById(R.id.podcast_genres)
-        private val durationView: TextView = itemView.findViewById(R.id.podcast_duration)
 
         init {
             itemView.setOnClickListener { 
@@ -73,7 +72,6 @@ class PodcastAdapter(
             titleView.text = podcast.title
             descriptionView.text = podcast.description.take(100)
             genresView.text = podcast.genres.take(2).joinToString(", ")
-            durationView.text = "${podcast.typicalDurationMins} min"
 
             if (podcast.imageUrl.isNotEmpty()) {
                 Glide.with(itemView.context)
@@ -113,19 +111,48 @@ class EpisodeAdapter(
         private lateinit var currentEpisode: Episode
         private val titleView: TextView = itemView.findViewById(R.id.episode_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.episode_description)
+        private val showMoreView: TextView = itemView.findViewById(R.id.episode_show_more)
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
+        private var isExpanded = false
 
         init {
             itemView.setOnClickListener { onEpisodeClick(currentEpisode) }
+            
+            showMoreView.setOnClickListener {
+                isExpanded = !isExpanded
+                if (isExpanded) {
+                    descriptionView.maxLines = Int.MAX_VALUE
+                    showMoreView.text = "Show less"
+                } else {
+                    descriptionView.maxLines = 2
+                    showMoreView.text = "Show more"
+                }
+            }
         }
 
         fun bind(episode: Episode) {
             currentEpisode = episode
             titleView.text = episode.title
-            descriptionView.text = episode.description.take(80)
-            dateView.text = episode.pubDate
+            
+            // Show "Show more" if description is long enough to need it
+            val fullDesc = episode.description
+            descriptionView.text = fullDesc
+            descriptionView.post {
+                if (descriptionView.lineCount > 2 && !isExpanded) {
+                    showMoreView.visibility = View.VISIBLE
+                } else {
+                    showMoreView.visibility = View.GONE
+                }
+            }
+            
+            // Remove timestamp from date - just show date portion
+            val dateOnly = episode.pubDate.substringBefore(",").trim().let {
+                if (it.isEmpty()) episode.pubDate.split(" ").take(3).joinToString(" ") else it
+            }
+            dateView.text = dateOnly
             durationView.text = "${episode.durationMins} min"
+        }
         }
     }
 }

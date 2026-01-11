@@ -187,9 +187,19 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
+        
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
-        val favoritesPodcastsHeader = findViewById<TextView>(R.id.favorites_podcasts_header)
+        val favoritesPodcastsHeaderContainer = findViewById<View>(R.id.favorites_podcasts_header_container)
+        val favoritesPodcastsExpandIcon = findViewById<ImageView>(R.id.favorites_podcasts_expand_icon)
         val favoritesPodcastsRecycler = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
+        
+        // Move podcasts container to top of parent
+        val parent = favoritesPodcastsContainer.parent as? android.view.ViewGroup
+        parent?.let {
+            it.removeView(favoritesPodcastsContainer)
+            it.addView(favoritesPodcastsContainer, 0)
+        }
+        
         val stations = FavoritesPreference.getFavorites(this).toMutableList()
         val adapter = FavoritesAdapter(this, stations, { stationId ->
             playStation(stationId)
@@ -228,9 +238,24 @@ class MainActivity : AppCompatActivity() {
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
         if (subscribedIds.isNotEmpty()) {
             favoritesPodcastsContainer.visibility = View.VISIBLE
-            favoritesPodcastsHeader.visibility = View.VISIBLE
-            favoritesPodcastsRecycler.visibility = View.VISIBLE
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
+            
+            // Collapsed by default
+            var isExpanded = false
+            favoritesPodcastsRecycler.visibility = View.GONE
+            favoritesPodcastsExpandIcon.rotation = 270f // Down arrow
+            
+            // Toggle expand/collapse
+            favoritesPodcastsHeaderContainer.setOnClickListener {
+                isExpanded = !isExpanded
+                if (isExpanded) {
+                    favoritesPodcastsRecycler.visibility = View.VISIBLE
+                    favoritesPodcastsExpandIcon.rotation = 90f // Up arrow
+                } else {
+                    favoritesPodcastsRecycler.visibility = View.GONE
+                    favoritesPodcastsExpandIcon.rotation = 270f // Down arrow
+                }
+            }
 
             val repo = PodcastRepository(this)
             Thread {

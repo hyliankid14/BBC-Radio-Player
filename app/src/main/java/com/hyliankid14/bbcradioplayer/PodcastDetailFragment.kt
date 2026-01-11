@@ -41,6 +41,7 @@ class PodcastDetailFragment : Fragment() {
             val imageView: ImageView = view.findViewById(R.id.podcast_detail_image)
             val titleView: TextView = view.findViewById(R.id.podcast_detail_title)
             val descriptionView: TextView = view.findViewById(R.id.podcast_detail_description)
+            val showMoreView: TextView = view.findViewById(R.id.podcast_detail_show_more)
             val subscribeButton: Button = view.findViewById(R.id.subscribe_button)
             val episodesRecycler: RecyclerView = view.findViewById(R.id.episodes_recycler)
             val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
@@ -48,6 +49,24 @@ class PodcastDetailFragment : Fragment() {
 
             titleView.text = podcast.title
             descriptionView.text = podcast.description
+            
+            // Add "Show more" functionality for description
+            var isExpanded = false
+            descriptionView.post {
+                if (descriptionView.lineCount > 5) {
+                    showMoreView.visibility = View.VISIBLE
+                    showMoreView.setOnClickListener {
+                        isExpanded = !isExpanded
+                        if (isExpanded) {
+                            descriptionView.maxLines = Int.MAX_VALUE
+                            showMoreView.text = "Show less"
+                        } else {
+                            descriptionView.maxLines = 5
+                            showMoreView.text = "Show more"
+                        }
+                    }
+                }
+            }
 
             if (podcast.imageUrl.isNotEmpty()) {
                 Glide.with(this)
