@@ -183,6 +183,10 @@ class MainActivity : AppCompatActivity() {
         settingsContainer.visibility = View.GONE
         supportActionBar?.title = "All Stations"
         
+        // Hide subscribed podcasts section (only show in Favorites)
+        val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
+        favoritesPodcastsContainer.visibility = View.GONE
+        
         // Default to National category
         showCategoryStations(StationCategory.NATIONAL)
         setupFilterButtons()

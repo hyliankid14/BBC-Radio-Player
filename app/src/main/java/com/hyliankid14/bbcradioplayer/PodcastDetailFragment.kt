@@ -113,7 +113,7 @@ class PodcastDetailFragment : Fragment() {
             }
             episodesRecycler.adapter = adapter
 
-            var lastFirstVisible = 0
+            var lastFirstVisible = -1
             var isAnimating = false
             episodesRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -121,8 +121,11 @@ class PodcastDetailFragment : Fragment() {
                     val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
                     val firstVisible = layoutManager.findFirstVisibleItemPosition()
                     
+                    // Skip if position hasn't changed
+                    if (firstVisible == lastFirstVisible) return
+                    
                     // Only animate when crossing the boundary from/to 0 and not already animating
-                    if (!isAnimating && lastFirstVisible == 0 && firstVisible > 0) {
+                    if (!isAnimating && lastFirstVisible <= 0 && firstVisible > 0) {
                         isAnimating = true
                         headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
                             headerContainer.visibility = View.GONE

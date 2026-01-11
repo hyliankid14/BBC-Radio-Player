@@ -89,15 +89,18 @@ class PodcastsFragment : Fragment() {
         }
 
         // Hide filters on scroll with smooth animation
-        var lastFirstVisible = 0
+        var lastFirstVisible = -1
         var isAnimating = false
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
                 val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
                 val firstVisible = layoutManager.findFirstVisibleItemPosition()
                 
+                // Skip if position hasn't changed
+                if (firstVisible == lastFirstVisible) return
+                
                 // Only animate when crossing the boundary from/to 0 and not already animating
-                if (!isAnimating && lastFirstVisible == 0 && firstVisible > 0) {
+                if (!isAnimating && lastFirstVisible <= 0 && firstVisible > 0) {
                     isAnimating = true
                     filtersContainer.animate().alpha(0f).setDuration(200).withEndAction {
                         filtersContainer.visibility = View.GONE
