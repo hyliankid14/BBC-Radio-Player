@@ -75,13 +75,28 @@ class PodcastDetailFragment : Fragment() {
             }
 
             val toggleHeader: () -> Unit = {
+                // Animate layout changes so the subscribe button and episodes move smoothly
+                android.transition.TransitionManager.beginDelayedTransition(headerContainer as android.view.ViewGroup)
+
                 val expanding = descriptionView.maxLines == 3
                 if (expanding) {
+                    // Expand: allow description to grow beyond image height
+                    val lp = descriptionView.layoutParams as android.widget.LinearLayout.LayoutParams
+                    lp.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                    lp.weight = 0f
+                    descriptionView.layoutParams = lp
+
                     descriptionView.maxLines = Int.MAX_VALUE
                     showMoreView.visibility = View.GONE
                     descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
                     userExpanded = true
                 } else {
+                    // Collapse: constrain description to image height again
+                    val lp = descriptionView.layoutParams as android.widget.LinearLayout.LayoutParams
+                    lp.height = 0
+                    lp.weight = 1f
+                    descriptionView.layoutParams = lp
+
                     descriptionView.maxLines = 3
                     showMoreView.visibility = View.VISIBLE
                     descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
@@ -117,6 +132,8 @@ class PodcastDetailFragment : Fragment() {
 
             var isHeaderVisible = true
             var isAnimating = false
++            var cumulativeDy = 0
++            var lastDySign = 0
             episodesRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     super.onScrolled(recyclerView, dx, dy)
@@ -124,29 +141,51 @@ class PodcastDetailFragment : Fragment() {
                     val firstVisible = layoutManager.findFirstVisibleItemPosition()
                     val firstView = layoutManager.findViewByPosition(firstVisible)
                     val scrollOffset = firstView?.top ?: 0
-                    
-                    // Hide when scrolled down (position > 0 OR position == 0 but scrolled up)
-                    val shouldHide = firstVisible > 0 || (firstVisible == 0 && scrollOffset < 0)
-                    
-                    // Show only when at the very top (position 0 and not scrolled)
-                    val shouldShow = firstVisible == 0 && scrollOffset >= 0
-                    
-                    if (!isAnimating && isHeaderVisible && shouldHide) {
-                        isAnimating = true
-                        isHeaderVisible = false
-                        headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
-                            headerContainer.visibility = View.GONE
-                            isAnimating = false
-                        }.start()
-                    } else if (!isAnimating && !isHeaderVisible && shouldShow) {
-                        isAnimating = true
-                        isHeaderVisible = true
-                        headerContainer.visibility = View.VISIBLE
-                        headerContainer.animate().alpha(1f).setDuration(200).withEndAction {
-                            isAnimating = false
-                        }.start()
+
+                    // Immediate hide if scrolled past the first item
+                    if (firstVisible > 0) {
+                        if (!isAnimating && isHeaderVisible) {
+                            isAnimating = true
+                            isHeaderVisible = false
+                            headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
+                                headerContainer.visibility = View.GONE
+                                isAnimating = false
+                            }.start()
+                        }
+                    } else {
+                        // Use cumulative dy to avoid flicker on small scrolls
+                        val sign = when {
+                            dy > 0 -> 1
+                            dy < 0 -> -1
+                            else -> 0
+                        }
+                        if (sign == 0) return
+                        if (sign != lastDySign) {
+                            cumulativeDy = 0
+                            lastDySign = sign
+                        }
+                        cumulativeDy += dy
+
+                        val threshold = 30
+                        if (!isAnimating && isHeaderVisible && cumulativeDy > threshold) {
+                            isAnimating = true
+                            isHeaderVisible = false
+                            cumulativeDy = 0
+                            headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
+                                headerContainer.visibility = View.GONE
+                                isAnimating = false
+                            }.start()
+                        } else if (!isAnimating && !isHeaderVisible && cumulativeDy < -threshold) {
+                            isAnimating = true
+                            isHeaderVisible = true
+                            cumulativeDy = 0
+                            headerContainer.visibility = View.VISIBLE
+                            headerContainer.animate().alpha(1f).setDuration(200).withEndAction {
+                                isAnimating = false
+                            }.start()
+                        }
                     }
-                    
+
                     val isLongDescription = descriptionView.lineCount > 3
                     if (firstVisible > 0 && isLongDescription) {
                         descriptionView.maxLines = 3

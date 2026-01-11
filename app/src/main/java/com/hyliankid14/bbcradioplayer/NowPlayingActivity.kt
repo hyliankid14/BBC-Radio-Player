@@ -35,6 +35,10 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var progressGroup: android.view.View
     private lateinit var elapsedView: TextView
     private lateinit var remainingView: TextView
+
+    // When true the activity is showing a preview episode passed via intent and should not be
+    // overwritten by subsequent playback state updates until playback starts.
+    private var isPreviewMode = false
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
@@ -107,8 +111,17 @@ class NowPlayingActivity : AppCompatActivity() {
         // Register listener for show changes
         PlaybackStateHelper.onShowChange(showChangeListener)
         
-        // Initial update
-        updateUI()
+        // If we're opened in preview mode for an episode (no playback), show that episode's details
+        val previewEpisode: Episode? = intent.getParcelableExtra("preview_episode")
+        if (previewEpisode != null) {
+            isPreviewMode = true
+            val previewPodcastTitle = intent.getStringExtra("preview_podcast_title")
+            val previewPodcastImage = intent.getStringExtra("preview_podcast_image")
+            showPreviewEpisode(previewEpisode, previewPodcastTitle, previewPodcastImage)
+        }
+
+        // Initial update only when not in preview mode
+        if (!isPreviewMode) updateUI()
         
         // Start polling for playback state updates
         startPlaybackStateUpdates()
@@ -138,6 +151,8 @@ class NowPlayingActivity : AppCompatActivity() {
 
     private fun updateUI() {
         if (isFinishing || isDestroyed) return
+        // Don't overwrite preview UI when in preview mode
+        if (isPreviewMode) return
         
         val station = PlaybackStateHelper.getCurrentStation()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
@@ -348,6 +363,11 @@ class NowPlayingActivity : AppCompatActivity() {
     
     private fun updateFromShow(show: CurrentShow) {
         if (isFinishing || isDestroyed) return
+        // If we're in preview mode do not override the preview. If playback actually starts (station non-null)
+        // we'll clear preview mode and continue handling updates.
+        if (isPreviewMode && PlaybackStateHelper.getCurrentStation() == null) return
+        if (isPreviewMode) isPreviewMode = false
+
         val station = PlaybackStateHelper.getCurrentStation()
         val isPodcast = station?.id?.startsWith("podcast_") == true
         
