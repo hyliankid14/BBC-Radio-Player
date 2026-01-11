@@ -108,11 +108,11 @@ class PodcastDetailFragment : Fragment() {
             }
 
             episodesRecycler.layoutManager = LinearLayoutManager(requireContext())
-            val adapter = EpisodeAdapter(requireContext(), { episode ->
-                playEpisode(episode)
-            }, { episode ->
-                openEpisodePreview(episode)
-            })
+            val adapter = EpisodeAdapter(
+                requireContext(),
+                onPlayClick = { episode -> playEpisode(episode) },
+                onOpenFull = { episode -> openEpisodePreview(episode) }
+            )
             episodesRecycler.adapter = adapter
 
             var isHeaderVisible = true
