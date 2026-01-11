@@ -4,7 +4,15 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Headband -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M12,3C7.03,3 3,7.03 3,12v6h3v-6H5v-1c0,-3.87 3.13,-7 7,-7s7,3.13 7,7v1h-1v6h3v-6c0,-4.97 -4.03,-9 -9,-9z"/>
+        android:pathData="M12,3c-4.97,0 -9,4.03 -9,9v3h2v-3c0,-3.86 3.14,-7 7,-7s7,3.14 7,7v3h2v-3c0,-4.97 -4.03,-9 -9,-9z"/>
+    <!-- Rounded ear cups -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M6,16a3,3 0,1 1,0 6a3,3 0,1 1,0 -6z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M18,16a3,3 0,1 1,0 6a3,3 0,1 1,0 -6z"/>
 </vector>

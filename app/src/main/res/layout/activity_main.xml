@@ -44,6 +44,31 @@
                 android:clipToPadding="false"
                 android:scrollbars="vertical" />
 
+            <!-- Favorites: Subscribed Podcasts -->
+            <LinearLayout
+                android:id="@+id/favorites_podcasts_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:paddingTop="8dp">
+
+                <TextView
+                    android:id="@+id/favorites_podcasts_header"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Subscribed Podcasts"
+                    android:textStyle="bold"
+                    android:padding="12dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/favorites_podcasts_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="vertical" />
+
+            </LinearLayout>
+
         </LinearLayout>
 
         <!-- Settings View -->

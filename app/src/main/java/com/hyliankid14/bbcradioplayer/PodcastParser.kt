@@ -235,6 +235,69 @@ object RSSParser {
         }
     }
 
+    fun fetchLatestPubDateEpoch(url: String): Long? {
+        return try {
+            val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                instanceFollowRedirects = true
+                connectTimeout = 10000
+                readTimeout = 10000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+            }
+            val code = connection.responseCode
+            if (code != java.net.HttpURLConnection.HTTP_OK) {
+                connection.disconnect()
+                return null
+            }
+            val epoch = connection.inputStream.use { parseLatestPubDate(it) }
+            connection.disconnect()
+            epoch
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching latest pubDate from $url", e)
+            null
+        }
+    }
+
+    private fun parseLatestPubDate(inputStream: InputStream): Long? {
+        return try {
+            val parser = Xml.newPullParser()
+            parser.setInput(inputStream, null)
+            var eventType = parser.eventType
+            var inItem = false
+            var pubDate: String? = null
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        when (parser.name) {
+                            ITEM -> inItem = true
+                            PUB_DATE -> if (inItem && parser.next() == XmlPullParser.TEXT) {
+                                pubDate = parser.text
+                            }
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        if (parser.name == ITEM) {
+                            // We've reached end of first item; return
+                            return pubDate?.let { parseRfc2822Date(it) }
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing latest pubDate", e)
+            null
+        }
+    }
+
+    private fun parseRfc2822Date(s: String): Long? {
+        return try {
+            val fmt = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", java.util.Locale.US)
+            fmt.parse(s)?.time
+        } catch (_: Exception) { null }
+    }
+
     fun parseDuration(durationStr: String): Int {
         return try {
             when {

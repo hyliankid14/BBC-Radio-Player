@@ -187,6 +187,9 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
+        val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
+        val favoritesPodcastsHeader = findViewById<TextView>(R.id.favorites_podcasts_header)
+        val favoritesPodcastsRecycler = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
         val stations = FavoritesPreference.getFavorites(this).toMutableList()
         val adapter = FavoritesAdapter(this, stations, { stationId ->
             playStation(stationId)
@@ -220,6 +223,40 @@ class MainActivity : AppCompatActivity() {
         
         val itemTouchHelper = ItemTouchHelper(itemTouchHelperCallback)
         itemTouchHelper.attachToRecyclerView(stationsList)
+
+        // Load subscribed podcasts into Favorites section
+        val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
+        if (subscribedIds.isNotEmpty()) {
+            favoritesPodcastsContainer.visibility = View.VISIBLE
+            favoritesPodcastsHeader.visibility = View.VISIBLE
+            favoritesPodcastsRecycler.visibility = View.VISIBLE
+            favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
+
+            val repo = PodcastRepository(this)
+            Thread {
+                val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
+                val subscribed = all.filter { subscribedIds.contains(it.id) }
+                runOnUiThread {
+                    val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
+                        // Navigate to podcast detail
+                        fragmentContainer.visibility = View.VISIBLE
+                        staticContentContainer.visibility = View.GONE
+                        val detailFragment = PodcastDetailFragment().apply {
+                            arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) }
+                        }
+                        supportFragmentManager.beginTransaction().apply {
+                            replace(R.id.fragment_container, detailFragment)
+                            addToBackStack(null)
+                            commit()
+                        }
+                    })
+                    favoritesPodcastsRecycler.adapter = podcastAdapter
+                    podcastAdapter.updatePodcasts(subscribed)
+                }
+            }.start()
+        } else {
+            favoritesPodcastsContainer.visibility = View.GONE
+        }
     }
 
     private fun showSettings() {

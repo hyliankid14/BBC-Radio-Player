@@ -46,19 +46,17 @@ class PodcastsFragment : Fragment() {
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
         val genreSpinner: Spinner = view.findViewById(R.id.genre_filter_spinner)
-        val durationSpinner: Spinner = view.findViewById(R.id.duration_filter_spinner)
         val resetButton: android.widget.Button = view.findViewById(R.id.reset_filters_button)
         val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
         val emptyState: TextView = view.findViewById(R.id.empty_state_text)
-        val subscribedHeader: TextView = view.findViewById(R.id.subscribed_header)
-        val subscribedRecycler: RecyclerView = view.findViewById(R.id.subscribed_recycler)
+        val filtersContainer: View = view.findViewById(R.id.filters_container)
 
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 searchQuery = s?.toString() ?: ""
-                applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
+                applyFilters(loadingIndicator, emptyState, recyclerView)
             }
         })
 
@@ -80,60 +78,36 @@ class PodcastsFragment : Fragment() {
         })
         recyclerView.adapter = adapter
 
-        // Subscribed list
-        val subscribedAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
-            val detailFragment = PodcastDetailFragment().apply {
-                arguments = Bundle().apply {
-                    putParcelable("podcast", podcast)
-                }
-            }
-            parentFragmentManager.beginTransaction().apply {
-                replace(R.id.fragment_container, detailFragment)
-                addToBackStack(null)
-                commit()
-            }
-        }, onOpenPlayer = {
-            startActivity(android.content.Intent(requireContext(), NowPlayingActivity::class.java))
-        })
-        subscribedRecycler.layoutManager = LinearLayoutManager(requireContext())
-        subscribedRecycler.adapter = subscribedAdapter
+        // Subscribed podcasts are shown in Favorites section, not here
 
-        val durationOptions = listOf("All", "Short (<15 mins)", "Medium (15–45 mins)", "Long (>45 mins)")
-        val durationAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, durationOptions)
-        durationAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        durationSpinner.adapter = durationAdapter
-        durationSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                currentFilter = when (position) {
-                    1 -> currentFilter.copy(minDuration = 0, maxDuration = 15)
-                    2 -> currentFilter.copy(minDuration = 15, maxDuration = 45)
-                    3 -> currentFilter.copy(minDuration = 45, maxDuration = 300)
-                    else -> currentFilter.copy(minDuration = 0, maxDuration = 300)
-                }
-                applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
+        // Duration filter removed
 
         resetButton.setOnClickListener {
             searchQuery = ""
             searchEditText.text.clear()
             currentFilter = PodcastFilter()
             genreSpinner.setSelection(0)
-            durationSpinner.setSelection(0)
-            applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
+            applyFilters(loadingIndicator, emptyState, recyclerView)
         }
 
-        loadPodcasts(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler, genreSpinner)
+        // Hide filters on scroll
+        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                if (dy > 0) {
+                    filtersContainer.visibility = View.GONE
+                } else if (dy < 0) {
+                    filtersContainer.visibility = View.VISIBLE
+                }
+            }
+        })
+
+        loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner)
     }
 
     private fun loadPodcasts(
         loadingIndicator: ProgressBar,
         emptyState: TextView,
         recyclerView: RecyclerView,
-        subscribedHeader: TextView,
-        subscribedRecycler: RecyclerView,
         genreSpinner: Spinner
     ) {
         loadingIndicator.visibility = View.VISIBLE
@@ -167,13 +141,19 @@ class PodcastsFragment : Fragment() {
                         } else {
                             currentFilter.copy(genres = setOf(genres[position]))
                         }
-                        applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
+                        applyFilters(loadingIndicator, emptyState, recyclerView)
                     }
 
                     override fun onNothingSelected(parent: AdapterView<*>?) {}
                 }
 
-                applyFilters(loadingIndicator, emptyState, recyclerView, subscribedHeader, subscribedRecycler)
+                // Sort by most recent update when starting
+                val updates = withContext(Dispatchers.IO) { repository.fetchLatestUpdates(allPodcasts) }
+                val sorted = if (updates.isNotEmpty()) {
+                    allPodcasts.sortedByDescending { updates[it.id] ?: 0L }
+                } else allPodcasts
+                allPodcasts = sorted
+                applyFilters(loadingIndicator, emptyState, recyclerView)
                 loadingIndicator.visibility = View.GONE
             } catch (e: Exception) {
                 android.util.Log.e("PodcastsFragment", "Error loading podcasts", e)
@@ -187,29 +167,11 @@ class PodcastsFragment : Fragment() {
     private fun applyFilters(
         loadingIndicator: ProgressBar,
         emptyState: TextView,
-        recyclerView: RecyclerView,
-        subscribedHeader: TextView,
-        subscribedRecycler: RecyclerView
+        recyclerView: RecyclerView
     ) {
         val effectiveFilter = currentFilter.copy(searchQuery = searchQuery)
         val filtered = repository.filterPodcasts(allPodcasts, effectiveFilter)
         adapter.updatePodcasts(filtered)
-
-        val subscribedIds = PodcastSubscriptions.getSubscribedIds(requireContext())
-        val subscribedList = filtered.filter { it.id in subscribedIds }
-        val unsubscribedList = filtered.filter { it.id !in subscribedIds }
-        adapter.updatePodcasts(unsubscribedList)
-
-        val subscribedAdapter = (subscribedRecycler.adapter as PodcastAdapter)
-        if (subscribedList.isNotEmpty()) {
-            subscribedHeader.visibility = View.VISIBLE
-            subscribedRecycler.visibility = View.VISIBLE
-            subscribedAdapter.updatePodcasts(subscribedList)
-        } else {
-            subscribedHeader.visibility = View.GONE
-            subscribedRecycler.visibility = View.GONE
-            subscribedAdapter.updatePodcasts(emptyList())
-        }
 
         if (filtered.isEmpty()) {
             emptyState.visibility = View.VISIBLE

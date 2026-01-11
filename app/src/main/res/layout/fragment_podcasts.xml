@@ -4,86 +4,55 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- Search EditText -->
-    <EditText
-        android:id="@+id/search_podcast_edittext"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Search podcasts..."
-        android:inputType="text"
-        android:layout_margin="8dp"
-        android:textColor="@color/search_field_text"
-        android:textColorHint="@color/search_field_hint"
-        android:background="@drawable/search_field_bg" />
-
-    <!-- Genre Filter Spinner -->
+    <!-- Filters container (hides on scroll) -->
     <LinearLayout
+        android:id="@+id/filters_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:gravity="center_vertical">
+        android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Search EditText -->
+        <EditText
+            android:id="@+id/search_podcast_edittext"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Genre:" />
+            android:hint="Search podcasts..."
+            android:inputType="text"
+            android:layout_margin="8dp"
+            android:textColor="@color/search_field_text"
+            android:textColorHint="@color/search_field_hint"
+            android:background="@drawable/search_field_bg" />
 
-        <Spinner
-            android:id="@+id/genre_filter_spinner"
-            android:layout_width="0dp"
+        <!-- Genre Filter Spinner -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp" />
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Genre:" />
+
+            <Spinner
+                android:id="@+id/genre_filter_spinner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
+        <!-- Reset Button -->
+        <Button
+            android:id="@+id/reset_filters_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Reset Filters"
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginVertical="8dp" />
     </LinearLayout>
-
-    <!-- Duration Filter Spinner -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:gravity="center_vertical">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Duration:" />
-
-        <Spinner
-            android:id="@+id/duration_filter_spinner"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp" />
-    </LinearLayout>
-
-    <!-- Reset Button -->
-    <Button
-        android:id="@+id/reset_filters_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Reset Filters"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginVertical="8dp" />
-
-    <!-- Subscribed Header -->
-    <TextView
-        android:id="@+id/subscribed_header"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Subscribed"
-        android:padding="12dp"
-        android:visibility="gone"
-        android:textStyle="bold" />
-
-    <!-- Subscribed Podcasts RecyclerView -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/subscribed_recycler"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:scrollbars="vertical"
-        android:visibility="gone" />
 
     <!-- Podcasts RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView

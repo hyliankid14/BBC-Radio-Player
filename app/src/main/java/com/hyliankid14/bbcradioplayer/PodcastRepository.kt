@@ -12,6 +12,8 @@ import java.util.*
 class PodcastRepository(private val context: Context) {
     private val cacheFile = File(context.cacheDir, "podcasts_cache.json")
     private val cacheTTL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+    private val updatesCacheFile = File(context.cacheDir, "podcast_updates_cache.json")
+    private val updatesCacheTTL = 6 * 60 * 60 * 1000 // 6 hours
 
     suspend fun fetchPodcasts(forceRefresh: Boolean = false): List<Podcast> = withContext(Dispatchers.IO) {
         try {
@@ -47,6 +49,61 @@ class PodcastRepository(private val context: Context) {
             Log.e("PodcastRepository", "Error fetching episodes", e)
             emptyList()
         }
+    }
+
+    suspend fun fetchLatestUpdates(podcasts: List<Podcast>): Map<String, Long> = withContext(Dispatchers.IO) {
+        try {
+            // Try cache first
+            val cached = readUpdatesCache()
+            val now = System.currentTimeMillis()
+            val result = mutableMapOf<String, Long>()
+            podcasts.forEach { p ->
+                val cachedVal = cached[p.id]
+                if (cachedVal != null && (now - cachedVal.second) < updatesCacheTTL) {
+                    result[p.id] = cachedVal.first
+                } else {
+                    val latest = RSSParser.fetchLatestPubDateEpoch(p.rssUrl)
+                    if (latest != null) {
+                        result[p.id] = latest
+                        cached[p.id] = latest to now
+                    }
+                }
+            }
+            writeUpdatesCache(cached)
+            result
+        } catch (e: Exception) {
+            Log.e("PodcastRepository", "Error fetching latest updates", e)
+            emptyMap()
+        }
+    }
+
+    private fun readUpdatesCache(): MutableMap<String, Pair<Long, Long>> {
+        if (!updatesCacheFile.exists()) return mutableMapOf()
+        return try {
+            val obj = JSONObject(updatesCacheFile.readText())
+            val map = mutableMapOf<String, Pair<Long, Long>>()
+            val data = obj.optJSONObject("data") ?: JSONObject()
+            data.keys().forEach { key ->
+                val o = data.optJSONObject(key) ?: return@forEach
+                map[key] = (o.optLong("epoch", 0L)) to (o.optLong("ts", 0L))
+            }
+            map
+        } catch (_: Exception) { mutableMapOf() }
+    }
+
+    private fun writeUpdatesCache(data: Map<String, Pair<Long, Long>>) {
+        try {
+            val root = JSONObject()
+            val d = JSONObject()
+            data.forEach { (k,v) ->
+                val o = JSONObject()
+                o.put("epoch", v.first)
+                o.put("ts", v.second)
+                d.put(k, o)
+            }
+            root.put("data", d)
+            updatesCacheFile.writeText(root.toString())
+        } catch (_: Exception) {}
     }
 
     fun filterPodcasts(podcasts: List<Podcast>, filter: PodcastFilter): List<Podcast> {
