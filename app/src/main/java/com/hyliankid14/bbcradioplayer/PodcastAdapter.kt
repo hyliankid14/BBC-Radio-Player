@@ -153,6 +153,5 @@ class EpisodeAdapter(
             dateView.text = dateOnly
             durationView.text = "${episode.durationMins} min"
         }
-        }
     }
 }
