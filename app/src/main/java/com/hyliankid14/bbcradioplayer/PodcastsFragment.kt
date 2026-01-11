@@ -156,20 +156,6 @@ class PodcastsFragment : Fragment() {
 
                 genreSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(
-
-                // Setup sort spinner
-                val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
-                val sortAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, sortOptions)
-                sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                sortSpinner.adapter = sortAdapter
-                sortSpinner.setSelection(sortOptions.indexOf(currentSort).coerceAtLeast(0))
-                sortSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                        currentSort = sortOptions[position]
-                        applyFilters(loadingIndicator, emptyState, recyclerView)
-                    }
-                    override fun onNothingSelected(parent: AdapterView<*>?) {}
-                }
                         parent: AdapterView<*>?,
                         view: View?,
                         position: Int,
@@ -183,6 +169,20 @@ class PodcastsFragment : Fragment() {
                         applyFilters(loadingIndicator, emptyState, recyclerView)
                     }
 
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
+
+                // Setup sort spinner
+                val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
+                val sortAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, sortOptions)
+                sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                sortSpinner.adapter = sortAdapter
+                sortSpinner.setSelection(sortOptions.indexOf(currentSort).coerceAtLeast(0))
+                sortSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                        currentSort = sortOptions[position]
+                        applyFilters(loadingIndicator, emptyState, recyclerView)
+                    }
                     override fun onNothingSelected(parent: AdapterView<*>?) {}
                 }
 
