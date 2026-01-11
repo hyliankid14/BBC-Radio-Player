@@ -126,14 +126,15 @@ class PodcastsFragment : Fragment() {
             }
         })
 
-        loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner)
+        loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
     }
 
     private fun loadPodcasts(
         loadingIndicator: ProgressBar,
         emptyState: TextView,
         recyclerView: RecyclerView,
-        genreSpinner: Spinner
+        genreSpinner: Spinner,
+        sortSpinner: Spinner
     ) {
         loadingIndicator.visibility = View.VISIBLE
         emptyState.text = "Loading podcasts..."
