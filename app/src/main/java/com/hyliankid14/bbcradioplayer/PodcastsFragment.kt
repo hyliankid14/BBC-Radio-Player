@@ -219,7 +219,16 @@ class PodcastsFragment : Fragment() {
         // Apply sorting
         val sortedList = when (currentSort) {
             "Most popular" -> {
-                unsubscribed.sortedWith(compareBy({ getPopularRank(it) }, { it.title }))
+                // Sort by popular rank (1-20), then by most recent for the rest
+                unsubscribed.sortedWith(
+                    compareBy<Podcast> { podcast ->
+                        val rank = getPopularRank(podcast)
+                        rank
+                    }.thenByDescending { podcast ->
+                        // For podcasts not in top 20, sort by most recent
+                        if (getPopularRank(podcast) > 20) cachedUpdates[podcast.id] ?: 0L else 0L
+                    }
+                )
             }
             "Most recent" -> {
                 unsubscribed.sortedByDescending { cachedUpdates[it.id] ?: 0L }
@@ -261,32 +270,37 @@ class PodcastsFragment : Fragment() {
 
     private fun getPopularRank(podcast: Podcast): Int {
         val ranking = mapOf(
-            "global news podcast" to 1,
-            "6 minute english" to 2,
-            "the documentary podcast" to 3,
-            "newscast" to 4,
-            "in our time" to 5,
-            "newshour" to 6,
-            "desert island discs" to 7,
-            "learning english conversations" to 8,
-            "the archers" to 9,
-            "you're dead to me" to 10,
-            "football daily" to 11,
-            "americast" to 12,
-            "elis james and john robins" to 13,
-            "the infinite monkey cage" to 14,
-            "learning easy english" to 15,
-            "test match special" to 16,
-            "friday night comedy" to 17,
-            "rugby union weekly" to 18,
-            "world business report" to 19,
-            "woman's hour" to 20,
+            "Global News Podcast" to 1,
+            "6 Minute English" to 2,
+            "The Documentary Podcast" to 3,
+            "Newscast" to 4,
+            "In Our Time" to 5,
+            "Newshour" to 6,
+            "Desert Island Discs" to 7,
+            "Learning English Conversations" to 8,
+            "The Archers" to 9,
+            "You're Dead to Me" to 10,
+            "Football Daily" to 11,
+            "Americast" to 12,
+            "Elis James and John Robins" to 13,
+            "The Infinite Monkey Cage" to 14,
+            "Learning Easy English" to 15,
+            "Test Match Special" to 16,
+            "Friday Night Comedy from BBC Radio 4" to 17,
+            "Rugby Union Weekly" to 18,
+            "World Business Report" to 19,
+            "Woman's Hour" to 20,
         )
 
-        val title = podcast.title.lowercase(Locale.getDefault())
+        // Exact match (case-insensitive) for top 20 podcasts
+        val title = podcast.title
         for ((key, rank) in ranking) {
-            if (title.contains(key)) return rank
+            if (title.equals(key, ignoreCase = true)) {
+                return rank
+            }
         }
-        return Int.MAX_VALUE
+        
+        // Return rank > 20 for podcasts not in the top 20
+        return 21
     }
 }

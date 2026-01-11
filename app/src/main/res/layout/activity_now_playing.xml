@@ -60,25 +60,44 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Episode Description / Artist/Track Info -->
-    <TextView
-        android:id="@+id/now_playing_artist_track"
+    <!-- Episode Description / Artist/Track Info with Show More link -->
+    <FrameLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:gravity="center"
-        android:maxLines="4"
-        android:ellipsize="end"
-        android:scrollbars="vertical"
         android:layout_marginTop="8dp"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
-        android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/now_playing_episode_title"
         app:layout_constraintBottom_toTopOf="@id/podcast_progress_group"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/now_playing_artist_track"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:gravity="center"
+            android:maxLines="4"
+            android:ellipsize="end"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/now_playing_show_more"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Show more"
+            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            android:textColor="@color/md_theme_primary"
+            android:gravity="center"
+            android:visibility="gone"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground" />
+    </FrameLayout>
 
     <!-- Podcast progress time labels (only visible for podcasts) -->
     <LinearLayout

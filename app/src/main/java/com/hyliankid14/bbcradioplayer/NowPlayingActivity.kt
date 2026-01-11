@@ -25,6 +25,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var showName: TextView
     private lateinit var episodeTitle: TextView
     private lateinit var artistTrack: TextView
+    private lateinit var showMoreLink: TextView
     private lateinit var stopButton: MaterialButton
     private lateinit var previousButton: MaterialButton
     private lateinit var playPauseButton: MaterialButton
@@ -37,6 +38,7 @@ class NowPlayingActivity : AppCompatActivity() {
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
+    private var fullDescription: String = ""
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateFromShow(show) }
     }
@@ -58,6 +60,7 @@ class NowPlayingActivity : AppCompatActivity() {
         showName = findViewById(R.id.now_playing_show_name)
         episodeTitle = findViewById(R.id.now_playing_episode_title)
         artistTrack = findViewById(R.id.now_playing_artist_track)
+        showMoreLink = findViewById(R.id.now_playing_show_more)
         stopButton = findViewById(R.id.now_playing_stop)
         previousButton = findViewById(R.id.now_playing_previous)
         playPauseButton = findViewById(R.id.now_playing_play_pause)
@@ -74,6 +77,7 @@ class NowPlayingActivity : AppCompatActivity() {
         playPauseButton.setOnClickListener { togglePlayPause() }
         nextButton.setOnClickListener { skipToNext() }
         favoriteButton.setOnClickListener { toggleFavorite() }
+        showMoreLink.setOnClickListener { showFullDescription() }
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -95,13 +99,6 @@ class NowPlayingActivity : AppCompatActivity() {
         PlaybackStateHelper.onShowChange(showChangeListener)
         
         // Initial update
-        // Allow long descriptions to be scrolled
-        artistTrack.isVerticalScrollBarEnabled = true
-        artistTrack.movementMethod = ScrollingMovementMethod()
-        artistTrack.setOnTouchListener { v, _ ->
-            v.parent.requestDisallowInterceptTouchEvent(true)
-            false
-        }
         updateUI()
         
         // Start polling for playback state updates
@@ -158,14 +155,22 @@ class NowPlayingActivity : AppCompatActivity() {
                     androidx.core.text.HtmlCompat.fromHtml(it, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
                 }
                 if (!description.isNullOrEmpty()) {
+                    fullDescription = description
                     artistTrack.text = description
                     artistTrack.maxLines = 4
-                    artistTrack.ellipsize = null
-                    artistTrack.isVerticalScrollBarEnabled = true
-                    artistTrack.movementMethod = ScrollingMovementMethod()
+                    artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
                     artistTrack.visibility = android.view.View.VISIBLE
+                    // Check if description exceeds 4 lines
+                    artistTrack.post {
+                        if (artistTrack.lineCount > 4) {
+                            showMoreLink.visibility = android.view.View.VISIBLE
+                        } else {
+                            showMoreLink.visibility = android.view.View.GONE
+                        }
+                    }
                 } else {
                     artistTrack.visibility = android.view.View.GONE
+                    showMoreLink.visibility = android.view.View.GONE
                 }
             } else {
                 // Radio: show name plus artist/track metadata
@@ -302,14 +307,22 @@ class NowPlayingActivity : AppCompatActivity() {
                 androidx.core.text.HtmlCompat.fromHtml(it, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
             }
             if (!description.isNullOrEmpty()) {
+                fullDescription = description
                 artistTrack.text = description
                 artistTrack.maxLines = 4
-                artistTrack.ellipsize = null
-                artistTrack.isVerticalScrollBarEnabled = true
-                artistTrack.movementMethod = ScrollingMovementMethod()
+                artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
                 artistTrack.visibility = android.view.View.VISIBLE
+                // Check if description exceeds 4 lines
+                artistTrack.post {
+                    if (artistTrack.lineCount > 4) {
+                        showMoreLink.visibility = android.view.View.VISIBLE
+                    } else {
+                        showMoreLink.visibility = android.view.View.GONE
+                    }
+                }
             } else {
                 artistTrack.visibility = android.view.View.GONE
+                showMoreLink.visibility = android.view.View.GONE
             }
         } else {
             showName.visibility = android.view.View.VISIBLE
@@ -514,5 +527,10 @@ class NowPlayingActivity : AppCompatActivity() {
     private fun stopPlaybackStateUpdates() {
         updateTimer?.interrupt()
         updateTimer = null
+    }
+
+    private fun showFullDescription() {
+        val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescription)
+        dialog.show(supportFragmentManager, "episode_description")
     }
 }

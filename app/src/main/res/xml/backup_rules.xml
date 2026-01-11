@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Backup SharedPreferences -->
+    <include domain="sharedpref" path="favorites_prefs.xml" />
+    <include domain="sharedpref" path="podcast_subscriptions.xml" />
+    <include domain="sharedpref" path="playback_prefs.xml" />
+    <include domain="sharedpref" path="scrolling_prefs.xml" />
+</full-backup-content>
