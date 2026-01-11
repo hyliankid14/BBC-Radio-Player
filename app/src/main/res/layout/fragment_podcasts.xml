@@ -48,6 +48,27 @@
                 android:layout_marginStart="8dp" />
         </LinearLayout>
 
+        <!-- Sort Filter Spinner -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sort:" />
+
+            <Spinner
+                android:id="@+id/sort_spinner"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
         <!-- Reset Button -->
         <Button
             android:id="@+id/reset_filters_button"

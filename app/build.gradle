@@ -25,6 +25,20 @@ android {
         jvmTarget = '17'
     }
 }
+    // Force APK output filename for CI/GitHub builds
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def apkName = "bbc-radio-player.apk"
+            try {
+                outputFileName = apkName
+            } catch (Exception ignored) {
+                // fallback for older/newer AGP where property is different
+                if (output.respondsTo('setOutputFileName')) {
+                    output.setOutputFileName(apkName)
+                }
+            }
+        }
+    }
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.9.0'

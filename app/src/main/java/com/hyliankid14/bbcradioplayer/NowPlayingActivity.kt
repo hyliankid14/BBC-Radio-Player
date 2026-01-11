@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import android.text.method.ScrollingMovementMethod
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
@@ -94,6 +95,13 @@ class NowPlayingActivity : AppCompatActivity() {
         PlaybackStateHelper.onShowChange(showChangeListener)
         
         // Initial update
+        // Allow long descriptions to be scrolled
+        artistTrack.isVerticalScrollBarEnabled = true
+        artistTrack.movementMethod = ScrollingMovementMethod()
+        artistTrack.setOnTouchListener { v, _ ->
+            v.parent.requestDisallowInterceptTouchEvent(true)
+            false
+        }
         updateUI()
         
         // Start polling for playback state updates
@@ -151,8 +159,10 @@ class NowPlayingActivity : AppCompatActivity() {
                 }
                 if (!description.isNullOrEmpty()) {
                     artistTrack.text = description
-                    artistTrack.maxLines = 2
-                    artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
+                    artistTrack.maxLines = 4
+                    artistTrack.ellipsize = null
+                    artistTrack.isVerticalScrollBarEnabled = true
+                    artistTrack.movementMethod = ScrollingMovementMethod()
                     artistTrack.visibility = android.view.View.VISIBLE
                 } else {
                     artistTrack.visibility = android.view.View.GONE
@@ -293,8 +303,10 @@ class NowPlayingActivity : AppCompatActivity() {
             }
             if (!description.isNullOrEmpty()) {
                 artistTrack.text = description
-                artistTrack.maxLines = 2
-                artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
+                artistTrack.maxLines = 4
+                artistTrack.ellipsize = null
+                artistTrack.isVerticalScrollBarEnabled = true
+                artistTrack.movementMethod = ScrollingMovementMethod()
                 artistTrack.visibility = android.view.View.VISIBLE
             } else {
                 artistTrack.visibility = android.view.View.GONE

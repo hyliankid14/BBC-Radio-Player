@@ -21,12 +21,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class PodcastsFragment : Fragment() {
     private lateinit var repository: PodcastRepository
     private lateinit var adapter: PodcastAdapter
     private var allPodcasts: List<Podcast> = emptyList()
     private var currentFilter = PodcastFilter()
+    private var currentSort: String = "Most recent"
+    private var cachedUpdates: Map<String, Long> = emptyMap()
     private var searchQuery = ""
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
 
@@ -46,6 +49,7 @@ class PodcastsFragment : Fragment() {
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
         val genreSpinner: Spinner = view.findViewById(R.id.genre_filter_spinner)
+        val sortSpinner: Spinner = view.findViewById(R.id.sort_spinner)
         val resetButton: android.widget.Button = view.findViewById(R.id.reset_filters_button)
         val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
         val emptyState: TextView = view.findViewById(R.id.empty_state_text)
@@ -152,6 +156,20 @@ class PodcastsFragment : Fragment() {
 
                 genreSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(
+
+                // Setup sort spinner
+                val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
+                val sortAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, sortOptions)
+                sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                sortSpinner.adapter = sortAdapter
+                sortSpinner.setSelection(sortOptions.indexOf(currentSort).coerceAtLeast(0))
+                sortSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                        currentSort = sortOptions[position]
+                        applyFilters(loadingIndicator, emptyState, recyclerView)
+                    }
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
                         parent: AdapterView<*>?,
                         view: View?,
                         position: Int,
@@ -170,6 +188,7 @@ class PodcastsFragment : Fragment() {
 
                 // Sort by most recent update when starting
                 val updates = withContext(Dispatchers.IO) { repository.fetchLatestUpdates(allPodcasts) }
+                cachedUpdates = updates
                 val sorted = if (updates.isNotEmpty()) {
                     allPodcasts.sortedByDescending { updates[it.id] ?: 0L }
                 } else allPodcasts
@@ -196,7 +215,21 @@ class PodcastsFragment : Fragment() {
         // Filter out subscribed podcasts (shown in Favorites instead)
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(requireContext())
         val unsubscribed = filtered.filter { it.id !in subscribedIds }
-        adapter.updatePodcasts(unsubscribed)
+        // Apply sorting
+        val sortedList = when (currentSort) {
+            "Most popular" -> {
+                unsubscribed.sortedWith(compareBy({ getPopularRank(it) }, { it.title }))
+            }
+            "Most recent" -> {
+                unsubscribed.sortedByDescending { cachedUpdates[it.id] ?: 0L }
+            }
+            "Alphabetical (A-Z)" -> {
+                unsubscribed.sortedBy { it.title }
+            }
+            else -> unsubscribed
+        }
+
+        adapter.updatePodcasts(sortedList)
 
         if (unsubscribed.isEmpty()) {
             emptyState.visibility = View.VISIBLE
@@ -223,5 +256,36 @@ class PodcastsFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun getPopularRank(podcast: Podcast): Int {
+        val ranking = mapOf(
+            "global news podcast" to 1,
+            "6 minute english" to 2,
+            "the documentary podcast" to 3,
+            "newscast" to 4,
+            "in our time" to 5,
+            "newshour" to 6,
+            "desert island discs" to 7,
+            "learning english conversations" to 8,
+            "the archers" to 9,
+            "you're dead to me" to 10,
+            "football daily" to 11,
+            "americast" to 12,
+            "elis james and john robins" to 13,
+            "the infinite monkey cage" to 14,
+            "learning easy english" to 15,
+            "test match special" to 16,
+            "friday night comedy" to 17,
+            "rugby union weekly" to 18,
+            "world business report" to 19,
+            "woman's hour" to 20,
+        )
+
+        val title = podcast.title.lowercase(Locale.getDefault())
+        for ((key, rank) in ranking) {
+            if (title.contains(key)) return rank
+        }
+        return Int.MAX_VALUE
     }
 }
