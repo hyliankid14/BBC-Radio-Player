@@ -14,13 +14,13 @@
         android:contentDescription="Station artwork"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:layout_marginTop="48dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/now_playing_show_name"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintVertical_chainStyle="packed"
-        app:layout_constraintVertical_bias="0.3" />
+        app:layout_constraintVertical_bias="0.0" />
 
     <!-- Show Name -->
     <TextView
@@ -61,9 +61,10 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Episode Description / Artist/Track Info with Show More link -->
-    <FrameLayout
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:layout_marginTop="8dp"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
@@ -87,7 +88,6 @@
             android:id="@+id/now_playing_show_more"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
             android:text="Show more"
             android:textAppearance="@style/TextAppearance.Material3.BodySmall"
             android:textColor="@color/md_theme_primary"
@@ -97,7 +97,7 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackground" />
-    </FrameLayout>
+    </LinearLayout>
 
     <!-- Podcast progress time labels (only visible for podcasts) -->
     <LinearLayout
