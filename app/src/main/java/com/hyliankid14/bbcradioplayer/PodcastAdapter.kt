@@ -35,7 +35,7 @@ class PodcastAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PodcastViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.item_podcast, parent, false)
-        return PodcastViewHolder(view, onPodcastClick, onOpenPlayer)
+        return PodcastViewHolder(view, onPodcastClick)
     }
 
     override fun onBindViewHolder(holder: PodcastViewHolder, position: Int) {
@@ -46,8 +46,7 @@ class PodcastAdapter(
 
     class PodcastViewHolder(
         itemView: View,
-        private val onPodcastClick: (Podcast) -> Unit,
-        private val onOpenPlayer: (() -> Unit)?
+        private val onPodcastClick: (Podcast) -> Unit
     ) : RecyclerView.ViewHolder(itemView) {
         private lateinit var currentPodcast: Podcast
         private val imageView: ImageView = itemView.findViewById(R.id.podcast_image)
@@ -70,7 +69,7 @@ class PodcastAdapter(
             }
             imageView.setOnClickListener { 
                 android.util.Log.d("PodcastAdapter", "Tapped podcast image: ${currentPodcast.title}")
-                onOpenPlayer?.invoke() 
+                onPodcastClick(currentPodcast) 
             }
         }
 

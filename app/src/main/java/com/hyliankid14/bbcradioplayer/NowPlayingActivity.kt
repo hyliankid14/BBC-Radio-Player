@@ -416,7 +416,7 @@ class NowPlayingActivity : AppCompatActivity() {
             action = RadioService.ACTION_STOP
         }
         startService(intent)
-        updateUI()
+        finish()
     }
 
     private fun skipToPrevious() {

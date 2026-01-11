@@ -113,23 +113,21 @@ class PodcastDetailFragment : Fragment() {
             }
             episodesRecycler.adapter = adapter
 
-            var headerVisible = true
+            var lastFirstVisible = 0
             episodesRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     super.onScrolled(recyclerView, dx, dy)
                     val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
                     val firstVisible = layoutManager.findFirstVisibleItemPosition()
                     
-                    // Hide/show header on scroll
-                    if (firstVisible > 0 && headerVisible) {
+                    // Only animate when crossing the boundary from/to 0
+                    if (lastFirstVisible == 0 && firstVisible > 0) {
                         headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
                             headerContainer.visibility = View.GONE
                         }.start()
-                        headerVisible = false
-                    } else if (firstVisible == 0 && !headerVisible) {
+                    } else if (lastFirstVisible > 0 && firstVisible == 0) {
                         headerContainer.visibility = View.VISIBLE
                         headerContainer.animate().alpha(1f).setDuration(200).start()
-                        headerVisible = true
                     }
                     
                     val isLongDescription = descriptionView.lineCount > 5
@@ -142,6 +140,7 @@ class PodcastDetailFragment : Fragment() {
                         showMoreView.visibility = View.GONE
                         descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
                     }
+                    lastFirstVisible = firstVisible
                 }
             })
 
