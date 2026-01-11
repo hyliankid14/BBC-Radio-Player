@@ -84,13 +84,6 @@ class NowPlayingActivity : AppCompatActivity() {
         showMoreLink.setOnClickListener { showFullDescription() }
         artistTrack.setOnClickListener { showFullDescription() }
 
-        // If we're opened in preview mode for an episode (no playback), show that episode's details
-        val previewEpisode: Episode? = intent.getParcelableExtra("preview_episode")
-        if (previewEpisode != null) {
-            val previewPodcastTitle = intent.getStringExtra("preview_podcast_title")
-            val previewPodcastImage = intent.getStringExtra("preview_podcast_image")
-            showPreviewEpisode(previewEpisode, previewPodcastTitle, previewPodcastImage)
-        }
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {

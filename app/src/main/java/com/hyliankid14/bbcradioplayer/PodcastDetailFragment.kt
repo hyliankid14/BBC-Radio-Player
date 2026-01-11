@@ -132,8 +132,8 @@ class PodcastDetailFragment : Fragment() {
 
             var isHeaderVisible = true
             var isAnimating = false
-+            var cumulativeDy = 0
-+            var lastDySign = 0
+            var cumulativeDy = 0
+            var lastDySign = 0
             episodesRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     super.onScrolled(recyclerView, dx, dy)
