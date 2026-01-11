@@ -25,20 +25,32 @@ android {
         jvmTarget = '17'
     }
 }
-    // Force APK output filename for CI/GitHub builds
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def apkName = "bbc-radio-player.apk"
-            try {
-                outputFileName = apkName
-            } catch (Exception ignored) {
-                // fallback for older/newer AGP where property is different
-                if (output.respondsTo('setOutputFileName')) {
-                    output.setOutputFileName(apkName)
-                }
-            }
+
+// Task to rename APK to bbc-radio-player.apk after build
+task renameApkDebug {
+    doLast {
+        fileTree(dir: "$buildDir/outputs/apk/debug", include: '**/*.apk').each { apkFile ->
+            apkFile.renameTo(new File(apkFile.parent, 'bbc-radio-player.apk'))
         }
     }
+}
+
+task renameApkRelease {
+    doLast {
+        fileTree(dir: "$buildDir/outputs/apk/release", include: '**/*.apk').each { apkFile ->
+            apkFile.renameTo(new File(apkFile.parent, 'bbc-radio-player.apk'))
+        }
+    }
+}
+
+// Attach rename task to both assembleDebug and assembleRelease
+tasks.whenTaskAdded { task ->
+    if (task.name == 'assembleDebug') {
+        task.finalizedBy renameApkDebug
+    } else if (task.name == 'assembleRelease') {
+        task.finalizedBy renameApkRelease
+    }
+}
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.9.0'
