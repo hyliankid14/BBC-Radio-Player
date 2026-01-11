@@ -113,26 +113,32 @@ class PodcastDetailFragment : Fragment() {
             }
             episodesRecycler.adapter = adapter
 
-            var lastFirstVisible = -1
+            var isHeaderVisible = true
             var isAnimating = false
             episodesRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     super.onScrolled(recyclerView, dx, dy)
                     val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
                     val firstVisible = layoutManager.findFirstVisibleItemPosition()
+                    val firstView = layoutManager.findViewByPosition(firstVisible)
+                    val scrollOffset = firstView?.top ?: 0
                     
-                    // Skip if position hasn't changed
-                    if (firstVisible == lastFirstVisible) return
+                    // Hide when scrolled down (position > 0 OR position == 0 but scrolled up)
+                    val shouldHide = firstVisible > 0 || (firstVisible == 0 && scrollOffset < 0)
                     
-                    // Only animate when crossing the boundary from/to 0 and not already animating
-                    if (!isAnimating && lastFirstVisible <= 0 && firstVisible > 0) {
+                    // Show only when at the very top (position 0 and not scrolled)
+                    val shouldShow = firstVisible == 0 && scrollOffset >= 0
+                    
+                    if (!isAnimating && isHeaderVisible && shouldHide) {
                         isAnimating = true
+                        isHeaderVisible = false
                         headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
                             headerContainer.visibility = View.GONE
                             isAnimating = false
                         }.start()
-                    } else if (!isAnimating && lastFirstVisible > 0 && firstVisible == 0) {
+                    } else if (!isAnimating && !isHeaderVisible && shouldShow) {
                         isAnimating = true
+                        isHeaderVisible = true
                         headerContainer.visibility = View.VISIBLE
                         headerContainer.animate().alpha(1f).setDuration(200).withEndAction {
                             isAnimating = false

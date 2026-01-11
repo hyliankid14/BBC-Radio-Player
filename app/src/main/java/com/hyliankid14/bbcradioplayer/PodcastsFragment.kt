@@ -89,31 +89,36 @@ class PodcastsFragment : Fragment() {
         }
 
         // Hide filters on scroll with smooth animation
-        var lastFirstVisible = -1
+        var isFiltersVisible = true
         var isAnimating = false
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
                 val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
                 val firstVisible = layoutManager.findFirstVisibleItemPosition()
+                val firstView = layoutManager.findViewByPosition(firstVisible)
+                val scrollOffset = firstView?.top ?: 0
                 
-                // Skip if position hasn't changed
-                if (firstVisible == lastFirstVisible) return
+                // Hide when scrolled down (position > 0 OR position == 0 but scrolled up)
+                val shouldHide = firstVisible > 0 || (firstVisible == 0 && scrollOffset < 0)
                 
-                // Only animate when crossing the boundary from/to 0 and not already animating
-                if (!isAnimating && lastFirstVisible <= 0 && firstVisible > 0) {
+                // Show only when at the very top (position 0 and not scrolled)
+                val shouldShow = firstVisible == 0 && scrollOffset >= 0
+                
+                if (!isAnimating && isFiltersVisible && shouldHide) {
                     isAnimating = true
+                    isFiltersVisible = false
                     filtersContainer.animate().alpha(0f).setDuration(200).withEndAction {
                         filtersContainer.visibility = View.GONE
                         isAnimating = false
                     }.start()
-                } else if (!isAnimating && lastFirstVisible > 0 && firstVisible == 0) {
+                } else if (!isAnimating && !isFiltersVisible && shouldShow) {
                     isAnimating = true
+                    isFiltersVisible = true
                     filtersContainer.visibility = View.VISIBLE
                     filtersContainer.animate().alpha(1f).setDuration(200).withEndAction {
                         isAnimating = false
                     }.start()
                 }
-                lastFirstVisible = firstVisible
             }
         })
 

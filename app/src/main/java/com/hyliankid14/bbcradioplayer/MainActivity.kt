@@ -254,20 +254,25 @@ class MainActivity : AppCompatActivity() {
             favoritesPodcastsContainer.visibility = View.VISIBLE
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
             
+            val divider = findViewById<View>(R.id.favorites_podcasts_divider)
+            
             // Collapsed by default
             var isExpanded = false
             favoritesPodcastsRecycler.visibility = View.GONE
-            favoritesPodcastsExpandIcon.rotation = 270f // Down arrow
+            divider.visibility = View.GONE
+            favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
             
             // Toggle expand/collapse
             favoritesPodcastsHeaderContainer.setOnClickListener {
                 isExpanded = !isExpanded
                 if (isExpanded) {
                     favoritesPodcastsRecycler.visibility = View.VISIBLE
-                    favoritesPodcastsExpandIcon.rotation = 90f // Up arrow
+                    divider.visibility = View.VISIBLE
+                    favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_less)
                 } else {
                     favoritesPodcastsRecycler.visibility = View.GONE
-                    favoritesPodcastsExpandIcon.rotation = 270f // Down arrow
+                    divider.visibility = View.GONE
+                    favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
                 }
             }
 

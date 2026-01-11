@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
 
-    <!-- Filters container (hides on scroll) -->
     <LinearLayout
-        android:id="@+id/filters_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical">
+
+        <!-- Filters container (hides on scroll) -->
+        <LinearLayout
+            android:id="@+id/filters_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
         <!-- Search EditText -->
         <EditText
@@ -62,7 +66,9 @@
         android:layout_weight="1"
         android:scrollbars="vertical" />
 
-    <!-- Loading Indicator -->
+    </LinearLayout>
+
+    <!-- Loading Indicator (overlays center) -->
     <ProgressBar
         android:id="@+id/loading_progress"
         android:layout_width="wrap_content"
@@ -70,7 +76,7 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
-    <!-- Empty State -->
+    <!-- Empty State (overlays center) -->
     <TextView
         android:id="@+id/empty_state_text"
         android:layout_width="match_parent"
@@ -78,4 +84,5 @@
         android:text="No podcasts found"
         android:gravity="center"
         android:visibility="gone" />
-</LinearLayout>
+
+</FrameLayout>
