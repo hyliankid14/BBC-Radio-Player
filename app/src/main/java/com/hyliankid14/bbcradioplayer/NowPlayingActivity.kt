@@ -206,44 +206,43 @@ class NowPlayingActivity : AppCompatActivity() {
             favoriteButton.icon = ContextCompat.getDrawable(this, if (isFavorited) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
             favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
             favoriteButton.setBackgroundColor(if (isFavorited) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
-        }
-
-        private fun updateProgressUi() {
-            val station = PlaybackStateHelper.getCurrentStation()
-            val isPodcast = station?.id?.startsWith("podcast_") == true
-            val showProgress = PlaybackStateHelper.getCurrentShow()
-            val pos = showProgress.segmentStartMs ?: 0L
-            val dur = showProgress.segmentDurationMs ?: 0L
-
-            if (isPodcast && dur > 0) {
-                progressGroup.visibility = android.view.View.VISIBLE
-                val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
-                seekBar.progress = (ratio * seekBar.max).toInt()
-                elapsedView.text = formatTime(pos)
-                remainingView.text = "-${formatTime((dur - pos).coerceAtLeast(0))}"
-                seekBar.isEnabled = true
-            } else {
-                progressGroup.visibility = android.view.View.GONE
-            }
-        }
-
-        private fun sendSeekTo(positionMs: Long) {
-            val intent = Intent(this, RadioService::class.java).apply {
-                action = RadioService.ACTION_SEEK_TO
-                putExtra(RadioService.EXTRA_SEEK_POSITION, positionMs)
-            }
-            startService(intent)
-        }
-
-        private fun formatTime(ms: Long): String {
-            val totalSeconds = ms / 1000
-            val minutes = totalSeconds / 60
-            val seconds = totalSeconds % 60
-            return String.format("%d:%02d", minutes, seconds)
-        }
-        else {
+        } else {
             progressGroup.visibility = android.view.View.GONE
         }
+    }
+
+    private fun updateProgressUi() {
+        val station = PlaybackStateHelper.getCurrentStation()
+        val isPodcast = station?.id?.startsWith("podcast_") == true
+        val showProgress = PlaybackStateHelper.getCurrentShow()
+        val pos = showProgress.segmentStartMs ?: 0L
+        val dur = showProgress.segmentDurationMs ?: 0L
+
+        if (isPodcast && dur > 0) {
+            progressGroup.visibility = android.view.View.VISIBLE
+            val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
+            seekBar.progress = (ratio * seekBar.max).toInt()
+            elapsedView.text = formatTime(pos)
+            remainingView.text = "-${formatTime((dur - pos).coerceAtLeast(0))}"
+            seekBar.isEnabled = true
+        } else {
+            progressGroup.visibility = android.view.View.GONE
+        }
+    }
+
+    private fun sendSeekTo(positionMs: Long) {
+        val intent = Intent(this, RadioService::class.java).apply {
+            action = RadioService.ACTION_SEEK_TO
+            putExtra(RadioService.EXTRA_SEEK_POSITION, positionMs)
+        }
+        startService(intent)
+    }
+
+    private fun formatTime(ms: Long): String {
+        val totalSeconds = ms / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%d:%02d", minutes, seconds)
     }
     
     private fun updateFromShow(show: CurrentShow) {
