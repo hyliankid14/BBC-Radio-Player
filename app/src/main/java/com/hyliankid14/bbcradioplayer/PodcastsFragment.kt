@@ -190,4 +190,17 @@ class PodcastsFragment : Fragment() {
         super.onDestroy()
         fragmentScope.coroutineContext[Job]?.cancel()
     }
+
+    override fun onResume() {
+        super.onResume()
+        if (allPodcasts.isNotEmpty()) {
+            view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loading ->
+                view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
+                    view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { rv ->
+                        applyFilters(loading, empty, rv)
+                    }
+                }
+            }
+        }
+    }
 }

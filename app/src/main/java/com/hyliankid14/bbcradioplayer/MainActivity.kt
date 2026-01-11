@@ -59,6 +59,9 @@ class MainActivity : AppCompatActivity() {
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateMiniPlayerFromShow(show) }
     }
+    private val backStackListener = FragmentManager.OnBackStackChangedListener {
+        updateActionBarTitle()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply theme before creating the view
@@ -67,6 +70,8 @@ class MainActivity : AppCompatActivity() {
         
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        supportFragmentManager.addOnBackStackChangedListener(backStackListener)
 
         // Set action bar color to match status bar (purple)
         supportActionBar?.setBackgroundDrawable(
@@ -146,6 +151,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             bottomNavigation.selectedItemId = R.id.navigation_list
         }
+
+        updateActionBarTitle()
         
         // Start polling for playback state updates
         startPlaybackStateUpdates()
@@ -174,6 +181,7 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.VISIBLE
         settingsContainer.visibility = View.GONE
+        supportActionBar?.title = "All Stations"
         
         // Default to National category
         showCategoryStations(StationCategory.NATIONAL)
@@ -188,6 +196,7 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
+        supportActionBar?.title = "Favorites"
         
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
         val favoritesPodcastsHeaderContainer = findViewById<View>(R.id.favorites_podcasts_header_container)
@@ -293,12 +302,14 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.GONE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.VISIBLE
+        supportActionBar?.title = "Settings"
     }
 
     private fun showPodcasts() {
         currentMode = "podcasts"
         fragmentContainer.visibility = View.VISIBLE
         staticContentContainer.visibility = View.GONE
+        supportActionBar?.title = "Podcasts"
         
         // Create and show podcasts fragment
         val podcastsFragment = PodcastsFragment()
@@ -306,6 +317,16 @@ class MainActivity : AppCompatActivity() {
             replace(R.id.fragment_container, podcastsFragment)
             commit()
         }
+    }
+
+    private fun updateActionBarTitle() {
+        val title = when (currentMode) {
+            "favorites" -> "Favorites"
+            "settings" -> "Settings"
+            "podcasts" -> "Podcasts"
+            else -> "All Stations"
+        }
+        supportActionBar?.title = title
     }
 
     private fun setupFilterButtons() {
@@ -873,6 +894,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         PlaybackStateHelper.removeShowChangeListener(showChangeListener)
+        supportFragmentManager.removeOnBackStackChangedListener(backStackListener)
     }
     
     private fun areColorsSimilar(c1: Int, c2: Int): Boolean {

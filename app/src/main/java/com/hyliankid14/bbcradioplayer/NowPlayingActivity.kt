@@ -135,8 +135,8 @@ class NowPlayingActivity : AppCompatActivity() {
             supportActionBar?.title = station.title
             
             if (isPodcast) {
-                // Podcasts: podcast title, then episode title + description snippet
-                showName.text = station.title.ifEmpty { show.title.ifEmpty { "BBC Radio" } }
+                // Podcasts: action bar already shows podcast name; hide duplicate header
+                showName.visibility = android.view.View.GONE
 
                 val episodeHeading = show.episodeTitle?.takeIf { it.isNotEmpty() } ?: show.title
                 if (!episodeHeading.isNullOrEmpty()) {
@@ -146,7 +146,9 @@ class NowPlayingActivity : AppCompatActivity() {
                     episodeTitle.visibility = android.view.View.GONE
                 }
 
-                val description = show.description?.trim()
+                val description = show.description?.let {
+                    androidx.core.text.HtmlCompat.fromHtml(it, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
+                }
                 if (!description.isNullOrEmpty()) {
                     artistTrack.text = description
                     artistTrack.maxLines = 2
@@ -157,6 +159,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 }
             } else {
                 // Radio: show name plus artist/track metadata
+                showName.visibility = android.view.View.VISIBLE
                 showName.text = show.title.ifEmpty { "BBC Radio" }
                 
                 if (!show.episodeTitle.isNullOrEmpty()) {
@@ -272,7 +275,7 @@ class NowPlayingActivity : AppCompatActivity() {
         val isPodcast = station?.id?.startsWith("podcast_") == true
         
         if (isPodcast) {
-            showName.text = station?.title ?: show.title.ifEmpty { "BBC Radio" }
+            showName.visibility = android.view.View.GONE
 
             val episodeHeading = show.episodeTitle?.takeIf { it.isNotEmpty() } ?: show.title
             if (!episodeHeading.isNullOrEmpty()) {
@@ -282,7 +285,9 @@ class NowPlayingActivity : AppCompatActivity() {
                 episodeTitle.visibility = android.view.View.GONE
             }
 
-            val description = show.description?.trim()
+            val description = show.description?.let {
+                androidx.core.text.HtmlCompat.fromHtml(it, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
+            }
             if (!description.isNullOrEmpty()) {
                 artistTrack.text = description
                 artistTrack.maxLines = 2
@@ -292,6 +297,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 artistTrack.visibility = android.view.View.GONE
             }
         } else {
+            showName.visibility = android.view.View.VISIBLE
             // Update show name
             showName.text = show.title.ifEmpty { "BBC Radio" }
             

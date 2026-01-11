@@ -56,7 +56,7 @@ class PodcastDetailFragment : Fragment() {
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
 
             (activity as? AppCompatActivity)?.supportActionBar?.apply {
-                title = podcast.title
+                title = "Podcasts"
                 setDisplayHomeAsUpEnabled(true)
                 setDisplayShowHomeEnabled(true)
                 setHomeAsUpIndicator(R.drawable.ic_arrow_back)
@@ -170,6 +170,7 @@ class PodcastDetailFragment : Fragment() {
         (activity as? AppCompatActivity)?.supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)
+            title = "Podcasts"
         }
     }
 
