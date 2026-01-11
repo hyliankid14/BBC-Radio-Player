@@ -23,6 +23,7 @@ import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.MediaItem as ExoMediaItem
 import com.google.android.exoplayer2.MediaMetadata
+import com.hyliankid14.bbcradioplayer.PodcastSubscriptions
 import com.google.android.exoplayer2.audio.AudioAttributes as ExoAudioAttributes
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
@@ -42,6 +43,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private var audioFocusRequest: AudioFocusRequest? = null
     private var currentStationTitle: String = ""
     private var currentStationId: String = ""
+    private var currentPodcastId: String? = null
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var currentStationLogo: String = ""
     private var currentShowName: String = "" // Actual show name (not artist-track)
@@ -72,11 +74,15 @@ class RadioService : MediaBrowserServiceCompat() {
         const val ACTION_SKIP_TO_PREVIOUS = "com.hyliankid14.bbcradioplayer.ACTION_SKIP_TO_PREVIOUS"
         const val ACTION_TOGGLE_FAVORITE = "com.hyliankid14.bbcradioplayer.ACTION_TOGGLE_FAVORITE"
         const val ACTION_PLAY_PODCAST_EPISODE = "com.hyliankid14.bbcradioplayer.ACTION_PLAY_PODCAST_EPISODE"
+        const val ACTION_SEEK_TO = "com.hyliankid14.bbcradioplayer.ACTION_SEEK_TO"
+        const val ACTION_SEEK_DELTA = "com.hyliankid14.bbcradioplayer.ACTION_SEEK_DELTA"
         const val EXTRA_STATION_ID = "com.hyliankid14.bbcradioplayer.EXTRA_STATION_ID"
         const val EXTRA_EPISODE = "com.hyliankid14.bbcradioplayer.EXTRA_EPISODE"
         const val EXTRA_PODCAST_ID = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_ID"
         const val EXTRA_PODCAST_TITLE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_TITLE"
         const val EXTRA_PODCAST_IMAGE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_IMAGE"
+        const val EXTRA_SEEK_POSITION = "com.hyliankid14.bbcradioplayer.EXTRA_SEEK_POSITION"
+        const val EXTRA_SEEK_DELTA = "com.hyliankid14.bbcradioplayer.EXTRA_SEEK_DELTA"
         private const val TAG = "RadioService"
         private const val CHANNEL_ID = "radio_playback"
         private const val NOTIFICATION_ID = 1
@@ -187,19 +193,26 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     private fun updatePlaybackState(state: Int) {
-        val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
-        val favoriteLabel = if (isFavorite) {
-            "Remove from Favorites"
+        val isPodcast = currentStationId.startsWith("podcast_")
+        val podcastId = currentPodcastId
+        val isFavorite = if (isPodcast && podcastId != null) {
+            PodcastSubscriptions.isSubscribed(this, podcastId)
         } else {
-            "Add to Favorites"
+            currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
         }
-        
+        val favoriteLabel = when {
+            isPodcast && isFavorite -> "Unsubscribe"
+            isPodcast -> "Subscribe"
+            isFavorite -> "Remove from Favorites"
+            else -> "Add to Favorites"
+        }
+
         val favoriteIcon = if (isFavorite) {
             R.drawable.ic_star_filled_yellow
         } else {
             R.drawable.ic_star_outline
         }
-        
+
         val pbState = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
@@ -706,6 +719,7 @@ class RadioService : MediaBrowserServiceCompat() {
         
         currentStationTitle = station.title
         currentStationId = station.id
+        currentPodcastId = null
         currentStationLogo = station.logoUrl
         currentShowInfo = CurrentShow("") // Reset to empty to avoid "BBC Radio" flash
         currentShowName = ""
@@ -956,6 +970,7 @@ class RadioService : MediaBrowserServiceCompat() {
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(null)
         PlaybackStateHelper.setIsPlaying(false)
+        currentPodcastId = null
         
         Log.d(TAG, "Playback stopped")
     }
@@ -987,16 +1002,32 @@ class RadioService : MediaBrowserServiceCompat() {
                     stopPlayback()
                 }
                 ACTION_SKIP_TO_NEXT -> {
-                    skipStation(1)
+                    if (currentStationId.startsWith("podcast_")) {
+                        seekBy(30_000L)
+                    } else {
+                        skipStation(1)
+                    }
                 }
                 ACTION_SKIP_TO_PREVIOUS -> {
-                    skipStation(-1)
+                    if (currentStationId.startsWith("podcast_")) {
+                        seekBy(-10_000L)
+                    } else {
+                        skipStation(-1)
+                    }
                 }
                 ACTION_TOGGLE_FAVORITE -> {
                     if (currentStationId.isNotEmpty()) {
                         toggleFavoriteAndNotify(currentStationId)
                     }
                     Unit
+                }
+                ACTION_SEEK_TO -> {
+                    val pos = it.getLongExtra(EXTRA_SEEK_POSITION, 0L)
+                    seekToPosition(pos)
+                }
+                ACTION_SEEK_DELTA -> {
+                    val delta = it.getLongExtra(EXTRA_SEEK_DELTA, 0L)
+                    seekBy(delta)
                 }
                 else -> {
                     Log.w(TAG, "Unknown action: ${it.action}")
@@ -1020,6 +1051,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
             // Update playback helper & state
             currentStationId = syntheticStation.id
+            currentPodcastId = episode.podcastId
             PlaybackStateHelper.setCurrentStation(syntheticStation)
             PlaybackStateHelper.setIsPlaying(true)
 
@@ -1071,18 +1103,34 @@ class RadioService : MediaBrowserServiceCompat() {
             Log.e(TAG, "Error playing podcast episode", e)
         }
     }
+
+    private fun seekToPosition(positionMs: Long) {
+        if (!currentStationId.startsWith("podcast_")) return
+        val duration = player?.duration ?: return
+        val clamped = positionMs.coerceIn(0L, if (duration > 0) duration else Long.MAX_VALUE)
+        player?.seekTo(clamped)
+    }
+
+    private fun seekBy(deltaMs: Long) {
+        if (!currentStationId.startsWith("podcast_")) return
+        val current = player?.currentPosition ?: return
+        val duration = player?.duration ?: return
+        val target = (current + deltaMs).coerceIn(0L, if (duration > 0) duration else Long.MAX_VALUE)
+        player?.seekTo(target)
+    }
     
     private fun toggleFavoriteAndNotify(stationId: String) {
         Log.d(TAG, "toggleFavoriteAndNotify - stationId: $stationId")
-        FavoritesPreference.toggleFavorite(this, stationId)
+        if (stationId.startsWith("podcast_")) {
+            val podcastId = stationId.removePrefix("podcast_")
+            PodcastSubscriptions.toggleSubscription(this, podcastId)
+        } else {
+            FavoritesPreference.toggleFavorite(this, stationId)
+            notifyChildrenChanged(MEDIA_ID_FAVORITES)
+            notifyChildrenChanged(MEDIA_ID_ALL_STATIONS)
+        }
         
-        // Notify the media browser clients that favorites have changed
-        notifyChildrenChanged(MEDIA_ID_FAVORITES)
-        
-        // Also notify all stations list to update star icons immediately
-        notifyChildrenChanged(MEDIA_ID_ALL_STATIONS)
-        
-        // Update playback state to reflect new favorite status
+        // Update playback state to reflect new favorite/subscription status
         updatePlaybackState(mediaSession.controller.playbackState?.state ?: PlaybackStateCompat.STATE_PLAYING)
     }
     

@@ -9,6 +9,8 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -38,6 +40,7 @@ class PodcastDetailFragment : Fragment() {
 
         currentPodcast = arguments?.getParcelable("podcast")
         currentPodcast?.let { podcast ->
+            val toolbar: com.google.android.material.appbar.MaterialToolbar = view.findViewById(R.id.podcast_detail_toolbar)
             val imageView: ImageView = view.findViewById(R.id.podcast_detail_image)
             val titleView: TextView = view.findViewById(R.id.podcast_detail_title)
             val descriptionView: TextView = view.findViewById(R.id.podcast_detail_description)
@@ -47,26 +50,40 @@ class PodcastDetailFragment : Fragment() {
             val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
 
+            (activity as? AppCompatActivity)?.setSupportActionBar(toolbar)
+            toolbar.title = podcast.title
+            toolbar.setNavigationOnClickListener {
+                requireActivity().onBackPressedDispatcher.onBackPressed()
+            }
+
             titleView.text = podcast.title
-            descriptionView.text = podcast.description
+            descriptionView.text = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY)
             
             // Add "Show more" functionality for description
-            var isExpanded = false
+            var userExpanded = false
             descriptionView.post {
                 if (descriptionView.lineCount > 5) {
                     showMoreView.visibility = View.VISIBLE
-                    showMoreView.setOnClickListener {
-                        isExpanded = !isExpanded
-                        if (isExpanded) {
-                            descriptionView.maxLines = Int.MAX_VALUE
-                            showMoreView.text = "Show less"
-                        } else {
-                            descriptionView.maxLines = 5
-                            showMoreView.text = "Show more"
-                        }
-                    }
                 }
             }
+
+            val toggleHeader: () -> Unit = {
+                val expanding = descriptionView.maxLines == 5
+                if (expanding) {
+                    descriptionView.maxLines = Int.MAX_VALUE
+                    showMoreView.visibility = View.GONE
+                    descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+                    userExpanded = true
+                } else {
+                    descriptionView.maxLines = 5
+                    showMoreView.visibility = View.VISIBLE
+                    descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
+                    userExpanded = false
+                }
+            }
+
+            descriptionView.setOnClickListener { toggleHeader() }
+            showMoreView.setOnClickListener { toggleHeader() }
 
             if (podcast.imageUrl.isNotEmpty()) {
                 Glide.with(this)
@@ -88,6 +105,24 @@ class PodcastDetailFragment : Fragment() {
                 playEpisode(episode)
             }
             episodesRecycler.adapter = adapter
+
+            episodesRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    super.onScrolled(recyclerView, dx, dy)
+                    val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                    val firstVisible = layoutManager.findFirstVisibleItemPosition()
+                    val isLongDescription = descriptionView.lineCount > 5
+                    if (firstVisible > 0 && isLongDescription) {
+                        descriptionView.maxLines = 5
+                        showMoreView.visibility = View.VISIBLE
+                        descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
+                    } else if (firstVisible == 0 && userExpanded && isLongDescription) {
+                        descriptionView.maxLines = Int.MAX_VALUE
+                        showMoreView.visibility = View.GONE
+                        descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+                    }
+                }
+            })
 
             loadingIndicator.visibility = View.VISIBLE
             fragmentScope.launch {

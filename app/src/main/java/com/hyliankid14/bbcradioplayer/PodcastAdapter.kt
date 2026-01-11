@@ -4,10 +4,17 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.google.android.material.button.MaterialButton
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import androidx.core.text.HtmlCompat
 
 class PodcastAdapter(
     private val context: Context,
@@ -114,10 +121,31 @@ class EpisodeAdapter(
         private val showMoreView: TextView = itemView.findViewById(R.id.episode_show_more)
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
+        private val playButton: MaterialButton = itemView.findViewById(R.id.episode_play_icon)
         private var isExpanded = false
 
         init {
-            itemView.setOnClickListener { onEpisodeClick(currentEpisode) }
+            val playAction: (View) -> Unit = {
+                // Subtle scale animation to give tap feedback
+                playButton.animate()
+                    .scaleX(0.92f)
+                    .scaleY(0.92f)
+                    .setDuration(80)
+                    .withEndAction {
+                        playButton.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(80)
+                            .setInterpolator(AccelerateDecelerateInterpolator())
+                            .start()
+                    }
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .start()
+                onEpisodeClick(currentEpisode)
+            }
+
+            itemView.setOnClickListener(playAction)
+            playButton.setOnClickListener(playAction)
             
             showMoreView.setOnClickListener {
                 isExpanded = !isExpanded
@@ -134,9 +162,13 @@ class EpisodeAdapter(
         fun bind(episode: Episode) {
             currentEpisode = episode
             titleView.text = episode.title
+            isExpanded = false
+            descriptionView.maxLines = 2
+            showMoreView.text = "Show more"
+            showMoreView.visibility = View.GONE
             
             // Show "Show more" if description is long enough to need it
-            val fullDesc = episode.description
+            val fullDesc = sanitizeDescription(episode.description)
             descriptionView.text = fullDesc
             descriptionView.post {
                 if (descriptionView.lineCount > 2 && !isExpanded) {
@@ -147,11 +179,31 @@ class EpisodeAdapter(
             }
             
             // Remove timestamp from date - just show date portion
-            val dateOnly = episode.pubDate.substringBefore(",").trim().let {
-                if (it.isEmpty()) episode.pubDate.split(" ").take(3).joinToString(" ") else it
-            }
-            dateView.text = dateOnly
+            dateView.text = formatEpisodeDate(episode.pubDate)
             durationView.text = "${episode.durationMins} min"
+        }
+
+        private fun sanitizeDescription(raw: String): String {
+            val spanned = HtmlCompat.fromHtml(raw, HtmlCompat.FROM_HTML_MODE_LEGACY)
+            return spanned.toString().trim()
+        }
+
+        private fun formatEpisodeDate(raw: String): String {
+            val patterns = listOf(
+                "EEE, dd MMM yyyy HH:mm:ss Z",
+                "dd MMM yyyy HH:mm:ss Z",
+                "EEE, dd MMM yyyy"
+            )
+            val parsed: Date? = patterns.firstNotNullOfOrNull { pattern ->
+                try {
+                    SimpleDateFormat(pattern, Locale.US).parse(raw)
+                } catch (e: ParseException) {
+                    null
+                }
+            }
+            return parsed?.let {
+                SimpleDateFormat("EEE, dd MMM yyyy", Locale.US).format(it)
+            } ?: raw.substringBefore(":").trim()
         }
     }
 }

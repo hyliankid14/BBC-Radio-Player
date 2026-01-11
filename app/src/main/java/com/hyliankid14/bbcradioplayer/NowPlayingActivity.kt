@@ -6,6 +6,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.widget.ImageView
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -16,6 +17,7 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.google.android.material.button.MaterialButton
 import android.content.res.ColorStateList
+import com.hyliankid14.bbcradioplayer.PodcastSubscriptions
 
 class NowPlayingActivity : AppCompatActivity() {
     private lateinit var stationArtwork: ImageView
@@ -27,7 +29,10 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var playPauseButton: MaterialButton
     private lateinit var nextButton: MaterialButton
     private lateinit var favoriteButton: MaterialButton
-    private lateinit var playbackProgress: android.widget.ProgressBar
+    private lateinit var seekBar: SeekBar
+    private lateinit var progressGroup: android.view.View
+    private lateinit var elapsedView: TextView
+    private lateinit var remainingView: TextView
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
@@ -57,7 +62,10 @@ class NowPlayingActivity : AppCompatActivity() {
         playPauseButton = findViewById(R.id.now_playing_play_pause)
         nextButton = findViewById(R.id.now_playing_next)
         favoriteButton = findViewById(R.id.now_playing_favorite)
-        playbackProgress = findViewById(R.id.playback_progress)
+        progressGroup = findViewById(R.id.podcast_progress_group)
+        seekBar = findViewById(R.id.playback_seekbar)
+        elapsedView = findViewById(R.id.playback_elapsed)
+        remainingView = findViewById(R.id.playback_remaining)
 
         // Setup control button listeners
         stopButton.setOnClickListener { stopPlayback() }
@@ -65,6 +73,22 @@ class NowPlayingActivity : AppCompatActivity() {
         playPauseButton.setOnClickListener { togglePlayPause() }
         nextButton.setOnClickListener { skipToNext() }
         favoriteButton.setOnClickListener { toggleFavorite() }
+
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    val show = PlaybackStateHelper.getCurrentShow()
+                    val duration = show.segmentDurationMs ?: return
+                    if (duration <= 0) return
+                    val newPos = (duration * (progress / seekBar!!.max.toDouble())).toLong()
+                    sendSeekTo(newPos)
+                }
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
 
         // Register listener for show changes
         PlaybackStateHelper.onShowChange(showChangeListener)
@@ -167,32 +191,58 @@ class NowPlayingActivity : AppCompatActivity() {
                     .into(stationArtwork)
             }
             
-            // Update progress if available
-            val showProgress = PlaybackStateHelper.getCurrentShow()
-            val startMs = showProgress.segmentStartMs ?: 0L
-            val durMs = showProgress.segmentDurationMs ?: 0L
-            if (durMs > 0) {
-                val ratio = (startMs.coerceAtLeast(0L).toDouble() / durMs.toDouble()).coerceIn(0.0, 1.0)
-                playbackProgress.progress = (ratio * playbackProgress.max).toInt()
-                playbackProgress.visibility = android.view.View.VISIBLE
-            } else {
-                playbackProgress.visibility = android.view.View.GONE
-            }
+            updateProgressUi()
 
             // Update play/pause button
             playPauseButton.icon = ContextCompat.getDrawable(this, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
-            // Update favorite button state
-            val isFavorited = FavoritesPreference.isFavorite(this, station.id)
-            if (isFavorited) {
-                favoriteButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_star_filled)
-                favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-                favoriteButton.setBackgroundColor(ContextCompat.getColor(this, R.color.md_theme_primaryContainer))
+            val isPodcast = station.id.startsWith("podcast_")
+            val podcastId = station.id.removePrefix("podcast_")
+            val isFavorited = if (isPodcast) {
+                PodcastSubscriptions.isSubscribed(this, podcastId)
             } else {
-                favoriteButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_star_outline)
-                favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_onSurfaceVariant))
-                favoriteButton.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                FavoritesPreference.isFavorite(this, station.id)
             }
+            favoriteButton.icon = ContextCompat.getDrawable(this, if (isFavorited) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
+            favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
+            favoriteButton.setBackgroundColor(if (isFavorited) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
+        }
+
+        private fun updateProgressUi() {
+            val station = PlaybackStateHelper.getCurrentStation()
+            val isPodcast = station?.id?.startsWith("podcast_") == true
+            val showProgress = PlaybackStateHelper.getCurrentShow()
+            val pos = showProgress.segmentStartMs ?: 0L
+            val dur = showProgress.segmentDurationMs ?: 0L
+
+            if (isPodcast && dur > 0) {
+                progressGroup.visibility = android.view.View.VISIBLE
+                val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
+                seekBar.progress = (ratio * seekBar.max).toInt()
+                elapsedView.text = formatTime(pos)
+                remainingView.text = "-${formatTime((dur - pos).coerceAtLeast(0))}"
+                seekBar.isEnabled = true
+            } else {
+                progressGroup.visibility = android.view.View.GONE
+            }
+        }
+
+        private fun sendSeekTo(positionMs: Long) {
+            val intent = Intent(this, RadioService::class.java).apply {
+                action = RadioService.ACTION_SEEK_TO
+                putExtra(RadioService.EXTRA_SEEK_POSITION, positionMs)
+            }
+            startService(intent)
+        }
+
+        private fun formatTime(ms: Long): String {
+            val totalSeconds = ms / 1000
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            return String.format("%d:%02d", minutes, seconds)
+        }
+        else {
+            progressGroup.visibility = android.view.View.GONE
         }
     }
     
@@ -256,6 +306,8 @@ class NowPlayingActivity : AppCompatActivity() {
                 })
                 .into(stationArtwork)
         }
+
+            updateProgressUi()
     }
     
     private fun isPlaceholderImage(bitmap: Bitmap): Boolean {
@@ -318,17 +370,35 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     private fun skipToPrevious() {
-        val intent = Intent(this, RadioService::class.java).apply {
-            action = RadioService.ACTION_SKIP_TO_PREVIOUS
+        val station = PlaybackStateHelper.getCurrentStation()
+        if (station?.id?.startsWith("podcast_") == true) {
+            val intent = Intent(this, RadioService::class.java).apply {
+                action = RadioService.ACTION_SEEK_DELTA
+                putExtra(RadioService.EXTRA_SEEK_DELTA, -10_000L)
+            }
+            startService(intent)
+        } else {
+            val intent = Intent(this, RadioService::class.java).apply {
+                action = RadioService.ACTION_SKIP_TO_PREVIOUS
+            }
+            startService(intent)
         }
-        startService(intent)
     }
 
     private fun skipToNext() {
-        val intent = Intent(this, RadioService::class.java).apply {
-            action = RadioService.ACTION_SKIP_TO_NEXT
+        val station = PlaybackStateHelper.getCurrentStation()
+        if (station?.id?.startsWith("podcast_") == true) {
+            val intent = Intent(this, RadioService::class.java).apply {
+                action = RadioService.ACTION_SEEK_DELTA
+                putExtra(RadioService.EXTRA_SEEK_DELTA, 30_000L)
+            }
+            startService(intent)
+        } else {
+            val intent = Intent(this, RadioService::class.java).apply {
+                action = RadioService.ACTION_SKIP_TO_NEXT
+            }
+            startService(intent)
         }
-        startService(intent)
     }
 
     private fun togglePlayPause() {
@@ -349,7 +419,12 @@ class NowPlayingActivity : AppCompatActivity() {
     private fun toggleFavorite() {
         val station = PlaybackStateHelper.getCurrentStation()
         if (station != null) {
-            FavoritesPreference.toggleFavorite(this, station.id)
+            if (station.id.startsWith("podcast_")) {
+                val podcastId = station.id.removePrefix("podcast_")
+                PodcastSubscriptions.toggleSubscription(this, podcastId)
+            } else {
+                FavoritesPreference.toggleFavorite(this, station.id)
+            }
             updateUI()
         }
     }
