@@ -294,9 +294,20 @@ class NowPlayingActivity : AppCompatActivity() {
             lastArtworkUrl = artworkUrl
         }
 
-        // Hide podcast-specific scrubber controls unless running as podcast playback
-        progressGroup.visibility = android.view.View.GONE
-        seekBar.visibility = android.view.View.GONE
+        // Show scrubber controls if episode has a duration so user can see progress
+        val durMs = (episode.durationMins.takeIf { it >= 0 } ?: 0) * 60_000L
+        if (durMs > 0) {
+            progressGroup.visibility = android.view.View.VISIBLE
+            seekBar.visibility = android.view.View.VISIBLE
+            // Initialize scrubber to start (not playing)
+            seekBar.progress = 0
+            seekBar.isEnabled = false
+            elapsedView.text = "0:00"
+            remainingView.text = "-${formatTime(durMs)}"
+        } else {
+            progressGroup.visibility = android.view.View.GONE
+            seekBar.visibility = android.view.View.GONE
+        }
     }
 
     private fun updateProgressUi() {

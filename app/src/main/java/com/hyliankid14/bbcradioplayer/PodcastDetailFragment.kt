@@ -66,23 +66,23 @@ class PodcastDetailFragment : Fragment() {
             titleView.text = podcast.title
             descriptionView.text = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY)
             
-            // Add "Show more" functionality for description
+            // Add "Show more" functionality for description (clamp to 3 lines while image height)
             var userExpanded = false
             descriptionView.post {
-                if (descriptionView.lineCount > 5) {
+                if (descriptionView.lineCount > 3) {
                     showMoreView.visibility = View.VISIBLE
                 }
             }
 
             val toggleHeader: () -> Unit = {
-                val expanding = descriptionView.maxLines == 5
+                val expanding = descriptionView.maxLines == 3
                 if (expanding) {
                     descriptionView.maxLines = Int.MAX_VALUE
                     showMoreView.visibility = View.GONE
                     descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
                     userExpanded = true
                 } else {
-                    descriptionView.maxLines = 5
+                    descriptionView.maxLines = 3
                     showMoreView.visibility = View.VISIBLE
                     descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
                     userExpanded = false
@@ -147,9 +147,9 @@ class PodcastDetailFragment : Fragment() {
                         }.start()
                     }
                     
-                    val isLongDescription = descriptionView.lineCount > 5
+                    val isLongDescription = descriptionView.lineCount > 3
                     if (firstVisible > 0 && isLongDescription) {
-                        descriptionView.maxLines = 5
+                        descriptionView.maxLines = 3
                         showMoreView.visibility = View.VISIBLE
                         descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
                     } else if (firstVisible == 0 && userExpanded && isLongDescription) {

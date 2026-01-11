@@ -16,7 +16,7 @@
         android:layout_marginEnd="32dp"
         android:layout_marginTop="16dp"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/now_playing_show_name"
+        app:layout_constraintBottom_toTopOf="@id/playback_controls"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintVertical_chainStyle="packed"
