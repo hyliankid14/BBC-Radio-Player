@@ -148,15 +148,8 @@ class EpisodeAdapter(
             playButton.setOnClickListener(playAction)
             
             showMoreView.setOnClickListener {
-                isExpanded = !isExpanded
-                if (isExpanded) {
-                    descriptionView.maxLines = Int.MAX_VALUE
-                    showMoreView.text = "Show less"
-                } else {
-                    descriptionView.maxLines = collapsedLines
-                    showMoreView.text = "Show more"
-                }
-                showMoreView.visibility = View.VISIBLE
+                // Episode items do not show an inline "Show more" popup anymore.
+                // Tapping an episode opens the player instead.
             }
         }
 
@@ -165,8 +158,8 @@ class EpisodeAdapter(
             titleView.text = episode.title
             isExpanded = false
             descriptionView.maxLines = collapsedLines
-            showMoreView.text = "Show more"
-            showMoreView.visibility = View.VISIBLE
+            // Hide the inline toggle for episode items — show-more is handled in the full-screen player.
+            showMoreView.visibility = View.GONE
             
             // Show "Show more" if description is long enough to need it
             val fullDesc = sanitizeDescription(episode.description)

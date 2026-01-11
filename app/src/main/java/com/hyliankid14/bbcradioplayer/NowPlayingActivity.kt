@@ -78,6 +78,7 @@ class NowPlayingActivity : AppCompatActivity() {
         nextButton.setOnClickListener { skipToNext() }
         favoriteButton.setOnClickListener { toggleFavorite() }
         showMoreLink.setOnClickListener { showFullDescription() }
+        artistTrack.setOnClickListener { showFullDescription() }
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
