@@ -128,31 +128,53 @@ class NowPlayingActivity : AppCompatActivity() {
         val station = PlaybackStateHelper.getCurrentStation()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
         val show = PlaybackStateHelper.getCurrentShow()
+        val isPodcast = station?.id?.startsWith("podcast_") == true
 
         if (station != null) {
             // Update station name in action bar
             supportActionBar?.title = station.title
             
-            // Update show name
-            showName.text = show.title.ifEmpty { "BBC Radio" }
-            
-            // Update episode title if available
-            if (!show.episodeTitle.isNullOrEmpty()) {
-                episodeTitle.text = show.episodeTitle
-                episodeTitle.visibility = android.view.View.VISIBLE
+            if (isPodcast) {
+                // Podcasts: podcast title, then episode title + description snippet
+                showName.text = station.title.ifEmpty { show.title.ifEmpty { "BBC Radio" } }
+
+                val episodeHeading = show.episodeTitle?.takeIf { it.isNotEmpty() } ?: show.title
+                if (!episodeHeading.isNullOrEmpty()) {
+                    episodeTitle.text = episodeHeading
+                    episodeTitle.visibility = android.view.View.VISIBLE
+                } else {
+                    episodeTitle.visibility = android.view.View.GONE
+                }
+
+                val description = show.description?.trim()
+                if (!description.isNullOrEmpty()) {
+                    artistTrack.text = description
+                    artistTrack.maxLines = 2
+                    artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
+                    artistTrack.visibility = android.view.View.VISIBLE
+                } else {
+                    artistTrack.visibility = android.view.View.GONE
+                }
             } else {
-                episodeTitle.visibility = android.view.View.GONE
-            }
-            
-            // Update artist/track info if available
-            if (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) {
-                val parts = mutableListOf<String>()
-                if (!show.secondary.isNullOrEmpty()) parts.add(show.secondary)
-                if (!show.tertiary.isNullOrEmpty()) parts.add(show.tertiary)
-                artistTrack.text = parts.joinToString(" - ")
-                artistTrack.visibility = android.view.View.VISIBLE
-            } else {
-                artistTrack.visibility = android.view.View.GONE
+                // Radio: show name plus artist/track metadata
+                showName.text = show.title.ifEmpty { "BBC Radio" }
+                
+                if (!show.episodeTitle.isNullOrEmpty()) {
+                    episodeTitle.text = show.episodeTitle
+                    episodeTitle.visibility = android.view.View.VISIBLE
+                } else {
+                    episodeTitle.visibility = android.view.View.GONE
+                }
+                
+                if (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) {
+                    val parts = mutableListOf<String>()
+                    if (!show.secondary.isNullOrEmpty()) parts.add(show.secondary)
+                    if (!show.tertiary.isNullOrEmpty()) parts.add(show.tertiary)
+                    artistTrack.text = parts.joinToString(" - ")
+                    artistTrack.visibility = android.view.View.VISIBLE
+                } else {
+                    artistTrack.visibility = android.view.View.GONE
+                }
             }
             
             // Load artwork: Use image_url from API if available and valid, otherwise station logo
@@ -196,7 +218,6 @@ class NowPlayingActivity : AppCompatActivity() {
             // Update play/pause button
             playPauseButton.icon = ContextCompat.getDrawable(this, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
-            val isPodcast = station.id.startsWith("podcast_")
             val podcastId = station.id.removePrefix("podcast_")
             val isFavorited = if (isPodcast) {
                 PodcastSubscriptions.isSubscribed(this, podcastId)
@@ -247,27 +268,51 @@ class NowPlayingActivity : AppCompatActivity() {
     
     private fun updateFromShow(show: CurrentShow) {
         if (isFinishing || isDestroyed) return
+        val station = PlaybackStateHelper.getCurrentStation()
+        val isPodcast = station?.id?.startsWith("podcast_") == true
         
-        // Update show name
-        showName.text = show.title.ifEmpty { "BBC Radio" }
-        
-        // Update episode title if available
-        if (!show.episodeTitle.isNullOrEmpty()) {
-            episodeTitle.text = show.episodeTitle
-            episodeTitle.visibility = android.view.View.VISIBLE
+        if (isPodcast) {
+            showName.text = station?.title ?: show.title.ifEmpty { "BBC Radio" }
+
+            val episodeHeading = show.episodeTitle?.takeIf { it.isNotEmpty() } ?: show.title
+            if (!episodeHeading.isNullOrEmpty()) {
+                episodeTitle.text = episodeHeading
+                episodeTitle.visibility = android.view.View.VISIBLE
+            } else {
+                episodeTitle.visibility = android.view.View.GONE
+            }
+
+            val description = show.description?.trim()
+            if (!description.isNullOrEmpty()) {
+                artistTrack.text = description
+                artistTrack.maxLines = 2
+                artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
+                artistTrack.visibility = android.view.View.VISIBLE
+            } else {
+                artistTrack.visibility = android.view.View.GONE
+            }
         } else {
-            episodeTitle.visibility = android.view.View.GONE
-        }
-        
-        // Update artist/track info if available
-        if (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) {
-            val parts = mutableListOf<String>()
-            if (!show.secondary.isNullOrEmpty()) parts.add(show.secondary)
-            if (!show.tertiary.isNullOrEmpty()) parts.add(show.tertiary)
-            artistTrack.text = parts.joinToString(" - ")
-            artistTrack.visibility = android.view.View.VISIBLE
-        } else {
-            artistTrack.visibility = android.view.View.GONE
+            // Update show name
+            showName.text = show.title.ifEmpty { "BBC Radio" }
+            
+            // Update episode title if available
+            if (!show.episodeTitle.isNullOrEmpty()) {
+                episodeTitle.text = show.episodeTitle
+                episodeTitle.visibility = android.view.View.VISIBLE
+            } else {
+                episodeTitle.visibility = android.view.View.GONE
+            }
+            
+            // Update artist/track info if available
+            if (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) {
+                val parts = mutableListOf<String>()
+                if (!show.secondary.isNullOrEmpty()) parts.add(show.secondary)
+                if (!show.tertiary.isNullOrEmpty()) parts.add(show.tertiary)
+                artistTrack.text = parts.joinToString(" - ")
+                artistTrack.visibility = android.view.View.VISIBLE
+            } else {
+                artistTrack.visibility = android.view.View.GONE
+            }
         }
         
         // Load new artwork - use image_url if available and valid, otherwise station logo

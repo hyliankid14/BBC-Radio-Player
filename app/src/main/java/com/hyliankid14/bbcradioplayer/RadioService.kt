@@ -1088,6 +1088,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         val show = CurrentShow(
                             title = episode.title,
                             episodeTitle = episode.title,
+                            description = episode.description,
                             imageUrl = null,
                             segmentStartMs = pos,
                             segmentDurationMs = if (dur > 0) dur else null

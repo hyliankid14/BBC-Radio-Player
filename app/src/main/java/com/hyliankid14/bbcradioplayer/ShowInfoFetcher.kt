@@ -9,6 +9,7 @@ data class CurrentShow(
     val episodeTitle: String? = null, // Episode title (from ESS)
     val secondary: String? = null, // Artist (from Segment)
     val tertiary: String? = null, // Track (from Segment)
+    val description: String? = null,
     val imageUrl: String? = null,
     val startTime: String? = null,
     val endTime: String? = null,

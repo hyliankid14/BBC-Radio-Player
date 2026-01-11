@@ -3,12 +3,14 @@ package com.hyliankid14.bbcradioplayer
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -23,6 +25,11 @@ class PodcastDetailFragment : Fragment() {
     private lateinit var repository: PodcastRepository
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
     private var currentPodcast: Podcast? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setHasOptionsMenu(true)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -39,7 +46,6 @@ class PodcastDetailFragment : Fragment() {
 
         currentPodcast = arguments?.getParcelable("podcast")
         currentPodcast?.let { podcast ->
-            val toolbar: com.google.android.material.appbar.MaterialToolbar = view.findViewById(R.id.podcast_detail_toolbar)
             val imageView: ImageView = view.findViewById(R.id.podcast_detail_image)
             val titleView: TextView = view.findViewById(R.id.podcast_detail_title)
             val descriptionView: TextView = view.findViewById(R.id.podcast_detail_description)
@@ -49,9 +55,11 @@ class PodcastDetailFragment : Fragment() {
             val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
 
-            toolbar.title = podcast.title
-            toolbar.setNavigationOnClickListener {
-                requireActivity().onBackPressedDispatcher.onBackPressed()
+            (activity as? AppCompatActivity)?.supportActionBar?.apply {
+                title = podcast.title
+                setDisplayHomeAsUpEnabled(true)
+                setDisplayShowHomeEnabled(true)
+                setHomeAsUpIndicator(R.drawable.ic_arrow_back)
             }
 
             titleView.text = podcast.title
@@ -155,5 +163,23 @@ class PodcastDetailFragment : Fragment() {
     override fun onDestroy() {
         super.onDestroy()
         fragmentScope.coroutineContext[Job]?.cancel()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        (activity as? AppCompatActivity)?.supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(false)
+            setDisplayShowHomeEnabled(false)
+        }
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {
+                requireActivity().onBackPressedDispatcher.onBackPressed()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 }

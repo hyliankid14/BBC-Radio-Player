@@ -30,6 +30,7 @@ import androidx.core.graphics.ColorUtils
 import android.view.GestureDetector
 import android.view.MotionEvent
 import com.google.android.material.tabs.TabLayout
+import com.hyliankid14.bbcradioplayer.PodcastSubscriptions
 
 class MainActivity : AppCompatActivity() {
     private lateinit var stationsList: RecyclerView
@@ -683,7 +684,12 @@ class MainActivity : AppCompatActivity() {
             miniPlayerPlayPause.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
             // Update favorite button state - swap drawable based on favorite status
-            val isFavorited = FavoritesPreference.isFavorite(this, station.id)
+            val isPodcast = station.id.startsWith("podcast_")
+            val isFavorited = if (isPodcast) {
+                PodcastSubscriptions.isSubscribed(this, station.id.removePrefix("podcast_"))
+            } else {
+                FavoritesPreference.isFavorite(this, station.id)
+            }
             if (isFavorited) {
                 miniPlayerFavorite.setImageResource(R.drawable.ic_star_filled)
                 miniPlayerFavorite.setColorFilter(ContextCompat.getColor(this, R.color.favorite_star_color))
@@ -757,14 +763,21 @@ class MainActivity : AppCompatActivity() {
     private fun toggleMiniPlayerFavorite() {
         val station = PlaybackStateHelper.getCurrentStation()
         if (station != null) {
-            FavoritesPreference.toggleFavorite(this, station.id)
-            updateMiniPlayer()
-            
-            // Refresh the current view to update the station's favorite status
-            when (currentMode) {
-                "list" -> showAllStations()
-                "favorites" -> showFavorites()
+            if (station.id.startsWith("podcast_")) {
+                PodcastSubscriptions.toggleSubscription(this, station.id.removePrefix("podcast_"))
+                if (currentMode == "favorites") {
+                    showFavorites()
+                }
+            } else {
+                FavoritesPreference.toggleFavorite(this, station.id)
+                
+                // Refresh the current view to update the station's favorite status
+                when (currentMode) {
+                    "list" -> showAllStations()
+                    "favorites" -> showFavorites()
+                }
             }
+            updateMiniPlayer()
         }
     }
     
