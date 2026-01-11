@@ -56,20 +56,8 @@ object FavoritesPreference {
         val allStations = StationRepository.getStations().filter { favoriteIds.contains(it.id) }
         val savedOrder = getFavoritesOrder(context)
         
-        // Add subscribed podcasts
-        val subscribedPodcasts = PodcastSubscriptions.getSubscribedIds(context).map { podcastId ->
-            Station(
-                id = "podcast_$podcastId",
-                title = podcastId, // Will be updated when displayed
-                serviceId = "",
-                logoUrl = ""
-            )
-        }
-        
-        val combined = allStations + subscribedPodcasts
-        
         // Sort by saved order, putting any unsorted ones at the end
-        return combined.sortedBy { station ->
+        return allStations.sortedBy { station ->
             val index = savedOrder.indexOf(station.id)
             if (index != -1) index else Int.MAX_VALUE
         }

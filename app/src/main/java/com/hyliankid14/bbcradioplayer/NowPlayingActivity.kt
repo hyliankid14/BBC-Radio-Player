@@ -232,6 +232,7 @@ class NowPlayingActivity : AppCompatActivity() {
             favoriteButton.setBackgroundColor(if (isFavorited) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
         } else {
             progressGroup.visibility = android.view.View.GONE
+            seekBar.visibility = android.view.View.GONE
         }
     }
 
@@ -244,6 +245,7 @@ class NowPlayingActivity : AppCompatActivity() {
 
         if (isPodcast && dur > 0) {
             progressGroup.visibility = android.view.View.VISIBLE
+            seekBar.visibility = android.view.View.VISIBLE
             val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
             seekBar.progress = (ratio * seekBar.max).toInt()
             elapsedView.text = formatTime(pos)
@@ -251,6 +253,7 @@ class NowPlayingActivity : AppCompatActivity() {
             seekBar.isEnabled = true
         } else {
             progressGroup.visibility = android.view.View.GONE
+            seekBar.visibility = android.view.View.GONE
         }
     }
 
