@@ -122,6 +122,7 @@ class EpisodeAdapter(
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
         private val playButton: MaterialButton = itemView.findViewById(R.id.episode_play_icon)
         private var isExpanded = false
+        private val collapsedLines = 4
 
         init {
             val playAction: (View) -> Unit = {
@@ -152,9 +153,10 @@ class EpisodeAdapter(
                     descriptionView.maxLines = Int.MAX_VALUE
                     showMoreView.text = "Show less"
                 } else {
-                    descriptionView.maxLines = 2
+                    descriptionView.maxLines = collapsedLines
                     showMoreView.text = "Show more"
                 }
+                showMoreView.visibility = View.VISIBLE
             }
         }
 
@@ -162,20 +164,14 @@ class EpisodeAdapter(
             currentEpisode = episode
             titleView.text = episode.title
             isExpanded = false
-            descriptionView.maxLines = 2
+            descriptionView.maxLines = collapsedLines
             showMoreView.text = "Show more"
-            showMoreView.visibility = View.GONE
+            showMoreView.visibility = View.VISIBLE
             
             // Show "Show more" if description is long enough to need it
             val fullDesc = sanitizeDescription(episode.description)
             descriptionView.text = fullDesc
-            descriptionView.post {
-                if (descriptionView.lineCount > 2 && !isExpanded) {
-                    showMoreView.visibility = View.VISIBLE
-                } else {
-                    showMoreView.visibility = View.GONE
-                }
-            }
+            // Keep the toggle visible; content is clamped when collapsed
             
             // Remove timestamp from date - just show date portion
             dateView.text = formatEpisodeDate(episode.pubDate)

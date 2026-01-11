@@ -5,7 +5,8 @@ set -e # Exit immediately if a command exits with a non-zero status.
 WORKFLOW_FILE="android-build.yml"
 PACKAGE_NAME="com.hyliankid14.bbcradioplayer"
 
-ARTIFACT_NAME="app-debug-apk"
+# Artifact name must match GitHub Actions upload step
+ARTIFACT_NAME="bbc-radio-player"
 BRANCH="main"
 
 # Get commit message from argument

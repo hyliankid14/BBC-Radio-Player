@@ -92,34 +92,36 @@ class PodcastsFragment : Fragment() {
             applyFilters(loadingIndicator, emptyState, recyclerView)
         }
 
-        // Hide filters on scroll with smooth animation
+        // Hide filters on scroll with smooth animation; use thresholds to avoid flicker on slow swipes
         var isFiltersVisible = true
         var isAnimating = false
+        var scrollAccumPx = 0f
+        val hideShowThresholdPx = 24 * resources.displayMetrics.density
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
-                val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
-                val firstVisible = layoutManager.findFirstVisibleItemPosition()
-                val firstView = layoutManager.findViewByPosition(firstVisible)
-                val scrollOffset = firstView?.top ?: 0
-                
-                // Hide when scrolled down (position > 0 OR position == 0 but scrolled up)
-                val shouldHide = firstVisible > 0 || (firstVisible == 0 && scrollOffset < 0)
-                
-                // Show only when at the very top (position 0 and not scrolled)
-                val shouldShow = firstVisible == 0 && scrollOffset >= 0
-                
-                if (!isAnimating && isFiltersVisible && shouldHide) {
+                if (dy == 0) return
+                scrollAccumPx += dy
+
+                // Hide after enough downward scroll
+                if (!isAnimating && isFiltersVisible && scrollAccumPx > hideShowThresholdPx) {
                     isAnimating = true
                     isFiltersVisible = false
-                    filtersContainer.animate().alpha(0f).setDuration(200).withEndAction {
+                    scrollAccumPx = 0f
+                    filtersContainer.animate().alpha(0f).setDuration(180).withEndAction {
                         filtersContainer.visibility = View.GONE
                         isAnimating = false
                     }.start()
-                } else if (!isAnimating && !isFiltersVisible && shouldShow) {
+                    return
+                }
+
+                // Show after enough upward scroll (does not require reaching top)
+                if (!isAnimating && !isFiltersVisible && scrollAccumPx < -hideShowThresholdPx) {
                     isAnimating = true
                     isFiltersVisible = true
+                    scrollAccumPx = 0f
                     filtersContainer.visibility = View.VISIBLE
-                    filtersContainer.animate().alpha(1f).setDuration(200).withEndAction {
+                    filtersContainer.alpha = 0f
+                    filtersContainer.animate().alpha(1f).setDuration(180).withEndAction {
                         isAnimating = false
                     }.start()
                 }
