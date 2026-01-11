@@ -9,7 +9,6 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -50,7 +49,6 @@ class PodcastDetailFragment : Fragment() {
             val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
 
-            (activity as? AppCompatActivity)?.setSupportActionBar(toolbar)
             toolbar.title = podcast.title
             toolbar.setNavigationOnClickListener {
                 requireActivity().onBackPressedDispatcher.onBackPressed()
