@@ -90,13 +90,19 @@ class PodcastsFragment : Fragment() {
             applyFilters(loadingIndicator, emptyState, recyclerView)
         }
 
-        // Hide filters on scroll
+        // Hide filters on scroll with smooth animation
+        var filtersVisible = true
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
-                if (dy > 0) {
-                    filtersContainer.visibility = View.GONE
-                } else if (dy < 0) {
+                if (dy > 0 && filtersVisible) {
+                    filtersContainer.animate().alpha(0f).setDuration(200).withEndAction {
+                        filtersContainer.visibility = View.GONE
+                    }.start()
+                    filtersVisible = false
+                } else if (dy < 0 && !filtersVisible) {
                     filtersContainer.visibility = View.VISIBLE
+                    filtersContainer.animate().alpha(1f).setDuration(200).start()
+                    filtersVisible = true
                 }
             }
         })

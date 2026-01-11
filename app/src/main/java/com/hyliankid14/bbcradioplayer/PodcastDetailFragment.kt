@@ -46,6 +46,7 @@ class PodcastDetailFragment : Fragment() {
 
         currentPodcast = arguments?.getParcelable("podcast")
         currentPodcast?.let { podcast ->
+            val headerContainer: View = view.findViewById(R.id.podcast_detail_header)
             val imageView: ImageView = view.findViewById(R.id.podcast_detail_image)
             val titleView: TextView = view.findViewById(R.id.podcast_detail_title)
             val descriptionView: TextView = view.findViewById(R.id.podcast_detail_description)
@@ -112,11 +113,25 @@ class PodcastDetailFragment : Fragment() {
             }
             episodesRecycler.adapter = adapter
 
+            var headerVisible = true
             episodesRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     super.onScrolled(recyclerView, dx, dy)
                     val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
                     val firstVisible = layoutManager.findFirstVisibleItemPosition()
+                    
+                    // Hide/show header on scroll
+                    if (firstVisible > 0 && headerVisible) {
+                        headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
+                            headerContainer.visibility = View.GONE
+                        }.start()
+                        headerVisible = false
+                    } else if (firstVisible == 0 && !headerVisible) {
+                        headerContainer.visibility = View.VISIBLE
+                        headerContainer.animate().alpha(1f).setDuration(200).start()
+                        headerVisible = true
+                    }
+                    
                     val isLongDescription = descriptionView.lineCount > 5
                     if (firstVisible > 0 && isLongDescription) {
                         descriptionView.maxLines = 5

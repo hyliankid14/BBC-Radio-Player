@@ -24,6 +24,9 @@ class CategorizedStationAdapter(
     private val fetchingIds = mutableSetOf<String>()
     private val CACHE_DURATION_MS = 120_000L // 2 minutes
     
+    // Filter out subscribed podcasts
+    private val filteredStations = stations.filter { !it.id.startsWith("podcast_") }
+    
     class StationViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imageView: ImageView = view.findViewById(R.id.station_artwork)
         val textView: TextView = view.findViewById(R.id.station_title)
@@ -45,10 +48,10 @@ class CategorizedStationAdapter(
         return StationViewHolder(view)
     }
     
-    override fun getItemCount(): Int = stations.size
+    override fun getItemCount(): Int = filteredStations.size
     
     override fun onBindViewHolder(holder: StationViewHolder, position: Int) {
-        val station = stations[position]
+        val station = filteredStations[position]
         
         holder.textView.text = station.title
         
