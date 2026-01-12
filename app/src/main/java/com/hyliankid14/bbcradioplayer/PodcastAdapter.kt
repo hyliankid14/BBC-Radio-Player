@@ -45,7 +45,7 @@ class PodcastAdapter(
 
     override fun getItemCount() = podcasts.size
 
-    class PodcastViewHolder(
+    inner class PodcastViewHolder(
         itemView: View,
         private val onPodcastClick: (Podcast) -> Unit
     ) : RecyclerView.ViewHolder(itemView) {

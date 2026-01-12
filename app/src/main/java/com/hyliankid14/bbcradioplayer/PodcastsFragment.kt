@@ -126,7 +126,7 @@ class PodcastsFragment : Fragment() {
             }
         }
         // Restore previous mode when view is destroyed
-        view.lifecycleOwner?.lifecycle?.addObserver(object : androidx.lifecycle.LifecycleEventObserver {
+        viewLifecycleOwner.lifecycle.addObserver(object : androidx.lifecycle.LifecycleEventObserver {
             override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: androidx.lifecycle.Lifecycle.Event) {
                 if (event == androidx.lifecycle.Lifecycle.Event.ON_DESTROY) {
                     requireActivity().window.setSoftInputMode(previousSoftInputMode)
