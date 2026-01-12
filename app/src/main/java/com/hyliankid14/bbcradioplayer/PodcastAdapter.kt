@@ -172,13 +172,12 @@ class EpisodeAdapter(
             // Play when the play button is tapped
             playButton.setOnClickListener(playAction)
 
-            // Open full-screen preview when title or description or row tapped
+            // Open full-screen preview when the row is tapped (title/description are NOT clickable to avoid accidental playback actions)
             val openAction: (View) -> Unit = {
                 onOpenFull(currentEpisode)
             }
             itemView.setOnClickListener(openAction)
-            titleView.setOnClickListener(openAction)
-            descriptionView.setOnClickListener(openAction)
+
         }
 
         fun bind(episode: Episode) {

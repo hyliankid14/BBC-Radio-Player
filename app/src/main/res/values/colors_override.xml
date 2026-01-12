@@ -3,6 +3,7 @@
     <!-- Explicit colors used to keep subscribed podcasts header light lavender in both themes -->
     <color name="subscribed_podcasts_bg">#EADDFF</color>
     <color name="subscribed_podcasts_text">#21005D</color>
-    <!-- Subscribe button text color (light theme) -->
-    <color name="subscribe_button_text">#FFFFFF</color>
+    <!-- Subscribe button colors (light theme): light purple bg with dark text -->
+    <color name="subscribe_button_bg">#EADDFF</color>
+    <color name="subscribe_button_text">#21005D</color>
 </resources>

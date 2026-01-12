@@ -74,11 +74,12 @@ class PodcastDetailFragment : Fragment() {
             // Ensure initial collapsed layout: description occupies remaining height next to image
             val initialLp = descriptionView.layoutParams as? android.widget.LinearLayout.LayoutParams
             initialLp?.let {
-                it.height = 0
-                it.weight = 1f
+                it.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                it.weight = 0f
                 descriptionView.layoutParams = it
-                descriptionView.maxLines = 3
-                descriptionView.gravity = android.view.Gravity.BOTTOM
+                // Allow the description to fill the available header space and align to the top
+                descriptionView.maxLines = Int.MAX_VALUE
+                descriptionView.gravity = android.view.Gravity.TOP
                 descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
             }
             val toggleHeader: () -> Unit = {
@@ -136,14 +137,14 @@ class PodcastDetailFragment : Fragment() {
             // Initialize subscribe button state and colors (use high-contrast text colors)
             fun updateSubscribeButton(subscribed: Boolean) {
                 subscribeButton.text = if (subscribed) "Subscribed" else "Subscribe"
-                val primary = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_primary)
-                val onPrimary = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text)
+                val bg = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_bg)
+                val onBg = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text)
                 if (subscribed) {
-                    subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(primary)
-                    subscribeButton.setTextColor(onPrimary)
+                    subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(bg)
+                    subscribeButton.setTextColor(onBg)
                 } else {
                     subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                    subscribeButton.setTextColor(primary)
+                    subscribeButton.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_onSurface))
                 }
             }
 

@@ -3,6 +3,7 @@
     <!-- Keep the subscribed podcasts header light lavender and dark text in night mode too -->
     <color name="subscribed_podcasts_bg">#EADDFF</color>
     <color name="subscribed_podcasts_text">#21005D</color>
-    <!-- Subscribe button text color (dark theme) — use darker text on light button background -->
-    <color name="subscribe_button_text">#21005D</color>
+    <!-- Subscribe button colors (dark theme): dark purple bg with light text -->
+    <color name="subscribe_button_bg">#6200EE</color>
+    <color name="subscribe_button_text">#FFFFFF</color>
 </resources>
