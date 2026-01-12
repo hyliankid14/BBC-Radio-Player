@@ -6,6 +6,14 @@ import android.util.Log
 import android.view.KeyEvent
 import android.content.res.ColorStateList
 import androidx.core.content.ContextCompat
+import android.net.Uri
+import android.widget.Button
+import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.IOException
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -49,6 +57,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerNext: ImageButton
     private lateinit var miniPlayerStop: ImageButton
     private lateinit var miniPlayerFavorite: ImageButton
+    private lateinit var createDocumentLauncher: ActivityResultLauncher<String>
+    private lateinit var openDocumentLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var filterButtonsContainer: View
     private lateinit var tabLayout: TabLayout
     private var categorizedAdapter: CategorizedStationAdapter? = null
@@ -115,6 +125,35 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
+        // Register Activity Result Launchers for Export / Import
+        createDocumentLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+            if (uri != null) {
+                Thread {
+                    runOnUiThread { Toast.makeText(this, "Export started...", Toast.LENGTH_SHORT).show() }
+                    val success = exportPreferencesToUri(uri)
+                    runOnUiThread { Toast.makeText(this, if (success) "Export successful" else "Export failed", Toast.LENGTH_LONG).show() }
+                }.start()
+            }
+        }
+
+        openDocumentLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            if (uri != null) {
+                try {
+                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (e: Exception) { }
+                Thread {
+                    runOnUiThread { Toast.makeText(this, "Import started...", Toast.LENGTH_SHORT).show() }
+                    val success = importPreferencesFromUri(uri)
+                    runOnUiThread {
+                        Toast.makeText(this, if (success) "Import successful" else "Import failed", Toast.LENGTH_LONG).show()
+                        ThemeManager.applyTheme(ThemePreference.getTheme(this))
+                        refreshCurrentView()
+                        updateMiniPlayer()
+                    }
+                }.start()
+            }
+        }
+
         // Setup settings controls
         setupSettings()
         
@@ -571,6 +610,19 @@ class MainActivity : AppCompatActivity() {
         autoResumeAndroidAutoCheckbox.setOnCheckedChangeListener { _, isChecked ->
             PlaybackPreference.setAutoResumeAndroidAuto(this, isChecked)
         }
+
+        // Export / Import buttons
+        val exportBtn: Button = findViewById(R.id.export_prefs_button)
+        val importBtn: Button = findViewById(R.id.import_prefs_button)
+
+        exportBtn.setOnClickListener {
+            // Suggest filename
+            createDocumentLauncher.launch("bbcradio_prefs.json")
+        }
+
+        importBtn.setOnClickListener {
+            openDocumentLauncher.launch(arrayOf("application/json"))
+        }
     }
 
     private fun playStation(id: String) {
@@ -940,5 +992,86 @@ class MainActivity : AppCompatActivity() {
         val maxDiff = Math.max(Math.abs(r - g), Math.max(Math.abs(r - b), Math.abs(g - b)))
         return maxDiff < 20
     }
-}
 
+    // Export preferences to the given Uri as JSON. Returns true on success.
+    private fun exportPreferencesToUri(uri: Uri): Boolean {
+        return try {
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "playback_prefs", "scrolling_prefs", "theme_prefs")
+            val root = JSONObject()
+            for (name in names) {
+                val prefs = getSharedPreferences(name, MODE_PRIVATE)
+                val obj = JSONObject()
+                for ((k, v) in prefs.all) {
+                    when (v) {
+                        is Set<*> -> {
+                            val arr = JSONArray()
+                            v.forEach { arr.put(it.toString()) }
+                            obj.put(k, arr)
+                        }
+                        is Boolean -> obj.put(k, v)
+                        is Number -> obj.put(k, v)
+                        else -> obj.put(k, v?.toString())
+                    }
+                }
+                root.put(name, obj)
+            }
+
+            contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(root.toString(2).toByteArray())
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Failed to export preferences", e)
+            false
+        }
+    }
+
+    // Import preferences from the given Uri (JSON). Returns true on success.
+    private fun importPreferencesFromUri(uri: Uri): Boolean {
+        return try {
+            val text = contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() } ?: return false
+            val root = JSONObject(text)
+            val keys = root.keys()
+            while (keys.hasNext()) {
+                val prefsName = keys.next()
+                val prefsObj = root.getJSONObject(prefsName)
+                val prefs = getSharedPreferences(prefsName, MODE_PRIVATE)
+                val edit = prefs.edit()
+                edit.clear()
+                val kIt = prefsObj.keys()
+                while (kIt.hasNext()) {
+                    val key = kIt.next()
+                    val value = prefsObj.get(key)
+                    when (value) {
+                        is JSONArray -> {
+                            val set = mutableSetOf<String>()
+                            for (i in 0 until value.length()) set.add(value.getString(i))
+                            edit.putStringSet(key, set)
+                        }
+                        is Boolean -> edit.putBoolean(key, value)
+                        is Int -> edit.putInt(key, value)
+                        is Long -> edit.putLong(key, value)
+                        is Double -> {
+                            // JSONObject represents numbers as Double. Decide whether to store as int/long/float
+                            val d = value
+                            if (d % 1.0 == 0.0) {
+                                val l = d.toLong()
+                                if (l <= Int.MAX_VALUE && l >= Int.MIN_VALUE) edit.putInt(key, l.toInt()) else edit.putLong(key, l)
+                            } else {
+                                edit.putFloat(key, d.toFloat())
+                            }
+                        }
+                        else -> {
+                            val s = if (value == JSONObject.NULL) null else value.toString()
+                            edit.putString(key, s)
+                        }
+                    }
+                }
+                edit.apply()
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Failed to import preferences", e)
+            false
+        }
+    }
