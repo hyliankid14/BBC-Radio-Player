@@ -51,7 +51,19 @@ object PlayedEpisodesPreference {
     }
 
     fun getProgress(context: Context, episodeId: String): Long {
-        return prefs(context).getLong(progressKey(episodeId), 0L)
+        val key = progressKey(episodeId)
+        val p = prefs(context)
+        return try {
+            p.getLong(key, 0L)
+        } catch (e: ClassCastException) {
+            // Handle legacy cases where the value was stored as an Integer (or other numeric types)
+            val v = p.all[key]
+            when (v) {
+                is Number -> v.toLong()
+                is String -> v.toLongOrNull() ?: 0L
+                else -> 0L
+            }
+        }
     }
 
     fun removeProgress(context: Context, episodeId: String) {
@@ -62,9 +74,14 @@ object PlayedEpisodesPreference {
         val all = prefs(context).all
         val map = mutableMapOf<String, Long>()
         for ((k, v) in all) {
-            if (k.startsWith("progress_") && v is Long) {
+            if (k.startsWith("progress_")) {
                 val id = k.removePrefix("progress_")
-                map[id] = v
+                val valueLong = when (v) {
+                    is Number -> v.toLong()
+                    is String -> v.toLongOrNull() ?: 0L
+                    else -> 0L
+                }
+                if (valueLong > 0L) map[id] = valueLong
             }
         }
         return map
