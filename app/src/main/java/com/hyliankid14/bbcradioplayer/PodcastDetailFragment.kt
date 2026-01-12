@@ -140,7 +140,8 @@ class PodcastDetailFragment : Fragment() {
             episodesRecycler.adapter = episodesAdapter
 
             // Listen for played-status changes so the list updates when items are marked/unmarked
-            requireContext().registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED))
+            // Use RECEIVER_NOT_EXPORTED to satisfy Android's requirement for non-system broadcasts
+            requireContext().registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED), android.content.Context.RECEIVER_NOT_EXPORTED)
 
             // Make the RecyclerView participate in the parent NestedScrollView instead of scrolling independently
             episodesRecycler.isNestedScrollingEnabled = false
