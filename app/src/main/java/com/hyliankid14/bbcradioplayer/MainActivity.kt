@@ -27,6 +27,7 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.core.graphics.ColorUtils
+import android.view.WindowManager
 import android.view.GestureDetector
 import android.view.MotionEvent
 import com.google.android.material.tabs.TabLayout
@@ -140,6 +141,8 @@ class MainActivity : AppCompatActivity() {
         
         // Ensure mini player state is in sync immediately (avoids flicker on theme change)
         updateMiniPlayer()
+        // Prevent navigation bar from resizing/moving when the keyboard appears
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         
         // Register listener for show changes
         PlaybackStateHelper.onShowChange(showChangeListener)
@@ -253,6 +256,15 @@ class MainActivity : AppCompatActivity() {
         if (subscribedIds.isNotEmpty()) {
             favoritesPodcastsContainer.visibility = View.VISIBLE
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
+
+            // Use the Material 3 primary container (light lavender) for the subscribed podcasts area
+            val lavender = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_primaryContainer)
+            val lavenderOn = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onPrimaryContainer)
+            favoritesPodcastsContainer.setBackgroundColor(lavender)
+            // Header should use the same light lavender background and dark text for contrast
+            favoritesPodcastsHeaderContainer.setBackgroundColor(lavender)
+            (favoritesPodcastsHeaderContainer.findViewById<View>(R.id.favorites_podcasts_header) as? android.widget.TextView)?.setTextColor(lavenderOn)
+            favoritesPodcastsExpandIcon?.setColorFilter(lavenderOn)
             
             val divider = findViewById<View>(R.id.favorites_podcasts_divider)
             
