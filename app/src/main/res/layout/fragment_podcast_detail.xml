@@ -125,7 +125,7 @@
         android:visibility="gone"
         app:backgroundTint="@color/md_theme_primary"
         android:tint="@color/md_theme_onPrimary"
-        app:layout_anchorGravity="bottom|end"
+        android:layout_gravity="bottom|end"
         app:useCompatPadding="true" />
 
 </LinearLayout>
