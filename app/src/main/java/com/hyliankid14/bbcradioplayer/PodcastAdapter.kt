@@ -152,6 +152,7 @@ class EpisodeAdapter(
         private lateinit var currentEpisode: Episode
         private val titleView: TextView = itemView.findViewById(R.id.episode_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.episode_description)
+        private val progressText: TextView = itemView.findViewById(R.id.episode_progress_text)
         private val showMoreView: TextView = itemView.findViewById(R.id.episode_show_more)
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
@@ -159,6 +160,13 @@ class EpisodeAdapter(
         private val playedIcon: ImageView? = itemView.findViewById(R.id.episode_played_icon)
         private var isExpanded = false
         private val collapsedLines = 2
+
+        private fun formatMs(ms: Long): String {
+            val totalSeconds = ms / 1000
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            return String.format("%d:%02d", minutes, seconds)
+        }
 
         init {
             val playAction: (View) -> Unit = {

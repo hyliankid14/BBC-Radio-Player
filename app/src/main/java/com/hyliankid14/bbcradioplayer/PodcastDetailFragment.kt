@@ -178,10 +178,10 @@ class PodcastDetailFragment : Fragment() {
                         emptyState.visibility = View.GONE
                         episodesRecycler.visibility = View.VISIBLE
                             if (currentOffset == 0) {
-                                adapter.updateEpisodes(page)
+                                episodesAdapter?.updateEpisodes(page)
                                 // Ensure action bar shows podcast title once episodes are visible
                                 (activity as? AppCompatActivity)?.supportActionBar?.title = podcast.title
-                            } else adapter.addEpisodes(page)
+                            } else episodesAdapter?.addEpisodes(page)
                         currentOffset += page.size
                     }
                     isLoadingPage = false
