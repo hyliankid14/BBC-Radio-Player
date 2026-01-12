@@ -7,7 +7,7 @@
 
     <application
         android:allowBackup="true"
-        android:backupAgent=".BBCRadioBackupAgent"
+        android:fullBackupContent="@xml/backup_rules"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.AndroidAutoRadioPlayer"
