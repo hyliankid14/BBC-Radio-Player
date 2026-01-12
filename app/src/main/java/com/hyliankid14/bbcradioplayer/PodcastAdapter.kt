@@ -229,7 +229,7 @@ class EpisodeAdapter(
 
             // Show played indicator if episode has been played to completion
             if (PlayedEpisodesPreference.isPlayed(itemView.context, episode.id)) {
-                playedIcon?.setImageResource(R.drawable.exo_ic_check)
+                playedIcon?.setImageResource(R.drawable.ic_check)
                 playedIcon?.visibility = View.VISIBLE
             } else {
                 playedIcon?.visibility = View.GONE
