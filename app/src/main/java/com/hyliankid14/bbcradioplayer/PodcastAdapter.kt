@@ -223,6 +223,7 @@ class EpisodeAdapter(
             return parsed?.let {
                 SimpleDateFormat("EEE, dd MMM yyyy", Locale.US).format(it)
             } ?: raw.substringBefore(":").trim()
-        }        }
+        }
     }
 }
+
