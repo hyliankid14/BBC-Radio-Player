@@ -62,9 +62,8 @@ class PodcastDetailFragment : Fragment() {
                 setDisplayShowHomeEnabled(true)
                 setHomeAsUpIndicator(R.drawable.ic_arrow_back)
             }
-
-            // Ensure action bar always shows podcast title while viewing details
-            (activity as? AppCompatActivity)?.supportActionBar?.title = podcast.title
+            // Also set the activity title as a fallback so the action bar shows correctly
+            requireActivity().title = podcast.title
 
             // Podcast title is shown in the action bar; hide the inline title to avoid duplication
             descriptionView.text = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY)
@@ -121,15 +120,17 @@ class PodcastDetailFragment : Fragment() {
                     .into(imageView)
             }
 
-            // Initialize subscribe button state and colors (lighter lavender when subscribed)
+            // Initialize subscribe button state and colors (use high-contrast text colors)
             fun updateSubscribeButton(subscribed: Boolean) {
                 subscribeButton.text = if (subscribed) "Subscribed" else "Subscribe"
+                val primary = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_primary)
+                val onPrimary = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_onPrimary)
                 if (subscribed) {
-                    subscribeButton.setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_primaryContainer))
-                    subscribeButton.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_onPrimaryContainer))
+                    subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(primary)
+                    subscribeButton.setTextColor(onPrimary)
                 } else {
-                    subscribeButton.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    subscribeButton.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_onSurface))
+                    subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+                    subscribeButton.setTextColor(primary)
                 }
             }
 
@@ -155,7 +156,8 @@ class PodcastDetailFragment : Fragment() {
             // Show a FAB after the user scrolls a bit; tapping it scrolls back to the top
             val scrollView = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.podcast_detail_scroll)
             val fab = view.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.scroll_to_top_fab)
-            val showThresholdPx = (160 * resources.displayMetrics.density).toInt()
+            // Show FAB sooner — lower threshold to make it visible when user scrolls down a little
+            val showThresholdPx = (48 * resources.displayMetrics.density).toInt()
             scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
                 if (scrollY > showThresholdPx) {
                     fab.show()

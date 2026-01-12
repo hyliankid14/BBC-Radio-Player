@@ -92,9 +92,9 @@ class PodcastAdapter(
                     val bg = androidx.core.content.ContextCompat.getColor(itemView.context, R.color.subscribed_podcasts_bg)
                     val on = androidx.core.content.ContextCompat.getColor(itemView.context, R.color.subscribed_podcasts_text)
                     itemView.setBackgroundColor(bg)
-                    // Try to set title text color for contrast
+                    // Use the same darker text for both title and description to increase contrast
                     titleView.setTextColor(on)
-                    descriptionView.setTextColor(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.md_theme_onSurfaceVariant))
+                    descriptionView.setTextColor(on)
                 } else {
                     itemView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
                     titleView.setTextColor(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.md_theme_onSurface))
