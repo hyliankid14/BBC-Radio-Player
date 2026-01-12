@@ -242,7 +242,6 @@ class EpisodeAdapter(
             }
 
             // Show indicator: check for completed, hollow circle for in-progress, otherwise hidden
-            val isPlayed = PlayedEpisodesPreference.isPlayed(itemView.context, episode.id)
             if (isPlayed) {
                 playedIcon?.setImageResource(R.drawable.ic_check)
                 playedIcon?.visibility = View.VISIBLE
