@@ -121,6 +121,17 @@ class NowPlayingActivity : AppCompatActivity() {
             val previewPodcastTitle = intent.getStringExtra("preview_podcast_title")
             val previewPodcastImage = intent.getStringExtra("preview_podcast_image")
             showPreviewEpisode(previewEpisode, previewPodcastTitle, previewPodcastImage)
+            // If caller asked us to present the preview using the same playing UI (but without autoplay),
+            // make small adjustments so the screen matches the playing UI more closely.
+            val usePlayUi = intent.getBooleanExtra("preview_use_play_ui", false)
+            if (usePlayUi) {
+                // Ensure play button shows play icon (not autoplay)
+                playPauseButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_play_arrow)
+                // Keep progress controls visible if duration present (already handled in showPreviewEpisode)
+                // Ensure action bar title is set from provided podcast title
+                val initialTitle = intent.getStringExtra("initial_podcast_title")
+                if (!initialTitle.isNullOrEmpty()) supportActionBar?.title = initialTitle
+            }
         }
 
         // If an initial podcast image/title is provided (launched immediately after starting playback),

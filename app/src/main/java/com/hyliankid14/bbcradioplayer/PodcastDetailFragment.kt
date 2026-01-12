@@ -71,12 +71,6 @@ class PodcastDetailFragment : Fragment() {
             
             // Add "Show more" functionality for description (clamp to 3 lines while image height)
             var userExpanded = false
-            descriptionView.post {
-                if (descriptionView.lineCount > 3) {
-                    showMoreView.visibility = View.VISIBLE
-                }
-            }
-
             val toggleHeader: () -> Unit = {
                 // Animate layout changes so the subscribe button and episodes move smoothly
                 android.transition.TransitionManager.beginDelayedTransition(headerContainer as android.view.ViewGroup)
@@ -111,7 +105,16 @@ class PodcastDetailFragment : Fragment() {
                 }
             }
 
-            descriptionView.setOnClickListener { toggleHeader() }
+            // Only make the description clickable if it is actually truncated
+            descriptionView.post {
+                if (descriptionView.lineCount > 3) {
+                    showMoreView.visibility = View.VISIBLE
+                    descriptionView.setOnClickListener { toggleHeader() }
+                } else {
+                    showMoreView.visibility = View.GONE
+                    descriptionView.setOnClickListener(null)
+                }
+            }
             showMoreView.setOnClickListener { toggleHeader() }
 
             if (podcast.imageUrl.isNotEmpty()) {
@@ -124,7 +127,7 @@ class PodcastDetailFragment : Fragment() {
             fun updateSubscribeButton(subscribed: Boolean) {
                 subscribeButton.text = if (subscribed) "Subscribed" else "Subscribe"
                 val primary = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_primary)
-                val onPrimary = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_onPrimary)
+                val onPrimary = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text)
                 if (subscribed) {
                     subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(primary)
                     subscribeButton.setTextColor(onPrimary)
@@ -192,7 +195,11 @@ class PodcastDetailFragment : Fragment() {
                     } else {
                         emptyState.visibility = View.GONE
                         episodesRecycler.visibility = View.VISIBLE
-                        if (currentOffset == 0) adapter.updateEpisodes(page) else adapter.addEpisodes(page)
+                            if (currentOffset == 0) {
+                                adapter.updateEpisodes(page)
+                                // Ensure action bar shows podcast title once episodes are visible
+                                (activity as? AppCompatActivity)?.supportActionBar?.title = podcast.title
+                            } else adapter.addEpisodes(page)
                         currentOffset += page.size
                     }
                     isLoadingPage = false
@@ -230,6 +237,12 @@ class PodcastDetailFragment : Fragment() {
             currentPodcast?.let {
                 putExtra("preview_podcast_title", it.title)
                 putExtra("preview_podcast_image", it.imageUrl)
+                // Also provide the same initial artwork/title extras used when starting playback
+                putExtra("initial_podcast_title", it.title)
+                putExtra("initial_podcast_image", it.imageUrl)
+                // Request NowPlayingActivity to present the preview using the same playing UI where possible
+                putExtra("preview_use_play_ui", true)
+                putExtra("preview_autoplay", false)
             }
         }
         startActivity(intent)
