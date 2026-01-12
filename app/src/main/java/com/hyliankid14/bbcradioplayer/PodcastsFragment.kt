@@ -92,41 +92,8 @@ class PodcastsFragment : Fragment() {
             applyFilters(loadingIndicator, emptyState, recyclerView)
         }
 
-        // Hide filters on scroll with smooth animation; use thresholds to avoid flicker on slow swipes
-        var isFiltersVisible = true
-        var isAnimating = false
-        var scrollAccumPx = 0f
-        val hideShowThresholdPx = 24 * resources.displayMetrics.density
-        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
-                if (dy == 0) return
-                scrollAccumPx += dy
-
-                // Hide after enough downward scroll
-                if (!isAnimating && isFiltersVisible && scrollAccumPx > hideShowThresholdPx) {
-                    isAnimating = true
-                    isFiltersVisible = false
-                    scrollAccumPx = 0f
-                    filtersContainer.animate().alpha(0f).setDuration(180).withEndAction {
-                        filtersContainer.visibility = View.GONE
-                        isAnimating = false
-                    }.start()
-                    return
-                }
-
-                // Show after enough upward scroll (does not require reaching top)
-                if (!isAnimating && !isFiltersVisible && scrollAccumPx < -hideShowThresholdPx) {
-                    isAnimating = true
-                    isFiltersVisible = true
-                    scrollAccumPx = 0f
-                    filtersContainer.visibility = View.VISIBLE
-                    filtersContainer.alpha = 0f
-                    filtersContainer.animate().alpha(1f).setDuration(180).withEndAction {
-                        isAnimating = false
-                    }.start()
-                }
-            }
-        })
+        // Previously we hid filters on scroll which caused flicker. Let the filters scroll with content inside the NestedScrollView.
+        // If desired we show a FAB (in podcasts fragment we rely on the system back-to-top behaviour or user scrolling).
 
         loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
     }
@@ -250,6 +217,9 @@ class PodcastsFragment : Fragment() {
             emptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
         }
+
+        // Ensure any loading spinner is hidden when filters finish applying
+        view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
     }
 
     override fun onDestroy() {

@@ -332,6 +332,9 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     private fun playEpisodePreview(episode: Episode) {
+        // Force artwork reload when playback starts (prevent disappearance)
+        lastArtworkUrl = null
+
         val intent = Intent(this, RadioService::class.java).apply {
             action = RadioService.ACTION_PLAY_PODCAST_EPISODE
             putExtra(RadioService.EXTRA_EPISODE, episode)
