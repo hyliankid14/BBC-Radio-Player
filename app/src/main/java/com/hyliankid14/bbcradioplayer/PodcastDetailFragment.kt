@@ -66,11 +66,11 @@ class PodcastDetailFragment : Fragment() {
             requireActivity().title = podcast.title
 
             // Podcast title is shown in the action bar; hide the inline title to avoid duplication
+            val fullDescriptionText = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
             descriptionView.text = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY)
             titleView.visibility = View.GONE
             
             // Show the description filling the available space next to the artwork.
-            // Do not make it tappable - we want a stable, non-interactive header description.
             val initialLp = descriptionView.layoutParams as? android.widget.LinearLayout.LayoutParams
             initialLp?.let {
                 it.height = 0
@@ -80,9 +80,20 @@ class PodcastDetailFragment : Fragment() {
                 descriptionView.gravity = android.view.Gravity.TOP
                 descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             }
-            // Hide the explicit "Show more" affordance - description is non-interactive
-            showMoreView.visibility = View.GONE
-            descriptionView.setOnClickListener(null)
+
+            // Make the header tappable to show the full description (and show explicit affordance)
+            if (fullDescriptionText.isNotEmpty()) {
+                showMoreView.visibility = View.VISIBLE
+                val showDialog = {
+                    val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescriptionText, "Podcast Description")
+                    dialog.show(parentFragmentManager, "episode_description")
+                }
+                showMoreView.setOnClickListener { showDialog() }
+                descriptionView.setOnClickListener { showDialog() }
+            } else {
+                showMoreView.visibility = View.GONE
+                descriptionView.setOnClickListener(null)
+            }
 
             if (podcast.imageUrl.isNotEmpty()) {
                 Glide.with(this)

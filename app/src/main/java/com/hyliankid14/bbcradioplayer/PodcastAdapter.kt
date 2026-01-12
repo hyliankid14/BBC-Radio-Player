@@ -172,14 +172,17 @@ class EpisodeAdapter(
             // Play when the play button is tapped
             playButton.setOnClickListener(playAction)
 
-            // Do NOT open preview when the row is tapped — only the play button should be actionable.
+            // Do not open preview when the row itself is tapped — only specific subviews are actionable
             itemView.setOnClickListener(null)
 
-            // Ensure title and description do not respond to taps to avoid accidental playback
-            titleView.isClickable = false
-            titleView.isFocusable = false
-            descriptionView.isClickable = false
-            descriptionView.isFocusable = false
+            // Make the title and description open the full-screen player in preview mode (no autoplay)
+            titleView.isClickable = true
+            titleView.isFocusable = true
+            titleView.setOnClickListener { onOpenFull(currentEpisode) }
+
+            descriptionView.isClickable = true
+            descriptionView.isFocusable = true
+            descriptionView.setOnClickListener { onOpenFull(currentEpisode) }
         }
 
         fun bind(episode: Episode) {

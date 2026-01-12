@@ -9,11 +9,13 @@ import androidx.fragment.app.DialogFragment
 class EpisodeDescriptionDialogFragment : DialogFragment() {
     companion object {
         private const val ARG_DESCRIPTION = "description"
+        private const val ARG_TITLE = "title"
         
-        fun newInstance(description: String): EpisodeDescriptionDialogFragment {
+        fun newInstance(description: String, title: String = "Episode Description"): EpisodeDescriptionDialogFragment {
             return EpisodeDescriptionDialogFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_DESCRIPTION, description)
+                    putString(ARG_TITLE, title)
                 }
             }
         }
@@ -21,6 +23,7 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val description = arguments?.getString(ARG_DESCRIPTION) ?: ""
+        val title = arguments?.getString(ARG_TITLE) ?: "Episode Description"
         
         val textView = TextView(requireContext()).apply {
             text = description
@@ -42,7 +45,7 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
         }
 
         return AlertDialog.Builder(requireContext())
-            .setTitle("Episode Description")
+            .setTitle(title)
             .setView(scrollView)
             .setPositiveButton("Close") { _, _ -> dismiss() }
             .create()
