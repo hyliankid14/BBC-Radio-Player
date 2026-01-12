@@ -129,6 +129,8 @@
         app:backgroundTint="@color/md_theme_primary"
         app:rippleColor="@color/md_theme_onPrimary"
         android:tint="@color/md_theme_onPrimary"
-        android:layout_gravity="bottom|end" />
+        android:background="@android:color/transparent"
+        android:layout_gravity="bottom|end"
+        android:elevation="8dp" />
 
 </LinearLayout>
