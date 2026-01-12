@@ -86,12 +86,19 @@ class PodcastAdapter(
                     .into(imageView)
             }
 
-            // Highlight subscribed podcasts when used in the Favorites list
+            // Highlight subscribed podcasts when used in the Favorites list using fixed lavender color
             if ((itemView.context as? android.app.Activity) != null && (adapterPosition >= 0)) {
                 if (highlightSubscribed && PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
-                    itemView.setBackgroundColor(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.md_theme_primaryContainer))
+                    val bg = androidx.core.content.ContextCompat.getColor(itemView.context, R.color.subscribed_podcasts_bg)
+                    val on = androidx.core.content.ContextCompat.getColor(itemView.context, R.color.subscribed_podcasts_text)
+                    itemView.setBackgroundColor(bg)
+                    // Try to set title text color for contrast
+                    titleView.setTextColor(on)
+                    descriptionView.setTextColor(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.md_theme_onSurfaceVariant))
                 } else {
                     itemView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    titleView.setTextColor(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.md_theme_onSurface))
+                    descriptionView.setTextColor(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.md_theme_onSurfaceVariant))
                 }
             }
         }

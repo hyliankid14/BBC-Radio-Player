@@ -63,6 +63,9 @@ class PodcastDetailFragment : Fragment() {
                 setHomeAsUpIndicator(R.drawable.ic_arrow_back)
             }
 
+            // Ensure action bar always shows podcast title while viewing details
+            (activity as? AppCompatActivity)?.supportActionBar?.title = podcast.title
+
             // Podcast title is shown in the action bar; hide the inline title to avoid duplication
             descriptionView.text = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY)
             titleView.visibility = View.GONE
@@ -209,6 +212,13 @@ class PodcastDetailFragment : Fragment() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        currentPodcast?.let { podcast ->
+            (activity as? AppCompatActivity)?.supportActionBar?.title = podcast.title
         }
     }
 
