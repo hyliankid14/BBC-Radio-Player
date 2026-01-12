@@ -172,38 +172,25 @@ class EpisodeAdapter(
             // Play when the play button is tapped
             playButton.setOnClickListener(playAction)
 
-            // Open full-screen preview when the row is tapped (title/description are NOT clickable to avoid accidental playback actions)
+            // Open full-screen preview when the row is tapped.
             val openAction: (View) -> Unit = {
                 onOpenFull(currentEpisode)
             }
             itemView.setOnClickListener(openAction)
 
-        }
+            // Prevent clicks on title/description from propagating to the row and triggering preview/playback.
+            titleView.isClickable = true
+            titleView.isFocusable = true
+            titleView.setOnClickListener { /* consume click - no action */ }
 
-        fun bind(episode: Episode) {
-            currentEpisode = episode
-            titleView.text = episode.title
-            isExpanded = false
-            descriptionView.maxLines = collapsedLines
-            // Hide the inline toggle for episode items — show-more is handled in the full-screen player.
-            showMoreView.visibility = View.GONE
-            
-            // Show "Show more" if description is long enough to need it
-            val fullDesc = sanitizeDescription(episode.description)
-            descriptionView.text = fullDesc
-            // Keep the toggle visible; content is clamped when collapsed
-            
-            // Remove timestamp from date - just show date portion
-            dateView.text = formatEpisodeDate(episode.pubDate)
-            durationView.text = "${episode.durationMins} min"
-        }
-
-        private fun sanitizeDescription(raw: String): String {
-            val spanned = HtmlCompat.fromHtml(raw, HtmlCompat.FROM_HTML_MODE_LEGACY)
-            return spanned.toString().trim()
-        }
-
-        private fun formatEpisodeDate(raw: String): String {
+            descriptionView.isClickable = true
+            descriptionView.isFocusable = true
+            descriptionView.setOnClickListener { /* consume click - no action */ }
+            // Ensure title and description do not respond to taps to avoid accidental playback
+            titleView.isClickable = false
+            titleView.isFocusable = false
+            descriptionView.isClickable = false
+            descriptionView.isFocusable = false
             val patterns = listOf(
                 "EEE, dd MMM yyyy HH:mm:ss Z",
                 "dd MMM yyyy HH:mm:ss Z",

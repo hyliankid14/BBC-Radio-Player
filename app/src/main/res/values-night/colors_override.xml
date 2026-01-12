@@ -6,4 +6,7 @@
     <!-- Subscribe button colors (dark theme): dark purple bg with light text -->
     <color name="subscribe_button_bg">#6200EE</color>
     <color name="subscribe_button_text">#FFFFFF</color>
+    <!-- When subscribed, use alternate/darker purple -->
+    <color name="subscribe_button_bg_subscribed">#3700B3</color>
+    <color name="subscribe_button_text_subscribed">#FFFFFF</color>
 </resources>

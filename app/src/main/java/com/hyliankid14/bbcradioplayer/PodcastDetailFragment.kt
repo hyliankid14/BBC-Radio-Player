@@ -69,64 +69,20 @@ class PodcastDetailFragment : Fragment() {
             descriptionView.text = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY)
             titleView.visibility = View.GONE
             
-            // Add "Show more" functionality for description (clamp to 3 lines while image height)
-            var userExpanded = false
-            // Ensure initial collapsed layout: description occupies remaining height next to image
+            // Show the description filling the available space next to the artwork.
+            // Do not make it tappable - we want a stable, non-interactive header description.
             val initialLp = descriptionView.layoutParams as? android.widget.LinearLayout.LayoutParams
             initialLp?.let {
-                it.height = android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                it.weight = 0f
+                it.height = 0
+                it.weight = 1f
                 descriptionView.layoutParams = it
-                // Allow the description to fill the available header space and align to the top
                 descriptionView.maxLines = Int.MAX_VALUE
                 descriptionView.gravity = android.view.Gravity.TOP
-                descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
+                descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
             }
-            val toggleHeader: () -> Unit = {
-                // Animate layout changes so the subscribe button and episodes move smoothly
-                android.transition.TransitionManager.beginDelayedTransition(headerContainer as android.view.ViewGroup)
-
-                val expanding = descriptionView.maxLines == 3
-                if (expanding) {
-                    // Expand: allow description to grow beyond image height
-                    val lp = descriptionView.layoutParams as android.widget.LinearLayout.LayoutParams
-                    lp.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                    lp.weight = 0f
-                    descriptionView.layoutParams = lp
-
-                    descriptionView.maxLines = Int.MAX_VALUE
-                    descriptionView.gravity = android.view.Gravity.TOP
-                    showMoreView.visibility = View.GONE
-                    descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-                    headerContainer.requestLayout()
-                    userExpanded = true
-                } else {
-                    // Collapse: constrain description to image height again
-                    val lp = descriptionView.layoutParams as android.widget.LinearLayout.LayoutParams
-                    lp.height = 0
-                    lp.weight = 1f
-                    descriptionView.layoutParams = lp
-
-                    descriptionView.maxLines = 3
-                    descriptionView.gravity = android.view.Gravity.BOTTOM
-                    showMoreView.visibility = View.VISIBLE
-                    descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
-                    headerContainer.requestLayout()
-                    userExpanded = false
-                }
-            }
-
-            // Only make the description clickable if it is actually truncated
-            descriptionView.post {
-                if (descriptionView.lineCount > 3) {
-                    showMoreView.visibility = View.VISIBLE
-                    descriptionView.setOnClickListener { toggleHeader() }
-                } else {
-                    showMoreView.visibility = View.GONE
-                    descriptionView.setOnClickListener(null)
-                }
-            }
-            showMoreView.setOnClickListener { toggleHeader() }
+            // Hide the explicit "Show more" affordance - description is non-interactive
+            showMoreView.visibility = View.GONE
+            descriptionView.setOnClickListener(null)
 
             if (podcast.imageUrl.isNotEmpty()) {
                 Glide.with(this)
@@ -137,15 +93,12 @@ class PodcastDetailFragment : Fragment() {
             // Initialize subscribe button state and colors (use high-contrast text colors)
             fun updateSubscribeButton(subscribed: Boolean) {
                 subscribeButton.text = if (subscribed) "Subscribed" else "Subscribe"
-                val bg = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_bg)
-                val onBg = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text)
-                if (subscribed) {
-                    subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(bg)
-                    subscribeButton.setTextColor(onBg)
-                } else {
-                    subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                    subscribeButton.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_onSurface))
-                }
+                val bg = if (subscribed) androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_bg_subscribed)
+                         else androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_bg)
+                val textColor = if (subscribed) androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text_subscribed)
+                                else androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text)
+                subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(bg)
+                subscribeButton.setTextColor(textColor)
             }
 
             val isSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
