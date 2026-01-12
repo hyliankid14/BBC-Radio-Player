@@ -117,13 +117,24 @@ class PodcastDetailFragment : Fragment() {
                     .into(imageView)
             }
 
-            // Initialize subscribe button state
+            // Initialize subscribe button state and colors (lighter lavender when subscribed)
+            fun updateSubscribeButton(subscribed: Boolean) {
+                subscribeButton.text = if (subscribed) "Subscribed" else "Subscribe"
+                if (subscribed) {
+                    subscribeButton.setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_primaryContainer))
+                    subscribeButton.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_onPrimaryContainer))
+                } else {
+                    subscribeButton.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    subscribeButton.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.md_theme_onSurface))
+                }
+            }
+
             val isSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
-            subscribeButton.text = if (isSubscribed) "Subscribed" else "Subscribe"
+            updateSubscribeButton(isSubscribed)
             subscribeButton.setOnClickListener {
                 PodcastSubscriptions.toggleSubscription(requireContext(), podcast.id)
                 val nowSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
-                subscribeButton.text = if (nowSubscribed) "Subscribed" else "Subscribe"
+                updateSubscribeButton(nowSubscribed)
             }
 
             episodesRecycler.layoutManager = LinearLayoutManager(requireContext())
@@ -223,7 +234,13 @@ class PodcastDetailFragment : Fragment() {
         }
         requireContext().startService(intent)
         // Open the now-playing screen so play behavior matches tapping the row
-        val npIntent = Intent(requireContext(), NowPlayingActivity::class.java)
+        val npIntent = Intent(requireContext(), NowPlayingActivity::class.java).apply {
+            // Provide initial artwork/title so the NowPlaying screen can show artwork immediately
+            currentPodcast?.let {
+                putExtra("initial_podcast_title", it.title)
+                putExtra("initial_podcast_image", it.imageUrl)
+            }
+        }
         startActivity(npIntent)
     }
 

@@ -123,6 +123,18 @@ class NowPlayingActivity : AppCompatActivity() {
             showPreviewEpisode(previewEpisode, previewPodcastTitle, previewPodcastImage)
         }
 
+        // If an initial podcast image/title is provided (launched immediately after starting playback),
+        // show it so artwork is visible while playback state initializes.
+        val initialImage: String? = intent.getStringExtra("initial_podcast_image")
+        val initialTitle: String? = intent.getStringExtra("initial_podcast_title")
+        if (!initialImage.isNullOrEmpty()) {
+            Glide.with(this).load(initialImage).into(stationArtwork)
+            lastArtworkUrl = initialImage
+        }
+        if (!initialTitle.isNullOrEmpty()) {
+            supportActionBar?.title = initialTitle
+        }
+
         // Initial update only when not in preview mode
         if (!isPreviewMode) updateUI()
         
