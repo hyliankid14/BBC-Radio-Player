@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep the subscribed podcasts header light lavender and dark text in night mode too -->
+    <color name="subscribed_podcasts_bg">#EADDFF</color>
+    <color name="subscribed_podcasts_text">#21005D</color>
+</resources>

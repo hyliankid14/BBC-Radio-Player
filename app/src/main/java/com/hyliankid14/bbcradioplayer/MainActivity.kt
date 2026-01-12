@@ -203,7 +203,7 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
-        supportActionBar?.title = "Favorites"
+        supportActionBar?.title = "Favourites"
         
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
         val favoritesPodcastsHeaderContainer = findViewById<View>(R.id.favorites_podcasts_header_container)
@@ -257,9 +257,9 @@ class MainActivity : AppCompatActivity() {
             favoritesPodcastsContainer.visibility = View.VISIBLE
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
 
-            // Use the Material 3 primary container (light lavender) for the subscribed podcasts area
-            val lavender = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_primaryContainer)
-            val lavenderOn = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onPrimaryContainer)
+            // Use a fixed light-lavender background and dark text regardless of theme
+            val lavender = androidx.core.content.ContextCompat.getColor(this, R.color.subscribed_podcasts_bg)
+            val lavenderOn = androidx.core.content.ContextCompat.getColor(this, R.color.subscribed_podcasts_text)
             favoritesPodcastsContainer.setBackgroundColor(lavender)
             // Header should use the same light lavender background and dark text for contrast
             favoritesPodcastsHeaderContainer.setBackgroundColor(lavender)
@@ -342,7 +342,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateActionBarTitle() {
         val title = when (currentMode) {
-            "favorites" -> "Favorites"
+            "favorites" -> "Favourites"
             "settings" -> "Settings"
             "podcasts" -> "Podcasts"
             else -> "All Stations"

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Explicit colors used to keep subscribed podcasts header light lavender in both themes -->
+    <color name="subscribed_podcasts_bg">#EADDFF</color>
+    <color name="subscribed_podcasts_text">#21005D</color>
+</resources>

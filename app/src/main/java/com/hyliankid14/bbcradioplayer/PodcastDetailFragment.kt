@@ -63,8 +63,9 @@ class PodcastDetailFragment : Fragment() {
                 setHomeAsUpIndicator(R.drawable.ic_arrow_back)
             }
 
-            titleView.text = podcast.title
+            // Podcast title is shown in the action bar; hide the inline title to avoid duplication
             descriptionView.text = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY)
+            titleView.visibility = View.GONE
             
             // Add "Show more" functionality for description (clamp to 3 lines while image height)
             var userExpanded = false
