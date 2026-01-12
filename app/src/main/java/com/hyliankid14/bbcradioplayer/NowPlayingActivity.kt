@@ -279,6 +279,8 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     private fun showPreviewEpisode(episode: Episode, podcastTitle: String?, podcastImage: String?) {
+        // Ensure action bar shows the podcast name while previewing
+        supportActionBar?.title = podcastTitle ?: supportActionBar?.title
         // Display podcast title or provided podcastTitle
         showName.visibility = android.view.View.GONE
 

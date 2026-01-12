@@ -57,7 +57,7 @@ class PodcastDetailFragment : Fragment() {
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
 
             (activity as? AppCompatActivity)?.supportActionBar?.apply {
-                title = "Podcasts"
+                title = podcast.title
                 setDisplayHomeAsUpEnabled(true)
                 setDisplayShowHomeEnabled(true)
                 setHomeAsUpIndicator(R.drawable.ic_arrow_back)
@@ -191,6 +191,9 @@ class PodcastDetailFragment : Fragment() {
             }
         }
         requireContext().startService(intent)
+        // Open the now-playing screen so play behavior matches tapping the row
+        val npIntent = Intent(requireContext(), NowPlayingActivity::class.java)
+        startActivity(npIntent)
     }
 
     override fun onDestroy() {

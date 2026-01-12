@@ -90,7 +90,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                android:scrollbars="vertical" />
+                android:scrollbars="vertical"
+                android:paddingBottom="96dp"
+                android:clipToPadding="false" />
 
             <!-- Loading Indicator -->
             <ProgressBar
@@ -123,7 +125,7 @@
         app:srcCompat="@drawable/ic_arrow_up"
         android:visibility="gone"
         app:fabSize="normal"
-        app:useCompatPadding="true"
+        app:useCompatPadding="false"
         app:backgroundTint="?attr/colorPrimary"
         app:rippleColor="?attr/colorOnPrimary"
         android:tint="?attr/colorOnPrimary"

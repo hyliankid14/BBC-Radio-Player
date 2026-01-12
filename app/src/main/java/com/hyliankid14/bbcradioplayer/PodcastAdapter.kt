@@ -20,7 +20,8 @@ class PodcastAdapter(
     private val context: Context,
     private var podcasts: List<Podcast> = emptyList(),
     private val onPodcastClick: (Podcast) -> Unit,
-    private val onOpenPlayer: (() -> Unit)? = null
+    private val onOpenPlayer: (() -> Unit)? = null,
+    private val highlightSubscribed: Boolean = false
 ) : RecyclerView.Adapter<PodcastAdapter.PodcastViewHolder>() {
 
     fun updatePodcasts(newPodcasts: List<Podcast>) {
@@ -83,6 +84,15 @@ class PodcastAdapter(
                 Glide.with(itemView.context)
                     .load(podcast.imageUrl)
                     .into(imageView)
+            }
+
+            // Highlight subscribed podcasts when used in the Favorites list
+            if ((itemView.context as? android.app.Activity) != null && (adapterPosition >= 0)) {
+                if (highlightSubscribed && PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
+                    itemView.setBackgroundColor(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.md_theme_primaryContainer))
+                } else {
+                    itemView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                }
             }
         }
     }

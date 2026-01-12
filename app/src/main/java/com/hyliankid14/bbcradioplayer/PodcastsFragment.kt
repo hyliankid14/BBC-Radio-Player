@@ -28,7 +28,7 @@ class PodcastsFragment : Fragment() {
     private lateinit var adapter: PodcastAdapter
     private var allPodcasts: List<Podcast> = emptyList()
     private var currentFilter = PodcastFilter()
-    private var currentSort: String = "Most recent"
+    private var currentSort: String = "Most popular"
     private var cachedUpdates: Map<String, Long> = emptyMap()
     private var searchQuery = ""
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
@@ -96,7 +96,7 @@ class PodcastsFragment : Fragment() {
             currentFilter = PodcastFilter()
             // Set exposed dropdowns back to 'All Genres' / default label
             genreSpinner.setText("All Genres", false)
-            sortSpinner.setText("Most recent", false)
+            sortSpinner.setText("Most popular", false)
             applyFilters(loadingIndicator, emptyState, recyclerView)
         }
 
@@ -106,6 +106,10 @@ class PodcastsFragment : Fragment() {
         // Scroll handling for nested scroll / pagination
         val nestedScroll: androidx.core.widget.NestedScrollView = view.findViewById(R.id.podcasts_scroll)
         val fab: com.google.android.material.floatingactionbutton.FloatingActionButton? = view.findViewById(R.id.scroll_to_top_fab)
+
+        // Prevent navbar from resizing when keyboard opens while in this fragment
+        val previousSoftInputMode = requireActivity().window.attributes.softInputMode
+        requireActivity().window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         nestedScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             // Show/hide FAB after some scrolling so it's unobtrusive initially
@@ -121,6 +125,14 @@ class PodcastsFragment : Fragment() {
                 }
             }
         }
+        // Restore previous mode when view is destroyed
+        view.lifecycleOwner?.lifecycle?.addObserver(object : androidx.lifecycle.LifecycleEventObserver {
+            override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: androidx.lifecycle.Lifecycle.Event) {
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_DESTROY) {
+                    requireActivity().window.setSoftInputMode(previousSoftInputMode)
+                }
+            }
+        })
 
         fab?.setOnClickListener { nestedScroll.smoothScrollTo(0, 0) }
 
