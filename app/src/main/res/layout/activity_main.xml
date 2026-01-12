@@ -13,7 +13,7 @@
         android:layout_weight="1"
         android:visibility="gone" />
 
-    <!-- Static Content Container (Stations & Settings) -->
+    <!-- Static Content Container (Stations &amp; Settings) -->
     <FrameLayout
         android:id="@+id/static_content_container"
         android:layout_width="match_parent"
@@ -265,7 +265,7 @@
                         android:padding="12dp" />
                 </LinearLayout>
 
-                <!-- Backup & Restore -->
+                <!-- Backup &amp; Restore -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
