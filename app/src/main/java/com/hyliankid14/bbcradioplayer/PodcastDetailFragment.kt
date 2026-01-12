@@ -87,8 +87,10 @@ class PodcastDetailFragment : Fragment() {
                     descriptionView.layoutParams = lp
 
                     descriptionView.maxLines = Int.MAX_VALUE
+                    descriptionView.gravity = android.view.Gravity.TOP
                     showMoreView.visibility = View.GONE
                     descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+                    headerContainer.requestLayout()
                     userExpanded = true
                 } else {
                     // Collapse: constrain description to image height again
@@ -98,8 +100,10 @@ class PodcastDetailFragment : Fragment() {
                     descriptionView.layoutParams = lp
 
                     descriptionView.maxLines = 3
+                    descriptionView.gravity = android.view.Gravity.BOTTOM
                     showMoreView.visibility = View.VISIBLE
                     descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
+                    headerContainer.requestLayout()
                     userExpanded = false
                 }
             }
@@ -147,6 +151,7 @@ class PodcastDetailFragment : Fragment() {
                         if (!isAnimating && isHeaderVisible) {
                             isAnimating = true
                             isHeaderVisible = false
+                            cumulativeDy = 0
                             headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
                                 headerContainer.visibility = View.GONE
                                 isAnimating = false
@@ -166,7 +171,7 @@ class PodcastDetailFragment : Fragment() {
                         }
                         cumulativeDy += dy
 
-                        val threshold = 30
+                        val threshold = 80
                         if (!isAnimating && isHeaderVisible && cumulativeDy > threshold) {
                             isAnimating = true
                             isHeaderVisible = false

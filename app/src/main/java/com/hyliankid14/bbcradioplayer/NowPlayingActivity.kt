@@ -39,6 +39,7 @@ class NowPlayingActivity : AppCompatActivity() {
     // When true the activity is showing a preview episode passed via intent and should not be
     // overwritten by subsequent playback state updates until playback starts.
     private var isPreviewMode = false
+    private var previewEpisodeProp: Episode? = null
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
@@ -78,7 +79,15 @@ class NowPlayingActivity : AppCompatActivity() {
         // Setup control button listeners
         stopButton.setOnClickListener { stopPlayback() }
         previousButton.setOnClickListener { skipToPrevious() }
-        playPauseButton.setOnClickListener { togglePlayPause() }
+        playPauseButton.setOnClickListener {
+            // If we're previewing an episode (opened from list), start playback of that episode
+            val preview = previewEpisodeProp
+            if (isPreviewMode && preview != null) {
+                playEpisodePreview(preview)
+            } else {
+                togglePlayPause()
+            }
+        }
         nextButton.setOnClickListener { skipToNext() }
         favoriteButton.setOnClickListener { toggleFavorite() }
         showMoreLink.setOnClickListener { showFullDescription() }
@@ -108,6 +117,7 @@ class NowPlayingActivity : AppCompatActivity() {
         val previewEpisode: Episode? = intent.getParcelableExtra("preview_episode")
         if (previewEpisode != null) {
             isPreviewMode = true
+            previewEpisodeProp = previewEpisode
             val previewPodcastTitle = intent.getStringExtra("preview_podcast_title")
             val previewPodcastImage = intent.getStringExtra("preview_podcast_image")
             showPreviewEpisode(previewEpisode, previewPodcastTitle, previewPodcastImage)
@@ -302,6 +312,9 @@ class NowPlayingActivity : AppCompatActivity() {
             lastArtworkUrl = artworkUrl
         }
 
+        // Store preview episode so play button can start it
+        previewEpisodeProp = episode
+
         // Show scrubber controls if episode has a duration so user can see progress
         val durMs = (episode.durationMins.takeIf { it >= 0 } ?: 0) * 60_000L
         if (durMs > 0) {
@@ -316,6 +329,19 @@ class NowPlayingActivity : AppCompatActivity() {
             progressGroup.visibility = android.view.View.GONE
             seekBar.visibility = android.view.View.GONE
         }
+    }
+
+    private fun playEpisodePreview(episode: Episode) {
+        val intent = Intent(this, RadioService::class.java).apply {
+            action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+            putExtra(RadioService.EXTRA_EPISODE, episode)
+            putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+        }
+        startService(intent)
+        // Exit preview mode and allow normal updates to take over
+        isPreviewMode = false
+        previewEpisodeProp = null
+        updateUI()
     }
 
     private fun updateProgressUi() {
