@@ -56,21 +56,38 @@ class PodcastAdapter(
         private val genresView: TextView = itemView.findViewById(R.id.podcast_genres)
 
         init {
-            itemView.setOnClickListener { 
-                android.util.Log.d("PodcastAdapter", "Tapped podcast row: ${currentPodcast.title}")
-                onPodcastClick(currentPodcast) 
+            // Use adapter position to safely resolve the podcast at the time of the click
+            itemView.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION && pos < this@PodcastAdapter.podcasts.size) {
+                    val podcast = this@PodcastAdapter.podcasts[pos]
+                    android.util.Log.d("PodcastAdapter", "Tapped podcast row: ${podcast.title}")
+                    onPodcastClick(podcast)
+                }
             }
-            titleView.setOnClickListener { 
-                android.util.Log.d("PodcastAdapter", "Tapped podcast title: ${currentPodcast.title}")
-                onPodcastClick(currentPodcast) 
+            titleView.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION && pos < this@PodcastAdapter.podcasts.size) {
+                    val podcast = this@PodcastAdapter.podcasts[pos]
+                    android.util.Log.d("PodcastAdapter", "Tapped podcast title: ${podcast.title}")
+                    onPodcastClick(podcast)
+                }
             }
-            descriptionView.setOnClickListener { 
-                android.util.Log.d("PodcastAdapter", "Tapped podcast description: ${currentPodcast.title}")
-                onPodcastClick(currentPodcast) 
+            descriptionView.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION && pos < this@PodcastAdapter.podcasts.size) {
+                    val podcast = this@PodcastAdapter.podcasts[pos]
+                    android.util.Log.d("PodcastAdapter", "Tapped podcast description: ${podcast.title}")
+                    onPodcastClick(podcast)
+                }
             }
-            imageView.setOnClickListener { 
-                android.util.Log.d("PodcastAdapter", "Tapped podcast image: ${currentPodcast.title}")
-                onPodcastClick(currentPodcast) 
+            imageView.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION && pos < this@PodcastAdapter.podcasts.size) {
+                    val podcast = this@PodcastAdapter.podcasts[pos]
+                    android.util.Log.d("PodcastAdapter", "Tapped podcast image: ${podcast.title}")
+                    onPodcastClick(podcast)
+                }
             }
         }
 
