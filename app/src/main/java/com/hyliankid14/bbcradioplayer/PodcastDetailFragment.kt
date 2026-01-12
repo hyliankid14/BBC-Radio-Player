@@ -71,6 +71,16 @@ class PodcastDetailFragment : Fragment() {
             
             // Add "Show more" functionality for description (clamp to 3 lines while image height)
             var userExpanded = false
+            // Ensure initial collapsed layout: description occupies remaining height next to image
+            val initialLp = descriptionView.layoutParams as? android.widget.LinearLayout.LayoutParams
+            initialLp?.let {
+                it.height = 0
+                it.weight = 1f
+                descriptionView.layoutParams = it
+                descriptionView.maxLines = 3
+                descriptionView.gravity = android.view.Gravity.BOTTOM
+                descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
+            }
             val toggleHeader: () -> Unit = {
                 // Animate layout changes so the subscribe button and episodes move smoothly
                 android.transition.TransitionManager.beginDelayedTransition(headerContainer as android.view.ViewGroup)
@@ -157,18 +167,11 @@ class PodcastDetailFragment : Fragment() {
             episodesRecycler.isNestedScrollingEnabled = false
 
             // Show a FAB after the user scrolls a bit; tapping it scrolls back to the top
-            val scrollView = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.podcast_detail_scroll)
             val fab = view.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.scroll_to_top_fab)
             // Show FAB sooner — lower threshold to make it visible when user scrolls down a little
             val showThresholdPx = (48 * resources.displayMetrics.density).toInt()
-            scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-                if (scrollY > showThresholdPx) {
-                    fab.show()
-                } else {
-                    fab.hide()
-                }
-            }
             fab.setOnClickListener {
+                val scrollView = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.podcast_detail_scroll)
                 scrollView.smoothScrollTo(0, 0)
             }
 
@@ -209,7 +212,7 @@ class PodcastDetailFragment : Fragment() {
             // Trigger initial page load
             loadNextPage()
 
-            // Load more when the parent NestedScrollView nears the bottom
+            // Load more and handle FAB show/hide when the parent NestedScrollView nears the bottom
             val parentScroll = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.podcast_detail_scroll)
             parentScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
                 val child = parentScroll.getChildAt(0)
@@ -220,6 +223,8 @@ class PodcastDetailFragment : Fragment() {
                         loadNextPage()
                     }
                 }
+                // FAB visibility
+                if (scrollY > showThresholdPx) fab.show() else fab.hide()
             }
         }
     }
@@ -234,15 +239,13 @@ class PodcastDetailFragment : Fragment() {
     private fun openEpisodePreview(episode: Episode) {
         val intent = Intent(requireContext(), NowPlayingActivity::class.java).apply {
             putExtra("preview_episode", episode)
+            // Ask NowPlaying to present the same play-style UI (show play button, same artwork/title)
+            putExtra("preview_use_play_ui", true)
             currentPodcast?.let {
                 putExtra("preview_podcast_title", it.title)
                 putExtra("preview_podcast_image", it.imageUrl)
-                // Also provide the same initial artwork/title extras used when starting playback
                 putExtra("initial_podcast_title", it.title)
                 putExtra("initial_podcast_image", it.imageUrl)
-                // Request NowPlayingActivity to present the preview using the same playing UI where possible
-                putExtra("preview_use_play_ui", true)
-                putExtra("preview_autoplay", false)
             }
         }
         startActivity(intent)
