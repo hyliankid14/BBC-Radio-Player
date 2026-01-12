@@ -134,75 +134,23 @@ class PodcastDetailFragment : Fragment() {
             )
             episodesRecycler.adapter = adapter
 
-            var isHeaderVisible = true
-            var isAnimating = false
-            var cumulativeDy = 0
-            var lastDySign = 0
-            episodesRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                    super.onScrolled(recyclerView, dx, dy)
-                    val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
-                    val firstVisible = layoutManager.findFirstVisibleItemPosition()
-                    val firstView = layoutManager.findViewByPosition(firstVisible)
-                    val scrollOffset = firstView?.top ?: 0
+            // Make the RecyclerView participate in the parent NestedScrollView instead of scrolling independently
+            episodesRecycler.isNestedScrollingEnabled = false
 
-                    // Immediate hide if scrolled past the first item
-                    if (firstVisible > 0) {
-                        if (!isAnimating && isHeaderVisible) {
-                            isAnimating = true
-                            isHeaderVisible = false
-                            cumulativeDy = 0
-                            headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
-                                headerContainer.visibility = View.GONE
-                                isAnimating = false
-                            }.start()
-                        }
-                    } else {
-                        // Use cumulative dy to avoid flicker on small scrolls
-                        val sign = when {
-                            dy > 0 -> 1
-                            dy < 0 -> -1
-                            else -> 0
-                        }
-                        if (sign == 0) return
-                        if (sign != lastDySign) {
-                            cumulativeDy = 0
-                            lastDySign = sign
-                        }
-                        cumulativeDy += dy
-
-                        val threshold = 80
-                        if (!isAnimating && isHeaderVisible && cumulativeDy > threshold) {
-                            isAnimating = true
-                            isHeaderVisible = false
-                            cumulativeDy = 0
-                            headerContainer.animate().alpha(0f).setDuration(200).withEndAction {
-                                headerContainer.visibility = View.GONE
-                                isAnimating = false
-                            }.start()
-                        } else if (!isAnimating && !isHeaderVisible && cumulativeDy < -threshold) {
-                            isAnimating = true
-                            isHeaderVisible = true
-                            cumulativeDy = 0
-                            headerContainer.visibility = View.VISIBLE
-                            headerContainer.animate().alpha(1f).setDuration(200).withEndAction {
-                                isAnimating = false
-                            }.start()
-                        }
-                    }
-
-                    val isLongDescription = descriptionView.lineCount > 3
-                    if (firstVisible > 0 && isLongDescription) {
-                        descriptionView.maxLines = 3
-                        showMoreView.visibility = View.VISIBLE
-                        descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.ic_expand_more, 0)
-                    } else if (firstVisible == 0 && userExpanded && isLongDescription) {
-                        descriptionView.maxLines = Int.MAX_VALUE
-                        showMoreView.visibility = View.GONE
-                        descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
-                    }
+            // Show a FAB after the user scrolls a bit; tapping it scrolls back to the top
+            val scrollView = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.podcast_detail_scroll)
+            val fab = view.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.scroll_to_top_fab)
+            val showThresholdPx = (160 * resources.displayMetrics.density).toInt()
+            scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+                if (scrollY > showThresholdPx) {
+                    fab.show()
+                } else {
+                    fab.hide()
                 }
-            })
+            }
+            fab.setOnClickListener {
+                scrollView.smoothScrollTo(0, 0)
+            }
 
             loadingIndicator.visibility = View.VISIBLE
             fragmentScope.launch {

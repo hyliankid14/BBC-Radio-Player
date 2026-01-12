@@ -385,7 +385,6 @@ class NowPlayingActivity : AppCompatActivity() {
         // If we're in preview mode do not override the preview. If playback actually starts (station non-null)
         // we'll clear preview mode and continue handling updates.
         if (isPreviewMode && PlaybackStateHelper.getCurrentStation() == null) return
-        if (isPreviewMode) isPreviewMode = false
 
         val station = PlaybackStateHelper.getCurrentStation()
         val isPodcast = station?.id?.startsWith("podcast_") == true
