@@ -149,9 +149,10 @@ class PodcastsFragment : Fragment() {
                 }
 
                 val genres = listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
-                val spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, genres)
-                spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                val spinnerAdapter = ArrayAdapter(requireContext(), R.layout.dropdown_item_large, genres)
+                spinnerAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
                 genreSpinner.setAdapter(spinnerAdapter)
+                // default to showing all podcasts immediately
                 genreSpinner.setText(genres[0], false)
 
                 genreSpinner.setOnItemClickListener { parent, _, position, _ ->
@@ -163,11 +164,13 @@ class PodcastsFragment : Fragment() {
                     }
                     applyFilters(loadingIndicator, emptyState, recyclerView)
                 }
+                // ensure the list is shown by applying filters after spinner is configured
+                applyFilters(loadingIndicator, emptyState, recyclerView)
 
                 // Setup sort dropdown
                 val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
-                val sortAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, sortOptions)
-                sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                val sortAdapter = ArrayAdapter(requireContext(), R.layout.dropdown_item_large, sortOptions)
+                sortAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
                 sortSpinner.setAdapter(sortAdapter)
                 sortSpinner.setText(currentSort, false)
                 sortSpinner.setOnItemClickListener { parent, _, position, _ ->
