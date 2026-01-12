@@ -33,6 +33,12 @@ class PodcastsFragment : Fragment() {
     private var searchQuery = ""
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
 
+    // Pagination / lazy-loading state
+    private val pageSize = 20
+    private var currentPage = 0
+    private var isLoadingPage = false
+    private var filteredList: List<Podcast> = emptyList()
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -93,7 +99,28 @@ class PodcastsFragment : Fragment() {
         }
 
         // Previously we hid filters on scroll which caused flicker. Let the filters scroll with content inside the NestedScrollView.
-        // If desired we show a FAB (in podcasts fragment we rely on the system back-to-top behaviour or user scrolling).
+        // Show a FAB when the user scrolls and implement lazy loading when the user nears the end of the list.
+
+        // Scroll handling for nested scroll / pagination
+        val nestedScroll: androidx.core.widget.NestedScrollView = view.findViewById(R.id.podcasts_scroll)
+        val fab: com.google.android.material.floatingactionbutton.FloatingActionButton? = view.findViewById(R.id.scroll_to_top_fab)
+
+        nestedScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            // Show/hide FAB after some scrolling so it's unobtrusive initially
+            val dp200 = (200 * resources.displayMetrics.density).toInt()
+            if (scrollY > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
+
+            // Trigger loading of next page when near the bottom
+            val child = nestedScroll.getChildAt(0)
+            if (child != null) {
+                val diff = child.measuredHeight - (nestedScroll.height + nestedScroll.scrollY)
+                if (diff <= 300 && !isLoadingPage) {
+                    loadNextPage()
+                }
+            }
+        }
+
+        fab?.setOnClickListener { nestedScroll.smoothScrollTo(0, 0) }
 
         loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
     }
@@ -181,7 +208,7 @@ class PodcastsFragment : Fragment() {
     ) {
         val effectiveFilter = currentFilter.copy(searchQuery = searchQuery)
         val filtered = repository.filterPodcasts(allPodcasts, effectiveFilter)
-        
+
         // Filter out subscribed podcasts (shown in Favorites instead)
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(requireContext())
         val unsubscribed = filtered.filter { it.id !in subscribedIds }
@@ -208,9 +235,14 @@ class PodcastsFragment : Fragment() {
             else -> unsubscribed
         }
 
-        adapter.updatePodcasts(sortedList)
+        // Prepare pagination
+        filteredList = sortedList
+        currentPage = 0
+        isLoadingPage = false
+        val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
+        adapter.updatePodcasts(initialPage)
 
-        if (unsubscribed.isEmpty()) {
+        if (filteredList.isEmpty()) {
             emptyState.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
         } else {
@@ -220,6 +252,26 @@ class PodcastsFragment : Fragment() {
 
         // Ensure any loading spinner is hidden when filters finish applying
         view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+    }
+
+    private fun loadNextPage() {
+        if (isLoadingPage) return
+        val start = (currentPage + 1) * pageSize
+        if (start >= filteredList.size) return
+        isLoadingPage = true
+
+        fragmentScope.launch {
+            try {
+                val end = (start + pageSize).coerceAtMost(filteredList.size)
+                val next = filteredList.subList(start, end)
+                adapter.addPodcasts(next)
+                currentPage += 1
+            } catch (e: Exception) {
+                android.util.Log.e("PodcastsFragment", "Error loading next page", e)
+            } finally {
+                isLoadingPage = false
+            }
+        }
     }
 
     override fun onDestroy() {

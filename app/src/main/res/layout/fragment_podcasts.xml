@@ -4,6 +4,7 @@
     android:layout_height="match_parent">
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/podcasts_scroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true">
@@ -112,5 +113,19 @@
         android:text="No podcasts found"
         android:gravity="center"
         android:visibility="gone" />
+
+    <!-- Floating action button to return to top and appear while scrolling -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/scroll_to_top_fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:contentDescription="Scroll to top"
+        android:src="@drawable/ic_arrow_up"
+        android:visibility="gone"
+        app:backgroundTint="@color/md_theme_primary"
+        android:tint="@color/md_theme_onPrimary"
+        app:layout_gravity="bottom|end"
+        app:useCompatPadding="true" />
 
 </FrameLayout>

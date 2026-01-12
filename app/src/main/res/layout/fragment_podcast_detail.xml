@@ -123,8 +123,8 @@
         android:contentDescription="Scroll to top"
         android:src="@drawable/ic_arrow_up"
         android:visibility="gone"
-        android:background="@android:color/transparent"
-        app:backgroundTint="@android:color/transparent"
+        app:backgroundTint="@color/md_theme_primary"
+        android:tint="@color/md_theme_onPrimary"
         app:layout_anchorGravity="bottom|end"
         app:useCompatPadding="true" />
 
