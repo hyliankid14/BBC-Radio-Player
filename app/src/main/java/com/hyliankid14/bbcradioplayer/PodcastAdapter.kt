@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -169,7 +170,7 @@ class EpisodeAdapter(
         private lateinit var currentEpisode: Episode
         private val titleView: TextView = itemView.findViewById(R.id.episode_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.episode_description)
-        private val progressText: TextView = itemView.findViewById(R.id.episode_progress_text)
+        private val progressBar: ProgressBar = itemView.findViewById(R.id.episode_progress_bar)
         private val showMoreView: TextView = itemView.findViewById(R.id.episode_show_more)
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
@@ -177,13 +178,6 @@ class EpisodeAdapter(
         private val playedIcon: ImageView? = itemView.findViewById(R.id.episode_played_icon)
         private var isExpanded = false
         private val collapsedLines = 2
-
-        private fun formatMs(ms: Long): String {
-            val totalSeconds = ms / 1000
-            val minutes = totalSeconds / 60
-            val seconds = totalSeconds % 60
-            return String.format("%d:%02d", minutes, seconds)
-        }
 
         init {
             val playAction: (View) -> Unit = {
@@ -235,19 +229,32 @@ class EpisodeAdapter(
             // Show saved playback progress if available and episode has duration
             val progressMs = PlayedEpisodesPreference.getProgress(itemView.context, episode.id)
             val durMs = (episode.durationMins.takeIf { it > 0 } ?: 0) * 60_000L
-            if (durMs > 0 && progressMs > 0L) {
+            val isPlayed = PlayedEpisodesPreference.isPlayed(itemView.context, episode.id)
+
+            // Set progress bar visibility and value (only when not completed)
+            if (!isPlayed && durMs > 0 && progressMs > 0L) {
                 val ratio = (progressMs.toDouble() / durMs.toDouble()).coerceIn(0.0, 1.0)
                 val percent = Math.round(ratio * 100).toInt()
-                progressText.text = "Progress: $percent% (${formatMs(progressMs)}/${formatMs(durMs)})"
-                progressText.visibility = View.VISIBLE
+                progressBar.progress = percent
+                progressBar.visibility = View.VISIBLE
             } else {
-                progressText.visibility = View.GONE
+                progressBar.visibility = View.GONE
             }
 
-            // Show played indicator if episode has been played to completion
-            if (PlayedEpisodesPreference.isPlayed(itemView.context, episode.id)) {
+            // Show indicator: check for completed, hollow circle for in-progress, otherwise hidden
+            val isPlayed = PlayedEpisodesPreference.isPlayed(itemView.context, episode.id)
+            if (isPlayed) {
                 playedIcon?.setImageResource(R.drawable.ic_check)
                 playedIcon?.visibility = View.VISIBLE
+            } else if (durMs > 0 && progressMs > 0L) {
+                // Consider in-progress when progress > 0 and < 95%
+                val ratio = progressMs.toDouble() / durMs.toDouble()
+                if (ratio < 0.95) {
+                    playedIcon?.setImageResource(R.drawable.ic_circle_outline)
+                    playedIcon?.visibility = View.VISIBLE
+                } else {
+                    playedIcon?.visibility = View.GONE
+                }
             } else {
                 playedIcon?.visibility = View.GONE
             }

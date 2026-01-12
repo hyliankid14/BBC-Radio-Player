@@ -13,6 +13,7 @@
         android:layout_marginTop="8dp"
         android:contentDescription="Played"
         android:visibility="gone"
+        android:tint="?attr/colorOnSurface"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@id/episode_title" />
 
@@ -65,14 +66,18 @@
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp" />
 
-    <TextView
-        android:id="@+id/episode_progress_text"
+    <ProgressBar
+        android:id="@+id/episode_progress_bar"
+        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:textSize="12sp"
-        android:textColor="?attr/colorOnSurfaceVariant"
+        android:layout_height="6dp"
+        android:layout_marginTop="8dp"
         android:visibility="gone"
-        android:layout_marginTop="4dp"
+        android:max="100"
+        android:progress="0"
+        android:indeterminate="false"
+        android:progressTint="?attr/colorPrimary"
+        android:progressBackgroundTint="?attr/colorOnSurfaceVariant"
         app:layout_constraintTop_toBottomOf="@id/episode_description"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@id/episode_play_icon"
@@ -87,8 +92,8 @@
         android:textSize="11sp"
         android:textColor="?attr/colorPrimary"
         android:visibility="gone"
-        android:layout_marginTop="4dp"
-        app:layout_constraintTop_toBottomOf="@id/episode_progress_text"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/episode_progress_bar"
         app:layout_constraintStart_toStartOf="parent" />
 
     <LinearLayout

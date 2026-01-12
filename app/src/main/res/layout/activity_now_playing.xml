@@ -30,7 +30,7 @@
         android:layout_height="36dp"
         android:backgroundTint="?attr/colorSurface"
         android:src="@drawable/ic_check"
-        android:tint="?attr/colorOnSurfaceVariant"
+        android:tint="?attr/colorOnSurface"
         android:contentDescription="Mark episode as played"
         android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"

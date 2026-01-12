@@ -242,15 +242,8 @@ class PodcastDetailFragment : Fragment() {
             }
         }
         requireContext().startService(intent)
-        // Open the now-playing screen so play behavior matches tapping the row
-        val npIntent = Intent(requireContext(), NowPlayingActivity::class.java).apply {
-            // Provide initial artwork/title so the NowPlaying screen can show artwork immediately
-            currentPodcast?.let {
-                putExtra("initial_podcast_title", it.title)
-                putExtra("initial_podcast_image", it.imageUrl)
-            }
-        }
-        startActivity(npIntent)
+        // Do NOT open the full-screen NowPlayingActivity here -- keep playback in the mini player.
+        // The mini player will update via PlaybackStateHelper when the service updates playback state.
     }
 
     override fun onDestroy() {
