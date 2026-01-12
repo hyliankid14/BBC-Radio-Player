@@ -44,4 +44,14 @@
             android:textSize="10sp"
             android:layout_marginTop="8dp" />
     </LinearLayout>
+
+    <ImageView
+        android:id="@+id/podcast_subscribed_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="8dp"
+        android:layout_gravity="center_vertical"
+        android:contentDescription="Subscribed"
+        android:visibility="gone"
+        android:tint="?attr/colorOnSurface" />
 </LinearLayout>

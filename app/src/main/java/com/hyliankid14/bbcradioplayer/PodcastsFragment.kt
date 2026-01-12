@@ -217,14 +217,14 @@ class PodcastsFragment : Fragment() {
         val effectiveFilter = currentFilter.copy(searchQuery = searchQuery)
         val filtered = repository.filterPodcasts(allPodcasts, effectiveFilter)
 
-        // Filter out subscribed podcasts (shown in Favorites instead)
-        val subscribedIds = PodcastSubscriptions.getSubscribedIds(requireContext())
-        val unsubscribed = filtered.filter { it.id !in subscribedIds }
+        // Do not exclude subscribed podcasts — show all podcasts in the main list while
+        // still listing subscribed ones in the Favorites section above.
+        val toShow = filtered
         // Apply sorting
         val sortedList = when (currentSort) {
             "Most popular" -> {
                 // Sort by popular rank (1-20), then by most recent for the rest
-                unsubscribed.sortedWith(
+                toShow.sortedWith(
                     compareBy<Podcast> { podcast ->
                         val rank = getPopularRank(podcast)
                         rank
@@ -235,12 +235,12 @@ class PodcastsFragment : Fragment() {
                 )
             }
             "Most recent" -> {
-                unsubscribed.sortedByDescending { cachedUpdates[it.id] ?: 0L }
+                toShow.sortedByDescending { cachedUpdates[it.id] ?: 0L }
             }
             "Alphabetical (A-Z)" -> {
-                unsubscribed.sortedBy { it.title }
+                toShow.sortedBy { it.title }
             }
-            else -> unsubscribed
+            else -> toShow
         }
 
         // Prepare pagination

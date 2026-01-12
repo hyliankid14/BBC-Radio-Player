@@ -86,6 +86,15 @@ class PodcastAdapter(
                     .into(imageView)
             }
 
+            // Show a filled star for subscribed podcasts in the main list
+            val subscribedIcon: ImageView? = itemView.findViewById(R.id.podcast_subscribed_icon)
+            if (PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
+                subscribedIcon?.setImageResource(R.drawable.ic_star_filled)
+                subscribedIcon?.visibility = View.VISIBLE
+            } else {
+                subscribedIcon?.visibility = View.GONE
+            }
+
             // Highlight subscribed podcasts when used in the Favorites list using fixed lavender color
             if ((itemView.context as? android.app.Activity) != null && (adapterPosition >= 0)) {
                 if (highlightSubscribed && PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
