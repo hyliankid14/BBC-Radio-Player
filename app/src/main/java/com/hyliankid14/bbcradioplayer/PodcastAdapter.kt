@@ -110,6 +110,11 @@ class EpisodeAdapter(
         notifyDataSetChanged()
     }
 
+    fun addEpisodes(newEpisodes: List<Episode>) {
+        episodes = episodes + newEpisodes
+        notifyDataSetChanged()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.item_episode, parent, false)
         return EpisodeViewHolder(view, onPlayClick, onOpenFull)

@@ -125,7 +125,7 @@
                 android:scaleType="centerInside"
                 android:padding="@dimen/mini_player_button_padding"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Add to Favorites" />
+                android:contentDescription="Add to Favourites" />
 
         </LinearLayout>
 

@@ -138,7 +138,7 @@ object RSSParser {
     private const val PUB_DATE = "pubDate"
     private const val DURATION = "duration"
 
-    fun parseRSS(inputStream: InputStream, podcastId: String): List<Episode> {
+    fun parseRSS(inputStream: InputStream, podcastId: String, startIndex: Int = 0, maxCount: Int = Int.MAX_VALUE): List<Episode> {
         val episodes = mutableListOf<Episode>()
         return try {
             val parser = Xml.newPullParser()
@@ -149,6 +149,7 @@ object RSSParser {
             var currentAudioUrl = ""
             var currentPubDate = ""
             var currentDuration = 0
+            var itemIndex = -1
 
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 when (eventType) {
@@ -160,6 +161,7 @@ object RSSParser {
                                 currentAudioUrl = ""
                                 currentPubDate = ""
                                 currentDuration = 0
+                                itemIndex++
                             }
                             TITLE -> {
                                 if (parser.next() == XmlPullParser.TEXT) {
@@ -188,17 +190,20 @@ object RSSParser {
                     }
                     XmlPullParser.END_TAG -> {
                         if (parser.name == ITEM && currentAudioUrl.isNotEmpty()) {
-                            val episode = Episode(
-                                id = currentAudioUrl.hashCode().toString(),
-                                title = currentTitle,
-                                description = currentDescription,
-                                audioUrl = currentAudioUrl,
-                                imageUrl = "",
-                                pubDate = currentPubDate,
-                                durationMins = currentDuration,
-                                podcastId = podcastId
-                            )
-                            episodes.add(episode)
+                            // Only add episodes within the requested window [startIndex, startIndex+maxCount)
+                            if (itemIndex >= startIndex && episodes.size < maxCount) {
+                                val episode = Episode(
+                                    id = currentAudioUrl.hashCode().toString(),
+                                    title = currentTitle,
+                                    description = currentDescription,
+                                    audioUrl = currentAudioUrl,
+                                    imageUrl = "",
+                                    pubDate = currentPubDate,
+                                    durationMins = currentDuration,
+                                    podcastId = podcastId
+                                )
+                                episodes.add(episode)
+                            }
                         }
                     }
                 }
@@ -212,6 +217,10 @@ object RSSParser {
     }
 
     fun fetchAndParseRSS(url: String, podcastId: String): List<Episode> {
+        return fetchAndParseRSS(url, podcastId, 0, Int.MAX_VALUE)
+    }
+
+    fun fetchAndParseRSS(url: String, podcastId: String, startIndex: Int, maxCount: Int): List<Episode> {
         return try {
             val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
                 instanceFollowRedirects = true
@@ -228,7 +237,7 @@ object RSSParser {
                 return emptyList()
             }
             
-            connection.inputStream.use { parseRSS(it, podcastId) }
+            connection.inputStream.use { parseRSS(it, podcastId, startIndex, maxCount) }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching RSS from $url", e)
             emptyList()

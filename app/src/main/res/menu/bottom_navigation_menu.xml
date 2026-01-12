@@ -4,7 +4,7 @@
         android:id="@+id/navigation_favorites"
         android:enabled="true"
         android:icon="@drawable/ic_favorite_border"
-        android:title="Favorites" />
+        android:title="Favourites" />
     <item
         android:id="@+id/navigation_list"
         android:enabled="true"

@@ -152,18 +152,49 @@ class PodcastDetailFragment : Fragment() {
                 scrollView.smoothScrollTo(0, 0)
             }
 
-            loadingIndicator.visibility = View.VISIBLE
-            fragmentScope.launch {
-                val episodes = repository.fetchEpisodes(podcast)
-                loadingIndicator.visibility = View.GONE
+            // Implement lazy-loading (paged) fetch for episodes
+            val pageSize = 20
+            var currentOffset = 0
+            var isLoadingPage = false
+            var reachedEnd = false
 
-                if (episodes.isEmpty()) {
-                    emptyState.visibility = View.VISIBLE
-                    episodesRecycler.visibility = View.GONE
-                } else {
-                    emptyState.visibility = View.GONE
-                    episodesRecycler.visibility = View.VISIBLE
-                    adapter.updateEpisodes(episodes)
+            fun loadNextPage() {
+                if (isLoadingPage || reachedEnd) return
+                isLoadingPage = true
+                loadingIndicator.visibility = View.VISIBLE
+                fragmentScope.launch {
+                    val page = repository.fetchEpisodesPaged(podcast, currentOffset, pageSize)
+                    loadingIndicator.visibility = View.GONE
+
+                    if (page.isEmpty()) {
+                        if (currentOffset == 0) {
+                            emptyState.visibility = View.VISIBLE
+                            episodesRecycler.visibility = View.GONE
+                        }
+                        reachedEnd = true
+                    } else {
+                        emptyState.visibility = View.GONE
+                        episodesRecycler.visibility = View.VISIBLE
+                        if (currentOffset == 0) adapter.updateEpisodes(page) else adapter.addEpisodes(page)
+                        currentOffset += page.size
+                    }
+                    isLoadingPage = false
+                }
+            }
+
+            // Trigger initial page load
+            loadNextPage()
+
+            // Load more when the parent NestedScrollView nears the bottom
+            val parentScroll = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.podcast_detail_scroll)
+            parentScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+                val child = parentScroll.getChildAt(0)
+                if (child != null) {
+                    val diff = child.measuredHeight - (parentScroll.height + scrollY)
+                    // Load next page when within ~600px of bottom
+                    if (diff <= 600 && !isLoadingPage && !reachedEnd) {
+                        loadNextPage()
+                    }
                 }
             }
         }

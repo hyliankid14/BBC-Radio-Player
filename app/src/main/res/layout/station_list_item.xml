@@ -62,7 +62,7 @@
             android:id="@+id/station_favorite_star"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:contentDescription="Add to favorites"
+            android:contentDescription="Add to favourites"
             android:scaleType="center"
             android:layout_marginStart="8dp" />
 

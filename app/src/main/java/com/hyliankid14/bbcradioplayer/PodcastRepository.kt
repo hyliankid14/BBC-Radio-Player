@@ -51,6 +51,16 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
+    suspend fun fetchEpisodesPaged(podcast: Podcast, startIndex: Int, count: Int): List<Episode> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("PodcastRepository", "Fetching episodes page for ${podcast.title} start=$startIndex count=$count")
+            RSSParser.fetchAndParseRSS(podcast.rssUrl, podcast.id, startIndex, count)
+        } catch (e: Exception) {
+            Log.e("PodcastRepository", "Error fetching paged episodes", e)
+            emptyList()
+        }
+    }
+
     suspend fun fetchLatestUpdates(podcasts: List<Podcast>): Map<String, Long> = withContext(Dispatchers.IO) {
         try {
             // Try cache first

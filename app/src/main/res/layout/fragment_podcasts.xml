@@ -30,9 +30,10 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="8dp"
                 app:boxBackgroundColor="?attr/colorSurfaceVariant"
-                app:boxStrokeColor="?attr/colorOutline"
+                app:boxBackgroundMode="filled"
                 app:boxStrokeWidth="0dp"
                 app:boxStrokeWidthFocused="2dp"
+                app:boxStrokeColor="?attr/colorOutline"
                 app:boxCornerRadiusTopStart="8dp"
                 app:boxCornerRadiusTopEnd="8dp"
                 app:boxCornerRadiusBottomStart="8dp"
@@ -47,7 +48,8 @@
                     android:inputType="text"
                     android:textColor="?attr/colorOnSurface"
                     android:textColorHint="?attr/colorOnSurfaceVariant"
-                    android:padding="12dp" />
+                    android:padding="12dp"
+                    android:background="@null" />
             </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Genre Filter (Exposed dropdown - Material 3) -->
