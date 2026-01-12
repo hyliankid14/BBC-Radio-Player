@@ -29,7 +29,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="8dp"
-                app:boxBackgroundColor="@color/search_field_bg"
+                app:boxBackgroundColor="?attr/colorSurfaceVariant"
+                app:boxStrokeColor="?attr/colorOutline"
                 app:boxCornerRadiusTopStart="8dp"
                 app:boxCornerRadiusTopEnd="8dp"
                 app:boxCornerRadiusBottomStart="8dp"
@@ -42,9 +43,9 @@
                     android:layout_height="wrap_content"
                     android:hint="Search podcasts..."
                     android:inputType="text"
-                    android:textColor="@color/search_field_text"
-                    android:textColorHint="@color/search_field_hint"
-                    android:background="@null" />
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant"
+                    android:padding="12dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Genre Filter (Exposed dropdown - Material 3) -->
@@ -55,6 +56,7 @@
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="12dp"
             android:layout_marginTop="8dp"
+            app:boxStrokeColor="?attr/colorOutline"
             app:endIconMode="dropdown_menu"
             app:hintEnabled="true"
             android:hint="Genre">
@@ -64,7 +66,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="none"
-                android:textColor="?attr/colorOnSurface" />
+                android:textColor="?attr/colorOnSurface"
+                android:padding="8dp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Sort Filter (Exposed dropdown - Material 3) -->
@@ -75,6 +78,7 @@
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="12dp"
             android:layout_marginTop="8dp"
+            app:boxStrokeColor="?attr/colorOutline"
             app:endIconMode="dropdown_menu"
             app:hintEnabled="true"
             android:hint="Sort">
@@ -84,7 +88,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="none"
-                android:textColor="?attr/colorOnSurface" />
+                android:textColor="?attr/colorOnSurface"
+                android:padding="8dp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Reset Button -->
