@@ -66,8 +66,8 @@ class PodcastDetailFragment : Fragment() {
             requireActivity().title = podcast.title
 
             // Podcast title is shown in the action bar; hide the inline title to avoid duplication
-            val fullDescriptionText = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
-            descriptionView.text = HtmlCompat.fromHtml(podcast.description, HtmlCompat.FROM_HTML_MODE_LEGACY)
+            val fullDescriptionHtml = podcast.description ?: ""
+            descriptionView.text = HtmlCompat.fromHtml(fullDescriptionHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
             titleView.visibility = View.GONE
             
             // Show the description filling the available space next to the artwork.
@@ -82,17 +82,19 @@ class PodcastDetailFragment : Fragment() {
             }
 
             // Make the header tappable to show the full description (and show explicit affordance)
-            if (fullDescriptionText.isNotEmpty()) {
+            if (fullDescriptionHtml.isNotEmpty()) {
                 showMoreView.visibility = View.VISIBLE
                 val showDialog = {
-                    val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescriptionText, "Podcast Description")
+                    val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescriptionHtml, podcast.title, podcast.imageUrl)
                     dialog.show(parentFragmentManager, "episode_description")
                 }
                 showMoreView.setOnClickListener { showDialog() }
                 descriptionView.setOnClickListener { showDialog() }
+                imageView.setOnClickListener { showDialog() }
             } else {
                 showMoreView.visibility = View.GONE
                 descriptionView.setOnClickListener(null)
+                imageView.setOnClickListener(null)
             }
 
             if (podcast.imageUrl.isNotEmpty()) {

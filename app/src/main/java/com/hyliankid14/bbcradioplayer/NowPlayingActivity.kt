@@ -43,7 +43,8 @@ class NowPlayingActivity : AppCompatActivity() {
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
-    private var fullDescription: String = ""
+    // Store raw HTML for the full description so the dialog can render the complete content
+    private var fullDescriptionHtml: String = ""
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateFromShow(show) }
     }
@@ -201,12 +202,13 @@ class NowPlayingActivity : AppCompatActivity() {
                     episodeTitle.visibility = android.view.View.GONE
                 }
 
-                val description = show.description?.let {
-                    androidx.core.text.HtmlCompat.fromHtml(it, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
-                }
-                if (!description.isNullOrEmpty()) {
-                    fullDescription = description
-                    artistTrack.text = description
+                val rawDesc = show.description ?: ""
+                if (rawDesc.isNotEmpty()) {
+                    // Keep raw HTML for the full screen dialog
+                    fullDescriptionHtml = rawDesc
+                    // Render a spanned preview in the small area so formatting is preserved
+                    val spanned = androidx.core.text.HtmlCompat.fromHtml(rawDesc, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY)
+                    artistTrack.text = spanned
                     artistTrack.maxLines = 4
                     artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
                     artistTrack.visibility = android.view.View.VISIBLE
@@ -311,10 +313,11 @@ class NowPlayingActivity : AppCompatActivity() {
         episodeTitle.text = episodeHeading
         episodeTitle.visibility = android.view.View.VISIBLE
 
-        val description = androidx.core.text.HtmlCompat.fromHtml(episode.description ?: "", androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
-        if (description.isNotEmpty()) {
-            fullDescription = description
-            artistTrack.text = description
+        val rawDesc = episode.description ?: ""
+        if (rawDesc.isNotEmpty()) {
+            fullDescriptionHtml = rawDesc
+            val spanned = androidx.core.text.HtmlCompat.fromHtml(rawDesc, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY)
+            artistTrack.text = spanned
             artistTrack.maxLines = 4
             artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
             artistTrack.visibility = android.view.View.VISIBLE
@@ -357,13 +360,17 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     private fun playEpisodePreview(episode: Episode) {
-        // Force artwork reload when playback starts (prevent disappearance)
-        lastArtworkUrl = null
+        // Do not clear lastArtworkUrl here — keep the preview artwork visible until the service
+        // provides the official station artwork to avoid visual disappearance on play.
 
         val intent = Intent(this, RadioService::class.java).apply {
             action = RadioService.ACTION_PLAY_PODCAST_EPISODE
             putExtra(RadioService.EXTRA_EPISODE, episode)
             putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+            // Pass the currently displayed artwork and title (if available) so the service can
+            // set a synthetic station logo immediately and avoid flashing a missing image.
+            if (!lastArtworkUrl.isNullOrEmpty()) putExtra(RadioService.EXTRA_PODCAST_IMAGE, lastArtworkUrl)
+            supportActionBar?.title?.let { putExtra(RadioService.EXTRA_PODCAST_TITLE, it.toString()) }
         }
         startService(intent)
         // Exit preview mode and allow normal updates to take over
@@ -428,12 +435,11 @@ class NowPlayingActivity : AppCompatActivity() {
                 episodeTitle.visibility = android.view.View.GONE
             }
 
-            val description = show.description?.let {
-                androidx.core.text.HtmlCompat.fromHtml(it, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
-            }
-            if (!description.isNullOrEmpty()) {
-                fullDescription = description
-                artistTrack.text = description
+            val rawDesc = show.description ?: ""
+            if (rawDesc.isNotEmpty()) {
+                fullDescriptionHtml = rawDesc
+                val spanned = androidx.core.text.HtmlCompat.fromHtml(rawDesc, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY)
+                artistTrack.text = spanned
                 artistTrack.maxLines = 4
                 artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
                 artistTrack.visibility = android.view.View.VISIBLE
@@ -655,7 +661,8 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     private fun showFullDescription() {
-        val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescription)
+        val title = supportActionBar?.title?.toString() ?: "Episode Description"
+        val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescriptionHtml, title, lastArtworkUrl)
         dialog.show(supportFragmentManager, "episode_description")
     }
 }

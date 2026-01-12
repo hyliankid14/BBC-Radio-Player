@@ -35,7 +35,9 @@
                 android:layout_width="100dp"
                 android:layout_height="100dp"
                 android:scaleType="centerCrop"
-                android:contentDescription="Podcast artwork" />
+                android:contentDescription="Podcast artwork"
+                android:clickable="true"
+                android:focusable="true" />
 
                 <LinearLayout
                 android:layout_width="0dp"
@@ -67,13 +69,15 @@
 
         <TextView
             android:id="@+id/podcast_detail_show_more"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Show more"
             android:textSize="12sp"
             android:textColor="?attr/colorPrimary"
             android:visibility="gone"
-            android:layout_marginTop="8dp" />
+            android:layout_marginTop="8dp"
+            android:gravity="end"
+            android:paddingEnd="8dp" />
 
         <Button
             android:id="@+id/subscribe_button"
