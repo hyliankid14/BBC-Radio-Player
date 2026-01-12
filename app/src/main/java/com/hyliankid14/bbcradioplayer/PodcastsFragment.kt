@@ -54,8 +54,8 @@ class PodcastsFragment : Fragment() {
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
-        val genreSpinner: Spinner = view.findViewById(R.id.genre_filter_spinner)
-        val sortSpinner: Spinner = view.findViewById(R.id.sort_spinner)
+        val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_filter_spinner)
+        val sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.sort_spinner)
         val resetButton: android.widget.Button = view.findViewById(R.id.reset_filters_button)
         val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
         val emptyState: TextView = view.findViewById(R.id.empty_state_text)
@@ -94,7 +94,9 @@ class PodcastsFragment : Fragment() {
             searchQuery = ""
             searchEditText.text.clear()
             currentFilter = PodcastFilter()
-            genreSpinner.setSelection(0)
+            // Set exposed dropdowns back to 'All Genres' / default label
+            genreSpinner.setText("All Genres", false)
+            sortSpinner.setText("Most recent", false)
             applyFilters(loadingIndicator, emptyState, recyclerView)
         }
 
@@ -129,8 +131,8 @@ class PodcastsFragment : Fragment() {
         loadingIndicator: ProgressBar,
         emptyState: TextView,
         recyclerView: RecyclerView,
-        genreSpinner: Spinner,
-        sortSpinner: Spinner
+        genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView,
+        sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView
     ) {
         loadingIndicator.visibility = View.VISIBLE
         emptyState.text = "Loading podcasts..."
@@ -149,38 +151,29 @@ class PodcastsFragment : Fragment() {
                 val genres = listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
                 val spinnerAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, genres)
                 spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                genreSpinner.adapter = spinnerAdapter
+                genreSpinner.setAdapter(spinnerAdapter)
+                genreSpinner.setText(genres[0], false)
 
-                genreSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(
-                        parent: AdapterView<*>?,
-                        view: View?,
-                        position: Int,
-                        id: Long
-                    ) {
-                        currentFilter = if (position == 0) {
-                            currentFilter.copy(genres = emptySet())
-                        } else {
-                            currentFilter.copy(genres = setOf(genres[position]))
-                        }
-                        applyFilters(loadingIndicator, emptyState, recyclerView)
+                genreSpinner.setOnItemClickListener { parent, _, position, _ ->
+                    val selected = parent?.getItemAtPosition(position) as String
+                    currentFilter = if (selected == "All Genres") {
+                        currentFilter.copy(genres = emptySet())
+                    } else {
+                        currentFilter.copy(genres = setOf(selected))
                     }
-
-                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                    applyFilters(loadingIndicator, emptyState, recyclerView)
                 }
 
-                // Setup sort spinner
+                // Setup sort dropdown
                 val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
                 val sortAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, sortOptions)
                 sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                sortSpinner.adapter = sortAdapter
-                sortSpinner.setSelection(sortOptions.indexOf(currentSort).coerceAtLeast(0))
-                sortSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                        currentSort = sortOptions[position]
-                        applyFilters(loadingIndicator, emptyState, recyclerView)
-                    }
-                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                sortSpinner.setAdapter(sortAdapter)
+                sortSpinner.setText(currentSort, false)
+                sortSpinner.setOnItemClickListener { parent, _, position, _ ->
+                    val selected = parent?.getItemAtPosition(position) as String
+                    currentSort = selected
+                    applyFilters(loadingIndicator, emptyState, recyclerView)
                 }
 
                 // Sort by most recent update when starting

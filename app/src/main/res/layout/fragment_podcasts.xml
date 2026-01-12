@@ -22,61 +22,70 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-            <!-- Search EditText -->
-            <EditText
-                android:id="@+id/search_podcast_edittext"
+            <!-- Search field (Material 3 TextInputLayout) -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/search_podcast_text_input"
+                style="@style/Widget.Material3.TextInputLayout.FilledBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Search podcasts..."
-                android:inputType="text"
                 android:layout_margin="8dp"
-                android:textColor="@color/search_field_text"
-                android:textColorHint="@color/search_field_hint"
-                android:background="@drawable/search_field_bg" />
+                app:boxBackgroundColor="@color/search_field_bg"
+                app:boxCornerRadiusTopStart="8dp"
+                app:boxCornerRadiusTopEnd="8dp"
+                app:boxCornerRadiusBottomStart="8dp"
+                app:boxCornerRadiusBottomEnd="8dp"
+                app:hintEnabled="false">
 
-        <!-- Genre Filter Spinner -->
-        <LinearLayout
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/search_podcast_edittext"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Search podcasts..."
+                    android:inputType="text"
+                    android:textColor="@color/search_field_text"
+                    android:textColorHint="@color/search_field_hint"
+                    android:background="@null" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Genre Filter (Exposed dropdown - Material 3) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/genre_filter_layout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="12dp"
-            android:gravity="center_vertical">
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="8dp"
+            app:endIconMode="dropdown_menu"
+            app:hintEnabled="true"
+            android:hint="Genre">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Genre:"
-                android:textColor="?attr/colorOnSurface" />
-
-            <Spinner
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/genre_filter_spinner"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp" />
-        </LinearLayout>
+                android:inputType="none"
+                android:textColor="?attr/colorOnSurface" />
+        </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Sort Filter Spinner -->
-        <LinearLayout
+        <!-- Sort Filter (Exposed dropdown - Material 3) -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/sort_filter_layout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="12dp"
-            android:gravity="center_vertical">
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="8dp"
+            app:endIconMode="dropdown_menu"
+            app:hintEnabled="true"
+            android:hint="Sort">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Sort:"
-                android:textColor="?attr/colorOnSurface" />
-
-            <Spinner
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/sort_spinner"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp" />
-        </LinearLayout>
+                android:inputType="none"
+                android:textColor="?attr/colorOnSurface" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Reset Button -->
         <Button
@@ -123,16 +132,15 @@
         android:id="@+id/scroll_to_top_fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="20dp"
+        android:layout_margin="16dp"
         android:contentDescription="Scroll to top"
-        android:src="@drawable/ic_arrow_up"
+        app:srcCompat="@drawable/ic_arrow_up"
         android:visibility="gone"
         app:fabSize="normal"
-        app:useCompatPadding="false"
-        app:backgroundTint="@color/md_theme_primary"
-        app:rippleColor="@color/md_theme_onPrimary"
-        android:tint="@color/md_theme_onPrimary"
-        android:background="@android:color/transparent"
+        app:useCompatPadding="true"
+        app:backgroundTint="?attr/colorPrimary"
+        app:rippleColor="?attr/colorOnPrimary"
+        android:tint="?attr/colorOnPrimary"
         android:layout_gravity="bottom|end"
         android:elevation="8dp" />
 
