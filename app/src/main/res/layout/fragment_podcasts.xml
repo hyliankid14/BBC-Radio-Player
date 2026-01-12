@@ -45,7 +45,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Genre:" />
+                android:text="Genre:"
+                android:textColor="?attr/colorOnSurface" />
 
             <Spinner
                 android:id="@+id/genre_filter_spinner"
@@ -66,7 +67,8 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sort:" />
+                android:text="Sort:"
+                android:textColor="?attr/colorOnSurface" />
 
             <Spinner
                 android:id="@+id/sort_spinner"
@@ -117,16 +119,19 @@
 
     <!-- Floating action button to return to top and appear while scrolling -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
+        style="@style/Widget.MaterialComponents.FloatingActionButton"
         android:id="@+id/scroll_to_top_fab"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
+        android:layout_margin="20dp"
         android:contentDescription="Scroll to top"
         android:src="@drawable/ic_arrow_up"
         android:visibility="gone"
+        app:fabSize="normal"
+        app:useCompatPadding="false"
         app:backgroundTint="@color/md_theme_primary"
+        app:rippleColor="@color/md_theme_onPrimary"
         android:tint="@color/md_theme_onPrimary"
-        android:layout_gravity="bottom|end"
-        app:useCompatPadding="true" />
+        android:layout_gravity="bottom|end" />
 
 </FrameLayout>
