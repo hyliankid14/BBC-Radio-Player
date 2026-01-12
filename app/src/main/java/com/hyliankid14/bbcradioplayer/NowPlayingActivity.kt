@@ -35,6 +35,8 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var progressGroup: android.view.View
     private lateinit var elapsedView: TextView
     private lateinit var remainingView: TextView
+    private lateinit var markPlayedButton: android.widget.ImageButton
+    private var currentShownEpisodeId: String? = null
 
     // When true the activity is showing a preview episode passed via intent and should not be
     // overwritten by subsequent playback state updates until playback starts.
@@ -76,6 +78,7 @@ class NowPlayingActivity : AppCompatActivity() {
         seekBar = findViewById(R.id.playback_seekbar)
         elapsedView = findViewById(R.id.playback_elapsed)
         remainingView = findViewById(R.id.playback_remaining)
+        markPlayedButton = findViewById(R.id.now_playing_mark_played)
 
         // Setup control button listeners
         stopButton.setOnClickListener { stopPlayback() }
@@ -93,6 +96,21 @@ class NowPlayingActivity : AppCompatActivity() {
         favoriteButton.setOnClickListener { toggleFavorite() }
         showMoreLink.setOnClickListener { showFullDescription() }
         artistTrack.setOnClickListener { showFullDescription() }
+
+        // Mark-as-played button (manual toggle)
+        markPlayedButton.setOnClickListener {
+            val eid = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId()
+            if (!eid.isNullOrEmpty()) {
+                val context = this@NowPlayingActivity
+                if (PlayedEpisodesPreference.isPlayed(context, eid)) {
+                    PlayedEpisodesPreference.markUnplayed(context, eid)
+                } else {
+                    PlayedEpisodesPreference.markPlayed(context, eid)
+                }
+                // Update UI immediately
+                updateMarkPlayedButtonState()
+            }
+        }
 
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -146,6 +164,10 @@ class NowPlayingActivity : AppCompatActivity() {
         if (!initialTitle.isNullOrEmpty()) {
             supportActionBar?.title = initialTitle
         }
+
+        // Ensure mark button reflects current episode if preview provided
+        previewEpisodeProp?.let { currentShownEpisodeId = it.id }
+        updateMarkPlayedButtonState()
 
         // Initial update only when not in preview mode
         if (!isPreviewMode) updateUI()
@@ -342,6 +364,8 @@ class NowPlayingActivity : AppCompatActivity() {
 
         // Store preview episode so play button can start it
         previewEpisodeProp = episode
+        currentShownEpisodeId = episode.id
+        updateMarkPlayedButtonState()
 
         // Show scrubber controls if episode has a duration so user can see progress
         val durMs = (episode.durationMins.takeIf { it >= 0 } ?: 0) * 60_000L
@@ -398,6 +422,9 @@ class NowPlayingActivity : AppCompatActivity() {
             progressGroup.visibility = android.view.View.GONE
             seekBar.visibility = android.view.View.GONE
         }
+
+        // Ensure mark-played button reflects current playback state
+        updateMarkPlayedButtonState()
     }
 
     private fun sendSeekTo(positionMs: Long) {
@@ -664,5 +691,20 @@ class NowPlayingActivity : AppCompatActivity() {
         val title = supportActionBar?.title?.toString() ?: "Episode Description"
         val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescriptionHtml, title, lastArtworkUrl)
         dialog.show(supportFragmentManager, "episode_description")
+    }
+
+    private fun updateMarkPlayedButtonState() {
+        val station = PlaybackStateHelper.getCurrentStation()
+        val isPodcast = station?.id?.startsWith("podcast_") == true || previewEpisodeProp != null
+        val eid = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
+
+        if (isPodcast && !eid.isNullOrEmpty()) {
+            markPlayedButton.visibility = android.view.View.VISIBLE
+            val played = PlayedEpisodesPreference.isPlayed(this, eid)
+            val tintColor = if (played) ContextCompat.getColor(this, R.color.md_theme_primary) else ContextCompat.getColor(this, R.color.md_theme_onSurfaceVariant)
+            markPlayedButton.setColorFilter(tintColor)
+        } else {
+            markPlayedButton.visibility = android.view.View.GONE
+        }
     }
 }

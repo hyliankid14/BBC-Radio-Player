@@ -23,6 +23,21 @@
         app:layout_constraintVertical_bias="0.3"
         android:layout_marginBottom="32dp" />
 
+    <!-- Manual mark-as-played button (only visible for podcast episodes) -->
+    <ImageButton
+        android:id="@+id/now_playing_mark_played"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:backgroundTint="?attr/colorSurface"
+        android:src="@drawable/exo_ic_check"
+        android:tint="?attr/colorOnSurfaceVariant"
+        android:contentDescription="Mark episode as played"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp" />
+
     <!-- Show Name -->
     <TextView
         android:id="@+id/now_playing_show_name"

@@ -5,6 +5,17 @@
     android:layout_height="wrap_content"
     android:padding="8dp">
 
+    <ImageView
+        android:id="@+id/episode_played_icon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:contentDescription="Played"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/episode_title" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/episode_play_icon"
         style="@style/Widget.MaterialComponents.Button.Icon"
@@ -34,7 +45,7 @@
         android:maxLines="2"
         android:ellipsize="end"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toEndOf="@id/episode_played_icon"
         app:layout_constraintEnd_toStartOf="@id/episode_play_icon"
         app:layout_constraintHorizontal_bias="0"
         android:layout_marginStart="12dp"
@@ -55,6 +66,20 @@
         android:layout_marginEnd="12dp" />
 
     <TextView
+        android:id="@+id/episode_progress_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:visibility="gone"
+        android:layout_marginTop="4dp"
+        app:layout_constraintTop_toBottomOf="@id/episode_description"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/episode_play_icon"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp" />
+
+    <TextView
         android:id="@+id/episode_show_more"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -63,7 +88,7 @@
         android:textColor="?attr/colorPrimary"
         android:visibility="gone"
         android:layout_marginTop="4dp"
-        app:layout_constraintTop_toBottomOf="@id/episode_description"
+        app:layout_constraintTop_toBottomOf="@id/episode_progress_text"
         app:layout_constraintStart_toStartOf="parent" />
 
     <LinearLayout

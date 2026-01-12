@@ -56,6 +56,8 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentArtworkUri: String? = null
     private var showInfoRefreshRunnable: Runnable? = null
     private var podcastProgressRunnable: Runnable? = null
+    // Track last-saved progress per episode to avoid excessive writes
+    private val lastSavedProgress = mutableMapOf<String, Long>()
     private val serviceScope = CoroutineScope(Dispatchers.Main)
     private var lastAndroidAutoClientUid: Int? = null
     private var lastAndroidAutoRefreshMs: Long = 0L
@@ -969,6 +971,7 @@ class RadioService : MediaBrowserServiceCompat() {
         
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(null)
+        PlaybackStateHelper.setCurrentEpisodeId(null)
         PlaybackStateHelper.setIsPlaying(false)
         currentPodcastId = null
         
@@ -1053,6 +1056,7 @@ class RadioService : MediaBrowserServiceCompat() {
             currentStationId = syntheticStation.id
             currentPodcastId = episode.podcastId
             PlaybackStateHelper.setCurrentStation(syntheticStation)
+            PlaybackStateHelper.setCurrentEpisodeId(episode.id)
             PlaybackStateHelper.setIsPlaying(true)
 
             // Ensure player and focus
@@ -1073,6 +1077,12 @@ class RadioService : MediaBrowserServiceCompat() {
                 playWhenReady = true
                 setMediaItem(mediaItem)
                 prepare()
+                // If we have a saved progress position, resume from there
+                val savedPos = PlayedEpisodesPreference.getProgress(this@RadioService, episode.id)
+                if (savedPos > 0) {
+                    seekTo(savedPos)
+                    Log.d(TAG, "Resuming episode ${episode.id} at position ${savedPos}ms")
+                }
             }
             updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
             startForegroundNotification()
@@ -1094,6 +1104,19 @@ class RadioService : MediaBrowserServiceCompat() {
                             segmentDurationMs = if (dur > 0) dur else null
                         )
                         PlaybackStateHelper.setCurrentShow(show)
+                        // Check if we should mark the episode as played (>=95%)
+                        checkAndMarkEpisodePlayed(episode, pos, dur)
+
+                        // Periodically persist playback position (every ~15s or near the end)
+                        try {
+                            val last = lastSavedProgress[episode.id] ?: 0L
+                            if (pos - last >= 15_000L || (dur - pos <= 30_000L && pos > 0L)) {
+                                PlayedEpisodesPreference.setProgress(this@RadioService, episode.id, pos)
+                                lastSavedProgress[episode.id] = pos
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error saving episode progress: ${e.message}")
+                        }
                     } finally {
                         handler.postDelayed(this, 500)
                     }
@@ -1102,6 +1125,21 @@ class RadioService : MediaBrowserServiceCompat() {
             handler.post(podcastProgressRunnable!!)
         } catch (e: Exception) {
             Log.e(TAG, "Error playing podcast episode", e)
+        }
+    }
+
+            
+    // Helper: mark episode as played when majority has been consumed
+    private fun checkAndMarkEpisodePlayed(episode: Episode, pos: Long, dur: Long) {
+        try {
+            if (dur <= 0) return
+            val ratio = pos.toDouble() / dur.toDouble()
+            if (ratio >= 0.95) {
+                PlayedEpisodesPreference.markPlayed(this, episode.id)
+                android.util.Log.d(TAG, "Marked episode as played (95% reached): ${episode.id}")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error in checkAndMarkEpisodePlayed: ${e.message}")
         }
     }
 

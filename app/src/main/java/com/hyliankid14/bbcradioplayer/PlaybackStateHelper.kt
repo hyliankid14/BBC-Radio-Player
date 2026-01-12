@@ -7,14 +7,24 @@ object PlaybackStateHelper {
     private var currentStation: Station? = null
     private var isPlaying: Boolean = false
     private var currentShow: CurrentShow = CurrentShow("BBC Radio")
+    private var currentEpisodeId: String? = null
     private val showChangeListeners = mutableListOf<(CurrentShow) -> Unit>()
     
     fun setCurrentStation(station: Station?) {
         android.util.Log.d("PlaybackStateHelper", "setCurrentStation called: ${station?.title}")
         currentStation = station
+        // Clear episode id when switching away from podcasts/stations
+        if (station == null || !station.id.startsWith("podcast_")) currentEpisodeId = null
     }
     
     fun getCurrentStation(): Station? = currentStation
+
+    fun setCurrentEpisodeId(episodeId: String?) {
+        currentEpisodeId = episodeId
+        android.util.Log.d("PlaybackStateHelper", "setCurrentEpisodeId: $episodeId")
+    }
+
+    fun getCurrentEpisodeId(): String? = currentEpisodeId
     
     fun setIsPlaying(playing: Boolean) {
         isPlaying = playing

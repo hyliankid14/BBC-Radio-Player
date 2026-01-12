@@ -25,6 +25,15 @@ class PodcastDetailFragment : Fragment() {
     private lateinit var repository: PodcastRepository
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
     private var currentPodcast: Podcast? = null
+    private var episodesAdapter: EpisodeAdapter? = null
+    private val playedStatusReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            // Refresh the episodes list when played status changes
+            requireActivity().runOnUiThread {
+                episodesAdapter?.notifyDataSetChanged()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,12 +132,15 @@ class PodcastDetailFragment : Fragment() {
             }
 
             episodesRecycler.layoutManager = LinearLayoutManager(requireContext())
-            val adapter = EpisodeAdapter(
+            episodesAdapter = EpisodeAdapter(
                 requireContext(),
                 onPlayClick = { episode -> playEpisode(episode) },
                 onOpenFull = { episode -> openEpisodePreview(episode) }
             )
-            episodesRecycler.adapter = adapter
+            episodesRecycler.adapter = episodesAdapter
+
+            // Listen for played-status changes so the list updates when items are marked/unmarked
+            requireContext().registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED))
 
             // Make the RecyclerView participate in the parent NestedScrollView instead of scrolling independently
             episodesRecycler.isNestedScrollingEnabled = false
@@ -247,6 +259,11 @@ class PodcastDetailFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        try {
+            requireContext().unregisterReceiver(playedStatusReceiver)
+        } catch (e: Exception) {
+            // ignore
+        }
         (activity as? AppCompatActivity)?.supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)

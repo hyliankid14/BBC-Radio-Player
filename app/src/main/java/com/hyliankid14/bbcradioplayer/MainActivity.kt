@@ -996,7 +996,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "playback_prefs", "scrolling_prefs", "theme_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "played_episodes_prefs", "playback_prefs", "scrolling_prefs", "theme_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)
@@ -1069,6 +1069,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 edit.apply()
             }
+            // Notify listeners that played-status/progress may have changed so UI updates
+            try {
+                val intent = android.content.Intent(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED)
+                sendBroadcast(intent)
+            } catch (e: Exception) { }
             true
         } catch (e: Exception) {
             Log.e("MainActivity", "Failed to import preferences", e)

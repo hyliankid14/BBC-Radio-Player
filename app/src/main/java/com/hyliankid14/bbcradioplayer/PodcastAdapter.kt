@@ -156,6 +156,7 @@ class EpisodeAdapter(
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
         private val playButton: MaterialButton = itemView.findViewById(R.id.episode_play_icon)
+        private val playedIcon: ImageView? = itemView.findViewById(R.id.episode_played_icon)
         private var isExpanded = false
         private val collapsedLines = 2
 
@@ -206,6 +207,25 @@ class EpisodeAdapter(
             val fullDesc = sanitizeDescription(episode.description)
             descriptionView.text = fullDesc
 
+            // Show saved playback progress if available and episode has duration
+            val progressMs = PlayedEpisodesPreference.getProgress(itemView.context, episode.id)
+            val durMs = (episode.durationMins.takeIf { it > 0 } ?: 0) * 60_000L
+            if (durMs > 0 && progressMs > 0L) {
+                val ratio = (progressMs.toDouble() / durMs.toDouble()).coerceIn(0.0, 1.0)
+                val percent = Math.round(ratio * 100).toInt()
+                progressText.text = "Progress: $percent% (${formatMs(progressMs)}/${formatMs(durMs)})"
+                progressText.visibility = View.VISIBLE
+            } else {
+                progressText.visibility = View.GONE
+            }
+
+            // Show played indicator if episode has been played to completion
+            if (PlayedEpisodesPreference.isPlayed(itemView.context, episode.id)) {
+                playedIcon?.setImageResource(R.drawable.exo_ic_check)
+                playedIcon?.visibility = View.VISIBLE
+            } else {
+                playedIcon?.visibility = View.GONE
+            }
             // Remove timestamp from date - just show date portion
             dateView.text = formatEpisodeDate(episode.pubDate)
             durationView.text = "${episode.durationMins} min"
