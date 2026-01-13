@@ -56,6 +56,20 @@
                 android:text="BBC Radio"
                 android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <!-- Podcast / Episode progress (shown when playing an episode with known duration) -->
+            <ProgressBar
+                android:id="@+id/mini_player_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                android:max="100"
+                android:progress="0"
+                android:indeterminate="false"
+                android:progressTint="?attr/colorPrimary"
+                android:progressBackgroundTint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
 
         <!-- Controls -->

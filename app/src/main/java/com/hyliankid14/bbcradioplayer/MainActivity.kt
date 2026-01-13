@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
     private lateinit var miniPlayerSubtitle: ScrollingTextView
+    private lateinit var miniPlayerProgress: android.widget.ProgressBar
     private lateinit var miniPlayerArtwork: ImageView
     private lateinit var miniPlayerPrevious: ImageButton
     private lateinit var miniPlayerPlayPause: ImageButton
@@ -161,6 +162,7 @@ class MainActivity : AppCompatActivity() {
         miniPlayer = findViewById(R.id.mini_player)
         miniPlayerTitle = findViewById(R.id.mini_player_title)
         miniPlayerSubtitle = findViewById(R.id.mini_player_subtitle)
+        miniPlayerProgress = findViewById(R.id.mini_player_progress)
         miniPlayerArtwork = findViewById(R.id.mini_player_artwork)
         miniPlayerPrevious = findViewById(R.id.mini_player_previous)
         miniPlayerPlayPause = findViewById(R.id.mini_player_play_pause)
@@ -889,6 +891,18 @@ class MainActivity : AppCompatActivity() {
                 })
                 .into(miniPlayerArtwork)
             Log.d("MainActivity", "Loading artwork from: $artworkUrl")
+        }
+
+        // Show episode progress when available (podcast playback)
+        val pos = show.segmentStartMs ?: -1L
+        val dur = show.segmentDurationMs ?: -1L
+        if (dur > 0 && pos >= 0) {
+            val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
+            val percent = (ratio * 100).toInt()
+            miniPlayerProgress.progress = percent
+            miniPlayerProgress.visibility = android.view.View.VISIBLE
+        } else {
+            miniPlayerProgress.visibility = android.view.View.GONE
         }
     }
     
