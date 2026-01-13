@@ -177,8 +177,28 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        finish()
+        navigateBackToPodcastDetail()
         return true
+    }
+
+    override fun onBackPressed() {
+        navigateBackToPodcastDetail()
+    }
+
+    private fun navigateBackToPodcastDetail() {
+        // Prefer the explicit preview episode's podcastId when available, otherwise derive from current station
+        val podcastId = previewEpisodeProp?.podcastId ?: PlaybackStateHelper.getCurrentStation()?.id?.removePrefix("podcast_")
+        if (!podcastId.isNullOrEmpty()) {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("open_podcast_id", podcastId)
+            }
+            startActivity(intent)
+            finish()
+        } else {
+            // Fallback to default behaviour
+            finish()
+        }
     }
 
     override fun onResume() {

@@ -198,6 +198,14 @@ class MainActivity : AppCompatActivity() {
         
         // Start polling for playback state updates
         startPlaybackStateUpdates()
+
+        // Handle any incoming intents that request opening a specific podcast
+        handleOpenPodcastIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleOpenPodcastIntent(intent)
     }
     
     private fun refreshCurrentView() {
@@ -377,6 +385,36 @@ class MainActivity : AppCompatActivity() {
             replace(R.id.fragment_container, podcastsFragment)
             commit()
         }
+    }
+
+    private fun handleOpenPodcastIntent(intent: Intent?) {
+        val podcastId = intent?.getStringExtra("open_podcast_id") ?: return
+        // Ensure podcasts UI is shown
+        showPodcasts()
+        // Fetch podcasts and open the matching podcast detail when available
+        val repo = PodcastRepository(this)
+        Thread {
+            val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
+            val match = all.find { it.id == podcastId }
+            if (match != null) {
+                runOnUiThread {
+                    fragmentContainer.visibility = View.VISIBLE
+                    staticContentContainer.visibility = View.GONE
+                    val detailFragment = PodcastDetailFragment().apply {
+                        arguments = android.os.Bundle().apply { putParcelable("podcast", match) }
+                    }
+                    supportFragmentManager.beginTransaction().apply {
+                        replace(R.id.fragment_container, detailFragment)
+                        addToBackStack(null)
+                        commit()
+                    }
+                }
+            } else {
+                runOnUiThread {
+                    android.widget.Toast.makeText(this, "Podcast not found", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
     }
 
     private fun updateActionBarTitle() {

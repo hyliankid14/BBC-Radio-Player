@@ -9,12 +9,12 @@
         android:id="@+id/episode_played_icon"
         android:layout_width="20dp"
         android:layout_height="20dp"
-        android:layout_marginStart="8dp"
+        android:layout_marginEnd="12dp"
         android:layout_marginTop="8dp"
         android:contentDescription="Played"
         android:visibility="gone"
         android:tint="?attr/colorOnSurface"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/episode_play_icon"
         app:layout_constraintTop_toTopOf="@id/episode_title" />
 
     <com.google.android.material.button.MaterialButton
@@ -46,11 +46,11 @@
         android:maxLines="2"
         android:ellipsize="end"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toEndOf="@id/episode_played_icon"
-        app:layout_constraintEnd_toStartOf="@id/episode_play_icon"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/episode_played_icon"
         app:layout_constraintHorizontal_bias="0"
         android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp" />
+        android:layout_marginEnd="8dp" />
 
     <TextView
         android:id="@+id/episode_description"
