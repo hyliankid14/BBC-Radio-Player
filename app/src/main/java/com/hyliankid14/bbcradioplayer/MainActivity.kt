@@ -317,53 +317,24 @@ class MainActivity : AppCompatActivity() {
             
             val divider = findViewById<View>(R.id.favorites_podcasts_divider)
             
-            // Use a Material 3 style popup menu to list subscribed podcasts instead of an expanding list
+            // Start collapsed by default and restore header expand/collapse behaviour
+            var isExpanded = false
             favoritesPodcastsRecycler.visibility = View.GONE
             divider.visibility = View.GONE
-            favoritesPodcastsExpandIcon.visibility = View.GONE
+            favoritesPodcastsExpandIcon.visibility = View.VISIBLE
 
-            // Keep a reference to subscribed podcasts for the popup menu (populated below)
-            var subscribed: List<Podcast> = emptyList()
-
-            val menuButton = findViewById<ImageButton>(R.id.favorites_podcasts_menu)
-            menuButton.visibility = View.VISIBLE
-            menuButton.setOnClickListener { anchor ->
-                val popup = androidx.appcompat.widget.PopupMenu(this, anchor)
-                // Populate menu with subscribed podcasts
-                subscribed.forEachIndexed { idx, podcast ->
-                    popup.menu.add(android.view.Menu.NONE, idx, idx, podcast.title)
+            // Header tap toggles expand/collapse (original behaviour)
+            favoritesPodcastsHeaderContainer.setOnClickListener {
+                isExpanded = !isExpanded
+                if (isExpanded) {
+                    favoritesPodcastsRecycler.visibility = View.VISIBLE
+                    divider.visibility = View.VISIBLE
+                    favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_less)
+                } else {
+                    favoritesPodcastsRecycler.visibility = View.GONE
+                    divider.visibility = View.GONE
+                    favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
                 }
-                // Add a management action
-                popup.menu.add(android.view.Menu.NONE, 1000, 1000, "Manage subscriptions...")
-
-                popup.setOnMenuItemClickListener { item ->
-                    if (item.itemId == 1000) {
-                        // Open podcasts fragment to manage subscriptions
-                        fragmentContainer.visibility = View.VISIBLE
-                        staticContentContainer.visibility = View.GONE
-                        supportFragmentManager.beginTransaction().apply {
-                            replace(R.id.fragment_container, PodcastsFragment())
-                            addToBackStack(null)
-                            commit()
-                        }
-                        true
-                    } else {
-                        val podcast = subscribed[item.itemId]
-                        // Navigate to podcast detail
-                        fragmentContainer.visibility = View.VISIBLE
-                        staticContentContainer.visibility = View.GONE
-                        val detailFragment = PodcastDetailFragment().apply {
-                            arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) }
-                        }
-                        supportFragmentManager.beginTransaction().apply {
-                            replace(R.id.fragment_container, detailFragment)
-                            addToBackStack(null)
-                            commit()
-                        }
-                        true
-                    }
-                }
-                popup.show()
             }
 
             val repo = PodcastRepository(this)
@@ -371,10 +342,7 @@ class MainActivity : AppCompatActivity() {
                 val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
                 val subs = all.filter { subscribedIds.contains(it.id) }
                 runOnUiThread {
-                    // Save to outer variable used by the menu
-                    subscribed = subs
-
-                    val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
+                        val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
                         // Navigate to podcast detail
                         fragmentContainer.visibility = View.VISIBLE
                         staticContentContainer.visibility = View.GONE

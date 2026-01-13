@@ -219,12 +219,30 @@ class EpisodeAdapter(
             titleView.text = episode.title
             isExpanded = false
             descriptionView.maxLines = collapsedLines
-            // Hide the inline toggle for episode items — show-more is handled in the full-screen player.
-            showMoreView.visibility = View.GONE
 
             // Show description text sanitized
             val fullDesc = sanitizeDescription(episode.description)
             descriptionView.text = fullDesc
+
+            // Determine whether description is ellipsized (i.e., too long to fit next to artwork).
+            // Layout may not be ready immediately, so post a check to run after layout.
+            showMoreView.visibility = View.GONE
+            descriptionView.post {
+                val layout = descriptionView.layout
+                var ellipsized = false
+                if (layout != null) {
+                    for (i in 0 until layout.lineCount) {
+                        if (layout.getEllipsisCount(i) > 0) {
+                            ellipsized = true
+                            break
+                        }
+                    }
+                }
+                showMoreView.visibility = if (ellipsized) View.VISIBLE else View.GONE
+            }
+
+            // Clicking "Show more" opens the full-screen player (same as tapping the description)
+            showMoreView.setOnClickListener { onOpenFull(currentEpisode) }
 
             // Show saved playback progress if available and episode has duration
             val progressMs = PlayedEpisodesPreference.getProgress(itemView.context, episode.id)
