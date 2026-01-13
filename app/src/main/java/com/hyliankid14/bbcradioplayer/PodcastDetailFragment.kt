@@ -79,27 +79,43 @@ class PodcastDetailFragment : Fragment() {
             descriptionView.text = HtmlCompat.fromHtml(fullDescriptionHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
             titleView.visibility = View.GONE
             
-            // Show the description filling the available space next to the artwork.
+            // Allow the description to fill the available space next to the artwork (no arbitrary line limit)
             val initialLp = descriptionView.layoutParams as? android.widget.LinearLayout.LayoutParams
             initialLp?.let {
                 it.height = 0
                 it.weight = 1f
                 descriptionView.layoutParams = it
-                descriptionView.maxLines = Int.MAX_VALUE
-                descriptionView.gravity = android.view.Gravity.TOP
-                descriptionView.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+                // Do not set maxLines here — let the view display as many lines as fit in the space next to the artwork.
             }
 
             // Make the header tappable to show the full description (and show explicit affordance)
+            val showDialog = {
+                val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescriptionHtml, podcast.title, podcast.imageUrl)
+                dialog.show(parentFragmentManager, "episode_description")
+            }
+
+            // Set image and description to open the full description
             if (fullDescriptionHtml.isNotEmpty()) {
-                showMoreView.visibility = View.VISIBLE
-                val showDialog = {
-                    val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescriptionHtml, podcast.title, podcast.imageUrl)
-                    dialog.show(parentFragmentManager, "episode_description")
-                }
-                showMoreView.setOnClickListener { showDialog() }
-                descriptionView.setOnClickListener { showDialog() }
                 imageView.setOnClickListener { showDialog() }
+                descriptionView.setOnClickListener { showDialog() }
+
+                // Detect whether the description text is truncated within its allocated space by comparing
+                // the last visible character index against the total text length. If not all characters are
+                // visible, show the 'Show more' affordance.
+                showMoreView.visibility = View.GONE
+                descriptionView.post {
+                    val layout = descriptionView.layout
+                    var truncated = false
+                    if (layout != null && layout.lineCount > 0) {
+                        val lastLine = layout.lineCount - 1
+                        val lastChar = layout.getLineEnd(lastLine)
+                        val totalChars = descriptionView.text?.length ?: 0
+                        truncated = lastChar < totalChars
+                    }
+                    showMoreView.visibility = if (truncated) View.VISIBLE else View.GONE
+                    if (truncated) showMoreView.setOnClickListener { showDialog() }
+                    else showMoreView.setOnClickListener(null)
+                }
             } else {
                 showMoreView.visibility = View.GONE
                 descriptionView.setOnClickListener(null)

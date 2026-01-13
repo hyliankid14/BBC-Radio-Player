@@ -22,7 +22,8 @@ class PodcastAdapter(
     private var podcasts: List<Podcast> = emptyList(),
     private val onPodcastClick: (Podcast) -> Unit,
     private val onOpenPlayer: (() -> Unit)? = null,
-    private val highlightSubscribed: Boolean = false
+    private val highlightSubscribed: Boolean = false,
+    private val showSubscribedIcon: Boolean = true
 ) : RecyclerView.Adapter<PodcastAdapter.PodcastViewHolder>() {
 
     fun updatePodcasts(newPodcasts: List<Podcast>) {
@@ -106,7 +107,7 @@ class PodcastAdapter(
 
             // Show a filled star for subscribed podcasts in the main list
             val subscribedIcon: ImageView? = itemView.findViewById(R.id.podcast_subscribed_icon)
-            if (PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
+            if (showSubscribedIcon && PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
                 subscribedIcon?.setImageResource(R.drawable.ic_star_filled)
                 subscribedIcon?.visibility = View.VISIBLE
             } else {
@@ -171,7 +172,6 @@ class EpisodeAdapter(
         private val titleView: TextView = itemView.findViewById(R.id.episode_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.episode_description)
         private val progressBar: ProgressBar = itemView.findViewById(R.id.episode_progress_bar)
-        private val showMoreView: TextView = itemView.findViewById(R.id.episode_show_more)
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
         private val playButton: MaterialButton = itemView.findViewById(R.id.episode_play_icon)
@@ -224,25 +224,11 @@ class EpisodeAdapter(
             val fullDesc = sanitizeDescription(episode.description)
             descriptionView.text = fullDesc
 
-            // Determine whether description is ellipsized (i.e., too long to fit next to artwork).
-            // Layout may not be ready immediately, so post a check to run after layout.
+            // Keep inline "Show more" hidden in episode list; full description is available in the player/detail view
             showMoreView.visibility = View.GONE
-            descriptionView.post {
-                val layout = descriptionView.layout
-                var ellipsized = false
-                if (layout != null) {
-                    for (i in 0 until layout.lineCount) {
-                        if (layout.getEllipsisCount(i) > 0) {
-                            ellipsized = true
-                            break
-                        }
-                    }
-                }
-                showMoreView.visibility = if (ellipsized) View.VISIBLE else View.GONE
-            }
 
-            // Clicking "Show more" opens the full-screen player (same as tapping the description)
-            showMoreView.setOnClickListener { onOpenFull(currentEpisode) }
+            // Clicking the description opens the full-screen player (no inline toggle)
+            // (showMore removed from list view)
 
             // Show saved playback progress if available and episode has duration
             val progressMs = PlayedEpisodesPreference.getProgress(itemView.context, episode.id)

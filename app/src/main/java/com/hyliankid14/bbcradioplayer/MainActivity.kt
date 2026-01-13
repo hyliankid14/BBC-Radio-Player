@@ -354,7 +354,7 @@ class MainActivity : AppCompatActivity() {
                             addToBackStack(null)
                             commit()
                         }
-                    }, highlightSubscribed = true)
+                    }, highlightSubscribed = true, showSubscribedIcon = false)
                     favoritesPodcastsRecycler.adapter = podcastAdapter
                     podcastAdapter.updatePodcasts(subs)
                 }
