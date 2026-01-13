@@ -317,24 +317,50 @@ class MainActivity : AppCompatActivity() {
             
             val divider = findViewById<View>(R.id.favorites_podcasts_divider)
             
-            // Collapsed by default
-            var isExpanded = false
+            // Use a Material 3 style popup menu to list subscribed podcasts instead of an expanding list
             favoritesPodcastsRecycler.visibility = View.GONE
             divider.visibility = View.GONE
-            favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
-            
-            // Toggle expand/collapse
-            favoritesPodcastsHeaderContainer.setOnClickListener {
-                isExpanded = !isExpanded
-                if (isExpanded) {
-                    favoritesPodcastsRecycler.visibility = View.VISIBLE
-                    divider.visibility = View.VISIBLE
-                    favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_less)
-                } else {
-                    favoritesPodcastsRecycler.visibility = View.GONE
-                    divider.visibility = View.GONE
-                    favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
+            favoritesPodcastsExpandIcon.visibility = View.GONE
+
+            val menuButton = findViewById<ImageButton>(R.id.favorites_podcasts_menu)
+            menuButton.visibility = View.VISIBLE
+            menuButton.setOnClickListener { anchor ->
+                val popup = androidx.appcompat.widget.PopupMenu(this, anchor)
+                // Populate menu with subscribed podcasts
+                subscribed.forEachIndexed { idx, podcast ->
+                    popup.menu.add(android.view.Menu.NONE, idx, idx, podcast.title)
                 }
+                // Add a management action
+                popup.menu.add(android.view.Menu.NONE, 1000, 1000, "Manage subscriptions...")
+
+                popup.setOnMenuItemClickListener { item ->
+                    if (item.itemId == 1000) {
+                        // Open podcasts fragment to manage subscriptions
+                        fragmentContainer.visibility = View.VISIBLE
+                        staticContentContainer.visibility = View.GONE
+                        supportFragmentManager.beginTransaction().apply {
+                            replace(R.id.fragment_container, PodcastsFragment())
+                            addToBackStack(null)
+                            commit()
+                        }
+                        true
+                    } else {
+                        val podcast = subscribed[item.itemId]
+                        // Navigate to podcast detail
+                        fragmentContainer.visibility = View.VISIBLE
+                        staticContentContainer.visibility = View.GONE
+                        val detailFragment = PodcastDetailFragment().apply {
+                            arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) }
+                        }
+                        supportFragmentManager.beginTransaction().apply {
+                            replace(R.id.fragment_container, detailFragment)
+                            addToBackStack(null)
+                            commit()
+                        }
+                        true
+                    }
+                }
+                popup.show()
             }
 
             val repo = PodcastRepository(this)

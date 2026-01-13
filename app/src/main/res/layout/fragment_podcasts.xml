@@ -22,7 +22,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-            <!-- Search field (Material 3 TextInputLayout) -->
+            <!-- Search field (Material 3 Search-style TextInputLayout) -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/search_podcast_text_input"
                 style="@style/Widget.Material3.TextInputLayout.FilledBox"
@@ -38,18 +38,23 @@
                 app:boxCornerRadiusTopEnd="8dp"
                 app:boxCornerRadiusBottomStart="8dp"
                 app:boxCornerRadiusBottomEnd="8dp"
-                app:hintEnabled="false">
+                app:hintEnabled="true"
+                android:hint="Search podcasts..."
+                app:startIconDrawable="@drawable/ic_search"
+                app:endIconMode="clear_text">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/search_podcast_edittext"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Search podcasts..."
                     android:inputType="text"
+                    android:imeOptions="actionSearch"
                     android:textColor="?attr/colorOnSurface"
                     android:textColorHint="?attr/colorOnSurfaceVariant"
                     android:padding="12dp"
-                    android:background="@null" />
+                    android:background="@null"
+                    android:maxLines="1"
+                    android:singleLine="true" />
             </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Genre Filter (Exposed dropdown - Material 3) -->

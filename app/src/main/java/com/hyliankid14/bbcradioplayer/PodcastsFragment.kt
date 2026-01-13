@@ -70,6 +70,19 @@ class PodcastsFragment : Fragment() {
             }
         })
 
+        // Handle IME action (search) to apply filters immediately and hide keyboard
+        searchEditText.setOnEditorActionListener { v, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.hideSoftInputFromWindow(v.windowToken, 0)
+                v.clearFocus()
+                applyFilters(loadingIndicator, emptyState, recyclerView)
+                true
+            } else {
+                false
+            }
+        }
+
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         adapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
             android.util.Log.d("PodcastsFragment", "onPodcastClick triggered for: ${podcast.title}")
