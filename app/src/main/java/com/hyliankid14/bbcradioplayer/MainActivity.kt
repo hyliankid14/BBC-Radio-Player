@@ -322,6 +322,9 @@ class MainActivity : AppCompatActivity() {
             divider.visibility = View.GONE
             favoritesPodcastsExpandIcon.visibility = View.GONE
 
+            // Keep a reference to subscribed podcasts for the popup menu (populated below)
+            var subscribed: List<Podcast> = emptyList()
+
             val menuButton = findViewById<ImageButton>(R.id.favorites_podcasts_menu)
             menuButton.visibility = View.VISIBLE
             menuButton.setOnClickListener { anchor ->
@@ -366,8 +369,11 @@ class MainActivity : AppCompatActivity() {
             val repo = PodcastRepository(this)
             Thread {
                 val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
-                val subscribed = all.filter { subscribedIds.contains(it.id) }
+                val subs = all.filter { subscribedIds.contains(it.id) }
                 runOnUiThread {
+                    // Save to outer variable used by the menu
+                    subscribed = subs
+
                     val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
                         // Navigate to podcast detail
                         fragmentContainer.visibility = View.VISIBLE
@@ -382,7 +388,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }, highlightSubscribed = true)
                     favoritesPodcastsRecycler.adapter = podcastAdapter
-                    podcastAdapter.updatePodcasts(subscribed)
+                    podcastAdapter.updatePodcasts(subs)
                 }
             }.start()
         } else {
