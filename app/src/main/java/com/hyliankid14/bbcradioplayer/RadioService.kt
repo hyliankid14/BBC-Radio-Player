@@ -148,6 +148,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                 val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                                 val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
                                 var ep: Episode? = null
+                                var parentPodcast: Podcast? = null
                                 for (p in all) {
                                     if (!subscribed.contains(p.id)) continue
                                     try {
@@ -155,6 +156,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                         val found = episodes.find { it.id == episodeId }
                                         if (found != null) {
                                             ep = found
+                                            parentPodcast = p
                                             break
                                         }
                                     } catch (e: Exception) {
@@ -162,7 +164,11 @@ class RadioService : MediaBrowserServiceCompat() {
                                     }
                                 }
                                 if (ep != null) {
-                                    playPodcastEpisode(ep, null)
+                                    val playIntent = android.content.Intent().apply {
+                                        parentPodcast?.let { putExtra(EXTRA_PODCAST_TITLE, it.title) }
+                                        parentPodcast?.let { putExtra(EXTRA_PODCAST_IMAGE, it.imageUrl) }
+                                    }
+                                    playPodcastEpisode(ep, playIntent)
                                 } else {
                                     Log.w(TAG, "Episode not found for id: $episodeId")
                                 }
@@ -174,6 +180,11 @@ class RadioService : MediaBrowserServiceCompat() {
                         playStation(id)
                     }
                 }
+            }
+
+            override fun onSeekTo(pos: Long) {
+                Log.d(TAG, "onSeekTo called with pos: $pos")
+                seekToPosition(pos)
             }
 
             override fun onCustomAction(action: String?, extras: Bundle?) {
@@ -249,7 +260,8 @@ class RadioService : MediaBrowserServiceCompat() {
             R.drawable.ic_star_outline
         }
 
-        val pbState = PlaybackStateCompat.Builder()
+        // Determine whether to include seek support and positional state for podcasts
+        val pbBuilder = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
@@ -257,22 +269,32 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
                 PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
-                PlaybackStateCompat.ACTION_PLAY_PAUSE
+                PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                PlaybackStateCompat.ACTION_SEEK_TO
             )
-            .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
-            // Use the left custom-action slot for Stop (some Android media UIs don't show ACTION_STOP)
-            .addCustomAction(
+
+        if (isPodcast) {
+            // Try to provide accurate position from the current show (updated by the podcast progress runnable)
+            val show = PlaybackStateHelper.getCurrentShow()
+            val pos = show.segmentStartMs ?: player?.currentPosition ?: PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN
+            pbBuilder.setState(state, pos, 1.0f)
+        } else {
+            pbBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
+        }
+
+        // Use the left custom-action slot for Stop (some Android media UIs don't show ACTION_STOP)
+        pbBuilder.addCustomAction(
                 CUSTOM_ACTION_STOP,
                 "Stop",
                 R.drawable.ic_stop
             )
             .addCustomAction(
-                CUSTOM_ACTION_TOGGLE_FAVORITE, 
+                CUSTOM_ACTION_TOGGLE_FAVORITE,
                 favoriteLabel,
                 favoriteIcon
             )
-            .build()
-        mediaSession.setPlaybackState(pbState)
+
+        mediaSession.setPlaybackState(pbBuilder.build())
     }
 
     override fun onGetRoot(clientName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot {
@@ -404,13 +426,30 @@ class RadioService : MediaBrowserServiceCompat() {
                 }
                 else -> {
                     if (parentId.startsWith("podcast_")) {
-                        val podcastId = parentId.removePrefix("podcast_")
+                        // Support paged requests using mediaId format: podcast_<id>[:start=<n>[:count=<m>]]
+                        val parts = parentId.split(':')
+                        val podcastId = parts[0].removePrefix("podcast_")
+                        var startIndex = 0
+                        var pageCount = 25
+                        try {
+                            for (p in parts.drop(1)) {
+                                val kv = p.split('=')
+                                if (kv.size == 2) {
+                                    when (kv[0]) {
+                                        "start" -> startIndex = kv[1].toIntOrNull() ?: startIndex
+                                        "count" -> pageCount = kv[1].toIntOrNull() ?: pageCount
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+
                         try {
                             val repo = PodcastRepository(this@RadioService)
                             val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                             val podcast = all.find { it.id == podcastId }
                             if (podcast != null) {
-                                val eps = withContext(Dispatchers.IO) { repo.fetchEpisodes(podcast) }
+                                // Fetch only requested page
+                                val eps = withContext(Dispatchers.IO) { repo.fetchEpisodesPaged(podcast, startIndex, pageCount) }
                                 val itemsEpisodes = eps.map { ep ->
                                     val played = PlayedEpisodesPreference.isPlayed(this@RadioService, ep.id)
                                     val progress = PlayedEpisodesPreference.getProgress(this@RadioService, ep.id)
@@ -421,6 +460,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                     }
                                     MediaItem(
                                         MediaDescriptionCompat.Builder()
+                                            // Include start/count for paging when offering the parent as children if clients re-request ranges
                                             .setMediaId("podcast_episode_${ep.id}")
                                             .setTitle(ep.title)
                                             .setSubtitle(subtitle)
@@ -1032,30 +1072,31 @@ class RadioService : MediaBrowserServiceCompat() {
         val displayBitmap = artworkBitmap ?: currentArtworkBitmap
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentStationId)
-            // Station Name as Title (Large)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, currentStationTitle)
-            // Show Name as Artist (Small)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, currentShowTitle)
-            // Episode Title as Composer
+            // For podcasts, prefer showing episode title as main title and the podcast name as artist
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, 
+                if (currentStationId.startsWith("podcast_")) PlaybackStateHelper.getCurrentEpisodeId() ?: currentStationId else currentStationId)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, 
+                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title) else currentStationTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, 
+                if (currentStationId.startsWith("podcast_")) currentStationTitle else currentShowTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
+                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title) else currentStationTitle)
             // Build display subtitle: Show "Artist - Track" when song is playing, otherwise "Show Name | Episode Title"
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, 
                 when {
-                    // If currentShowInfo has artist/track (secondary/tertiary), show the formatted artist-track
                     !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> currentShowTitle
-                    // Otherwise show show name with episode title if available
                     currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
-                    // Fallback to just the current show title
                     else -> currentShowTitle
                 })
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, "Live Stream")
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, 
+                if (currentStationId.startsWith("podcast_")) "Podcast" else "Live Stream")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
-            .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, -1)
-            
+            .putLong(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DURATION, 
+                if (currentStationId.startsWith("podcast_")) (currentShowInfo.segmentDurationMs ?: (player?.duration ?: -1L)) else -1L)
+
         if (displayBitmap != null) {
             metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART, displayBitmap)
             metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, displayBitmap)
@@ -1221,6 +1262,14 @@ class RadioService : MediaBrowserServiceCompat() {
                             }
                         } catch (e: Exception) {
                             Log.w(TAG, "Error saving episode progress: ${e.message}")
+                        }
+
+                        // Refresh metadata and playback state so Android Auto gets up-to-date position/duration
+                        try {
+                            updateMediaMetadata()
+                            updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error updating media metadata/state during progress runnable: ${e.message}")
                         }
                     } finally {
                         handler.postDelayed(this, 500)
