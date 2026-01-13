@@ -33,8 +33,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withContext
 
 class RadioService : MediaBrowserServiceCompat() {
     private lateinit var mediaSession: MediaSessionCompat
@@ -95,6 +94,7 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
         private const val MEDIA_ID_ALL_STATIONS = "all_stations"
+        private const val MEDIA_ID_PODCASTS = "podcasts"
         private const val ANDROID_AUTO_CLIENT_HINT = "gearhead"
         private const val AUTO_RECONNECT_REFRESH_COOLDOWN_MS = 5_000L
     }
@@ -139,7 +139,31 @@ class RadioService : MediaBrowserServiceCompat() {
 
             override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
                 Log.d(TAG, "onPlayFromMediaId called with mediaId: $mediaId")
-                mediaId?.let { playStation(it) }
+                mediaId?.let { id ->
+                    if (id.startsWith("podcast_episode_")) {
+                        val episodeId = id.removePrefix("podcast_episode_")
+                        serviceScope.launch {
+                            try {
+                                val repo = PodcastRepository(this@RadioService)
+                                val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                                val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
+                                val ep = all.asSequence()
+                                    .filter { subscribed.contains(it.id) }
+                                    .mapNotNull { p -> runCatching { withContext(Dispatchers.IO) { repo.fetchEpisodes(p) } }.getOrNull()?.find { it.id == episodeId } }
+                                    .firstOrNull()
+                                if (ep != null) {
+                                    playPodcastEpisode(ep, null)
+                                } else {
+                                    Log.w(TAG, "Episode not found for id: $episodeId")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error playing episode from mediaId: $mediaId", e)
+                            }
+                        }
+                    } else {
+                        playStation(id)
+                    }
+                }
             }
 
             override fun onCustomAction(action: String?, extras: Bundle?) {
@@ -311,6 +335,14 @@ class RadioService : MediaBrowserServiceCompat() {
                             .build(),
                         MediaItem.FLAG_BROWSABLE
                     ))
+                    // Add "Podcasts" folder
+                    items.add(MediaItem(
+                        MediaDescriptionCompat.Builder()
+                            .setMediaId(MEDIA_ID_PODCASTS)
+                            .setTitle("Podcasts")
+                            .build(),
+                        MediaItem.FLAG_BROWSABLE
+                    ))
                     result.sendResult(items)
                 }
                 MEDIA_ID_FAVORITES -> {
@@ -333,9 +365,72 @@ class RadioService : MediaBrowserServiceCompat() {
                     }.awaitAll()
                     result.sendResult(itemsWithShowInfo)
                 }
+                MEDIA_ID_PODCASTS -> {
+                    val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
+                    if (subscribed.isEmpty()) {
+                        result.sendResult(emptyList())
+                    } else {
+                        try {
+                            val repo = PodcastRepository(this@RadioService)
+                            val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                            val podcasts = all.filter { subscribed.contains(it.id) }
+                            val itemsPodcasts = podcasts.map { p ->
+                                MediaItem(
+                                    MediaDescriptionCompat.Builder()
+                                        .setMediaId("podcast_${p.id}")
+                                        .setTitle(p.title)
+                                        .setSubtitle("")
+                                        .setIconUri(android.net.Uri.parse(p.imageUrl))
+                                        .build(),
+                                    MediaItem.FLAG_BROWSABLE
+                                )
+                            }
+                            result.sendResult(itemsPodcasts)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error loading podcasts for Android Auto", e)
+                            result.sendResult(emptyList())
+                        }
+                    }
+                }
                 else -> {
-                    Log.d(TAG, "Unknown parentId: $parentId")
-                    result.sendResult(null)
+                    if (parentId.startsWith("podcast_")) {
+                        val podcastId = parentId.removePrefix("podcast_")
+                        try {
+                            val repo = PodcastRepository(this@RadioService)
+                            val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                            val podcast = all.find { it.id == podcastId }
+                            if (podcast != null) {
+                                val eps = withContext(Dispatchers.IO) { repo.fetchEpisodes(podcast) }
+                                val itemsEpisodes = eps.map { ep ->
+                                    val played = PlayedEpisodesPreference.isPlayed(this@RadioService, ep.id)
+                                    val progress = PlayedEpisodesPreference.getProgress(this@RadioService, ep.id)
+                                    val subtitle = when {
+                                        played -> "Played"
+                                        progress > 0L -> "In progress"
+                                        else -> ""
+                                    }
+                                    MediaItem(
+                                        MediaDescriptionCompat.Builder()
+                                            .setMediaId("podcast_episode_${ep.id}")
+                                            .setTitle(ep.title)
+                                            .setSubtitle(subtitle)
+                                            .setIconUri(android.net.Uri.parse(ep.imageUrl))
+                                            .build(),
+                                        MediaItem.FLAG_PLAYABLE
+                                    )
+                                }
+                                result.sendResult(itemsEpisodes)
+                            } else {
+                                result.sendResult(null)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error loading episodes for podcast $podcastId", e)
+                            result.sendResult(null)
+                        }
+                    } else {
+                        Log.d(TAG, "Unknown parentId: $parentId")
+                        result.sendResult(null)
+                    }
                 }
             }
         }
