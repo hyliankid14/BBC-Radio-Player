@@ -147,10 +147,20 @@ class RadioService : MediaBrowserServiceCompat() {
                                 val repo = PodcastRepository(this@RadioService)
                                 val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                                 val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
-                                val ep = all.asSequence()
-                                    .filter { subscribed.contains(it.id) }
-                                    .mapNotNull { p -> runCatching { withContext(Dispatchers.IO) { repo.fetchEpisodes(p) } }.getOrNull()?.find { it.id == episodeId } }
-                                    .firstOrNull()
+                                var ep: Episode? = null
+                                for (p in all) {
+                                    if (!subscribed.contains(p.id)) continue
+                                    try {
+                                        val episodes = withContext(Dispatchers.IO) { repo.fetchEpisodes(p) }
+                                        val found = episodes.find { it.id == episodeId }
+                                        if (found != null) {
+                                            ep = found
+                                            break
+                                        }
+                                    } catch (e: Exception) {
+                                        // ignore and continue
+                                    }
+                                }
                                 if (ep != null) {
                                     playPodcastEpisode(ep, null)
                                 } else {
