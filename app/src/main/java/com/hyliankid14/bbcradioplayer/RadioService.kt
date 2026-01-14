@@ -92,8 +92,6 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val CUSTOM_ACTION_STOP = "STOP"
         private const val CUSTOM_ACTION_SEEK_FORWARD = "SEEK_FORWARD_30"
         private const val CUSTOM_ACTION_SEEK_BACK = "SEEK_BACK_10"
-        private const val CUSTOM_ACTION_PREVIOUS = "PREVIOUS"
-        private const val CUSTOM_ACTION_NEXT = "NEXT"
         
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
@@ -205,12 +203,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 Log.d(TAG, "onCustomAction called with action: $action")
                 when (action) {
                     CUSTOM_ACTION_STOP -> stopPlayback()
-                    CUSTOM_ACTION_PREVIOUS -> {
-                        if (currentStationId.startsWith("podcast_")) seekBy(-10_000L) else skipStation(-1)
-                    }
-                    CUSTOM_ACTION_NEXT -> {
-                        if (currentStationId.startsWith("podcast_")) seekBy(30_000L) else skipStation(1)
-                    }
+                    // legacy custom previous/next removed to avoid duplicates; onSkipToNext/onSkipToPrevious handle mapping
                     CUSTOM_ACTION_TOGGLE_FAVORITE -> {
                         if (currentStationId.isNotEmpty()) {
                             toggleFavoriteAndNotify(currentStationId)
@@ -316,22 +309,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 R.drawable.ic_stop
             )
 
-        // Add explicit custom Previous/Next actions for podcasts so car UIs can preserve ordering
-        if (isPodcast) {
-            pbBuilder.addCustomAction(
-                CUSTOM_ACTION_PREVIOUS,
-                "Previous",
-                R.drawable.ic_skip_previous
-            )
-        }
-
-        if (isPodcast) {
-            pbBuilder.addCustomAction(
-                CUSTOM_ACTION_NEXT,
-                "Next",
-                R.drawable.ic_skip_next
-            )
-        }
+        // For podcasts we advertise standard skip prev/next via setActions above (mapped to seek in callbacks)
 
         pbBuilder.addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAVORITE,
