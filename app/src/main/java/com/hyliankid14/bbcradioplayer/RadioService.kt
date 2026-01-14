@@ -90,6 +90,8 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val CUSTOM_ACTION_TOGGLE_FAVORITE = "TOGGLE_FAVORITE"
         private const val CUSTOM_ACTION_SPACER = "SPACER"
         private const val CUSTOM_ACTION_STOP = "STOP"
+        private const val CUSTOM_ACTION_SEEK_FORWARD = "SEEK_FORWARD_30"
+        private const val CUSTOM_ACTION_SEEK_BACK = "SEEK_BACK_10"
         
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
@@ -117,12 +119,22 @@ class RadioService : MediaBrowserServiceCompat() {
 
             override fun onSkipToNext() {
                 Log.d(TAG, "onSkipToNext")
-                skipStation(1)
+                // If a podcast is playing, treat skip next as "Forward 30s"
+                if (currentStationId.startsWith("podcast_")) {
+                    seekBy(30_000L)
+                } else {
+                    skipStation(1)
+                }
             }
 
             override fun onSkipToPrevious() {
                 Log.d(TAG, "onSkipToPrevious")
-                skipStation(-1)
+                // If a podcast is playing, treat skip previous as "Back 10s"
+                if (currentStationId.startsWith("podcast_")) {
+                    seekBy(-10_000L)
+                } else {
+                    skipStation(-1)
+                }
             }
 
             override fun onPause() {
@@ -195,6 +207,12 @@ class RadioService : MediaBrowserServiceCompat() {
                         if (currentStationId.isNotEmpty()) {
                             toggleFavoriteAndNotify(currentStationId)
                         }
+                    }
+                    CUSTOM_ACTION_SEEK_FORWARD -> {
+                        seekBy(30_000L)
+                    }
+                    CUSTOM_ACTION_SEEK_BACK -> {
+                        seekBy(-10_000L)
                     }
                 }
             }
@@ -289,9 +307,19 @@ class RadioService : MediaBrowserServiceCompat() {
                 R.drawable.ic_stop
             )
             .addCustomAction(
+                CUSTOM_ACTION_SEEK_BACK,
+                "Back 10s",
+                R.drawable.ic_skip_previous
+            )
+            .addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAVORITE,
                 favoriteLabel,
                 favoriteIcon
+            )
+            .addCustomAction(
+                CUSTOM_ACTION_SEEK_FORWARD,
+                "Forward 30s",
+                R.drawable.ic_skip_next
             )
 
         mediaSession.setPlaybackState(pbBuilder.build())
@@ -572,17 +600,22 @@ class RadioService : MediaBrowserServiceCompat() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Create previous action
+        // Create previous/next actions. When a podcast is playing, use seek labels (Back 10s / Forward 30s)
+        val isPodcast = currentStationId.startsWith("podcast_")
+        val previousLabel = if (isPodcast) "Back 10s" else "Previous"
+        val nextLabel = if (isPodcast) "Forward 30s" else "Next"
+        val previousIcon = if (isPodcast) R.drawable.ic_skip_previous else android.R.drawable.ic_media_previous
+        val nextIcon = if (isPodcast) R.drawable.ic_skip_next else android.R.drawable.ic_media_next
+
         val previousAction = NotificationCompat.Action(
-            android.R.drawable.ic_media_previous,
-            "Previous",
+            previousIcon,
+            previousLabel,
             createPendingIntent(ACTION_SKIP_TO_PREVIOUS, "previous_action")
         )
 
-        // Create next action
         val nextAction = NotificationCompat.Action(
-            android.R.drawable.ic_media_next,
-            "Next",
+            nextIcon,
+            nextLabel,
             createPendingIntent(ACTION_SKIP_TO_NEXT, "next_action")
         )
 
@@ -1189,8 +1222,8 @@ class RadioService : MediaBrowserServiceCompat() {
     private fun playPodcastEpisode(episode: Episode, intent: Intent?) {
         try {
             // Create a synthetic station to drive the existing mini/full player UI
-            val podcastTitle = intent?.getStringExtra(EXTRA_PODCAST_TITLE) ?: episode.title
-            val podcastImage = intent?.getStringExtra(EXTRA_PODCAST_IMAGE)
+            val podcastTitle = intent?.getStringExtra(EXTRA_PODCAST_TITLE) ?: "Podcast"
+            val podcastImage = intent?.getStringExtra(EXTRA_PODCAST_IMAGE) ?: episode.imageUrl
             val syntheticStation = Station(
                 id = "podcast_${episode.podcastId}",
                 title = podcastTitle,
@@ -1201,9 +1234,26 @@ class RadioService : MediaBrowserServiceCompat() {
             // Update playback helper & state
             currentStationId = syntheticStation.id
             currentPodcastId = episode.podcastId
+            // Ensure UI/metadata show podcast title, episode title and artwork
+            currentStationTitle = syntheticStation.title
+            currentStationLogo = syntheticStation.logoUrl
+            currentEpisodeTitle = episode.title
+            // Set show/name strings so notification and metadata show episode/podcast info immediately
+            currentShowName = syntheticStation.title
+            currentShowTitle = episode.title
+            currentArtworkUri = syntheticStation.logoUrl
+            currentShowInfo = CurrentShow(
+                title = syntheticStation.title,
+                episodeTitle = episode.title,
+                description = episode.description,
+                imageUrl = syntheticStation.logoUrl,
+                segmentStartMs = 0L,
+                segmentDurationMs = null
+            )
             PlaybackStateHelper.setCurrentStation(syntheticStation)
             PlaybackStateHelper.setCurrentEpisodeId(episode.id)
             PlaybackStateHelper.setIsPlaying(true)
+            PlaybackStateHelper.setCurrentShow(currentShowInfo)
 
             // Ensure player and focus
             player?.release()
@@ -1268,6 +1318,12 @@ class RadioService : MediaBrowserServiceCompat() {
                         try {
                             updateMediaMetadata()
                             updatePlaybackState(PlaybackStateCompat.STATE_PLAYING)
+                            // Also refresh the notification progress so the shade shows the current position
+                            try {
+                                updateNotificationProgressOnly()
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Error updating notification progress: ${e.message}")
+                            }
                         } catch (e: Exception) {
                             Log.w(TAG, "Error updating media metadata/state during progress runnable: ${e.message}")
                         }
@@ -1279,6 +1335,111 @@ class RadioService : MediaBrowserServiceCompat() {
             handler.post(podcastProgressRunnable!!)
         } catch (e: Exception) {
             Log.e(TAG, "Error playing podcast episode", e)
+        }
+    }
+
+    // Update just the notification with the current podcast progress (no network fetch)
+    private fun updateNotificationProgressOnly() {
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val isPlayingSnapshot = PlaybackStateHelper.getIsPlaying()
+
+            // Create actions (reuse current mapping: previous/next may be seek for podcasts)
+            val isPodcast = currentStationId.startsWith("podcast_")
+            val previousLabel = if (isPodcast) "Back 10s" else "Previous"
+            val nextLabel = if (isPodcast) "Forward 30s" else "Next"
+            val previousIcon = if (isPodcast) R.drawable.ic_skip_previous else android.R.drawable.ic_media_previous
+            val nextIcon = if (isPodcast) R.drawable.ic_skip_next else android.R.drawable.ic_media_next
+
+            val previousAction = NotificationCompat.Action(
+                previousIcon,
+                previousLabel,
+                createPendingIntent(ACTION_SKIP_TO_PREVIOUS, "previous_action")
+            )
+            val nextAction = NotificationCompat.Action(
+                nextIcon,
+                nextLabel,
+                createPendingIntent(ACTION_SKIP_TO_NEXT, "next_action")
+            )
+
+            val playPauseAction = if (isPlayingSnapshot) {
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_pause,
+                    "Pause",
+                    createPendingIntent(ACTION_PAUSE, "pause_action")
+                )
+            } else {
+                NotificationCompat.Action(
+                    android.R.drawable.ic_media_play,
+                    "Play",
+                    createPendingIntent(ACTION_PLAY, "play_action")
+                )
+            }
+
+            val stopAction = NotificationCompat.Action(
+                R.drawable.ic_stop,
+                "Stop",
+                createPendingIntent(ACTION_STOP, "stop_action")
+            )
+
+            val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
+            val favoriteAction = NotificationCompat.Action(
+                if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
+                if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+                createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+            )
+
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
+                .setContentText(currentShowTitle)
+                .setSmallIcon(android.R.drawable.ic_media_play)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .setSound(null)
+                .setVibrate(null)
+                .addAction(stopAction)
+                .addAction(previousAction)
+                .addAction(playPauseAction)
+                .addAction(nextAction)
+                .addAction(favoriteAction)
+                .setStyle(MediaStyle()
+                    .setMediaSession(mediaSession.sessionToken)
+                    .setShowActionsInCompactView(0, 1, 2)
+                )
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+            // Attach large icon if we have it cached
+            currentArtworkBitmap?.let { builder.setLargeIcon(it) }
+
+            // If podcast with known duration, display determinate progress
+            if (currentStationId.startsWith("podcast_")) {
+                val dur = currentShowInfo.segmentDurationMs ?: player?.duration ?: -1L
+                val pos = currentShowInfo.segmentStartMs ?: player?.currentPosition ?: 0L
+                if (dur > 0 && pos >= 0L) {
+                    val durInt = dur.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                    val posInt = pos.coerceIn(0L, dur).toInt()
+                    builder.setProgress(durInt, posInt, false)
+                } else {
+                    // Clear progress if unknown
+                    builder.setProgress(0, 0, false)
+                }
+            } else {
+                // Not a podcast: ensure progress isn't shown
+                builder.setProgress(0, 0, false)
+            }
+
+            val notification = builder.build()
+            notificationManager.notify(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to update notification progress: ${e.message}")
         }
     }
 
