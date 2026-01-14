@@ -794,14 +794,20 @@ class RadioService : MediaBrowserServiceCompat() {
 
                     // Update notification with the artwork
                     // Recreate all actions to maintain functionality
+                    val isPodcastAction = currentStationId.startsWith("podcast_")
+                    val prevLabel = if (isPodcastAction) "Back 10s" else "Previous"
+                    val nextLabel = if (isPodcastAction) "Forward 30s" else "Next"
+                    val prevIcon = if (isPodcastAction) R.drawable.ic_skip_previous else android.R.drawable.ic_media_previous
+                    val nextIcon = if (isPodcastAction) R.drawable.ic_skip_next else android.R.drawable.ic_media_next
+
                     val previousAction = NotificationCompat.Action(
-                        android.R.drawable.ic_media_previous,
-                        "Previous",
+                        prevIcon,
+                        prevLabel,
                         createPendingIntent(ACTION_SKIP_TO_PREVIOUS, "previous_action")
                     )
                     val nextAction = NotificationCompat.Action(
-                        android.R.drawable.ic_media_next,
-                        "Next",
+                        nextIcon,
+                        nextLabel,
                         createPendingIntent(ACTION_SKIP_TO_NEXT, "next_action")
                     )
                     val playPauseAction = if (isPlayingSnapshot) {
