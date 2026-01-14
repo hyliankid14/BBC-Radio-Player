@@ -169,8 +169,16 @@ object RSSParser {
                                 }
                             }
                             DESCRIPTION -> {
+                                // Capture full description text (may contain HTML/CDATA). Previously truncated to 200 chars.
                                 if (parser.next() == XmlPullParser.TEXT) {
-                                    currentDescription = parser.text.take(200)
+                                    currentDescription = parser.text
+                                }
+                            }
+                            // Some feeds use the content:encoded element for full HTML descriptions
+                            "encoded" -> {
+                                if (parser.next() == XmlPullParser.TEXT) {
+                                    // Prefer content:encoded when available as it often contains full HTML
+                                    currentDescription = parser.text
                                 }
                             }
                             ENCLOSURE -> {
