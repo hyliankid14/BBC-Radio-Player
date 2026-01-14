@@ -278,29 +278,30 @@ class RadioService : MediaBrowserServiceCompat() {
             R.drawable.ic_star_outline
         }
 
-        // Determine whether to include seek support and positional state for podcasts
+        // Determine allowed actions. For podcasts we avoid SKIP actions (replaced by seek custom actions)
         val pbBuilder = PlaybackStateCompat.Builder()
-            .setActions(
-                PlaybackStateCompat.ACTION_PLAY or
+
+        val baseActions = PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
                 PlaybackStateCompat.ACTION_STOP or
-                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
-                PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                PlaybackStateCompat.ACTION_SEEK_TO
-            )
+                PlaybackStateCompat.ACTION_PLAY_PAUSE
 
         if (isPodcast) {
+            // Podcasts support seeking; exclude skip next/previous to prevent duplication in Android Auto
+            pbBuilder.setActions(baseActions or PlaybackStateCompat.ACTION_SEEK_TO)
             // Try to provide accurate position from the current show (updated by the podcast progress runnable)
             val show = PlaybackStateHelper.getCurrentShow()
             val pos = show.segmentStartMs ?: player?.currentPosition ?: PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN
             pbBuilder.setState(state, pos, 1.0f)
         } else {
+            // For live streams include skip next/previous
+            pbBuilder.setActions(baseActions or PlaybackStateCompat.ACTION_SEEK_TO or PlaybackStateCompat.ACTION_SKIP_TO_NEXT or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)
             pbBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
         }
 
         // Use the left custom-action slot for Stop (some Android media UIs don't show ACTION_STOP)
+        // Order actions to prefer: Stop, Back, Forward, Favorite (Play/Pause is a built-in action)
         pbBuilder.addCustomAction(
                 CUSTOM_ACTION_STOP,
                 "Stop",
@@ -312,14 +313,14 @@ class RadioService : MediaBrowserServiceCompat() {
                 R.drawable.ic_skip_previous
             )
             .addCustomAction(
-                CUSTOM_ACTION_TOGGLE_FAVORITE,
-                favoriteLabel,
-                favoriteIcon
-            )
-            .addCustomAction(
                 CUSTOM_ACTION_SEEK_FORWARD,
                 "Forward 30s",
                 R.drawable.ic_skip_next
+            )
+            .addCustomAction(
+                CUSTOM_ACTION_TOGGLE_FAVORITE,
+                favoriteLabel,
+                favoriteIcon
             )
 
         mediaSession.setPlaybackState(pbBuilder.build())
@@ -557,6 +558,58 @@ class RadioService : MediaBrowserServiceCompat() {
                             PlaybackStateCompat.STATE_PAUSED, PlaybackStateCompat.STATE_STOPPED -> PlaybackStateHelper.setIsPlaying(false)
                             else -> {}
                         }
+
+                        // If playback ended for a podcast episode, attempt to autoplay next episode in the same podcast
+                        if (playbackState == Player.STATE_ENDED && currentStationId.startsWith("podcast_")) {
+                            val currentEpisode = PlaybackStateHelper.getCurrentEpisodeId()
+                            val podcastId = currentPodcastId
+                            if (!podcastId.isNullOrEmpty() && !currentEpisode.isNullOrEmpty()) {
+                                serviceScope.launch {
+                                    try {
+                                        val repo = PodcastRepository(this@RadioService)
+                                        val allPods = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                                        val podcast = allPods.find { it.id == podcastId }
+                                        if (podcast != null) {
+                                            val allEpisodes = withContext(Dispatchers.IO) { repo.fetchEpisodes(podcast) }
+
+                                            // Parse publish dates and pick the chronologically next (newer) episode
+                                            fun parseEpoch(s: String?): Long? {
+                                                if (s.isNullOrEmpty()) return null
+                                                return try {
+                                                    val fmt = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", java.util.Locale.US)
+                                                    fmt.parse(s)?.time
+                                                } catch (e: Exception) {
+                                                    null
+                                                }
+                                            }
+
+                                            val currentEp = allEpisodes.find { it.id == currentEpisode }
+                                            if (currentEp == null) {
+                                                Log.w(TAG, "Current episode not found in feed for autoplay: $currentEpisode")
+                                            } else {
+                                                val currentEpoch = parseEpoch(currentEp.pubDate)
+                                                // Build list of episodes with valid epoch greater than currentEpoch
+                                                val candidates = allEpisodes.mapNotNull { ep ->
+                                                    val epEpoch = parseEpoch(ep.pubDate)
+                                                    if (epEpoch != null && currentEpoch != null && epEpoch > currentEpoch) Pair(ep, epEpoch) else null
+                                                }
+                                                val next = candidates.minByOrNull { it.second }?.first
+                                                if (next != null) {
+                                                    Log.d(TAG, "Autoplaying next episode chronologically: ${next.title} (id=${next.id})")
+                                                    playPodcastEpisode(next, null)
+                                                } else {
+                                                    Log.d(TAG, "No newer episode found to autoplay for podcast: $podcastId")
+                                                }
+                                            }
+                                        } else {
+                                            Log.w(TAG, "Podcast not found while attempting to autoplay: $podcastId")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.w(TAG, "Failed to autoplay next episode: ${e.message}")
+                                    }
+                                }
+                            }
+                        }
                     }
                     
                     override fun onPlayerError(error: PlaybackException) {
@@ -651,7 +704,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-            .setContentText(currentShowTitle)
+            .setContentText(currentShowInfo.description ?: currentShowTitle)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -1115,13 +1168,17 @@ class RadioService : MediaBrowserServiceCompat() {
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
                 if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title) else currentStationTitle)
-            // Build display subtitle: Show "Artist - Track" when song is playing, otherwise "Show Name | Episode Title"
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, 
-                when {
+            // For podcasts: show the podcast name as the subtitle and provide the episode description as the description field
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE,
+                if (currentStationId.startsWith("podcast_")) currentStationTitle
+                else when {
                     !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> currentShowTitle
                     currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
                     else -> currentShowTitle
                 })
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DESCRIPTION,
+                if (currentStationId.startsWith("podcast_")) (currentShowInfo.description ?: currentShowInfo.episodeTitle ?: "")
+                else (currentShowInfo.description ?: ""))
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, 
                 if (currentStationId.startsWith("podcast_")) "Podcast" else "Live Stream")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
@@ -1399,7 +1456,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-                .setContentText(currentShowTitle)
+                .setContentText(currentShowInfo.description ?: currentShowTitle)
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
