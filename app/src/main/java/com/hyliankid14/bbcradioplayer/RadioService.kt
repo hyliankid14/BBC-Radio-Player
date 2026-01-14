@@ -722,8 +722,8 @@ class RadioService : MediaBrowserServiceCompat() {
             .addAction(favoriteAction)
             .setStyle(MediaStyle()
                 .setMediaSession(mediaSession.sessionToken)
-                // Compact view: Stop (0), Play/Pause (2), Next (3) to ensure Play is centered on OEMs that reorder
-                .setShowActionsInCompactView(0, 2, 3)
+                // Compact view: show Previous, Play/Pause, Next (indices 1,2,3)
+                .setShowActionsInCompactView(1, 2, 3)
             )
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
 
@@ -861,8 +861,8 @@ class RadioService : MediaBrowserServiceCompat() {
                         .addAction(favoriteAction)
                         .setStyle(MediaStyle()
                             .setMediaSession(mediaSession.sessionToken)
-                            // Compact view: Stop (0), Play/Pause (2), Next (3)
-                            .setShowActionsInCompactView(0, 2, 3)
+                            // Compact view: show Previous, Play/Pause, Next (indices 1,2,3)
+                            .setShowActionsInCompactView(1, 2, 3)
                         )
                         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                         .build()
@@ -1479,8 +1479,8 @@ class RadioService : MediaBrowserServiceCompat() {
                 .addAction(favoriteAction)
                 .setStyle(MediaStyle()
                     .setMediaSession(mediaSession.sessionToken)
-                    // Compact view: Stop (0), Play/Pause (2), Next (3)
-                    .setShowActionsInCompactView(0, 2, 3)
+                    // Compact view: show Previous, Play/Pause, Next (indices 1,2,3)
+                    .setShowActionsInCompactView(1, 2, 3)
                 )
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
 
