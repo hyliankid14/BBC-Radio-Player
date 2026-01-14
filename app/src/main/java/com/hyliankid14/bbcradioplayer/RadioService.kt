@@ -301,23 +301,28 @@ class RadioService : MediaBrowserServiceCompat() {
         }
 
         // Use the left custom-action slot for Stop (some Android media UIs don't show ACTION_STOP)
-        // Order actions to prefer: Stop, Back, Forward, Favorite (Play/Pause is a built-in action)
+        // Order actions to prefer: Stop, Back (podcast only), Forward (podcast only), Favorite
         pbBuilder.addCustomAction(
                 CUSTOM_ACTION_STOP,
                 "Stop",
                 R.drawable.ic_stop
             )
-            .addCustomAction(
+
+        // For podcasts add explicit seek custom actions (Back/Forward). For live streams, Skip actions are provided by standard playback actions.
+        if (isPodcast) {
+            pbBuilder.addCustomAction(
                 CUSTOM_ACTION_SEEK_BACK,
                 "Back 10s",
                 R.drawable.ic_skip_previous
             )
-            .addCustomAction(
+            pbBuilder.addCustomAction(
                 CUSTOM_ACTION_SEEK_FORWARD,
                 "Forward 30s",
                 R.drawable.ic_skip_next
             )
-            .addCustomAction(
+        }
+
+        pbBuilder.addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAVORITE,
                 favoriteLabel,
                 favoriteIcon
