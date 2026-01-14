@@ -224,11 +224,7 @@ class EpisodeAdapter(
             val fullDesc = sanitizeDescription(episode.description)
             descriptionView.text = fullDesc
 
-            // Keep inline "Show more" hidden in episode list; full description is available in the player/detail view
-            showMoreView.visibility = View.GONE
-
             // Clicking the description opens the full-screen player (no inline toggle)
-            // (showMore removed from list view)
 
             // Show saved playback progress if available and episode has duration
             val progressMs = PlayedEpisodesPreference.getProgress(itemView.context, episode.id)
