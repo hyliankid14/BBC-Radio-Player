@@ -73,12 +73,16 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
             android.view.ViewGroup.LayoutParams.WRAP_CONTENT
         ))
 
+        // Keep a reference to the ScrollView so we can measure content and constrain dialog height on start
+        var scrollViewRef: android.widget.ScrollView? = null
         val scrollView = android.widget.ScrollView(requireContext()).apply {
-            isFillViewport = true
+            // Do not force the viewport to fill; allow the view to size to its content
+            isFillViewport = false
             addView(container, android.view.ViewGroup.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT
             ))
+            scrollViewRef = this
         }
 
         return AlertDialog.Builder(requireContext())
@@ -90,12 +94,27 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
 
     override fun onStart() {
         super.onStart()
-        // Expand dialog to full screen so long descriptions are fully scrollable and not visually truncated
-        dialog?.window?.setLayout(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        )
-        // Ensure soft input mode doesn't resize the dialog unexpectedly
-        dialog?.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        // After the dialog is shown, measure content and limit height to a reasonable maximum
+        val window = dialog?.window ?: return
+        val displayMetrics = resources.displayMetrics
+        val maxHeight = (displayMetrics.heightPixels * 0.85).toInt()
+
+        // Post a measurement to allow the view hierarchy to layout first
+        scrollViewRef?.post {
+            val contentHeight = try {
+                val child = scrollViewRef?.getChildAt(0)
+                child?.height ?: 0
+            } catch (e: Exception) { 0 }
+
+            val targetHeight = if (contentHeight > 0 && contentHeight < maxHeight) {
+                WindowManager.LayoutParams.WRAP_CONTENT
+            } else {
+                maxHeight
+            }
+
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, targetHeight)
+            // Ensure soft input mode doesn't resize the dialog unexpectedly
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
     }
 } 
