@@ -14,6 +14,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 
 class EpisodeDescriptionDialogFragment : DialogFragment() {
+    private var scrollViewRef: android.widget.ScrollView? = null
     companion object {
         private const val ARG_DESCRIPTION = "description"
         private const val ARG_TITLE = "title"
@@ -74,7 +75,6 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
         ))
 
         // Keep a reference to the ScrollView so we can measure content and constrain dialog height on start
-        var scrollViewRef: android.widget.ScrollView? = null
         val scrollView = android.widget.ScrollView(requireContext()).apply {
             // Do not force the viewport to fill; allow the view to size to its content
             isFillViewport = false
@@ -82,7 +82,8 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT
             ))
-            scrollViewRef = this
+            // assign to the class-level ref
+            (this@EpisodeDescriptionDialogFragment as EpisodeDescriptionDialogFragment).scrollViewRef = this
         }
 
         return AlertDialog.Builder(requireContext())
