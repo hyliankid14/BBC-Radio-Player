@@ -92,6 +92,8 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val CUSTOM_ACTION_STOP = "STOP"
         private const val CUSTOM_ACTION_SEEK_FORWARD = "SEEK_FORWARD_30"
         private const val CUSTOM_ACTION_SEEK_BACK = "SEEK_BACK_10"
+        private const val CUSTOM_ACTION_PREVIOUS = "PREVIOUS"
+        private const val CUSTOM_ACTION_NEXT = "NEXT"
         
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
@@ -203,6 +205,12 @@ class RadioService : MediaBrowserServiceCompat() {
                 Log.d(TAG, "onCustomAction called with action: $action")
                 when (action) {
                     CUSTOM_ACTION_STOP -> stopPlayback()
+                    CUSTOM_ACTION_PREVIOUS -> {
+                        if (currentStationId.startsWith("podcast_")) seekBy(-10_000L) else skipStation(-1)
+                    }
+                    CUSTOM_ACTION_NEXT -> {
+                        if (currentStationId.startsWith("podcast_")) seekBy(30_000L) else skipStation(1)
+                    }
                     CUSTOM_ACTION_TOGGLE_FAVORITE -> {
                         if (currentStationId.isNotEmpty()) {
                             toggleFavoriteAndNotify(currentStationId)
@@ -288,8 +296,8 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_PLAY_PAUSE
 
         if (isPodcast) {
-            // Podcasts support seeking; exclude skip next/previous to prevent duplication in Android Auto
-            pbBuilder.setActions(baseActions or PlaybackStateCompat.ACTION_SEEK_TO)
+            // For podcasts expose skip next/previous as standard actions (they map to seekBy in our callbacks)
+            pbBuilder.setActions(baseActions or PlaybackStateCompat.ACTION_SEEK_TO or PlaybackStateCompat.ACTION_SKIP_TO_NEXT or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)
             // Try to provide accurate position from the current show (updated by the podcast progress runnable)
             val show = PlaybackStateHelper.getCurrentShow()
             val pos = show.segmentStartMs ?: player?.currentPosition ?: PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN
@@ -301,23 +309,26 @@ class RadioService : MediaBrowserServiceCompat() {
         }
 
         // Use the left custom-action slot for Stop (some Android media UIs don't show ACTION_STOP)
-        // Order actions to prefer: Stop, Back (podcast only), Forward (podcast only), Favorite
+        // Order actions to prefer: Stop, Previous, Play/Pause, Next, Favorite
         pbBuilder.addCustomAction(
                 CUSTOM_ACTION_STOP,
                 "Stop",
                 R.drawable.ic_stop
             )
 
-        // For podcasts add explicit seek custom actions (Back/Forward). For live streams, Skip actions are provided by standard playback actions.
+        // Add explicit custom Previous/Next actions for podcasts so car UIs can preserve ordering
         if (isPodcast) {
             pbBuilder.addCustomAction(
-                CUSTOM_ACTION_SEEK_BACK,
-                "Back 10s",
+                CUSTOM_ACTION_PREVIOUS,
+                "Previous",
                 R.drawable.ic_skip_previous
             )
+        }
+
+        if (isPodcast) {
             pbBuilder.addCustomAction(
-                CUSTOM_ACTION_SEEK_FORWARD,
-                "Forward 30s",
+                CUSTOM_ACTION_NEXT,
+                "Next",
                 R.drawable.ic_skip_next
             )
         }
