@@ -57,12 +57,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1"
-                    android:gravity="bottom"
+                    android:gravity="top"
                     android:textSize="14sp"
-                    android:maxLines="3"
-                    android:ellipsize="end"
-                    android:drawableEnd="@drawable/ic_expand_more"
-                    android:drawablePadding="4dp" />
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
             </LinearLayout>
         </LinearLayout>

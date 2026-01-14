@@ -79,14 +79,8 @@ class PodcastDetailFragment : Fragment() {
             descriptionView.text = HtmlCompat.fromHtml(fullDescriptionHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
             titleView.visibility = View.GONE
             
-            // Allow the description to fill the available space next to the artwork (no arbitrary line limit)
-            val initialLp = descriptionView.layoutParams as? android.widget.LinearLayout.LayoutParams
-            initialLp?.let {
-                it.height = 0
-                it.weight = 1f
-                descriptionView.layoutParams = it
-                // Do not set maxLines here — let the view display as many lines as fit in the space next to the artwork.
-            }
+            // Ensure the description fills the vertical space next to the artwork (defined in layout via weight)
+            descriptionView.gravity = android.view.Gravity.TOP
 
             // Make the header tappable to show the full description (and show explicit affordance)
             val showDialog = {
