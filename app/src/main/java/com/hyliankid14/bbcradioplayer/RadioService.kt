@@ -1176,9 +1176,6 @@ class RadioService : MediaBrowserServiceCompat() {
                     currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
                     else -> currentShowTitle
                 })
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DESCRIPTION,
-                if (currentStationId.startsWith("podcast_")) (currentShowInfo.description ?: currentShowInfo.episodeTitle ?: "")
-                else (currentShowInfo.description ?: ""))
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, 
                 if (currentStationId.startsWith("podcast_")) "Podcast" else "Live Stream")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
