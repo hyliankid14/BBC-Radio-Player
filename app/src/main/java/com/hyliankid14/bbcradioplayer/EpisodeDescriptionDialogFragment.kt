@@ -10,6 +10,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import com.bumptech.glide.Glide
 
+import android.view.ViewGroup
+import android.view.WindowManager
+
 class EpisodeDescriptionDialogFragment : DialogFragment() {
     companion object {
         private const val ARG_DESCRIPTION = "description"
@@ -83,5 +86,16 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
             .setView(scrollView)
             .setPositiveButton("Close") { _, _ -> dismiss() }
             .create()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Expand dialog to full screen so long descriptions are fully scrollable and not visually truncated
+        dialog?.window?.setLayout(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        // Ensure soft input mode doesn't resize the dialog unexpectedly
+        dialog?.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
     }
 } 
