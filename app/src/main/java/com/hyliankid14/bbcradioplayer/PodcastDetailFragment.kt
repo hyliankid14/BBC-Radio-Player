@@ -66,6 +66,7 @@ class PodcastDetailFragment : Fragment() {
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
 
             (activity as? AppCompatActivity)?.supportActionBar?.apply {
+                show()
                 title = podcast.title
                 setDisplayHomeAsUpEnabled(true)
                 setDisplayShowHomeEnabled(true)
@@ -269,9 +270,11 @@ class PodcastDetailFragment : Fragment() {
             // ignore
         }
         (activity as? AppCompatActivity)?.supportActionBar?.apply {
+            // Reset action bar state and hide it so the Podcasts fragment can manage its own top bar
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)
             title = "Podcasts"
+            hide()
         }
     }
 

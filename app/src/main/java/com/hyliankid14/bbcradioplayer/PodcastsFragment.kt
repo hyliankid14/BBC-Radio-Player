@@ -87,6 +87,9 @@ class PodcastsFragment : Fragment() {
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         adapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
             android.util.Log.d("PodcastsFragment", "onPodcastClick triggered for: ${podcast.title}")
+            // Show the global action bar so the podcast title and back button are visible
+            (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.show()
+
             val detailFragment = PodcastDetailFragment().apply {
                 arguments = Bundle().apply {
                     putParcelable("podcast", podcast)
@@ -99,6 +102,9 @@ class PodcastsFragment : Fragment() {
             }
         })
         recyclerView.adapter = adapter
+
+        // Ensure the global action bar is shown when navigating into a podcast detail
+        val originalOnPodcastClick = adapter
 
         // Subscribed podcasts are shown in Favorites section, not here
 

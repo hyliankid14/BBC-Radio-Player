@@ -28,6 +28,7 @@
             app:boxCornerRadiusBottomStart="16dp"
             app:boxCornerRadiusBottomEnd="16dp"
             app:hintEnabled="true"
+            android:hint="Search podcasts..."
             app:startIconDrawable="@drawable/ic_search"
             app:endIconMode="clear_text">
 
@@ -41,11 +42,10 @@
                 android:textColorHint="?attr/colorOnSurfaceVariant"
                 android:paddingTop="12dp"
                 android:paddingBottom="12dp"
-                android:paddingStart="56dp"
+                android:paddingStart="64dp"
                 android:background="@null"
                 android:maxLines="1"
-                android:singleLine="true"
-                android:hint="Search podcasts..." />
+                android:singleLine="true" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <ImageButton
@@ -78,7 +78,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:visibility="gone"
+                android:visibility="visible"
                 android:background="?attr/colorSurface"
                 android:padding="12dp"
                 android:layout_marginTop="8dp">

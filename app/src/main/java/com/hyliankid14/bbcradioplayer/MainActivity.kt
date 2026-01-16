@@ -328,8 +328,9 @@ class MainActivity : AppCompatActivity() {
 
         // Load subscribed podcasts into Favorites section
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
+        // Ensure the subscribed podcasts header is visible when the Favorites view is open
+        favoritesPodcastsContainer.visibility = View.VISIBLE
         if (subscribedIds.isNotEmpty()) {
-            favoritesPodcastsContainer.visibility = View.VISIBLE
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
 
             // Use theme surface and text colors so the header matches the current theme
@@ -370,6 +371,8 @@ class MainActivity : AppCompatActivity() {
                 val subs = all.filter { subscribedIds.contains(it.id) }
                 runOnUiThread {
                         val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
+                        // Show app bar so podcast title and back button are visible
+                        supportActionBar?.show()
                         // Navigate to podcast detail
                         fragmentContainer.visibility = View.VISIBLE
                         staticContentContainer.visibility = View.GONE
@@ -434,6 +437,9 @@ class MainActivity : AppCompatActivity() {
             val match = all.find { it.id == podcastId }
             if (match != null) {
                 runOnUiThread {
+                    // Show app bar so podcast title and back button are visible
+                    supportActionBar?.show()
+
                     fragmentContainer.visibility = View.VISIBLE
                     staticContentContainer.visibility = View.GONE
                     val detailFragment = PodcastDetailFragment().apply {
