@@ -95,19 +95,9 @@ class NowPlayingActivity : AppCompatActivity() {
         artistTrack.setOnClickListener { showFullDescription() }
 
         // Mark-as-played button (manual toggle)
-        markPlayedButton.setOnClickListener {
-            val eid = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId()
-            if (!eid.isNullOrEmpty()) {
-                val context = this@NowPlayingActivity
-                if (PlayedEpisodesPreference.isPlayed(context, eid)) {
-                    PlayedEpisodesPreference.markUnplayed(context, eid)
-                } else {
-                    PlayedEpisodesPreference.markPlayed(context, eid)
-                }
-                // Update UI immediately
-                updateMarkPlayedButtonState()
-            }
-        }
+        // Hidden by design to avoid duplication with subscription controls in the app bar
+        markPlayedButton.visibility = android.view.View.GONE
+        // (Intentional: keep logic available if needed later, but do not assign a click listener.)
 
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -698,8 +688,11 @@ class NowPlayingActivity : AppCompatActivity() {
                 val podcastId = station.id.removePrefix("podcast_")
                 PodcastSubscriptions.toggleSubscription(this, podcastId)
                 val now = PodcastSubscriptions.isSubscribed(this, podcastId)
-                val msg = if (now) "Subscribed to ${station.title}" else "Unsubscribed from ${station.title}"
-                com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show()
+                val podcastName = station.title
+                val msg = if (now) "Subscribed to ${podcastName}" else "Unsubscribed from ${podcastName}"
+                com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                    .setAnchorView(findViewById(R.id.playback_controls))
+                    .show()
             } else {
                 FavoritesPreference.toggleFavorite(this, station.id)
             }
@@ -712,8 +705,11 @@ class NowPlayingActivity : AppCompatActivity() {
         if (preview != null) {
             PodcastSubscriptions.toggleSubscription(this, preview.podcastId)
             val now = PodcastSubscriptions.isSubscribed(this, preview.podcastId)
-            val msg = if (now) "Subscribed to ${preview.title}" else "Unsubscribed from ${preview.title}"
-            com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show()
+            val podcastName = supportActionBar?.title?.toString() ?: preview.podcastId
+            val msg = if (now) "Subscribed to ${podcastName}" else "Unsubscribed from ${podcastName}"
+            com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                .setAnchorView(findViewById(R.id.playback_controls))
+                .show()
             // Update icon/background to reflect change
             val subscribed = now
             favoriteButton.icon = ContextCompat.getDrawable(this, if (subscribed) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
@@ -755,13 +751,8 @@ class NowPlayingActivity : AppCompatActivity() {
         val isPodcast = station?.id?.startsWith("podcast_") == true || previewEpisodeProp != null
         val eid = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
 
-        if (isPodcast && !eid.isNullOrEmpty()) {
-            markPlayedButton.visibility = android.view.View.VISIBLE
-            val played = PlayedEpisodesPreference.isPlayed(this, eid)
-            val tintColor = if (played) ContextCompat.getColor(this, R.color.md_theme_primary) else ContextCompat.getColor(this, R.color.md_theme_onSurfaceVariant)
-            markPlayedButton.setColorFilter(tintColor)
-        } else {
-            markPlayedButton.visibility = android.view.View.GONE
-        }
+        // The mark-as-played control is intentionally hidden from the app bar to avoid duplication with
+        // the main star subscription action. Keep it GONE so it does not display in the app bar.
+        markPlayedButton.visibility = android.view.View.GONE
     }
 }

@@ -140,9 +140,11 @@ class PodcastDetailFragment : Fragment() {
                 PodcastSubscriptions.toggleSubscription(requireContext(), podcast.id)
                 val nowSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
                 updateSubscribeButton(nowSubscribed)
-                // Show snackbar feedback
+                // Show snackbar feedback anchored above system UI
                 val msg = if (nowSubscribed) "Subscribed to ${podcast.title}" else "Unsubscribed from ${podcast.title}"
-                com.google.android.material.snackbar.Snackbar.make(requireView(), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show()
+                com.google.android.material.snackbar.Snackbar.make(requireView(), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                    .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
+                    .show()
             }
 
             episodesRecycler.layoutManager = LinearLayoutManager(requireContext())

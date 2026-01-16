@@ -54,7 +54,26 @@ class PodcastRepository(private val context: Context) {
     suspend fun fetchEpisodesPaged(podcast: Podcast, startIndex: Int, count: Int): List<Episode> = withContext(Dispatchers.IO) {
         try {
             Log.d("PodcastRepository", "Fetching episodes page for ${podcast.title} start=$startIndex count=$count")
-            RSSParser.fetchAndParseRSS(podcast.rssUrl, podcast.id, startIndex, count)
+            // Fetch the full feed and page from newest -> oldest so page 0 is the most recent episodes.
+            val all = RSSParser.fetchAndParseRSS(podcast.rssUrl, podcast.id)
+            if (all.isEmpty()) return@withContext emptyList()
+
+            fun parsePubDate(raw: String): Long {
+                val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy")
+                for (pattern in patterns) {
+                    try {
+                        val t = java.text.SimpleDateFormat(pattern, java.util.Locale.US).parse(raw)?.time
+                        if (t != null) return t
+                    } catch (_: Exception) { }
+                }
+                return 0L
+            }
+
+            val sorted = all.sortedByDescending { parsePubDate(it.pubDate) }
+            val from = startIndex.coerceAtLeast(0)
+            val to = kotlin.math.min(sorted.size, startIndex + count)
+            if (from >= to) return@withContext emptyList()
+            return@withContext sorted.subList(from, to)
         } catch (e: Exception) {
             Log.e("PodcastRepository", "Error fetching paged episodes", e)
             emptyList()
