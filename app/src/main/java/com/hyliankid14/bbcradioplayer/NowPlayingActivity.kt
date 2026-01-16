@@ -306,6 +306,8 @@ class NowPlayingActivity : AppCompatActivity() {
         val show = PlaybackStateHelper.getCurrentShow()
         val isPodcast = station?.id?.startsWith("podcast_") == true
 
+        // Only update the main UI when we have a valid station; otherwise hide controls
+        if (station != null) {
             // Try to find a matching podcast for the current show/station (non-blocking)
             findMatchingPodcastAsync(station, show)
             
@@ -370,13 +372,13 @@ class NowPlayingActivity : AppCompatActivity() {
             val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
                 show.imageUrl
             } else {
-                station?.logoUrl
+                station.logoUrl
             }
             
             // Only reload if URL changed
             if (artworkUrl != null && artworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
                 lastArtworkUrl = artworkUrl
-                val fallbackUrl = station?.logoUrl
+                val fallbackUrl = station.logoUrl
                 
                 Glide.with(this)
                     .load(artworkUrl)
@@ -407,11 +409,11 @@ class NowPlayingActivity : AppCompatActivity() {
             // Update play/pause button
             playPauseButton.icon = ContextCompat.getDrawable(this, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
-            val podcastId = station?.id?.removePrefix("podcast_") ?: ""
+            val podcastId = station.id.removePrefix("podcast_") ?: ""
             val isFavorited = if (isPodcast) {
                 PodcastSubscriptions.isSubscribed(this, podcastId)
             } else {
-                FavoritesPreference.isFavorite(this, station?.id ?: "")
+                FavoritesPreference.isFavorite(this, station.id)
             }
             favoriteButton.icon = ContextCompat.getDrawable(this, if (isFavorited) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
             favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
