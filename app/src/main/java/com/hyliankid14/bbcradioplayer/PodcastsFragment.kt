@@ -464,44 +464,7 @@ class PodcastsFragment : Fragment() {
         }
 
         // Ensure any loading spinner is hidden when filters finish applying
-        view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE        searchAdapter = SearchResultsAdapter(
-            requireContext(),
-            titleMatches,
-            descMatches,
-            episodeMatches,
-            onPodcastClick = { podcast ->
-                // Reuse the same navigation to podcast detail
-                val detailFragment = PodcastDetailFragment().apply {
-                    arguments = Bundle().apply { putParcelable("podcast", podcast) }
-                }
-                parentFragmentManager.beginTransaction().apply {
-                    replace(R.id.fragment_container, detailFragment)
-                    addToBackStack(null)
-                    commit()
-                }
-            },
-            onPlayEpisode = { episode ->
-                // Play immediately via RadioService
-                val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-                    action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                    putExtra(RadioService.EXTRA_EPISODE, episode)
-                    putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                }
-                requireContext().startService(intent)
-            },
-            onOpenEpisode = { episode, podcast ->
-                // Open NowPlaying preview like other places
-                val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
-                    putExtra("preview_episode", episode)
-                    putExtra("preview_use_play_ui", true)
-                    putExtra("preview_podcast_title", podcast.title)
-                    putExtra("preview_podcast_image", podcast.imageUrl)
-                }
-                startActivity(intent)
-            }
-        )
-
-        recyclerView.adapter = searchAdapter
+        view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
         if (titleMatches.isEmpty() && descMatches.isEmpty() && episodeMatches.isEmpty()) {
             emptyState.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
