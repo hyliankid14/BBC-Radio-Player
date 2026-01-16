@@ -334,10 +334,9 @@ class MainActivity : AppCompatActivity() {
 
             // Use theme surface and text colors so the header matches the current theme
             val onSurface = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface)
-            // Ensure header is clickable and stays on top so the expand/collapse can always be toggled
+            // Ensure header is clickable and focusable so the expand/collapse can be toggled
             favoritesPodcastsHeaderContainer.isClickable = true
             favoritesPodcastsHeaderContainer.isFocusable = true
-            favoritesPodcastsHeaderContainer.bringToFront()
             favoritesPodcastsExpandIcon?.setColorFilter(onSurface)
 
             val divider = findViewById<View>(R.id.favorites_podcasts_divider)

@@ -27,8 +27,7 @@
             app:boxCornerRadiusTopEnd="16dp"
             app:boxCornerRadiusBottomStart="16dp"
             app:boxCornerRadiusBottomEnd="16dp"
-            app:hintEnabled="false"
-            app:placeholderText="Search podcasts..."
+            app:hintEnabled="true"
             app:startIconDrawable="@drawable/ic_search"
             app:endIconMode="clear_text">
 
@@ -42,11 +41,11 @@
                 android:textColorHint="?attr/colorOnSurfaceVariant"
                 android:paddingTop="12dp"
                 android:paddingBottom="12dp"
-                android:paddingStart="44dp"
+                android:paddingStart="56dp"
                 android:background="@null"
                 android:maxLines="1"
                 android:singleLine="true"
-                android:hint="" />
+                android:hint="Search podcasts..." />
         </com.google.android.material.textfield.TextInputLayout>
 
         <ImageButton
@@ -59,70 +58,7 @@
             android:tint="?attr/colorOnSurface" />
     </com.google.android.material.appbar.MaterialToolbar>
 
-    <!-- Filters container (hidden by default; toggled by the filter button) -->
-    <LinearLayout
-        android:id="@+id/filters_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone"
-        android:background="?attr/colorSurface"
-        android:padding="12dp"
-        android:layout_marginTop="8dp">
 
-        <!-- Genre Filter (Exposed dropdown - Material 3) -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/genre_filter_layout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="12dp"
-            android:layout_marginTop="8dp"
-            app:boxStrokeColor="?attr/colorOutline"
-            app:endIconMode="dropdown_menu"
-            app:hintEnabled="true"
-            android:hint="Genre">
-
-            <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                android:id="@+id/genre_filter_spinner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="none"
-                android:textColor="?attr/colorOnSurface"
-                android:padding="8dp" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Sort Filter (Exposed dropdown - Material 3) -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/sort_filter_layout"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="12dp"
-            android:layout_marginTop="8dp"
-            app:boxStrokeColor="?attr/colorOutline"
-            app:endIconMode="dropdown_menu"
-            app:hintEnabled="true"
-            android:hint="Sort">
-
-            <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                android:id="@+id/sort_spinner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="none"
-                android:textColor="?attr/colorOnSurface"
-                android:padding="8dp" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Reset Button -->
-        <Button
-            android:id="@+id/reset_filters_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Reset Filters"
-            android:layout_marginHorizontal="12dp"
-            android:layout_marginVertical="8dp" />
-    </LinearLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/podcasts_scroll"
@@ -135,6 +71,71 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingTop="8dp">
+
+            <!-- Filters container (hidden by default; toggled by the filter button) -->
+            <LinearLayout
+                android:id="@+id/filters_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:background="?attr/colorSurface"
+                android:padding="12dp"
+                android:layout_marginTop="8dp">
+
+                <!-- Genre Filter (Exposed dropdown - Material 3) -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/genre_filter_layout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="12dp"
+                    android:layout_marginTop="8dp"
+                    app:boxStrokeColor="?attr/colorOutline"
+                    app:endIconMode="dropdown_menu"
+                    app:hintEnabled="true"
+                    android:hint="Genre">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/genre_filter_spinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:textColor="?attr/colorOnSurface"
+                        android:padding="8dp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Sort Filter (Exposed dropdown - Material 3) -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/sort_filter_layout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="12dp"
+                    android:layout_marginTop="8dp"
+                    app:boxStrokeColor="?attr/colorOutline"
+                    app:endIconMode="dropdown_menu"
+                    app:hintEnabled="true"
+                    android:hint="Sort">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/sort_spinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:textColor="?attr/colorOnSurface"
+                        android:padding="8dp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Reset Button -->
+                <Button
+                    android:id="@+id/reset_filters_button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Reset Filters"
+                    android:layout_marginHorizontal="12dp"
+                    android:layout_marginVertical="8dp" />
+            </LinearLayout>
 
             <!-- Podcasts RecyclerView (participates in the NestedScrollView) -->
             <androidx.recyclerview.widget.RecyclerView
