@@ -370,7 +370,7 @@ class NowPlayingActivity : AppCompatActivity() {
             val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
                 show.imageUrl
             } else {
-                station.logoUrl
+                station?.logoUrl
             }
             
             // Only reload if URL changed
@@ -407,11 +407,11 @@ class NowPlayingActivity : AppCompatActivity() {
             // Update play/pause button
             playPauseButton.icon = ContextCompat.getDrawable(this, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
-            val podcastId = station.id.removePrefix("podcast_")
+            val podcastId = station?.id?.removePrefix("podcast_") ?: ""
             val isFavorited = if (isPodcast) {
                 PodcastSubscriptions.isSubscribed(this, podcastId)
             } else {
-                FavoritesPreference.isFavorite(this, station.id)
+                FavoritesPreference.isFavorite(this, station?.id ?: "")
             }
             favoriteButton.icon = ContextCompat.getDrawable(this, if (isFavorited) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
             favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
