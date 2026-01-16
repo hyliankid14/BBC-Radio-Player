@@ -340,18 +340,60 @@ class RadioService : MediaBrowserServiceCompat() {
 
         val now = System.currentTimeMillis()
         val isNewClient = lastAndroidAutoClientUid == null || lastAndroidAutoClientUid != clientUid
-        val lastStationId = PlaybackPreference.getLastStationId(this)
+        val lastMediaId = PlaybackPreference.getLastMediaId(this)
         val canAutoResume = PlaybackPreference.isAutoResumeAndroidAutoEnabled(this) &&
             !PlaybackStateHelper.getIsPlaying() &&
-            !lastStationId.isNullOrEmpty() &&
+            !lastMediaId.isNullOrEmpty() &&
             (isNewClient || now - lastAndroidAutoAutoplayMs >= AUTO_RECONNECT_REFRESH_COOLDOWN_MS)
         val canRefresh = PlaybackStateHelper.getIsPlaying() &&
             currentStationId.isNotEmpty() &&
             (isNewClient || now - lastAndroidAutoRefreshMs >= AUTO_RECONNECT_REFRESH_COOLDOWN_MS)
 
         if (canAutoResume) {
-            Log.d(TAG, "Android Auto reconnect detected (client=$clientName, uid=$clientUid). Auto-playing last station: $lastStationId")
-            handler.post { lastStationId?.let { playStation(it) } }
+            Log.d(TAG, "Android Auto reconnect detected (client=$clientName, uid=$clientUid). Auto-playing last media: $lastMediaId")
+            handler.post {
+                lastMediaId?.let { id ->
+                    when {
+                        id.startsWith("podcast_episode_") -> {
+                            val episodeId = id.removePrefix("podcast_episode_")
+                            // Lookup the episode in subscriptions and play it if available
+                            serviceScope.launch {
+                                try {
+                                    val repo = PodcastRepository(this@RadioService)
+                                    val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                                    val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
+                                    var foundEp: Episode? = null
+                                    for (p in all) {
+                                        if (!subscribed.contains(p.id)) continue
+                                        try {
+                                            val eps = withContext(Dispatchers.IO) { repo.fetchEpisodes(p) }
+                                            val ep = eps.find { it.id == episodeId }
+                                            if (ep != null) {
+                                                foundEp = ep
+                                                break
+                                            }
+                                        } catch (_: Exception) { /* ignore */ }
+                                    }
+                                    if (foundEp != null) {
+                                        playPodcastEpisode(foundEp, null)
+                                    } else {
+                                        Log.w(TAG, "Episode not found for id: $episodeId")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error auto-playing podcast episode $episodeId", e)
+                                }
+                            }
+                        }
+                        id.startsWith("station_") -> {
+                            val stationId = id.removePrefix("station_")
+                            playStation(stationId)
+                        }
+                        else -> {
+                            Log.w(TAG, "Unknown last media id: $id")
+                        }
+                    }
+                }
+            }
             lastAndroidAutoAutoplayMs = now
         }
 
@@ -1314,6 +1356,9 @@ class RadioService : MediaBrowserServiceCompat() {
             PlaybackStateHelper.setCurrentEpisodeId(episode.id)
             PlaybackStateHelper.setIsPlaying(true)
             PlaybackStateHelper.setCurrentShow(currentShowInfo)
+
+            // Remember this as the last played media so Android Auto can resume stations or podcasts
+            PlaybackPreference.setLastMediaId(this, "podcast_episode_${'$'}{episode.id}")
 
             // Ensure player and focus
             player?.release()

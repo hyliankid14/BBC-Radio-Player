@@ -5,16 +5,32 @@ import android.content.Context
 object PlaybackPreference {
     private const val PREFS_NAME = "playback_prefs"
     private const val KEY_LAST_STATION_ID = "last_station_id"
+    private const val KEY_LAST_MEDIA_ID = "last_media_id"
     private const val KEY_AUTO_RESUME_ANDROID_AUTO = "auto_resume_android_auto"
 
     fun setLastStationId(context: Context, stationId: String) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_LAST_STATION_ID, stationId).apply()
+        // Save both legacy station key and new media id for compatibility
+        prefs.edit().putString(KEY_LAST_STATION_ID, stationId).putString(KEY_LAST_MEDIA_ID, "station_$stationId").apply()
     }
 
     fun getLastStationId(context: Context): String? {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getString(KEY_LAST_STATION_ID, null)
+    }
+
+    fun setLastMediaId(context: Context, mediaId: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_LAST_MEDIA_ID, mediaId).apply()
+    }
+
+    fun getLastMediaId(context: Context): String? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val media = prefs.getString(KEY_LAST_MEDIA_ID, null)
+        if (media != null) return media
+        // Fall back to legacy station id if present
+        val lastStation = prefs.getString(KEY_LAST_STATION_ID, null)
+        return if (lastStation != null) "station_$lastStation" else null
     }
 
     fun setAutoResumeAndroidAuto(context: Context, enabled: Boolean) {

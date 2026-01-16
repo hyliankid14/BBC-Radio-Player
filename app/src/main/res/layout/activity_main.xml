@@ -54,14 +54,18 @@
                 android:clipToPadding="false"
                 android:scrollbars="vertical" />
 
-            <!-- Favorites: Subscribed Podcasts (at bottom, but will move to top in code) -->
-            <LinearLayout
+            <!-- Favorites: Subscribed Podcasts (Material 3 card with larger rounded corners) -->
+            <com.google.android.material.card.MaterialCardView
                 android:id="@+id/favorites_podcasts_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
                 android:layout_margin="8dp"
-                android:background="@drawable/button_background"
+                app:cardCornerRadius="24dp"
+                app:cardUseCompatPadding="true"
+                app:cardElevation="4dp"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="?attr/colorSurface"
                 android:visibility="gone">
 
                 <!-- Collapsible header button -->
@@ -109,7 +113,7 @@
                     android:layout_height="wrap_content"
                     android:visibility="gone"
                     android:scrollbars="vertical" />
-            </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
 
@@ -266,7 +270,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Auto-play last station when Android Auto connects"
+                        android:text="Auto-play last station or podcast when Android Auto connects"
                         android:textSize="14sp" />
 
                     <CheckBox

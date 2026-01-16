@@ -54,6 +54,7 @@ class PodcastsFragment : Fragment() {
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
+        val filterButton: android.widget.ImageButton = view.findViewById(R.id.podcasts_filter_button)
         val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_filter_spinner)
         val sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.sort_spinner)
         val resetButton: android.widget.Button = view.findViewById(R.id.reset_filters_button)
@@ -111,6 +112,11 @@ class PodcastsFragment : Fragment() {
             genreSpinner.setText("All Genres", false)
             sortSpinner.setText("Most popular", false)
             applyFilters(loadingIndicator, emptyState, recyclerView)
+        }
+
+        // Toggle filters visibility from the search app bar filter button
+        filterButton.setOnClickListener {
+            filtersContainer.visibility = if (filtersContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
 
         // Previously we hid filters on scroll which caused flicker. Let the filters scroll with content inside the NestedScrollView.

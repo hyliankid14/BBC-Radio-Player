@@ -4,58 +4,64 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/podcasts_scroll"
+    <!-- Search App Bar (Material 3 style) - pinned at the top of the fragment -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/podcasts_search_bar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        app:contentInsetStartWithNavigation="0"
+        android:elevation="2dp">
 
-        <LinearLayout
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/search_podcast_text_input"
+            style="@style/Widget.Material3.TextInputLayout.FilledBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            app:boxBackgroundColor="?attr/colorSurfaceVariant"
+            app:boxBackgroundMode="filled"
+            app:boxStrokeWidth="0dp"
+            app:boxStrokeWidthFocused="2dp"
+            app:boxCornerRadiusTopStart="16dp"
+            app:boxCornerRadiusTopEnd="16dp"
+            app:boxCornerRadiusBottomStart="16dp"
+            app:boxCornerRadiusBottomEnd="16dp"
+            app:hintEnabled="true"
+            android:hint="Search podcasts..."
+            app:startIconDrawable="@drawable/ic_search"
+            app:endIconMode="clear_text">
 
-            <!-- Filters container (scrolls with content) -->
-            <LinearLayout
-                android:id="@+id/filters_container"
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/search_podcast_edittext"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:textColor="?attr/colorOnSurface"
+                android:textColorHint="?attr/colorOnSurfaceVariant"
+                android:padding="12dp"
+                android:background="@null"
+                android:maxLines="1"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Search field (Material 3 Search-style TextInputLayout) -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/search_podcast_text_input"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="8dp"
-                app:boxBackgroundColor="?attr/colorSurfaceVariant"
-                app:boxBackgroundMode="filled"
-                app:boxStrokeWidth="0dp"
-                app:boxStrokeWidthFocused="2dp"
-                app:boxStrokeColor="?attr/colorOutline"
-                app:boxCornerRadiusTopStart="8dp"
-                app:boxCornerRadiusTopEnd="8dp"
-                app:boxCornerRadiusBottomStart="8dp"
-                app:boxCornerRadiusBottomEnd="8dp"
-                app:hintEnabled="true"
-                android:hint="Search podcasts..."
-                app:startIconDrawable="@drawable/ic_search"
-                app:endIconMode="clear_text">
+        <ImageButton
+            android:id="@+id/podcasts_filter_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_filter_list"
+            android:contentDescription="Filter podcasts"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="?attr/colorOnSurface" />
+    </com.google.android.material.appbar.MaterialToolbar>
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/search_podcast_edittext"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="text"
-                    android:imeOptions="actionSearch"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textColorHint="?attr/colorOnSurfaceVariant"
-                    android:padding="12dp"
-                    android:background="@null"
-                    android:maxLines="1"
-                    android:singleLine="true" />
-            </com.google.android.material.textfield.TextInputLayout>
+    <!-- Filters container (hidden by default; toggled by the filter button) -->
+    <LinearLayout
+        android:id="@+id/filters_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
 
         <!-- Genre Filter (Exposed dropdown - Material 3) -->
         <com.google.android.material.textfield.TextInputLayout
