@@ -113,7 +113,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:visibility="gone"
-                    android:paddingTop="20dp"
+                    android:paddingTop="56dp"
                     android:clipToPadding="false"
                     android:scrollbars="vertical" />
             </com.google.android.material.card.MaterialCardView>

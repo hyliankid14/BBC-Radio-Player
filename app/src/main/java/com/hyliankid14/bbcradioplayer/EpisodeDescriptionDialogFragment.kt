@@ -101,6 +101,19 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
         val maxHeight = (displayMetrics.heightPixels * 0.85).toInt()
 
         // Post a measurement to allow the view hierarchy to layout first
+        // Pre-apply a centered constrained width immediately to avoid a visible resize on show
+        try {
+            val horizontalMarginDpInit = 12f // smaller margin for wider dialog
+            val horizontalMarginPxInit = (horizontalMarginDpInit * resources.displayMetrics.density + 0.5f).toInt()
+            val initMaxWidth = displayMetrics.widthPixels - (horizontalMarginPxInit * 2)
+            window.setLayout(initMaxWidth, WindowManager.LayoutParams.WRAP_CONTENT)
+            window.setGravity(android.view.Gravity.CENTER)
+            // Disable animations up-front
+            val attrsInit = window.attributes
+            attrsInit.windowAnimations = 0
+            window.attributes = attrsInit
+        } catch (_: Exception) {}
+
         scrollViewRef?.post {
             val contentHeight = try {
                 val child = scrollViewRef?.getChildAt(0)
@@ -114,19 +127,12 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
             }
 
             // Use a centered, constrained width rather than MATCH_PARENT to avoid an initial stretch/shift
-            val horizontalMarginDp = 24f
+            val horizontalMarginDp = 12f
             val horizontalMarginPx = (horizontalMarginDp * resources.displayMetrics.density + 0.5f).toInt()
             val maxWidth = displayMetrics.widthPixels - (horizontalMarginPx * 2)
 
             window.setLayout(maxWidth, targetHeight)
             window.setGravity(android.view.Gravity.CENTER)
-
-            // Disable window enter/exit animations for this dialog so it appears immediately centered
-            try {
-                val attrs = window.attributes
-                attrs.windowAnimations = 0
-                window.attributes = attrs
-            } catch (_: Exception) {}
 
             // Ensure soft input mode doesn't resize the dialog unexpectedly
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)

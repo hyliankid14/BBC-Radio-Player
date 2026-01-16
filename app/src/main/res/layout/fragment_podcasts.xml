@@ -28,7 +28,6 @@
             app:boxCornerRadiusBottomStart="16dp"
             app:boxCornerRadiusBottomEnd="16dp"
             app:hintEnabled="false"
-            app:placeholderText="Search podcasts..."
             app:startIconDrawable="@drawable/ic_search"
             app:endIconMode="clear_text">
 
@@ -46,7 +45,7 @@
                 android:background="@null"
                 android:maxLines="1"
                 android:singleLine="true"
-                android:hint="" />
+                android:hint="Search podcasts..." />
         </com.google.android.material.textfield.TextInputLayout>
 
         <ImageButton
@@ -83,7 +82,7 @@
                 android:visibility="visible"
                 android:background="?attr/colorSurface"
                 android:padding="12dp"
-                android:layout_marginTop="8dp">
+                android:layout_marginTop="4dp">
 
                 <!-- Genre Filter (Exposed dropdown - Material 3) -->
                 <com.google.android.material.textfield.TextInputLayout
