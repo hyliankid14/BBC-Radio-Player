@@ -1,16 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Removed: action_subscribe custom layout no longer used -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="match_parent"
-    android:foregroundGravity="center_vertical"
-    android:padding="8dp">
-
-    <ImageView
-        android:id="@+id/action_subscribe_icon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_gravity="center_vertical"
-        android:contentDescription="Subscribe"
-        android:src="@drawable/ic_check"
-        android:tint="?attr/colorOnSurface" />
-</FrameLayout>
+    android:layout_width="0dp"
+    android:layout_height="0dp" />

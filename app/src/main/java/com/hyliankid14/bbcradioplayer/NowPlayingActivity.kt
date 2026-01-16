@@ -398,6 +398,14 @@ class NowPlayingActivity : AppCompatActivity() {
         currentShownEpisodeId = episode.id
         updateMarkPlayedButtonState()
 
+        // Update favorite (subscribe) button to reflect subscription status for the previewed podcast
+        try {
+            val subscribed = PodcastSubscriptions.isSubscribed(this, episode.podcastId)
+            favoriteButton.icon = ContextCompat.getDrawable(this, if (subscribed) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
+            favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
+            favoriteButton.setBackgroundColor(if (subscribed) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
+        } catch (_: Exception) {}
+
         // Show scrubber controls if episode has a duration so user can see progress
         val durMs = (episode.durationMins.takeIf { it >= 0 } ?: 0) * 60_000L
         if (durMs > 0) {
@@ -689,10 +697,28 @@ class NowPlayingActivity : AppCompatActivity() {
             if (station.id.startsWith("podcast_")) {
                 val podcastId = station.id.removePrefix("podcast_")
                 PodcastSubscriptions.toggleSubscription(this, podcastId)
+                val now = PodcastSubscriptions.isSubscribed(this, podcastId)
+                val msg = if (now) "Subscribed to ${station.title}" else "Unsubscribed from ${station.title}"
+                com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show()
             } else {
                 FavoritesPreference.toggleFavorite(this, station.id)
             }
             updateUI()
+            return
+        }
+
+        // If in preview mode, operate on the preview episode's podcast id
+        val preview = previewEpisodeProp
+        if (preview != null) {
+            PodcastSubscriptions.toggleSubscription(this, preview.podcastId)
+            val now = PodcastSubscriptions.isSubscribed(this, preview.podcastId)
+            val msg = if (now) "Subscribed to ${preview.title}" else "Unsubscribed from ${preview.title}"
+            com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show()
+            // Update icon/background to reflect change
+            val subscribed = now
+            favoriteButton.icon = ContextCompat.getDrawable(this, if (subscribed) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
+            favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
+            favoriteButton.setBackgroundColor(if (subscribed) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
         }
     }
 

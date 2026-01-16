@@ -40,22 +40,6 @@ class PodcastDetailFragment : Fragment() {
         setHasOptionsMenu(true)
     }
 
-    override fun onCreateOptionsMenu(menu: android.view.Menu, inflater: android.view.MenuInflater) {
-        inflater.inflate(R.menu.podcast_detail_menu, menu)
-
-        // Initialize the action icon state to match subscription
-        val item = menu.findItem(R.id.action_subscribe)
-        val actionView = item?.actionView
-        val iconView = actionView?.findViewById<android.widget.ImageView>(R.id.action_subscribe_icon)
-        val subscribed = currentPodcast?.let { PodcastSubscriptions.isSubscribed(requireContext(), it.id) } ?: false
-        iconView?.setImageResource(if (subscribed) R.drawable.ic_star_filled else R.drawable.ic_check)
-        // Ensure tapping the action view invokes the menu item handler
-        actionView?.setOnClickListener { v ->
-            onOptionsItemSelected(item)
-        }
-        super.onCreateOptionsMenu(menu, inflater)
-    }
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -156,15 +140,9 @@ class PodcastDetailFragment : Fragment() {
                 PodcastSubscriptions.toggleSubscription(requireContext(), podcast.id)
                 val nowSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
                 updateSubscribeButton(nowSubscribed)
-                // Also update the action bar icon if present
-                try {
-                    val menu = (activity as? AppCompatActivity)?.supportActionBar
-                    // find the toolbar and update the custom action view icon
-                    val toolbar = (activity as? AppCompatActivity)?.findViewById<com.google.android.material.appbar.MaterialToolbar?>(R.id.top_app_bar)
-                    val actionView = toolbar?.menu?.findItem(R.id.action_subscribe)?.actionView
-                    val iconView = actionView?.findViewById<android.widget.ImageView>(R.id.action_subscribe_icon)
-                    iconView?.setImageResource(if (nowSubscribed) R.drawable.ic_star_filled else R.drawable.ic_check)
-                } catch (_: Exception) {}
+                // Show snackbar feedback
+                val msg = if (nowSubscribed) "Subscribed to ${podcast.title}" else "Unsubscribed from ${podcast.title}"
+                com.google.android.material.snackbar.Snackbar.make(requireView(), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show()
             }
 
             episodesRecycler.layoutManager = LinearLayoutManager(requireContext())
@@ -307,38 +285,6 @@ class PodcastDetailFragment : Fragment() {
         return when (item.itemId) {
             android.R.id.home -> {
                 requireActivity().onBackPressedDispatcher.onBackPressed()
-                true
-            }
-            R.id.action_subscribe -> {
-                // Toggle subscription and show snackbar feedback
-                val pod = currentPodcast ?: return true
-                PodcastSubscriptions.toggleSubscription(requireContext(), pod.id)
-                val nowSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), pod.id)
-
-                // Update inline subscribe button
-                val view = requireView()
-                val subscribeButton: Button? = view.findViewById(R.id.subscribe_button)
-                subscribeButton?.let { btn ->
-                    val bg = if (nowSubscribed) androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_bg_subscribed)
-                             else androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_bg)
-                    val textColor = if (nowSubscribed) androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text_subscribed)
-                                    else androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text)
-                    btn.backgroundTintList = android.content.res.ColorStateList.valueOf(bg)
-                    btn.setTextColor(textColor)
-                    btn.text = if (nowSubscribed) "Subscribed" else "Subscribe"
-                }
-
-                // Update action icon
-                try {
-                    val toolbar = (activity as? AppCompatActivity)?.findViewById<com.google.android.material.appbar.MaterialToolbar?>(R.id.top_app_bar)
-                    val actionView = toolbar?.menu?.findItem(R.id.action_subscribe)?.actionView
-                    val iconView = actionView?.findViewById<android.widget.ImageView>(R.id.action_subscribe_icon)
-                    iconView?.setImageResource(if (nowSubscribed) R.drawable.ic_star_filled else R.drawable.ic_check)
-                } catch (_: Exception) {}
-
-                // Show snackbar message
-                val msg = if (nowSubscribed) "Subscribed to ${pod.title}" else "Unsubscribed from ${pod.title}"
-                com.google.android.material.snackbar.Snackbar.make(requireView(), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show()
                 true
             }
             else -> super.onOptionsItemSelected(item)
