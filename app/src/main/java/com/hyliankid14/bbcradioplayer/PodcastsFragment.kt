@@ -477,13 +477,6 @@ class PodcastsFragment : Fragment() {
                 }
             }
         }
-        if (titleMatches.isEmpty() && descMatches.isEmpty() && episodeMatches.isEmpty()) {
-            emptyState.visibility = View.VISIBLE
-            recyclerView.visibility = View.GONE
-        } else {
-            emptyState.visibility = View.GONE
-            recyclerView.visibility = View.VISIBLE
-        }
 
         // Ensure any loading spinner is hidden when filters finish applying
         view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
