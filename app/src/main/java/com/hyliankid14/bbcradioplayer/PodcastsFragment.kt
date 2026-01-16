@@ -390,7 +390,7 @@ class PodcastsFragment : Fragment() {
             try {
                 val end = (start + pageSize).coerceAtMost(filteredList.size)
                 val next = filteredList.subList(start, end)
-                adapter.addPodcasts(next)
+                podcastAdapter.addPodcasts(next)
                 currentPage += 1
             } catch (e: Exception) {
                 android.util.Log.e("PodcastsFragment", "Error loading next page", e)
