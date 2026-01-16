@@ -101,6 +101,13 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Return cached episodes for a podcast if available; null if not cached yet.
+     */
+    fun getEpisodesFromCache(podcastId: String): List<Episode>? {
+        return episodesCache[podcastId]
+    }
+
     suspend fun fetchLatestUpdates(podcasts: List<Podcast>): Map<String, Long> = withContext(Dispatchers.IO) {
         try {
             // Try cache first

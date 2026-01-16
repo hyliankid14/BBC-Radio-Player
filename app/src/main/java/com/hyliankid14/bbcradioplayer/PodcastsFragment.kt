@@ -25,7 +25,9 @@ import java.util.Locale
 
 class PodcastsFragment : Fragment() {
     private lateinit var repository: PodcastRepository
-    private lateinit var adapter: PodcastAdapter
+    // Keep both adapters and swap depending on whether a search query is active
+    private lateinit var podcastAdapter: PodcastAdapter
+    private var searchAdapter: SearchResultsAdapter? = null
     private var allPodcasts: List<Podcast> = emptyList()
     private var currentFilter = PodcastFilter()
     private var currentSort: String = "Most popular"
@@ -85,7 +87,7 @@ class PodcastsFragment : Fragment() {
         }
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        adapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
+        podcastAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
             android.util.Log.d("PodcastsFragment", "onPodcastClick triggered for: ${podcast.title}")
             // Show the global action bar so the podcast title and back button are visible
             (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.show()
@@ -101,10 +103,10 @@ class PodcastsFragment : Fragment() {
                 commit()
             }
         })
-        recyclerView.adapter = adapter
+        recyclerView.adapter = podcastAdapter
 
         // Ensure the global action bar is shown when navigating into a podcast detail
-        val originalOnPodcastClick = adapter
+        val originalOnPodcastClick = podcastAdapter
 
         // Subscribed podcasts are shown in Favorites section, not here
 
@@ -172,7 +174,7 @@ class PodcastsFragment : Fragment() {
         sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView
     ) {
         loadingIndicator.visibility = View.VISIBLE
-        emptyState.text = "Loading podcasts..."
+        emptyState.text = "No podcasts found"
         fragmentScope.launch {
             try {
                 allPodcasts = repository.fetchPodcasts()
@@ -253,40 +255,120 @@ class PodcastsFragment : Fragment() {
         val effectiveFilter = currentFilter.copy(searchQuery = searchQuery)
         val filtered = repository.filterPodcasts(allPodcasts, effectiveFilter)
 
-        // Do not exclude subscribed podcasts — show all podcasts in the main list while
-        // still listing subscribed ones in the Favorites section above.
-        val toShow = filtered
-        // Apply sorting
-        val sortedList = when (currentSort) {
-            "Most popular" -> {
-                // Sort by popular rank (1-20), then by most recent for the rest
-                toShow.sortedWith(
-                    compareBy<Podcast> { podcast ->
-                        val rank = getPopularRank(podcast)
-                        rank
-                    }.thenByDescending { podcast ->
-                        // For podcasts not in top 20, sort by most recent
-                        if (getPopularRank(podcast) > 20) cachedUpdates[podcast.id] ?: 0L else 0L
-                    }
-                )
+        // If there's no search query, use the normal podcast adapter with sorting & pagination
+        if (searchQuery.isEmpty()) {
+            // Do not exclude subscribed podcasts — show all podcasts in the main list while
+            // still listing subscribed ones in the Favorites section above.
+            val toShow = filtered
+            // Apply sorting
+            val sortedList = when (currentSort) {
+                "Most popular" -> {
+                    // Sort by popular rank (1-20), then by most recent for the rest
+                    toShow.sortedWith(
+                        compareBy<Podcast> { podcast ->
+                            val rank = getPopularRank(podcast)
+                            rank
+                        }.thenByDescending { podcast ->
+                            // For podcasts not in top 20, sort by most recent
+                            if (getPopularRank(podcast) > 20) cachedUpdates[podcast.id] ?: 0L else 0L
+                        }
+                    )
+                }
+                "Most recent" -> {
+                    toShow.sortedByDescending { cachedUpdates[it.id] ?: 0L }
+                }
+                "Alphabetical (A-Z)" -> {
+                    toShow.sortedBy { it.title }
+                }
+                else -> toShow
             }
-            "Most recent" -> {
-                toShow.sortedByDescending { cachedUpdates[it.id] ?: 0L }
+
+            // Prepare pagination
+            filteredList = sortedList
+            currentPage = 0
+            isLoadingPage = false
+            val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
+            podcastAdapter.updatePodcasts(initialPage)
+
+            recyclerView.adapter = podcastAdapter
+
+            if (filteredList.isEmpty()) {
+                emptyState.visibility = View.VISIBLE
+                recyclerView.visibility = View.GONE
+            } else {
+                emptyState.visibility = View.GONE
+                recyclerView.visibility = View.VISIBLE
             }
-            "Alphabetical (A-Z)" -> {
-                toShow.sortedBy { it.title }
-            }
-            else -> toShow
+
+            // Ensure any loading spinner is hidden when filters finish applying
+            view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+            return
         }
 
-        // Prepare pagination
-        filteredList = sortedList
-        currentPage = 0
-        isLoadingPage = false
-        val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
-        adapter.updatePodcasts(initialPage)
+        // For search queries, build grouped results (Podcast Name / Description / Episode)
+        val q = searchQuery.trim()
+        val titleMatches = mutableListOf<Podcast>()
+        val descMatches = mutableListOf<Podcast>()
+        val episodeMatches = mutableListOf<Pair<Episode, Podcast>>()
 
-        if (filteredList.isEmpty()) {
+        for (p in filtered) {
+            if (p.title.contains(q, ignoreCase = true)) {
+                titleMatches.add(p)
+                continue
+            }
+            if (p.description.contains(q, ignoreCase = true)) {
+                descMatches.add(p)
+                continue
+            }
+
+            // Check episodes cache for matches; if not yet prefetched, attempt a best-effort fetch
+            val eps = repository.getEpisodesFromCache(p.id)
+            if (!eps.isNullOrEmpty()) {
+                eps.filter { it.title.contains(q, ignoreCase = true) || it.description.contains(q, ignoreCase = true) }
+                    .forEach { episodeMatches.add(it to p) }
+            }
+        }
+
+        // Create search adapter and show all matches (no pagination for search view)
+        searchAdapter = SearchResultsAdapter(
+            requireContext(),
+            titleMatches,
+            descMatches,
+            episodeMatches,
+            onPodcastClick = { podcast ->
+                // Reuse the same navigation to podcast detail
+                val detailFragment = PodcastDetailFragment().apply {
+                    arguments = Bundle().apply { putParcelable("podcast", podcast) }
+                }
+                parentFragmentManager.beginTransaction().apply {
+                    replace(R.id.fragment_container, detailFragment)
+                    addToBackStack(null)
+                    commit()
+                }
+            },
+            onPlayEpisode = { episode ->
+                // Play immediately via RadioService
+                val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                    action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                    putExtra(RadioService.EXTRA_EPISODE, episode)
+                    putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                }
+                requireContext().startService(intent)
+            },
+            onOpenEpisode = { episode, podcast ->
+                // Open NowPlaying preview like other places
+                val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
+                    putExtra("preview_episode", episode)
+                    putExtra("preview_use_play_ui", true)
+                    putExtra("preview_podcast_title", podcast.title)
+                    putExtra("preview_podcast_image", podcast.imageUrl)
+                }
+                startActivity(intent)
+            }
+        )
+
+        recyclerView.adapter = searchAdapter
+        if (titleMatches.isEmpty() && descMatches.isEmpty() && episodeMatches.isEmpty()) {
             emptyState.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
         } else {
