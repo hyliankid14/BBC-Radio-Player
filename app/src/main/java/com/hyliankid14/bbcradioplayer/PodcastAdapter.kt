@@ -142,13 +142,29 @@ class EpisodeAdapter(
     private val onOpenFull: (Episode) -> Unit
 ) : RecyclerView.Adapter<EpisodeAdapter.EpisodeViewHolder>() {
 
+    private fun parsePubDateToEpoch(raw: String): Long? {
+        val patterns = listOf(
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy"
+        )
+        return patterns.firstNotNullOfOrNull { pattern ->
+            try {
+                SimpleDateFormat(pattern, Locale.US).parse(raw)?.time
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
     fun updateEpisodes(newEpisodes: List<Episode>) {
-        episodes = newEpisodes
+        // Sort by publication date (most recent first). Unknown dates are treated as epoch 0.
+        episodes = newEpisodes.sortedByDescending { parsePubDateToEpoch(it.pubDate) ?: 0L }
         notifyDataSetChanged()
     }
 
     fun addEpisodes(newEpisodes: List<Episode>) {
-        episodes = episodes + newEpisodes
+        episodes = (episodes + newEpisodes).sortedByDescending { parsePubDateToEpoch(it.pubDate) ?: 0L }
         notifyDataSetChanged()
     }
 

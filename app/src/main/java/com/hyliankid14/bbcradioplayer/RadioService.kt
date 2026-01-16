@@ -698,7 +698,8 @@ class RadioService : MediaBrowserServiceCompat() {
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-            .setContentText(currentShowInfo.description ?: currentShowTitle)
+            // For podcasts, prefer episode title as the notification content text so Android Auto has consistent subtitle
+            .setContentText(if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else (currentShowInfo.description ?: currentShowTitle))
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -836,7 +837,8 @@ class RadioService : MediaBrowserServiceCompat() {
 
                     val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
                         .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-                        .setContentText(currentShowTitle)
+                        // For podcasts: use episode title as content text so Android Auto gets subtitle info
+                        .setContentText(if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else currentShowTitle)
                         .setSmallIcon(android.R.drawable.ic_media_play)
                         .setLargeIcon(bitmap)
                         .setContentIntent(pendingIntent)
@@ -1160,19 +1162,21 @@ class RadioService : MediaBrowserServiceCompat() {
         val displayBitmap = artworkBitmap ?: currentArtworkBitmap
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
-            // For podcasts, prefer showing episode title as main title and the podcast name as artist
+            // Use metadata keys that make Android Auto show podcast title as the main title and episode as subtitle
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, 
                 if (currentStationId.startsWith("podcast_")) PlaybackStateHelper.getCurrentEpisodeId() ?: currentStationId else currentStationId)
+            // For podcasts: show the podcast title as the main title; for streams, keep station title
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, 
-                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title) else currentStationTitle)
+                if (currentStationId.startsWith("podcast_")) currentStationTitle else currentStationTitle)
+            // Artist field: for podcasts use episode title (fallback to show title); for streams use show title
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, 
-                if (currentStationId.startsWith("podcast_")) currentStationTitle else currentShowTitle)
+                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else currentShowTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
+            // Display title/subtitle control what's shown in Android Auto UI: ensure podcast->title: podcast, subtitle: episode
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
-                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title) else currentStationTitle)
-            // For podcasts: show the podcast name as the subtitle and provide the episode description as the description field
+                if (currentStationId.startsWith("podcast_")) currentStationTitle else currentStationTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE,
-                if (currentStationId.startsWith("podcast_")) currentStationTitle
+                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title)
                 else when {
                     !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> currentShowTitle
                     currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
