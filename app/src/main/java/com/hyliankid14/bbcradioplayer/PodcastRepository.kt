@@ -318,7 +318,18 @@ class PodcastRepository(private val context: Context) {
 
             // Check episode metadata cache for matches. If not cached yet, skip episode matching so we don't block.
             val episodes = episodesCache[p.id]
-            if (!episodes.isNullOrEmpty()) {
+            val episodeIdx = episodesIndex[p.id]
+            if (!episodeIdx.isNullOrEmpty()) {
+                if (episodeIdx.any { (titleLower, _) -> containsPhraseOrAllTokens(titleLower, qLower) }) {
+                    epTitleMatches.add(p)
+                    continue
+                }
+                if (episodeIdx.any { (_, descLower) -> containsPhraseOrAllTokens(descLower, qLower) }) {
+                    epDescMatches.add(p)
+                    continue
+                }
+            } else if (!episodes.isNullOrEmpty()) {
+                // Fallback: older cached episodes without precomputed index
                 if (episodes.any { it.title.contains(q, ignoreCase = true) }) {
                     epTitleMatches.add(p)
                     continue

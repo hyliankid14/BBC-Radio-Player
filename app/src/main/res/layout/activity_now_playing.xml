@@ -130,6 +130,22 @@
             android:background="?attr/selectableItemBackground" />
     </LinearLayout>
 
+    <!-- Open Podcast Button (shown when current show maps to a podcast) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/now_playing_open_podcast"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="Open Podcast"
+        android:textAllCaps="false"
+        android:visibility="gone"
+        android:contentDescription="Open podcast detail"
+        app:layout_constraintTop_toBottomOf="@id/now_playing_show_more"
+        app:layout_constraintBottom_toTopOf="@id/podcast_progress_group"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Podcast progress time labels (only visible for podcasts) -->
     <LinearLayout
         android:id="@+id/podcast_progress_group"
@@ -284,16 +300,7 @@
                 android:insetBottom="0dp"
                 android:contentDescription="Add to Favorites" />
 
-            <!-- Open Podcast Button (shown when current show maps to a podcast) -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/now_playing_open_podcast"
-                android:layout_width="wrap_content"
-                android:layout_height="48dp"
-                android:layout_margin="4dp"
-                android:text="Open Podcast"
-                android:textAllCaps="false"
-                android:visibility="gone"
-                android:contentDescription="Open podcast detail" />
+
 
     </LinearLayout>
 
