@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <solid android:color="?attr/colorPrimaryDark" />
-    <corners android:radius="8dp" />
+    <!-- Increased radius to align with Material 3 rounded shapes -->
+    <corners android:radius="16dp" />
 </shape>

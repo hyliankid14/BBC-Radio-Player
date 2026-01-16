@@ -55,13 +55,10 @@ class NowPlayingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_now_playing)
 
-        // Setup action bar with back button
+        // Setup action bar with back button using Material Top App Bar
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar?>(R.id.top_app_bar)
+        toolbar?.let { setSupportActionBar(it) }
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.setBackgroundDrawable(
-            android.graphics.drawable.ColorDrawable(
-                android.graphics.Color.parseColor("#6200EE")
-            )
-        )
 
         // Initialize views
         stationArtwork = findViewById(R.id.now_playing_artwork)

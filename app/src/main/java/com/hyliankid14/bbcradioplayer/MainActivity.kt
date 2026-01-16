@@ -85,12 +85,9 @@ class MainActivity : AppCompatActivity() {
 
         supportFragmentManager.addOnBackStackChangedListener(backStackListener)
 
-        // Set action bar color to match status bar (purple)
-        supportActionBar?.setBackgroundDrawable(
-            android.graphics.drawable.ColorDrawable(
-                android.graphics.Color.parseColor("#6200EE")
-            )
-        )
+        // Use Material Top App Bar instead of a classic action bar
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.top_app_bar)
+        setSupportActionBar(toolbar)
 
         stationsList = findViewById(R.id.stations_list)
         stationsList.layoutManager = LinearLayoutManager(this)

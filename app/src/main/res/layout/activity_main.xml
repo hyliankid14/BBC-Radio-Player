@@ -5,6 +5,16 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <!-- Top App Bar (Material 3) -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/top_app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
+        app:titleTextColor="?attr/colorOnSurface"
+        app:navigationIconTint="?attr/colorOnSurface"
+        app:menu="@menu/top_app_bar_menu" />
+
     <!-- Dynamic Fragment Container (Podcasts) -->
     <FrameLayout
         android:id="@+id/fragment_container"
