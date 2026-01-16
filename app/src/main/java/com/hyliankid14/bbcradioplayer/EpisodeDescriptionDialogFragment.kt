@@ -113,7 +113,21 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
                 maxHeight
             }
 
-            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, targetHeight)
+            // Use a centered, constrained width rather than MATCH_PARENT to avoid an initial stretch/shift
+            val horizontalMarginDp = 24f
+            val horizontalMarginPx = (horizontalMarginDp * resources.displayMetrics.density + 0.5f).toInt()
+            val maxWidth = displayMetrics.widthPixels - (horizontalMarginPx * 2)
+
+            window.setLayout(maxWidth, targetHeight)
+            window.setGravity(android.view.Gravity.CENTER)
+
+            // Disable window enter/exit animations for this dialog so it appears immediately centered
+            try {
+                val attrs = window.attributes
+                attrs.windowAnimations = 0
+                window.attributes = attrs
+            } catch (_: Exception) {}
+
             // Ensure soft input mode doesn't resize the dialog unexpectedly
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }

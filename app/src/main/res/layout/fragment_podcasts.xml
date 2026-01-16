@@ -27,8 +27,8 @@
             app:boxCornerRadiusTopEnd="16dp"
             app:boxCornerRadiusBottomStart="16dp"
             app:boxCornerRadiusBottomEnd="16dp"
-            app:hintEnabled="true"
-            android:hint="Search podcasts..."
+            app:hintEnabled="false"
+            app:placeholderText="Search podcasts..."
             app:startIconDrawable="@drawable/ic_search"
             app:endIconMode="clear_text">
 
@@ -45,7 +45,8 @@
                 android:paddingStart="64dp"
                 android:background="@null"
                 android:maxLines="1"
-                android:singleLine="true" />
+                android:singleLine="true"
+                android:hint="" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <ImageButton
@@ -64,6 +65,7 @@
         android:id="@+id/podcasts_scroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginTop="?attr/actionBarSize"
         android:fillViewport="true">
 
         <LinearLayout

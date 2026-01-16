@@ -355,6 +355,11 @@ class MainActivity : AppCompatActivity() {
                     favoritesPodcastsRecycler.visibility = View.VISIBLE
                     divider.visibility = View.VISIBLE
                     favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_less)
+                    // Scroll the card into view so the header remains visible after expansion
+                    try {
+                        val parentScroll = findViewById<androidx.core.widget.NestedScrollView>(R.id.podcasts_scroll)
+                        parentScroll?.post { parentScroll.smoothScrollTo(0, favoritesPodcastsContainer.top) }
+                    } catch (_: Exception) {}
                 } else {
                     favoritesPodcastsRecycler.visibility = View.GONE
                     divider.visibility = View.GONE
@@ -364,6 +369,8 @@ class MainActivity : AppCompatActivity() {
 
             // Make sure the inner RecyclerView doesn't intercept header clicks by disabling nested scrolling
             favoritesPodcastsRecycler.isNestedScrollingEnabled = false
+            // Ensure clicking the header is always reachable by giving it a higher elevation
+            favoritesPodcastsHeaderContainer.elevation = 8f
 
             val repo = PodcastRepository(this)
             Thread {
