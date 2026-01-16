@@ -38,6 +38,9 @@
         <!-- Status bar styling -->
         <item name="android:statusBarColor">?attr/colorPrimary</item>
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <!-- Use a Toolbar (TopAppBar) instead of the framework ActionBar -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
         
         <!-- ActionBar styling - use darker purple in light mode with light text -->
         <item name="actionBarStyle">@style/Widget.AppCompat.ActionBar.Solid</item>

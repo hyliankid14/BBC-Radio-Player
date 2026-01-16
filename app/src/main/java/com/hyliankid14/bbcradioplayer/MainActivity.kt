@@ -87,7 +87,11 @@ class MainActivity : AppCompatActivity() {
 
         // Use Material Top App Bar instead of a classic action bar
         val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.top_app_bar)
-        setSupportActionBar(toolbar)
+        try {
+            setSupportActionBar(toolbar)
+        } catch (e: IllegalStateException) {
+            android.util.Log.w("MainActivity", "Could not set support action bar: ${e.message}")
+        }
 
         stationsList = findViewById(R.id.stations_list)
         stationsList.layoutManager = LinearLayoutManager(this)

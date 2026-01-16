@@ -38,6 +38,9 @@
         <!-- Status bar styling -->
         <item name="android:statusBarColor">#6200EE</item>
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+        <!-- Use a Toolbar (TopAppBar) instead of the framework ActionBar -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
         
         <!-- ActionBar styling with light text for dark mode -->
         <item name="actionBarStyle">@style/CustomActionBar</item>
