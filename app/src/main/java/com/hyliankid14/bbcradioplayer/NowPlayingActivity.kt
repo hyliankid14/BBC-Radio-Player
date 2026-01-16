@@ -23,6 +23,8 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
+import android.view.View
 
 class NowPlayingActivity : AppCompatActivity() {
     private lateinit var stationArtwork: ImageView
