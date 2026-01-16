@@ -31,10 +31,28 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
+    private fun containsPhraseOrAllTokens(textLower: String, queryLower: String): Boolean {
+        if (textLower.contains(queryLower)) return true
+        val tokens = queryLower.split(Regex("\\s+")) .filter { it.isNotEmpty() }
+        if (tokens.size <= 1) return false
+        return tokens.all { textLower.contains(it) }
+    }
+
     fun podcastMatches(podcast: Podcast, queryLower: String): Boolean {
         val pair = podcastSearchIndex[podcast.id]
-        if (pair != null) return (pair.first.contains(queryLower) || pair.second.contains(queryLower))
+        if (pair != null) {
+            val (titleLower, descLower) = pair
+            if (containsPhraseOrAllTokens(titleLower, queryLower)) return true
+            if (containsPhraseOrAllTokens(descLower, queryLower)) return true
+            return false
+        }
         // Fallback
+        val qTokens = queryLower.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (qTokens.size > 1) {
+            val tl = podcast.title.lowercase(Locale.getDefault())
+            val dl = podcast.description.lowercase(Locale.getDefault())
+            return containsPhraseOrAllTokens(tl, queryLower) || containsPhraseOrAllTokens(dl, queryLower)
+        }
         return podcast.title.contains(queryLower, ignoreCase = true) || podcast.description.contains(queryLower, ignoreCase = true)
     }
 
@@ -48,7 +66,7 @@ class PodcastRepository(private val context: Context) {
         val results = mutableListOf<Episode>()
         for (i in idx.indices) {
             val (titleLower, descLower) = idx[i]
-            if (titleLower.contains(queryLower) || descLower.contains(queryLower)) {
+            if (containsPhraseOrAllTokens(titleLower, queryLower) || containsPhraseOrAllTokens(descLower, queryLower)) {
                 results.add(eps[i])
                 if (results.size >= maxResults) break
             }
