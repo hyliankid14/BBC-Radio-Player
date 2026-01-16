@@ -224,6 +224,17 @@ class PodcastsFragment : Fragment() {
                 } else allPodcasts
                 allPodcasts = sorted
                 applyFilters(loadingIndicator, emptyState, recyclerView)
+
+                // Start a background prefetch of episode metadata so searches can match episode titles/descriptions
+                fragmentScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) { repository.prefetchEpisodesForPodcasts(allPodcasts) }
+                        android.util.Log.d("PodcastsFragment", "Prefetched episode metadata for ${allPodcasts.size} podcasts")
+                    } catch (e: Exception) {
+                        android.util.Log.w("PodcastsFragment", "Episode prefetch failed: ${e.message}")
+                    }
+                }
+
                 loadingIndicator.visibility = View.GONE
             } catch (e: Exception) {
                 android.util.Log.e("PodcastsFragment", "Error loading podcasts", e)

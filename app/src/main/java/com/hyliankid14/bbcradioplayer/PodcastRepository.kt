@@ -15,6 +15,10 @@ class PodcastRepository(private val context: Context) {
     private val updatesCacheFile = File(context.cacheDir, "podcast_updates_cache.json")
     private val updatesCacheTTL = 6 * 60 * 60 * 1000 // 6 hours
 
+    // In-memory cache of fetched episode metadata to support searching episode titles/descriptions
+    // Prefill this in the background when the podcast list is loaded so searches don't trigger network on each keystroke
+    private val episodesCache: MutableMap<String, List<Episode>> = mutableMapOf()
+
     suspend fun fetchPodcasts(forceRefresh: Boolean = false): List<Podcast> = withContext(Dispatchers.IO) {
         try {
             val cachedData = if (!forceRefresh) getCachedPodcasts() else null
@@ -80,6 +84,23 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Prefetch episode metadata for the provided podcasts and store in-memory.
+     * This is intentionally best-effort and failures are silently ignored so we don't
+     * surface network errors to the filter/search flow.
+     */
+    suspend fun prefetchEpisodesForPodcasts(podcasts: List<Podcast>) = withContext(Dispatchers.IO) {
+        podcasts.forEach { p ->
+            if (episodesCache.containsKey(p.id)) return@forEach
+            try {
+                val eps = RSSParser.fetchAndParseRSS(p.rssUrl, p.id)
+                if (eps.isNotEmpty()) episodesCache[p.id] = eps
+            } catch (e: Exception) {
+                Log.w("PodcastRepository", "Failed to prefetch episodes for ${p.title}: ${e.message}")
+            }
+        }
+    }
+
     suspend fun fetchLatestUpdates(podcasts: List<Podcast>): Map<String, Long> = withContext(Dispatchers.IO) {
         try {
             // Try cache first
@@ -136,15 +157,51 @@ class PodcastRepository(private val context: Context) {
     }
 
     fun filterPodcasts(podcasts: List<Podcast>, filter: PodcastFilter): List<Podcast> {
-        return podcasts.filter { podcast ->
+        // First apply hard filters (genres + duration)
+        val baseFiltered = podcasts.filter { podcast ->
             val genreMatch = if (filter.genres.isEmpty()) true
             else podcast.genres.any { it in filter.genres }
             val durationMatch = podcast.typicalDurationMins in filter.minDuration..filter.maxDuration
-            val searchMatch = if (filter.searchQuery.isEmpty()) true
-            else podcast.title.contains(filter.searchQuery, ignoreCase = true) || 
-                 podcast.description.contains(filter.searchQuery, ignoreCase = true)
-            genreMatch && durationMatch && searchMatch
+            genreMatch && durationMatch
         }
+
+        // If there's no search query, return the base filtered list
+        val q = filter.searchQuery.trim()
+        if (q.isEmpty()) return baseFiltered
+
+        // Prioritise podcasts whose TITLE matches the query, then podcast DESCRIPTION,
+        // then EPISODE titles, then EPISODE descriptions.
+        val titleMatches = mutableListOf<Podcast>()
+        val descMatches = mutableListOf<Podcast>()
+        val epTitleMatches = mutableListOf<Podcast>()
+        val epDescMatches = mutableListOf<Podcast>()
+
+        for (p in baseFiltered) {
+            if (p.title.contains(q, ignoreCase = true)) {
+                titleMatches.add(p)
+                continue
+            }
+            if (p.description.contains(q, ignoreCase = true)) {
+                descMatches.add(p)
+                continue
+            }
+
+            // Check episode metadata cache for matches. If not cached yet, skip episode matching so we don't block.
+            val episodes = episodesCache[p.id]
+            if (!episodes.isNullOrEmpty()) {
+                if (episodes.any { it.title.contains(q, ignoreCase = true) }) {
+                    epTitleMatches.add(p)
+                    continue
+                }
+                if (episodes.any { it.description.contains(q, ignoreCase = true) }) {
+                    epDescMatches.add(p)
+                    continue
+                }
+            }
+        }
+
+        // Keep the relative order within each bucket same as the source order
+        return titleMatches + descMatches + epTitleMatches + epDescMatches
     }
 
     fun getUniqueGenres(podcasts: List<Podcast>): List<String> {
