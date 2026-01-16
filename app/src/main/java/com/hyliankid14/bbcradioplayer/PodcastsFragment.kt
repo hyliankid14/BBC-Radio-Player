@@ -33,6 +33,9 @@ class PodcastsFragment : Fragment() {
     private var currentSort: String = "Most popular"
     private var cachedUpdates: Map<String, Long> = emptyMap()
     private var searchQuery = ""
+    // Job for ongoing incremental episode search; cancel when a new query arrives
+    private var searchJob: kotlinx.coroutines.Job? = null
+    private var searchGeneration: Int = 0
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
 
     // Pagination / lazy-loading state
@@ -227,11 +230,12 @@ class PodcastsFragment : Fragment() {
                 allPodcasts = sorted
                 applyFilters(loadingIndicator, emptyState, recyclerView)
 
-                // Start a background prefetch of episode metadata so searches can match episode titles/descriptions
+                // Start a background prefetch of episode metadata for the top podcasts only
+                // (prefetching all podcasts was too expensive and caused slowdown).
                 fragmentScope.launch {
                     try {
-                        withContext(Dispatchers.IO) { repository.prefetchEpisodesForPodcasts(allPodcasts) }
-                        android.util.Log.d("PodcastsFragment", "Prefetched episode metadata for ${allPodcasts.size} podcasts")
+                        withContext(Dispatchers.IO) { repository.prefetchEpisodesForPodcasts(allPodcasts.take(10), limit = 10) }
+                        android.util.Log.d("PodcastsFragment", "Prefetched episode metadata for top ${Math.min(10, allPodcasts.size)} podcasts")
                     } catch (e: Exception) {
                         android.util.Log.w("PodcastsFragment", "Episode prefetch failed: ${e.message}")
                     }
@@ -311,26 +315,156 @@ class PodcastsFragment : Fragment() {
         val descMatches = mutableListOf<Podcast>()
         val episodeMatches = mutableListOf<Pair<Episode, Podcast>>()
 
+        // Partition results immediately for name/description matches (fast, local)
+        val remainingCandidates = mutableListOf<Podcast>()
         for (p in filtered) {
             if (p.title.contains(q, ignoreCase = true)) {
                 titleMatches.add(p)
-                continue
-            }
-            if (p.description.contains(q, ignoreCase = true)) {
+            } else if (p.description.contains(q, ignoreCase = true)) {
                 descMatches.add(p)
-                continue
-            }
-
-            // Check episodes cache for matches; if not yet prefetched, attempt a best-effort fetch
-            val eps = repository.getEpisodesFromCache(p.id)
-            if (!eps.isNullOrEmpty()) {
-                eps.filter { it.title.contains(q, ignoreCase = true) || it.description.contains(q, ignoreCase = true) }
-                    .forEach { episodeMatches.add(it to p) }
+            } else {
+                remainingCandidates.add(p)
             }
         }
 
-        // Create search adapter and show all matches (no pagination for search view)
+        // If query is short, avoid expensive episode searches. Show only title/description matches.
+        if (q.length < 3) {
+            // Create search adapter and show current matches (no episode results)
+            searchAdapter = SearchResultsAdapter(
+                requireContext(),
+                titleMatches,
+                descMatches,
+                episodeMatches,
+                onPodcastClick = { podcast ->
+                    val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
+                    parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
+                },
+                onPlayEpisode = { episode ->
+                    val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                        putExtra(RadioService.EXTRA_EPISODE, episode)
+                        putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                    }
+                    requireContext().startService(intent)
+                },
+                onOpenEpisode = { episode, podcast ->
+                    val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
+                        putExtra("preview_episode", episode)
+                        putExtra("preview_use_play_ui", true)
+                        putExtra("preview_podcast_title", podcast.title)
+                        putExtra("preview_podcast_image", podcast.imageUrl)
+                    }
+                    startActivity(intent)
+                }
+            )
+
+            recyclerView.adapter = searchAdapter
+            if (titleMatches.isEmpty() && descMatches.isEmpty()) {
+                emptyState.visibility = View.VISIBLE
+                recyclerView.visibility = View.GONE
+            } else {
+                emptyState.visibility = View.GONE
+                recyclerView.visibility = View.VISIBLE
+            }
+
+            // Cancel any previous episode search and return early
+            searchJob?.cancel()
+            view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+            return
+        }
+
+        // At this point query is >= 3 chars; build initial adapter with no episodes, and then search episodes
         searchAdapter = SearchResultsAdapter(
+            requireContext(),
+            titleMatches,
+            descMatches,
+            episodeMatches,
+            onPodcastClick = { podcast ->
+                val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
+                parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
+            },
+            onPlayEpisode = { episode ->
+                val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                    action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                    putExtra(RadioService.EXTRA_EPISODE, episode)
+                    putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                }
+                requireContext().startService(intent)
+            },
+            onOpenEpisode = { episode, podcast ->
+                val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
+                    putExtra("preview_episode", episode)
+                    putExtra("preview_use_play_ui", true)
+                    putExtra("preview_podcast_title", podcast.title)
+                    putExtra("preview_podcast_image", podcast.imageUrl)
+                }
+                startActivity(intent)
+            }
+        )
+
+        recyclerView.adapter = searchAdapter
+        if (titleMatches.isEmpty() && descMatches.isEmpty() && episodeMatches.isEmpty()) {
+            emptyState.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            emptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        }
+
+        // Cancel previous search job and start a new incremental episode search (limited size)
+        searchJob?.cancel()
+        val generation = ++searchGeneration
+        searchJob = fragmentScope.launch {
+            try {
+                // Limit number of podcasts we fetch episodes for to avoid overloading network
+                val candidatesToCheck = remainingCandidates.take(30)
+                for (p in candidatesToCheck) {
+                    // If the query changed since we started, abort
+                    if (generation != searchGeneration) break
+                    val eps = repository.fetchEpisodesIfNeeded(p)
+                    if (generation != searchGeneration) break
+                    val matched = eps.filter { it.title.contains(q, ignoreCase = true) || it.description.contains(q, ignoreCase = true) }
+                    if (matched.isNotEmpty()) {
+                        // Add episode matches and refresh adapter on main thread
+                        episodeMatches.addAll(matched.map { it to p })
+                        // Recreate adapter to include the new episode matches (simple and reliable)
+                        val newAdapter = SearchResultsAdapter(
+                            requireContext(),
+                            titleMatches,
+                            descMatches,
+                            episodeMatches,
+                            onPodcastClick = { podcast ->
+                                val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
+                                parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
+                            },
+                            onPlayEpisode = { episode ->
+                                val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                                    action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                                    putExtra(RadioService.EXTRA_EPISODE, episode)
+                                    putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                                }
+                                requireContext().startService(intent)
+                            },
+                            onOpenEpisode = { episode, podcast ->
+                                val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
+                                    putExtra("preview_episode", episode)
+                                    putExtra("preview_use_play_ui", true)
+                                    putExtra("preview_podcast_title", podcast.title)
+                                    putExtra("preview_podcast_image", podcast.imageUrl)
+                                }
+                                startActivity(intent)
+                            }
+                        )
+                        recyclerView.post { recyclerView.adapter = newAdapter }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("PodcastsFragment", "Episode search job failed: ${e.message}")
+            }
+        }
+
+        // Ensure any loading spinner is hidden when filters finish applying
+        view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE        searchAdapter = SearchResultsAdapter(
             requireContext(),
             titleMatches,
             descMatches,

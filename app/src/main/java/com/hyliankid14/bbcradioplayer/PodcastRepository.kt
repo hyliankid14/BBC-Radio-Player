@@ -89,8 +89,9 @@ class PodcastRepository(private val context: Context) {
      * This is intentionally best-effort and failures are silently ignored so we don't
      * surface network errors to the filter/search flow.
      */
-    suspend fun prefetchEpisodesForPodcasts(podcasts: List<Podcast>) = withContext(Dispatchers.IO) {
-        podcasts.forEach { p ->
+    suspend fun prefetchEpisodesForPodcasts(podcasts: List<Podcast>, limit: Int = Int.MAX_VALUE) = withContext(Dispatchers.IO) {
+        // Best-effort prefetch for a limited set of podcasts (default: all). Failures are ignored.
+        podcasts.take(limit).forEach { p ->
             if (episodesCache.containsKey(p.id)) return@forEach
             try {
                 val eps = RSSParser.fetchAndParseRSS(p.rssUrl, p.id)
@@ -106,6 +107,24 @@ class PodcastRepository(private val context: Context) {
      */
     fun getEpisodesFromCache(podcastId: String): List<Episode>? {
         return episodesCache[podcastId]
+    }
+
+    /**
+     * Fetch episodes for a podcast if not already cached. Returns cached value immediately when present
+     * and otherwise fetches from network and caches the result. This is intended for use from a background
+     * coroutine so it may perform network I/O.
+     */
+    suspend fun fetchEpisodesIfNeeded(podcast: Podcast): List<Episode> = withContext(Dispatchers.IO) {
+        val cached = episodesCache[podcast.id]
+        if (!cached.isNullOrEmpty()) return@withContext cached
+        try {
+            val eps = RSSParser.fetchAndParseRSS(podcast.rssUrl, podcast.id)
+            if (eps.isNotEmpty()) episodesCache[podcast.id] = eps
+            return@withContext eps
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "fetchEpisodesIfNeeded failed for ${podcast.title}: ${e.message}")
+            return@withContext emptyList()
+        }
     }
 
     suspend fun fetchLatestUpdates(podcasts: List<Podcast>): Map<String, Long> = withContext(Dispatchers.IO) {
