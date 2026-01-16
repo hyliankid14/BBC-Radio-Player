@@ -445,27 +445,36 @@ class PodcastsFragment : Fragment() {
                     // Check in small parallel chunks (bounded concurrency) to reduce wall-clock time
                     val chunkSize = 4
                     val chunks = candidatesToCheck.chunked(chunkSize)
+                    var totalMatches = 0
                     for (chunk in chunks) {
                         if (generation != searchGeneration) break
                         val deferreds = chunk.map { p ->
                             async(Dispatchers.IO) {
+                                val qLower = q.lowercase(Locale.getDefault())
+                                // Prefer cached indexed search when available
+                                val cachedHits = repository.searchCachedEpisodes(p.id, qLower, 3)
+                                if (cachedHits.isNotEmpty()) return@async p to cachedHits
+                                // Otherwise fetch episodes (repository will index them)
                                 val eps = repository.fetchEpisodesIfNeeded(p)
-                                p to eps
+                                val hits = eps.filter { it.title.contains(q, ignoreCase = true) || it.description.contains(q, ignoreCase = true) }
+                                p to hits
                             }
                         }
                         val results = deferreds.awaitAll()
                         if (generation != searchGeneration) break
-                        for ((p, eps) in results) {
+                        for ((p, matched) in results) {
                             if (generation != searchGeneration) break
-                            val matched = eps.filter { it.title.contains(q, ignoreCase = true) || it.description.contains(q, ignoreCase = true) }
                             if (matched.isNotEmpty()) {
-                                android.util.Log.d("PodcastsFragment", "Found ${matched.size} episode matches in podcast '${p.title}' for query '$q'")
-                                val added = matched.map { it to p }
+                                val added = matched.take(3).map { it to p } // limit per-podcast
                                 episodeMatches.addAll(added)
+                                totalMatches += added.size
                                 // Update adapter's episode list incrementally
                                 recyclerView.post { (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches) }
+                                android.util.Log.d("PodcastsFragment", "Found ${added.size} episode matches in podcast '${p.title}' for query '$q'")
+                                if (totalMatches >= 50) break
                             }
                         }
+                        if (totalMatches >= 50) break
                     }
                 } catch (e: Exception) {
                     android.util.Log.w("PodcastsFragment", "Episode search job failed: ${e.message}")

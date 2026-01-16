@@ -19,6 +19,9 @@ class PodcastRepository(private val context: Context) {
     // Prefill this in the background when the podcast list is loaded so searches don't trigger network on each keystroke
     private val episodesCache: MutableMap<String, List<Episode>> = mutableMapOf()
 
+    // Lowercased index for episodes for fast, case-insensitive phrase checks. Kept in same order as episodesCache
+    private val episodesIndex: MutableMap<String, List<Pair<String, String>>> = mutableMapOf()
+
     // Lightweight lowercased index for fast case-insensitive podcast title/description checks
     private val podcastSearchIndex: MutableMap<String, Pair<String, String>> = mutableMapOf()
 
@@ -33,6 +36,24 @@ class PodcastRepository(private val context: Context) {
         if (pair != null) return (pair.first.contains(queryLower) || pair.second.contains(queryLower))
         // Fallback
         return podcast.title.contains(queryLower, ignoreCase = true) || podcast.description.contains(queryLower, ignoreCase = true)
+    }
+
+    /**
+     * Search cached episodes for a podcast quickly using precomputed lowercase index.
+     * Returns up to maxResults Episode objects (keeps original Episode objects from cache).
+     */
+    fun searchCachedEpisodes(podcastId: String, queryLower: String, maxResults: Int = 3): List<Episode> {
+        val eps = episodesCache[podcastId] ?: return emptyList()
+        val idx = episodesIndex[podcastId] ?: return emptyList()
+        val results = mutableListOf<Episode>()
+        for (i in idx.indices) {
+            val (titleLower, descLower) = idx[i]
+            if (titleLower.contains(queryLower) || descLower.contains(queryLower)) {
+                results.add(eps[i])
+                if (results.size >= maxResults) break
+            }
+        }
+        return results
     }
 
     suspend fun fetchPodcasts(forceRefresh: Boolean = false): List<Podcast> = withContext(Dispatchers.IO) {
@@ -111,7 +132,11 @@ class PodcastRepository(private val context: Context) {
             if (episodesCache.containsKey(p.id)) return@forEach
             try {
                 val eps = RSSParser.fetchAndParseRSS(p.rssUrl, p.id)
-                if (eps.isNotEmpty()) episodesCache[p.id] = eps
+                if (eps.isNotEmpty()) {
+                    episodesCache[p.id] = eps
+                    // Build lowercased index for quick phrase lookups
+                    episodesIndex[p.id] = eps.map { it.title.lowercase(Locale.getDefault()) to it.description.lowercase(Locale.getDefault()) }
+                }
             } catch (e: Exception) {
                 Log.w("PodcastRepository", "Failed to prefetch episodes for ${p.title}: ${e.message}")
             }
@@ -141,6 +166,7 @@ class PodcastRepository(private val context: Context) {
             val eps = RSSParser.fetchAndParseRSS(podcast.rssUrl, podcast.id)
             if (eps.isNotEmpty()) {
                 episodesCache[podcast.id] = eps
+                episodesIndex[podcast.id] = eps.map { it.title.lowercase(Locale.getDefault()) to it.description.lowercase(Locale.getDefault()) }
                 Log.d("PodcastRepository", "Fetched ${eps.size} episodes for ${podcast.title}")
             }
             return@withContext eps
