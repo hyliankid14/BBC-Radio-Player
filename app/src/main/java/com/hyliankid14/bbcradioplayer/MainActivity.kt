@@ -202,13 +202,26 @@ class MainActivity : AppCompatActivity() {
         // Start polling for playback state updates
         startPlaybackStateUpdates()
 
-        // Handle any incoming intents that request opening a specific podcast
+        // Handle any incoming intents that request opening a specific podcast or mode
         handleOpenPodcastIntent(intent)
+        handleOpenModeIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleOpenPodcastIntent(intent)
+        handleOpenModeIntent(intent)
+    }
+
+    private fun handleOpenModeIntent(intent: Intent?) {
+        val mode = intent?.getStringExtra("open_mode") ?: return
+        when (mode) {
+            "favorites" -> showFavorites()
+            "list" -> showAllStations()
+            else -> {
+                // Unknown mode - ignore
+            }
+        }
     }
     
     private fun refreshCurrentView() {
@@ -234,7 +247,12 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.VISIBLE
         settingsContainer.visibility = View.GONE
-        supportActionBar?.title = "All Stations"
+        // Ensure action bar reflects the section and clear any podcast-specific up affordance
+        supportActionBar?.apply {
+            title = "All Stations"
+            setDisplayHomeAsUpEnabled(false)
+            setDisplayShowHomeEnabled(false)
+        }
         
         // Hide subscribed podcasts section (only show in Favorites)
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
@@ -253,7 +271,12 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.GONE
-        supportActionBar?.title = "Favourites"
+        // Ensure action bar reflects the section and clear any podcast-specific up affordance
+        supportActionBar?.apply {
+            title = "Favourites"
+            setDisplayHomeAsUpEnabled(false)
+            setDisplayShowHomeEnabled(false)
+        }
         
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
         val favoritesPodcastsHeaderContainer = findViewById<View>(R.id.favorites_podcasts_header_container)
@@ -373,14 +396,24 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.GONE
         filterButtonsContainer.visibility = View.GONE
         settingsContainer.visibility = View.VISIBLE
-        supportActionBar?.title = "Settings"
+        // Ensure action bar reflects the section and clear any podcast-specific up affordance
+        supportActionBar?.apply {
+            title = "Settings"
+            setDisplayHomeAsUpEnabled(false)
+            setDisplayShowHomeEnabled(false)
+        }
     }
 
     private fun showPodcasts() {
         currentMode = "podcasts"
         fragmentContainer.visibility = View.VISIBLE
         staticContentContainer.visibility = View.GONE
-        supportActionBar?.title = "Podcasts"
+        // Ensure action bar reflects the section and clear any podcast-specific up affordance
+        supportActionBar?.apply {
+            title = "Podcasts"
+            setDisplayHomeAsUpEnabled(false)
+            setDisplayShowHomeEnabled(false)
+        }
         
         // Create and show podcasts fragment
         val podcastsFragment = PodcastsFragment()
@@ -697,7 +730,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openNowPlaying() {
-        val intent = Intent(this, NowPlayingActivity::class.java)
+        val intent = Intent(this, NowPlayingActivity::class.java).apply {
+            // Tell NowPlaying where we are so it can return to the correct view on back
+            putExtra("origin_mode", currentMode)
+        }
         startActivity(intent)
     }
 

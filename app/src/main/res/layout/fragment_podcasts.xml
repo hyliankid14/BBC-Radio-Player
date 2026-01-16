@@ -135,6 +135,7 @@
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
                 android:scrollbars="vertical" />
+            </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
     <!-- Loading Indicator (overlays center) -->

@@ -192,10 +192,24 @@ class NowPlayingActivity : AppCompatActivity() {
             }
             startActivity(intent)
             finish()
-        } else {
-            // Fallback to default behaviour
-            finish()
+            return
         }
+
+        // If we're showing a radio station (not a podcast), return to the list where the station was opened from
+        val station = PlaybackStateHelper.getCurrentStation()
+        if (station != null && !station.id.startsWith("podcast_")) {
+            val origin = intent.getStringExtra("origin_mode") ?: "list"
+            val intent = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("open_mode", if (origin == "favorites") "favorites" else "list")
+            }
+            startActivity(intent)
+            finish()
+            return
+        }
+
+        // Fallback to default behaviour
+        finish()
     }
 
     override fun onResume() {
