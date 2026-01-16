@@ -376,7 +376,7 @@ class NowPlayingActivity : AppCompatActivity() {
             // Only reload if URL changed
             if (artworkUrl != null && artworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
                 lastArtworkUrl = artworkUrl
-                val fallbackUrl = station.logoUrl
+                val fallbackUrl = station?.logoUrl
                 
                 Glide.with(this)
                     .load(artworkUrl)
