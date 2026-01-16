@@ -833,3 +833,4 @@ class NowPlayingActivity : AppCompatActivity() {
         // the main star subscription action. Keep it GONE so it does not display in the app bar.
         markPlayedButton.visibility = android.view.View.GONE
     }
+}
