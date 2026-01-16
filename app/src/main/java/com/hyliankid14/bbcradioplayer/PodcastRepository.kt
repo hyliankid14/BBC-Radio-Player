@@ -19,6 +19,22 @@ class PodcastRepository(private val context: Context) {
     // Prefill this in the background when the podcast list is loaded so searches don't trigger network on each keystroke
     private val episodesCache: MutableMap<String, List<Episode>> = mutableMapOf()
 
+    // Lightweight lowercased index for fast case-insensitive podcast title/description checks
+    private val podcastSearchIndex: MutableMap<String, Pair<String, String>> = mutableMapOf()
+
+    private fun indexPodcasts(podcasts: List<Podcast>) {
+        podcasts.forEach { p ->
+            podcastSearchIndex[p.id] = p.title.lowercase(Locale.getDefault()) to p.description.lowercase(Locale.getDefault())
+        }
+    }
+
+    fun podcastMatches(podcast: Podcast, queryLower: String): Boolean {
+        val pair = podcastSearchIndex[podcast.id]
+        if (pair != null) return (pair.first.contains(queryLower) || pair.second.contains(queryLower))
+        // Fallback
+        return podcast.title.contains(queryLower, ignoreCase = true) || podcast.description.contains(queryLower, ignoreCase = true)
+    }
+
     suspend fun fetchPodcasts(forceRefresh: Boolean = false): List<Podcast> = withContext(Dispatchers.IO) {
         try {
             val cachedData = if (!forceRefresh) getCachedPodcasts() else null
@@ -116,10 +132,17 @@ class PodcastRepository(private val context: Context) {
      */
     suspend fun fetchEpisodesIfNeeded(podcast: Podcast): List<Episode> = withContext(Dispatchers.IO) {
         val cached = episodesCache[podcast.id]
-        if (!cached.isNullOrEmpty()) return@withContext cached
+        if (!cached.isNullOrEmpty()) {
+            Log.d("PodcastRepository", "Using cached episodes for ${podcast.title}: ${cached.size} items")
+            return@withContext cached
+        }
         try {
+            Log.d("PodcastRepository", "Fetching episodes for ${podcast.title}")
             val eps = RSSParser.fetchAndParseRSS(podcast.rssUrl, podcast.id)
-            if (eps.isNotEmpty()) episodesCache[podcast.id] = eps
+            if (eps.isNotEmpty()) {
+                episodesCache[podcast.id] = eps
+                Log.d("PodcastRepository", "Fetched ${eps.size} episodes for ${podcast.title}")
+            }
             return@withContext eps
         } catch (e: Exception) {
             Log.w("PodcastRepository", "fetchEpisodesIfNeeded failed for ${podcast.title}: ${e.message}")
@@ -191,9 +214,16 @@ class PodcastRepository(private val context: Context) {
             genreMatch && durationMatch
         }
 
-        // If there's no search query, return the base filtered list
+        // If there's no search query, return the base filtered list (ensure index built)
         val q = filter.searchQuery.trim()
-        if (q.isEmpty()) return baseFiltered
+        if (q.isEmpty()) {
+            indexPodcasts(baseFiltered)
+            return baseFiltered
+        }
+
+        // Ensure we have indexed data for fast checks
+        indexPodcasts(baseFiltered)
+        val qLower = q.lowercase(Locale.getDefault())
 
         // Prioritise podcasts whose TITLE matches the query, then podcast DESCRIPTION,
         // then EPISODE titles, then EPISODE descriptions.
@@ -203,13 +233,24 @@ class PodcastRepository(private val context: Context) {
         val epDescMatches = mutableListOf<Podcast>()
 
         for (p in baseFiltered) {
-            if (p.title.contains(q, ignoreCase = true)) {
-                titleMatches.add(p)
-                continue
-            }
-            if (p.description.contains(q, ignoreCase = true)) {
-                descMatches.add(p)
-                continue
+            if (podcastMatches(p, qLower)) {
+                // determine whether it matched title or description first
+                val pair = podcastSearchIndex[p.id]
+                if (pair != null) {
+                    if (pair.first.contains(qLower)) titleMatches.add(p)
+                    else descMatches.add(p)
+                    continue
+                } else {
+                    // fallback to original contains checks
+                    if (p.title.contains(q, ignoreCase = true)) {
+                        titleMatches.add(p)
+                        continue
+                    }
+                    if (p.description.contains(q, ignoreCase = true)) {
+                        descMatches.add(p)
+                        continue
+                    }
+                }
             }
 
             // Check episode metadata cache for matches. If not cached yet, skip episode matching so we don't block.

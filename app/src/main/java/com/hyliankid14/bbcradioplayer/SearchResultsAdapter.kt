@@ -35,25 +35,47 @@ class SearchResultsAdapter(
         data class EpisodeItem(val episode: Episode, val podcast: Podcast) : Item()
     }
 
-    private val items: List<Item>
+    private var items: MutableList<Item> = mutableListOf()
 
     init {
-        val list = mutableListOf<Item>()
-        if (titleMatches.isNotEmpty()) {
-            list.add(Item.Section("Podcast Name"))
-            titleMatches.forEach { list.add(Item.PodcastItem(it)) }
-        }
-        if (descMatches.isNotEmpty()) {
-            list.add(Item.Section("Podcast Description"))
-            descMatches.forEach { list.add(Item.PodcastItem(it)) }
-        }
-        if (episodeMatches.isNotEmpty()) {
-            list.add(Item.Section("Episode"))
-            episodeMatches.forEach { (ep, p) -> list.add(Item.EpisodeItem(ep, p)) }
-        }
-        items = list
+        rebuildItems(titleMatches, descMatches, episodeMatches)
     }
 
+    private fun rebuildItems(titleMatches: List<Podcast>, descMatches: List<Podcast>, episodeMatches: List<Pair<Episode, Podcast>>) {
+        items.clear()
+        if (titleMatches.isNotEmpty()) {
+            items.add(Item.Section("Podcast Name"))
+            titleMatches.forEach { items.add(Item.PodcastItem(it)) }
+        }
+        if (descMatches.isNotEmpty()) {
+            items.add(Item.Section("Podcast Description"))
+            descMatches.forEach { items.add(Item.PodcastItem(it)) }
+        }
+        if (episodeMatches.isNotEmpty()) {
+            items.add(Item.Section("Episode"))
+            episodeMatches.forEach { (ep, p) -> items.add(Item.EpisodeItem(ep, p)) }
+        }
+    }
+
+    /**
+     * Update the episode matches (called incrementally as results arrive) and refresh the view.
+     */
+    fun updateEpisodeMatches(newEpisodeMatches: List<Pair<Episode, Podcast>>) {
+        // Find the index of the Episode section or append it
+        // For simplicity rebuild items from the existing title/desc sections and the new episode list
+        // Note: title/desc are not stored on the adapter instance; to keep this simple we assume
+        // callers will recreate the adapter when top-level title/desc changes. We only update episode list.
+        // For robustness, we will locate any existing podcast/sections and append episode section.
+        // Clear any previous Episode items
+        items.removeAll { it is Item.EpisodeItem }
+        // Remove any existing Section("Episode") header
+        items.removeAll { it is Item.Section && (it as Item.Section).title == "Episode" }
+        if (newEpisodeMatches.isNotEmpty()) {
+            items.add(Item.Section("Episode"))
+            newEpisodeMatches.forEach { (ep, p) -> items.add(Item.EpisodeItem(ep, p)) }
+        }
+        notifyDataSetChanged()
+    }
     companion object {
         private const val TYPE_SECTION = 0
         private const val TYPE_PODCAST = 1
