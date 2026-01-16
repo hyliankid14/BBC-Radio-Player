@@ -284,6 +284,18 @@
                 android:insetBottom="0dp"
                 android:contentDescription="Add to Favorites" />
 
+            <!-- Open Podcast Button (shown when current show maps to a podcast) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/now_playing_open_podcast"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_margin="4dp"
+                style="@style/Widget.Material3.Button.Outlined"
+                android:text="Open Podcast"
+                android:textAllCaps="false"
+                android:visibility="gone"
+                android:contentDescription="Open podcast detail" />
+
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

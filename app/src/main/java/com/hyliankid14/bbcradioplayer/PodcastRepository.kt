@@ -57,6 +57,25 @@ class PodcastRepository(private val context: Context) {
     }
 
     /**
+     * Return whether the query matches podcast title or description, or null if none. Returns
+     * "title" or "description" to let callers prioritise where it matched.
+     */
+    fun podcastMatchKind(podcast: Podcast, queryLower: String): String? {
+        val pair = podcastSearchIndex[podcast.id]
+        if (pair != null) {
+            val (titleLower, descLower) = pair
+            if (containsPhraseOrAllTokens(titleLower, queryLower)) return "title"
+            if (containsPhraseOrAllTokens(descLower, queryLower)) return "description"
+            return null
+        }
+        val tl = podcast.title.lowercase(Locale.getDefault())
+        val dl = podcast.description.lowercase(Locale.getDefault())
+        if (containsPhraseOrAllTokens(tl, queryLower)) return "title"
+        if (containsPhraseOrAllTokens(dl, queryLower)) return "description"
+        return null
+    }
+
+    /**
      * Search cached episodes for a podcast quickly using precomputed lowercase index.
      * Returns up to maxResults Episode objects (keeps original Episode objects from cache).
      */

@@ -335,13 +335,13 @@ class PodcastsFragment : Fragment() {
 
             // Partition results immediately for name/description matches (fast, local)
             val remainingCandidates = mutableListOf<Podcast>()
-            for (p in baseFiltered) {
-                if (p.title.contains(q, ignoreCase = true)) {
-                    titleMatches.add(p)
-                } else if (p.description.contains(q, ignoreCase = true)) {
-                    descMatches.add(p)
-                } else {
-                    remainingCandidates.add(p)
+val qLower = q.lowercase(Locale.getDefault())
+        for (p in baseFiltered) {
+            val kind = repository.podcastMatchKind(p, qLower)
+            when (kind) {
+                "title" -> titleMatches.add(p)
+                "description" -> descMatches.add(p)
+                else -> remainingCandidates.add(p)
                 }
             }
 

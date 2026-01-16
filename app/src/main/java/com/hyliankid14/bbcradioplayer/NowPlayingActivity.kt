@@ -19,6 +19,10 @@ import com.bumptech.glide.request.target.Target
 import com.google.android.material.button.MaterialButton
 import android.content.res.ColorStateList
 import com.hyliankid14.bbcradioplayer.PodcastSubscriptions
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class NowPlayingActivity : AppCompatActivity() {
     private lateinit var stationArtwork: ImageView
@@ -37,6 +41,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var remainingView: TextView
     private lateinit var markPlayedButton: android.widget.ImageButton
     private var currentShownEpisodeId: String? = null
+    private var matchedPodcast: Podcast? = null
 
     // When true the activity is showing a preview episode passed via intent and should not be
     // overwritten by subsequent playback state updates until playback starts.
@@ -49,6 +54,42 @@ class NowPlayingActivity : AppCompatActivity() {
     private var fullDescriptionHtml: String = ""
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateFromShow(show) }
+    }
+
+    private fun findMatchingPodcastAsync(station: Station?, show: CurrentShow) {
+        // Run in lifecycle scope (non-blocking). Try several queries in order and favor exact title matches.
+        lifecycleScope.launch {
+            try {
+                val repo = PodcastRepository(this@NowPlayingActivity)
+                val podcasts = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                val queries = listOfNotNull(
+                    show.title?.takeIf { it.isNotEmpty() },
+                    show.episodeTitle?.takeIf { it.isNotEmpty() },
+                    station?.title?.takeIf { it.isNotEmpty() }
+                )
+                // Prefer exact title match first
+                var found: Podcast? = null
+                for (q in queries) {
+                    found = podcasts.find { it.title.equals(q, ignoreCase = true) }
+                    if (found != null) break
+                }
+                // Fall back to approximate match using repository method
+                if (found == null) {
+                    for (q in queries) {
+                        val qLower = q.lowercase(Locale.getDefault())
+                        found = podcasts.find { repo.podcastMatches(it, qLower) }
+                        if (found != null) break
+                    }
+                }
+                if (found != null) {
+                    matchedPodcast = found
+                    // Show button
+                    runOnUiThread { findViewById<MaterialButton>(R.id.now_playing_open_podcast).visibility = View.VISIBLE }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NowPlayingActivity", "Failed to find matching podcast: ${e.message}")
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,6 +139,21 @@ class NowPlayingActivity : AppCompatActivity() {
         // Hidden by design to avoid duplication with subscription controls in the app bar
         markPlayedButton.visibility = android.view.View.GONE
         // (Intentional: keep logic available if needed later, but do not assign a click listener.)
+
+        // Open podcast button (initially hidden). Will be shown when a matching podcast is found for current show.
+        val openPodcastButton: MaterialButton = findViewById(R.id.now_playing_open_podcast)
+        openPodcastButton.visibility = android.view.View.GONE
+        openPodcastButton.setOnClickListener {
+            matchedPodcast?.let { p ->
+                // Navigate back to MainActivity and open the podcast detail
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    putExtra("open_podcast_id", p.id)
+                }
+                startActivity(intent)
+                finish()
+            }
+        }
 
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -150,6 +206,22 @@ class NowPlayingActivity : AppCompatActivity() {
         }
         if (!initialTitle.isNullOrEmpty()) {
             supportActionBar?.title = initialTitle
+        }
+
+        // If opened in preview for a specific episode with a podcast id, show the open podcast button immediately
+        val openPodcastButtonInit: MaterialButton? = findViewById(R.id.now_playing_open_podcast)
+        val previewPodcastId = previewEpisodeProp?.podcastId ?: intent.getStringExtra("initial_podcast_id")
+        if (!previewPodcastId.isNullOrEmpty()) {
+            // Try to find podcast in cache quickly
+            lifecycleScope.launch {
+                val repo = PodcastRepository(this@NowPlayingActivity)
+                val pods = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                val found = pods.find { it.id == previewPodcastId }
+                if (found != null) {
+                    matchedPodcast = found
+                    openPodcastButtonInit?.visibility = View.VISIBLE
+                }
+            }
         }
 
         // Ensure mark button reflects current episode if preview provided
@@ -223,15 +295,17 @@ class NowPlayingActivity : AppCompatActivity() {
         if (isFinishing || isDestroyed) return
         // Don't overwrite preview UI when in preview mode
         if (isPreviewMode) return
+        // Reset podcast link until we find a match
+        matchedPodcast = null
+        findViewById<MaterialButton?>(R.id.now_playing_open_podcast)?.visibility = View.GONE
         
         val station = PlaybackStateHelper.getCurrentStation()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
         val show = PlaybackStateHelper.getCurrentShow()
         val isPodcast = station?.id?.startsWith("podcast_") == true
 
-        if (station != null) {
-            // Update station name in action bar
-            supportActionBar?.title = station.title
+            // Try to find a matching podcast for the current show/station (non-blocking)
+            findMatchingPodcastAsync(station, show)
             
             if (isPodcast) {
                 // Podcasts: action bar already shows podcast name; hide duplicate header
