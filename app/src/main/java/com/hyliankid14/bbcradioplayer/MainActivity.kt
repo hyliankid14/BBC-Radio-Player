@@ -249,6 +249,7 @@ class MainActivity : AppCompatActivity() {
         settingsContainer.visibility = View.GONE
         // Ensure action bar reflects the section and clear any podcast-specific up affordance
         supportActionBar?.apply {
+            show()
             title = "All Stations"
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)
@@ -273,6 +274,7 @@ class MainActivity : AppCompatActivity() {
         settingsContainer.visibility = View.GONE
         // Ensure action bar reflects the section and clear any podcast-specific up affordance
         supportActionBar?.apply {
+            show()
             title = "Favourites"
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)
@@ -330,17 +332,16 @@ class MainActivity : AppCompatActivity() {
             favoritesPodcastsContainer.visibility = View.VISIBLE
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
 
-            // Use a fixed light-lavender background and dark text regardless of theme
-            val lavender = androidx.core.content.ContextCompat.getColor(this, R.color.subscribed_podcasts_bg)
-            val lavenderOn = androidx.core.content.ContextCompat.getColor(this, R.color.subscribed_podcasts_text)
-            favoritesPodcastsContainer.setBackgroundColor(lavender)
-            // Header should use the same light lavender background and dark text for contrast
-            favoritesPodcastsHeaderContainer.setBackgroundColor(lavender)
-            (favoritesPodcastsHeaderContainer.findViewById<View>(R.id.favorites_podcasts_header) as? android.widget.TextView)?.setTextColor(lavenderOn)
-            favoritesPodcastsExpandIcon?.setColorFilter(lavenderOn)
-            
+            // Use theme surface and text colors so the header matches the current theme
+            val onSurface = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface)
+            // Ensure header is clickable and stays on top so the expand/collapse can always be toggled
+            favoritesPodcastsHeaderContainer.isClickable = true
+            favoritesPodcastsHeaderContainer.isFocusable = true
+            favoritesPodcastsHeaderContainer.bringToFront()
+            favoritesPodcastsExpandIcon?.setColorFilter(onSurface)
+
             val divider = findViewById<View>(R.id.favorites_podcasts_divider)
-            
+
             // Start collapsed by default and restore header expand/collapse behaviour
             var isExpanded = false
             favoritesPodcastsRecycler.visibility = View.GONE
@@ -360,6 +361,9 @@ class MainActivity : AppCompatActivity() {
                     favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
                 }
             }
+
+            // Make sure the inner RecyclerView doesn't intercept header clicks by disabling nested scrolling
+            favoritesPodcastsRecycler.isNestedScrollingEnabled = false
 
             val repo = PodcastRepository(this)
             Thread {
@@ -398,6 +402,7 @@ class MainActivity : AppCompatActivity() {
         settingsContainer.visibility = View.VISIBLE
         // Ensure action bar reflects the section and clear any podcast-specific up affordance
         supportActionBar?.apply {
+            show()
             title = "Settings"
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)
@@ -408,13 +413,9 @@ class MainActivity : AppCompatActivity() {
         currentMode = "podcasts"
         fragmentContainer.visibility = View.VISIBLE
         staticContentContainer.visibility = View.GONE
-        // Ensure action bar reflects the section and clear any podcast-specific up affordance
-        supportActionBar?.apply {
-            title = "Podcasts"
-            setDisplayHomeAsUpEnabled(false)
-            setDisplayShowHomeEnabled(false)
-        }
-        
+        // Hide the global action bar so the Podcasts fragment can present its own search app bar at the top
+        supportActionBar?.hide()
+
         // Create and show podcasts fragment
         val podcastsFragment = PodcastsFragment()
         supportFragmentManager.beginTransaction().apply {

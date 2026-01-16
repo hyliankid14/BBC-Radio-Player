@@ -10,6 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorSurface"
+        android:fitsSystemWindows="true"
         app:contentInsetStartWithNavigation="0dp"
         android:elevation="2dp">
 
@@ -26,8 +27,8 @@
             app:boxCornerRadiusTopEnd="16dp"
             app:boxCornerRadiusBottomStart="16dp"
             app:boxCornerRadiusBottomEnd="16dp"
-            app:hintEnabled="true"
-            android:hint="Search podcasts..."
+            app:hintEnabled="false"
+            app:placeholderText="Search podcasts..."
             app:startIconDrawable="@drawable/ic_search"
             app:endIconMode="clear_text">
 
@@ -39,10 +40,13 @@
                 android:imeOptions="actionSearch"
                 android:textColor="?attr/colorOnSurface"
                 android:textColorHint="?attr/colorOnSurfaceVariant"
-                android:padding="12dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:paddingStart="44dp"
                 android:background="@null"
                 android:maxLines="1"
-                android:singleLine="true" />
+                android:singleLine="true"
+                android:hint="" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <ImageButton
@@ -61,7 +65,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:visibility="gone"
+        android:background="?attr/colorSurface"
+        android:padding="12dp"
+        android:layout_marginTop="8dp">
 
         <!-- Genre Filter (Exposed dropdown - Material 3) -->
         <com.google.android.material.textfield.TextInputLayout
