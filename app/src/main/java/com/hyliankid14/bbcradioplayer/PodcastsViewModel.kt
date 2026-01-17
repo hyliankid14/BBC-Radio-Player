@@ -11,6 +11,17 @@ class PodcastsViewModel : ViewModel() {
     private val _activeSearchQuery = MutableLiveData<String?>(null)
     val activeSearchQuery: LiveData<String?> = _activeSearchQuery
 
+    // Simple in-memory cache to hold the last search results for a query so we can reuse them
+    data class SearchCache(
+        val query: String,
+        val titleMatches: List<Podcast>,
+        val descMatches: List<Podcast>,
+        val episodeMatches: List<Pair<Episode, Podcast>>
+    )
+
+    @Volatile
+    private var cachedSearch: SearchCache? = null
+
     fun setActiveSearch(query: String?) {
         _activeSearchQuery.postValue(query)
     }
@@ -18,4 +29,8 @@ class PodcastsViewModel : ViewModel() {
     fun clearActiveSearch() {
         _activeSearchQuery.postValue(null)
     }
+
+    fun getCachedSearch(): SearchCache? = cachedSearch
+    fun setCachedSearch(cache: SearchCache?) { cachedSearch = cache }
+    fun clearCachedSearch() { cachedSearch = null }
 }

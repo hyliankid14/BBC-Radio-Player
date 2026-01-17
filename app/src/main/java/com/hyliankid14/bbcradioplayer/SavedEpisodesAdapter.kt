@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
+import androidx.core.text.HtmlCompat
 
 class SavedEpisodesAdapter(
     private val context: Context,
@@ -26,6 +26,31 @@ class SavedEpisodesAdapter(
         val play: View? = view.findViewById(R.id.episode_play_icon)
     }
 
+    private fun sanitize(raw: String): String {
+        return HtmlCompat.fromHtml(raw, HtmlCompat.FROM_HTML_MODE_LEGACY).toString().trim()
+    }
+
+    private fun formatDate(raw: String): String {
+        if (raw.isBlank()) return ""
+        val patterns = listOf(
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy HH",
+            "EEE, dd MMM yyyy",
+            "dd MMM yyyy HH",
+            "dd MMM yyyy"
+        )
+        val parsed: java.util.Date? = patterns.firstNotNullOfOrNull { pattern ->
+            try {
+                java.text.SimpleDateFormat(pattern, java.util.Locale.US).parse(raw)
+            } catch (e: java.text.ParseException) {
+                null
+            }
+        }
+        val cleaned = raw.trim().replace(Regex("\\s+(GMT|UTC|UT)", RegexOption.IGNORE_CASE), "").replace(Regex(",\\s+"), ", ")
+        val fallback = cleaned.replace(Regex("\\s+\\d{1,2}:\\d{2}(:\\d{2})?"), "").replace(Regex("\\s+\\d{1,2}$"), "").trim()
+        return parsed?.let { java.text.SimpleDateFormat("EEE, dd MMM yyyy", java.util.Locale.US).format(it) } ?: fallback
+    }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val v = LayoutInflater.from(context).inflate(R.layout.item_episode, parent, false)
         return ViewHolder(v)
@@ -34,9 +59,9 @@ class SavedEpisodesAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val e = entries[position]
         holder.title.text = e.title
-        holder.desc.text = e.description
+        holder.desc.text = sanitize(e.description)
         holder.podcastTitle?.text = e.podcastTitle
-        holder.date.text = e.pubDate
+        holder.date.text = formatDate(e.pubDate)
         holder.duration?.text = "${e.durationMins} min"
         // Note: item_episode layout doesn't include an image view by default, so we don't attempt to load it here
 

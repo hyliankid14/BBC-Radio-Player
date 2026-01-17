@@ -132,6 +132,8 @@ class PodcastsFragment : Fragment() {
                 }
 
                 // When user types a non-empty query, set it as the active search that will persist
+                // Clear any previously cached results so we rebuild for the new query
+                viewModel.clearCachedSearch()
                 viewModel.setActiveSearch(searchQuery)
 
                 // Debounce the application of filters to avoid running heavy searches on every keystroke
@@ -233,11 +235,11 @@ class PodcastsFragment : Fragment() {
         // Duration filter removed
 
         resetButton.setOnClickListener {
-            // Clear both the typed query and the active persisted search
+            // Clear both the typed query and the active persisted search; clear cached search results
             searchJob?.cancel()
             searchQuery = ""
             viewModel.clearActiveSearch()
-            searchEditText.text.clear()
+            viewModel.clearCachedSearch()
             currentFilter = PodcastFilter()
             // Set exposed dropdowns back to 'All Genres' / default label
             genreSpinner.setText("All Genres", false)
@@ -324,6 +326,8 @@ class PodcastsFragment : Fragment() {
                     } else {
                         currentFilter.copy(genres = setOf(selected))
                     }
+                    // Changing filters invalidates cached search results
+                    viewModel.clearCachedSearch()
                     applyFilters(loadingIndicator, emptyState, recyclerView)
                 }
                 // ensure the list is shown by applying filters after spinner is configured
@@ -338,6 +342,8 @@ class PodcastsFragment : Fragment() {
                 sortSpinner.setOnItemClickListener { parent, _, position, _ ->
                     val selected = parent?.getItemAtPosition(position) as String
                     currentSort = selected
+                    // Changing sort invalidates cached search results
+                    viewModel.clearCachedSearch()
                     applyFilters(loadingIndicator, emptyState, recyclerView)
                 }
 
@@ -438,6 +444,50 @@ class PodcastsFragment : Fragment() {
 
             // For search queries, build grouped results (Podcast Name / Description / Episode)
             val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
+
+            // If we have a cached result for this query, reuse it immediately to avoid rebuilding
+            val cached = viewModel.getCachedSearch()
+            if (cached != null && cached.query == q) {
+                android.util.Log.d("PodcastsFragment", "applyFilters: using cached search results for query='$q'")
+                searchAdapter = SearchResultsAdapter(requireContext(), cached.titleMatches, cached.descMatches, cached.episodeMatches,
+                    onPodcastClick = { podcast ->
+                        val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
+                        parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
+                    },
+                    onPlayEpisode = { episode ->
+                        val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                            action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                            putExtra(RadioService.EXTRA_EPISODE, episode)
+                            putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                        }
+                        requireContext().startService(intent)
+                    },
+                    onOpenEpisode = { episode, podcast ->
+                        val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
+                            putExtra("preview_episode", episode)
+                            putExtra("preview_use_play_ui", true)
+                            putExtra("preview_podcast_title", podcast.title)
+                            putExtra("preview_podcast_image", podcast.imageUrl)
+                        }
+                        startActivity(intent)
+                    }
+                )
+
+                recyclerView.adapter = searchAdapter
+                if (cached.titleMatches.isEmpty() && cached.descMatches.isEmpty() && cached.episodeMatches.isEmpty()) {
+                    emptyState.visibility = View.VISIBLE
+                    recyclerView.visibility = View.GONE
+                } else {
+                    emptyState.visibility = View.GONE
+                    recyclerView.visibility = View.VISIBLE
+                }
+
+                // Ensure any previous episode search is cancelled and spinner hidden
+                searchJob?.cancel()
+                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+                return@launch
+            }
+
             val titleMatches = mutableListOf<Podcast>()
             val descMatches = mutableListOf<Podcast>()
             val episodeMatches = mutableListOf<Pair<Episode, Podcast>>()
@@ -461,8 +511,9 @@ val qLower = q.lowercase(Locale.getDefault())
 
             // If query is short, avoid expensive episode searches. Show only title/description matches.
             if (q.length < 3) {
-                // Create search adapter and show current matches (no episode results)
-                searchAdapter = SearchResultsAdapter(
+                    // Cache these quick results so returning to the list is instant
+                    viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
+
                     requireContext(),
                     titleMatches,
                     descMatches,
@@ -535,6 +586,9 @@ val qLower = q.lowercase(Locale.getDefault())
             )
 
             recyclerView.adapter = searchAdapter
+            // Cache the initial adapter state (no episodes yet) so returning to the list is fast
+            viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
+
             if (titleMatches.isEmpty() && descMatches.isEmpty() && episodeMatches.isEmpty()) {
                 emptyState.visibility = View.VISIBLE
                 recyclerView.visibility = View.GONE
@@ -636,6 +690,8 @@ val qLower = q.lowercase(Locale.getDefault())
                                             emptyState.visibility = View.VISIBLE
                                             recyclerView.visibility = View.GONE
                                         }
+                                        // Update in-memory cache so returning to list shows results immediately
+                                        viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), sorted.toList()))
                                     }
                                     android.util.Log.d("PodcastsFragment", "FTS global matched ${added.size} episodes in podcast='${p.title}' for query='$q'")
                                 }
@@ -710,8 +766,8 @@ val qLower = q.lowercase(Locale.getDefault())
                                     } else {
                                         emptyState.visibility = View.VISIBLE
                                         recyclerView.visibility = View.GONE
-                                    }
-                                }
+                                    }                                    // Update in-memory cache so returning to list shows results immediately
+                                    viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), sorted.toList()))                                }
                                 android.util.Log.d("PodcastsFragment", "Found ${added.size} episode matches in podcast '${p.title}' for query '$q'")
                                 if (totalMatches >= 50) break
                             }
