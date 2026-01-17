@@ -175,6 +175,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                         // ignore and continue
                                     }
                                 }
+
                                 if (ep != null) {
                                     val playIntent = android.content.Intent().apply {
                                         parentPodcast?.let { putExtra(EXTRA_PODCAST_TITLE, it.title) }
@@ -182,7 +183,32 @@ class RadioService : MediaBrowserServiceCompat() {
                                     }
                                     playPodcastEpisode(ep, playIntent)
                                 } else {
-                                    Log.w(TAG, "Episode not found for id: $episodeId")
+                                    // Fallback: check saved episodes (may not be in subscriptions)
+                                    try {
+                                        val saved = SavedEpisodes.getSavedEntries(this@RadioService)
+                                        val savedEntry = saved.find { it.id == episodeId }
+                                        if (savedEntry != null) {
+                                            val savedEp = Episode(
+                                                id = savedEntry.id,
+                                                title = savedEntry.title,
+                                                description = savedEntry.description,
+                                                audioUrl = savedEntry.audioUrl,
+                                                imageUrl = savedEntry.imageUrl,
+                                                pubDate = savedEntry.pubDate,
+                                                durationMins = savedEntry.durationMins,
+                                                podcastId = savedEntry.podcastId
+                                            )
+                                            val playIntent = android.content.Intent().apply {
+                                                putExtra(EXTRA_PODCAST_TITLE, savedEntry.podcastTitle)
+                                                putExtra(EXTRA_PODCAST_IMAGE, savedEntry.imageUrl)
+                                            }
+                                            playPodcastEpisode(savedEp, playIntent)
+                                        } else {
+                                            Log.w(TAG, "Episode not found for id: $episodeId")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error searching saved episodes for id: $episodeId", e)
+                                    }
                                 }
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error playing episode from mediaId: $mediaId", e)
@@ -363,7 +389,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     when {
                         id.startsWith("podcast_episode_") -> {
                             val episodeId = id.removePrefix("podcast_episode_")
-                            // Lookup the episode in subscriptions and play it if available
+                            // Lookup the episode in subscriptions and play it if available (fallback to saved entries)
                             serviceScope.launch {
                                 try {
                                     val repo = PodcastRepository(this@RadioService)
@@ -381,10 +407,32 @@ class RadioService : MediaBrowserServiceCompat() {
                                             }
                                         } catch (_: Exception) { /* ignore */ }
                                     }
+
                                     if (foundEp != null) {
                                         playPodcastEpisode(foundEp, null)
                                     } else {
-                                        Log.w(TAG, "Episode not found for id: $episodeId")
+                                        // Fallback: try saved episodes (user may have saved an episode without subscribing)
+                                        try {
+                                            val saved = SavedEpisodes.getSavedEntries(this@RadioService)
+                                            val s = saved.find { it.id == episodeId }
+                                            if (s != null) {
+                                                val savedEp = Episode(
+                                                    id = s.id,
+                                                    title = s.title,
+                                                    description = s.description,
+                                                    audioUrl = s.audioUrl,
+                                                    imageUrl = s.imageUrl,
+                                                    pubDate = s.pubDate,
+                                                    durationMins = s.durationMins,
+                                                    podcastId = s.podcastId
+                                                )
+                                                playPodcastEpisode(savedEp, null)
+                                            } else {
+                                                Log.w(TAG, "Episode not found for id: $episodeId")
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error searching saved episodes for id: $episodeId", e)
+                                        }
                                     }
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Error auto-playing podcast episode $episodeId", e)
@@ -773,7 +821,7 @@ class RadioService : MediaBrowserServiceCompat() {
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
             // For podcasts, prefer episode title as the notification content text so Android Auto has consistent subtitle
-            .setContentText(if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else (currentShowInfo.description ?: currentShowTitle))
+            .setContentText(if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else (if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else (currentShowInfo.description ?: currentShowTitle)))
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -1239,12 +1287,12 @@ class RadioService : MediaBrowserServiceCompat() {
             // Use metadata keys that make Android Auto show podcast title as the main title and episode as subtitle
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, 
                 if (currentStationId.startsWith("podcast_")) PlaybackStateHelper.getCurrentEpisodeId() ?: currentStationId else currentStationId)
-            // For podcasts: show the podcast title as the main title; for streams, keep station title
+            // Title: for podcasts keep station/podcast name; for streams prefer Artist - Track if available
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, 
-                if (currentStationId.startsWith("podcast_")) currentStationTitle else currentStationTitle)
-            // Artist field: for podcasts use episode title (fallback to show title); for streams use show title
+                if (currentStationId.startsWith("podcast_")) currentStationTitle else (if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else currentStationTitle))
+            // Artist field: for podcasts use episode title (fallback to show title); for streams use the show/program name
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, 
-                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else currentShowTitle)
+                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else currentShowName)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
             // Display title/subtitle control what's shown in Android Auto UI: ensure podcast->title: podcast, subtitle: episode
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
@@ -1252,7 +1300,8 @@ class RadioService : MediaBrowserServiceCompat() {
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE,
                 if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title)
                 else when {
-                    !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> currentShowTitle
+                    // If RMS provides artist/track, show Artist - Track as the subtitle
+                    !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> currentShowInfo.getFormattedTitle()
                     currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
                     else -> currentShowTitle
                 })
@@ -1536,7 +1585,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-                .setContentText(currentShowInfo.description ?: currentShowTitle)
+                .setContentText(if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else (currentShowInfo.description ?: currentShowTitle))
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
