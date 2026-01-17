@@ -253,14 +253,7 @@ class PodcastsFragment : Fragment() {
                     }
                 }
 
-                // Schedule a background indexing job (Room FTS) so deep phrase searches are fast
-                try {
-                    val workReq = androidx.work.OneTimeWorkRequestBuilder<com.hyliankid14.bbcradioplayer.workers.IndexWorker>().build()
-                    androidx.work.WorkManager.getInstance(requireContext()).enqueueUniqueWork("podcast_index", androidx.work.ExistingWorkPolicy.KEEP, workReq)
-                    android.util.Log.d("PodcastsFragment", "Scheduled background indexing work")
-                } catch (e: Exception) {
-                    android.util.Log.w("PodcastsFragment", "Failed to schedule indexing work: ${e.message}")
-                }
+                // Background indexing (Room FTS) disabled (waiting for Gradle/Kapt fix). In the meantime we rely on limited prefetches for search.
 
                 loadingIndicator.visibility = View.GONE
             } catch (e: Exception) {
@@ -453,40 +446,12 @@ val qLower = q.lowercase(Locale.getDefault())
                     val candidatesToCheck = remainingCandidates.take(candidateLimit)
                     android.util.Log.d("PodcastsFragment", "Episode search: checking ${candidatesToCheck.size} candidates (limit=$candidateLimit) for query '$q' (gen=$generation)")
 
-                    // First: perform a global FTS-based episode search to find matches across all podcasts quickly
+                    // Global FTS-based episode search disabled temporarily due to Gradle/Kapt compatibility issues.
+                    // Continue with per-podcast indexed search + on-demand fetch fallback already implemented below.
                     try {
-                        val db = com.hyliankid14.bbcradioplayer.db.AppDatabase.getInstance(requireContext())
-                        val normQ = com.hyliankid14.bbcradioplayer.util.TextNormalizer.normalize(q)
-                        val ftsMatch = if (q.trim().contains(" ")) "\"$normQ\"" else normQ
-                        val ftsResults = withContext(Dispatchers.IO) { db.ftsDao().searchEpisodes(ftsMatch, 200) }
-                        if (ftsResults.isNotEmpty()) {
-                            android.util.Log.d("PodcastsFragment", "FTS found ${ftsResults.size} episode hits for query '$q'")
-                            for (ef in ftsResults) {
-                                if (generation != searchGeneration) break
-                                val p = baseFiltered.find { it.id == ef.podcastId } ?: continue
-                                // Try to resolve full Episode objects from cache, otherwise fetch them
-                                val epsCached = repository.getEpisodesFromCache(p.id)
-                                val epsToSearch = epsCached ?: repository.fetchEpisodesIfNeeded(p)
-                                val matches = epsToSearch.filter { ep ->
-                                    val t = com.hyliankid14.bbcradioplayer.util.TextNormalizer.normalize(ep.title)
-                                    val d = com.hyliankid14.bbcradioplayer.util.TextNormalizer.normalize(ep.description ?: "")
-                                    val qNorm = normQ
-                                    // Use containsPhraseOrAllTokens from repository if available
-                                    repository.textMatchesNormalized(t, qNorm) || repository.textMatchesNormalized(d, qNorm)
-                                }.take(3)
-                                if (matches.isNotEmpty()) {
-                                    episodeMatches.addAll(matches.map { it to p })
-                                    recyclerView.post { (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches) }
-                                    if (episodeMatches.size >= 50) break
-                                }
-                            }
-                            if (episodeMatches.size >= 50) {
-                                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
-                                return@launch
-                            }
-                        }
+                        // no-op; placeholder for future FTS fast path
                     } catch (e: Exception) {
-                        android.util.Log.w("PodcastsFragment", "FTS pre-search failed: ${e.message}")
+                        android.util.Log.w("PodcastsFragment", "FTS pre-search unavailable: ${e.message}")
                     }
 
                     // Check in small parallel chunks (bounded concurrency) to reduce wall-clock time

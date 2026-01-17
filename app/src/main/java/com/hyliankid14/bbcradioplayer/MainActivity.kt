@@ -718,41 +718,8 @@ class MainActivity : AppCompatActivity() {
 
         indexNowBtn.setOnClickListener {
             try {
-                indexStatus.text = "Indexing: scheduled"
-                val workReq = androidx.work.OneTimeWorkRequestBuilder<com.hyliankid14.bbcradioplayer.workers.IndexWorker>().addTag("podcast_index_manual").build()
-                androidx.work.WorkManager.getInstance(this).enqueueUniqueWork("podcast_index_manual", androidx.work.ExistingWorkPolicy.KEEP, workReq)
-
-                // Observe work progress
-                androidx.work.WorkManager.getInstance(this).getWorkInfoByIdLiveData(workReq.id).observe(this) { info ->
-                    if (info == null) return@observe
-                    val state = info.state
-                    when (state) {
-                        androidx.work.WorkInfo.State.RUNNING -> {
-                            indexProgress.visibility = View.VISIBLE
-                            val progress = info.progress.getInt("progress", 0)
-                            val total = info.progress.getInt("total", 0)
-                            if (total > 0) {
-                                val pct = (progress * 100) / total
-                                indexProgress.progress = pct
-                                indexStatus.text = "Indexing: $progress / $total"
-                            } else {
-                                indexStatus.text = "Indexing..."
-                            }
-                        }
-                        androidx.work.WorkInfo.State.SUCCEEDED -> {
-                            indexProgress.visibility = View.GONE
-                            indexStatus.text = "Index completed"
-                        }
-                        androidx.work.WorkInfo.State.FAILED -> {
-                            indexProgress.visibility = View.GONE
-                            indexStatus.text = "Index failed"
-                        }
-                        androidx.work.WorkInfo.State.ENQUEUED -> {
-                            indexStatus.text = "Indexing: queued"
-                        }
-                        else -> {}
-                    }
-                }
+                indexStatus.text = "Indexing currently unavailable"
+                android.util.Log.w("MainActivity", "Manual indexing disabled due to Gradle/Kapt compatibility; FTS path will be re-enabled once resolved.")
             } catch (e: Exception) {
                 indexStatus.text = "Failed to schedule indexing: ${e.message}"
             }
