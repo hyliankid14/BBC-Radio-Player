@@ -818,7 +818,6 @@ class RadioService : MediaBrowserServiceCompat() {
             createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
         )
 
-        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
             val notificationContentText = when {
                 currentStationId.startsWith("podcast_") -> (currentShowInfo.episodeTitle ?: currentShowTitle)
                 !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> {
