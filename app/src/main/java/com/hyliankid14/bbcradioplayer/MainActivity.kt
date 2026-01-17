@@ -710,6 +710,63 @@ class MainActivity : AppCompatActivity() {
         importBtn.setOnClickListener {
             openDocumentLauncher.launch(arrayOf("application/json"))
         }
+
+        // Podcast indexing controls (manual trigger + progress)
+        val indexNowBtn: Button = findViewById(R.id.index_now_button)
+        val indexProgress: android.widget.ProgressBar = findViewById(R.id.index_progress)
+        val indexStatus: TextView = findViewById(R.id.index_status_text)
+
+        indexNowBtn.setOnClickListener {
+            try {
+                indexStatus.text = "Indexing: scheduled"
+                val workReq = androidx.work.OneTimeWorkRequestBuilder<com.hyliankid14.bbcradioplayer.workers.IndexWorker>().addTag("podcast_index_manual").build()
+                androidx.work.WorkManager.getInstance(this).enqueueUniqueWork("podcast_index_manual", androidx.work.ExistingWorkPolicy.KEEP, workReq)
+
+                // Observe work progress
+                androidx.work.WorkManager.getInstance(this).getWorkInfoByIdLiveData(workReq.id).observe(this) { info ->
+                    if (info == null) return@observe
+                    val state = info.state
+                    when (state) {
+                        androidx.work.WorkInfo.State.RUNNING -> {
+                            indexProgress.visibility = View.VISIBLE
+                            val progress = info.progress.getInt("progress", 0)
+                            val total = info.progress.getInt("total", 0)
+                            if (total > 0) {
+                                val pct = (progress * 100) / total
+                                indexProgress.progress = pct
+                                indexStatus.text = "Indexing: $progress / $total"
+                            } else {
+                                indexStatus.text = "Indexing..."
+                            }
+                        }
+                        androidx.work.WorkInfo.State.SUCCEEDED -> {
+                            indexProgress.visibility = View.GONE
+                            indexStatus.text = "Index completed"
+                        }
+                        androidx.work.WorkInfo.State.FAILED -> {
+                            indexProgress.visibility = View.GONE
+                            indexStatus.text = "Index failed"
+                        }
+                        androidx.work.WorkInfo.State.ENQUEUED -> {
+                            indexStatus.text = "Indexing: queued"
+                        }
+                        else -> {}
+                    }
+                }
+            } catch (e: Exception) {
+                indexStatus.text = "Failed to schedule indexing: ${e.message}"
+            }
+        }
+
+        // Also ensure periodic daily indexing job is scheduled (keeps index fresh)
+        try {
+            val periodic = androidx.work.PeriodicWorkRequestBuilder<com.hyliankid14.bbcradioplayer.workers.IndexWorker>(1, java.util.concurrent.TimeUnit.DAYS)
+                .addTag("podcast_index_daily")
+                .build()
+            androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork("podcast_index_daily", androidx.work.ExistingPeriodicWorkPolicy.KEEP, periodic)
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to schedule periodic indexing: ${e.message}")
+        }
     }
 
     private fun playStation(id: String) {
