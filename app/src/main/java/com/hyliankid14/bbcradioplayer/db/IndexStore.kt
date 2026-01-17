@@ -114,83 +114,119 @@ class IndexStore private constructor(private val context: Context) {
         return results
     }
 
+    private fun buildFtsVariants(query: String): List<String> {
+        // Return a prioritized list of MATCH expressions to try for multi-token queries
+        val q = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(Regex("[^\\p{L}0-9\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .lowercase(Locale.getDefault())
+
+        val tokens = q.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (tokens.isEmpty()) return emptyList()
+        if (tokens.size == 1) return listOf("${tokens[0]}*")
+
+        val phrase = '"' + tokens.joinToString(" ") + '"'
+        val near = tokens.joinToString(" NEAR/3 ") { it }
+        val tokenAnd = tokens.joinToString(" AND ") { "${it}*" }
+
+        val variants = mutableListOf<String>()
+        // Exact phrase across all fields
+        variants.add("($phrase)")
+        // Phrase in title or description specifically
+        variants.add("(title:$phrase) OR (description:$phrase)")
+        // NEAR proximity (looser but adjacency-preserving)
+        variants.add("($near)")
+        // Prefix-AND fallback
+        variants.add("($tokenAnd)")
+        return variants
+    }
+
     fun searchEpisodes(query: String, limit: Int = 100): List<EpisodeFts> {
         if (query.isBlank()) return emptyList()
         val db = helper.readableDatabase
-        val match = normalizeQueryForFts(query)
-        if (match.isBlank()) return emptyList()
-        Log.d("IndexStore", "FTS episode search: matchExpr='$match' originalQuery='$query' limit=$limit")
-        val cursor = db.rawQuery("SELECT episodeId, podcastId, title, description FROM episode_fts WHERE episode_fts MATCH ? LIMIT ?", arrayOf(match, limit.toString()))
-        val results = mutableListOf<EpisodeFts>()
-        cursor.use {
-            while (it.moveToNext()) {
-                val eid = it.getString(0)
-                val pid = it.getString(1)
-                val title = it.getString(2) ?: ""
-                val desc = it.getString(3) ?: ""
-                results.add(EpisodeFts(eid, pid, title, desc))
+
+        // Try prioritized MATCH variants and return first non-empty result set
+        val variants = buildFtsVariants(query)
+        for (v in variants) {
+            try {
+                Log.d("IndexStore", "FTS episode try: variant='$v' originalQuery='$query' limit=$limit")
+                val cursor = db.rawQuery("SELECT episodeId, podcastId, title, description FROM episode_fts WHERE episode_fts MATCH ? LIMIT ?", arrayOf(v, limit.toString()))
+                val results = mutableListOf<EpisodeFts>()
+                cursor.use {
+                    while (it.moveToNext()) {
+                        val eid = it.getString(0)
+                        val pid = it.getString(1)
+                        val title = it.getString(2) ?: ""
+                        val desc = it.getString(3) ?: ""
+                        results.add(EpisodeFts(eid, pid, title, desc))
+                    }
+                }
+                Log.d("IndexStore", "FTS episode variant returned ${results.size} hits for variant='$v' query='$query'")
+                if (results.isNotEmpty()) return results
+            } catch (e: Exception) {
+                Log.w("IndexStore", "FTS episode variant failed '$v': ${e.message}")
             }
         }
-        Log.d("IndexStore", "FTS episode search returned ${results.size} hits for query='$query'")
 
         // Fallback: if FTS returned nothing for a multi-token query, try a looser LIKE-based check
-        if (results.isEmpty()) {
-            try {
-                // Normalize query to plain tokens
-                val qnorm = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
-                    .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-                    .replace(Regex("[^\\p{L}0-9\\s]"), " ")
-                    .replace(Regex("\\s+"), " ")
-                    .trim()
-                    .lowercase(Locale.getDefault())
-                val tokens = qnorm.split(Regex("\\s+")).filter { it.isNotEmpty() }
-                if (tokens.size >= 2) {
-                    val phraseParam = "%${tokens.joinToString(" ")}%"
-                    // Build token AND checks for title and description
-                    val titleAndParams = tokens.map { "%$it%" }
-                    val descAndParams = tokens.map { "%$it%" }
+        try {
+            // Normalize query to plain tokens
+            val qnorm = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
+                .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+                .replace(Regex("[^\\p{L}0-9\\s]"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+                .lowercase(Locale.getDefault())
+            val tokens = qnorm.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            if (tokens.size >= 2) {
+                val phraseParam = "%${tokens.joinToString(" ")}%"
+                // Build token AND checks for title and description
+                val titleAndParams = tokens.map { "%$it%" }
+                val descAndParams = tokens.map { "%$it%" }
 
-                    // Construct SQL fallback: phrase search OR (title contains all tokens) OR (description contains all tokens)
-                    val phraseClause = "(LOWER(title) LIKE ? OR LOWER(description) LIKE ?)"
-                    val titleAndClause = titleAndParams.joinToString(" AND ") { "LOWER(title) LIKE ?" }
-                    val descAndClause = descAndParams.joinToString(" AND ") { "LOWER(description) LIKE ?" }
+                // Construct SQL fallback: phrase search OR (title contains all tokens) OR (description contains all tokens)
+                val phraseClause = "(LOWER(title) LIKE ? OR LOWER(description) LIKE ?)"
+                val titleAndClause = titleAndParams.joinToString(" AND ") { "LOWER(title) LIKE ?" }
+                val descAndClause = descAndParams.joinToString(" AND ") { "LOWER(description) LIKE ?" }
 
-                    val fallbackSql = StringBuilder("SELECT episodeId, podcastId, title, description FROM episode_fts WHERE ")
-                    val fbParams = mutableListOf<String>()
-                    fallbackSql.append(phraseClause)
-                    fbParams.add(phraseParam)
-                    fbParams.add(phraseParam)
+                val fallbackSql = StringBuilder("SELECT episodeId, podcastId, title, description FROM episode_fts WHERE ")
+                val fbParams = mutableListOf<String>()
+                fallbackSql.append(phraseClause)
+                fbParams.add(phraseParam)
+                fbParams.add(phraseParam)
 
-                    if (titleAndClause.isNotBlank()) {
-                        fallbackSql.append(" OR (").append(titleAndClause).append(")")
-                        fbParams.addAll(titleAndParams)
-                    }
-                    if (descAndClause.isNotBlank()) {
-                        fallbackSql.append(" OR (").append(descAndClause).append(")")
-                        fbParams.addAll(descAndParams)
-                    }
-
-                    fallbackSql.append(" LIMIT ?")
-                    val finalParams = (fbParams + listOf(limit.toString())).toTypedArray()
-                    val fbCursor = db.rawQuery(fallbackSql.toString(), finalParams)
-                    val fbResults = mutableListOf<EpisodeFts>()
-                    fbCursor.use {
-                        while (it.moveToNext()) {
-                            val eid = it.getString(0)
-                            val pid = it.getString(1)
-                            val title = it.getString(2) ?: ""
-                            val desc = it.getString(3) ?: ""
-                            fbResults.add(EpisodeFts(eid, pid, title, desc))
-                        }
-                    }
-                    Log.d("IndexStore", "FTS fallback search returned ${fbResults.size} hits for query='$query'")
-                    if (fbResults.isNotEmpty()) return fbResults
+                if (titleAndClause.isNotBlank()) {
+                    fallbackSql.append(" OR (").append(titleAndClause).append(")")
+                    fbParams.addAll(titleAndParams)
                 }
-            } catch (e: Exception) {
-                Log.w("IndexStore", "FTS fallback failed: ${e.message}")
+                if (descAndClause.isNotBlank()) {
+                    fallbackSql.append(" OR (").append(descAndClause).append(")")
+                    fbParams.addAll(descAndParams)
+                }
+
+                fallbackSql.append(" LIMIT ?")
+                val finalParams = (fbParams + listOf(limit.toString())).toTypedArray()
+                Log.d("IndexStore", "FTS fallback SQL: ${fallbackSql}")
+                val fbCursor = db.rawQuery(fallbackSql.toString(), finalParams)
+                val fbResults = mutableListOf<EpisodeFts>()
+                fbCursor.use {
+                    while (it.moveToNext()) {
+                        val eid = it.getString(0)
+                        val pid = it.getString(1)
+                        val title = it.getString(2) ?: ""
+                        val desc = it.getString(3) ?: ""
+                        fbResults.add(EpisodeFts(eid, pid, title, desc))
+                    }
+                }
+                Log.d("IndexStore", "FTS fallback search returned ${fbResults.size} hits for query='$query'")
+                if (fbResults.isNotEmpty()) return fbResults
             }
+        } catch (e: Exception) {
+            Log.w("IndexStore", "FTS fallback failed: ${e.message}")
         }
 
-        return results
+        return emptyList()
     }
 }

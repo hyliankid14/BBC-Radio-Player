@@ -724,20 +724,40 @@ class MainActivity : AppCompatActivity() {
                 indexProgress.isIndeterminate = true
                 indexProgress.progress = 0
                 lifecycleScope.launch {
-                    com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent ->
+                    com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent, isEpisodePhase ->
                         runOnUiThread {
                             indexStatus.text = status
+
+                            // Overall index progress bar
                             if (percent < 0) {
                                 indexProgress.isIndeterminate = true
+                                indexProgress.visibility = android.view.View.VISIBLE
                             } else {
                                 indexProgress.isIndeterminate = false
                                 indexProgress.max = 100
                                 indexProgress.progress = percent
+                                indexProgress.visibility = android.view.View.VISIBLE
+                            }
+
+                            // Episode-specific visual progress (hidden when not episode phase)
+                            val epBar = findViewById<android.widget.ProgressBar>(R.id.index_episodes_progress)
+                            if (isEpisodePhase && percent >= 0) {
+                                epBar.visibility = android.view.View.VISIBLE
+                                epBar.progress = percent.coerceIn(0, 100)
+                            } else if (isEpisodePhase && percent < 0) {
+                                epBar.visibility = android.view.View.VISIBLE
+                                epBar.isIndeterminate = true
+                            } else {
+                                epBar.visibility = android.view.View.GONE
+                                epBar.isIndeterminate = false
+                                epBar.progress = 0
                             }
                         }
                     }
                     indexProgress.isIndeterminate = false
                     indexStatus.text = "Index finished"
+                    // Ensure episode bar hidden once done
+                    findViewById<android.widget.ProgressBar>(R.id.index_episodes_progress).visibility = android.view.View.GONE
                 }
             } catch (e: Exception) {
                 indexStatus.text = "Failed to schedule indexing: ${e.message}"

@@ -363,6 +363,18 @@
                     android:textSize="14sp"
                     android:layout_marginTop="8dp" />
 
+                <!-- Visual progress bar for episode indexing (shows only during episode indexing) -->
+                <ProgressBar
+                    android:id="@+id/index_episodes_progress"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:indeterminate="false"
+                    android:max="100"
+                    android:progress="0"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp" />
+
             </LinearLayout>
 
         </ScrollView>
