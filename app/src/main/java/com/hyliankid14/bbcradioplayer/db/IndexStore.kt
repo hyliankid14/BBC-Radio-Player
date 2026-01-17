@@ -125,7 +125,11 @@ class IndexStore private constructor(private val context: Context) {
 
         val tokens = q.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (tokens.isEmpty()) return emptyList()
-        if (tokens.size == 1) return listOf("${tokens[0]}*")
+        if (tokens.size == 1) {
+            // For single-token queries try a few prioritized variants: prefix, exact token, and field-scoped exact
+            val t = tokens[0]
+            return listOf("${t}*", "($t)", "(title:$t) OR (description:$t)")
+        }
 
         val phrase = '"' + tokens.joinToString(" ") + '"'
         val near = tokens.joinToString(" NEAR/3 ") { it }
@@ -180,6 +184,27 @@ class IndexStore private constructor(private val context: Context) {
                 .trim()
                 .lowercase(Locale.getDefault())
             val tokens = qnorm.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            // Single-token fallback: if FTS failed, try simple LIKE on title/description to catch cases
+            // where tokenization or spacing prevents a MATCH result (e.g., 'barber shop' vs 'barbershop').
+            if (tokens.size == 1) {
+                val t = "%${tokens[0]}%"
+                val sql = "SELECT episodeId, podcastId, title, description FROM episode_fts WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ? LIMIT ?"
+                Log.d("IndexStore", "FTS single-token fallback SQL: $sql token='${tokens[0]}'")
+                val cursor = db.rawQuery(sql, arrayOf(t, t, limit.toString()))
+                val fbResults = mutableListOf<EpisodeFts>()
+                cursor.use {
+                    while (it.moveToNext()) {
+                        val eid = it.getString(0)
+                        val pid = it.getString(1)
+                        val title = it.getString(2) ?: ""
+                        val desc = it.getString(3) ?: ""
+                        fbResults.add(EpisodeFts(eid, pid, title, desc))
+                    }
+                }
+                Log.d("IndexStore", "FTS single-token fallback returned ${fbResults.size} hits for query='$query'")
+                if (fbResults.isNotEmpty()) return fbResults
+            }
+
             if (tokens.size >= 2) {
                 val phraseParam = "%${tokens.joinToString(" ")}%"
                 // Build token AND checks for title and description

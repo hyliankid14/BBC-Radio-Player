@@ -25,6 +25,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import android.view.KeyEvent
 
 class PodcastsFragment : Fragment() {
     private lateinit var viewModel: PodcastsViewModel
@@ -158,28 +159,37 @@ class PodcastsFragment : Fragment() {
             }
         })
 
-        // Handle IME action (search) to apply filters immediately and hide keyboard
-        searchEditText.setOnEditorActionListener { v, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                imm.hideSoftInputFromWindow(v.windowToken, 0)
-                v.clearFocus()
-                // Treat IME search as committing the current query as the active search
-                if (searchQuery.isNotBlank()) {
-                    viewModel.setActiveSearch(searchQuery)
-                    try {
-                        searchHistory.add(searchQuery)
-                        historyAdapter.clear()
-                        historyAdapter.addAll(searchHistory.getRecent())
-                    } catch (e: Exception) {
-                        android.util.Log.w("PodcastsFragment", "Failed to persist search history: ${e.message}")
-                    }
+        // Handle IME action (search/enter) to apply filters immediately and hide keyboard.
+        // Some keyboards send IME_ACTION_DONE or a raw ENTER key event, so handle those too.
+        searchEditText.setOnEditorActionListener { v, actionId, event ->
+            val isSearchKey = (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH)
+                    || (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE)
+                    || (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO)
+                    || (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
+
+            if (!isSearchKey) return@setOnEditorActionListener false
+
+            // Cancel any pending debounce and apply filters immediately
+            filterDebounceJob?.cancel()
+
+            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.hideSoftInputFromWindow(v.windowToken, 0)
+            v.clearFocus()
+
+            // Commit current query as active search and add to history
+            if (searchQuery.isNotBlank()) {
+                viewModel.setActiveSearch(searchQuery)
+                try {
+                    searchHistory.add(searchQuery)
+                    historyAdapter.clear()
+                    historyAdapter.addAll(searchHistory.getRecent())
+                } catch (e: Exception) {
+                    android.util.Log.w("PodcastsFragment", "Failed to persist search history: ${e.message}")
                 }
-                applyFilters(loadingIndicator, emptyState, recyclerView)
-                true
-            } else {
-                false
             }
+
+            applyFilters(loadingIndicator, emptyState, recyclerView)
+            true
         }
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())

@@ -187,6 +187,7 @@ class EpisodeAdapter(
         private lateinit var currentEpisode: Episode
         private val titleView: TextView = itemView.findViewById(R.id.episode_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.episode_description)
+        private val podcastTitleView: TextView? = itemView.findViewById(R.id.episode_podcast)
         private val progressBar: ProgressBar = itemView.findViewById(R.id.episode_progress_bar)
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
@@ -276,6 +277,9 @@ class EpisodeAdapter(
             // Remove timestamp from date - just show date portion
             dateView.text = formatEpisodeDate(episode.pubDate)
             durationView.text = "${episode.durationMins} min"
+
+            // Hide podcast subtitle for per-podcast lists (reduces vertical gaps when absent)
+            podcastTitleView?.visibility = View.GONE
         }
 
         private fun sanitizeDescription(raw: String): String {

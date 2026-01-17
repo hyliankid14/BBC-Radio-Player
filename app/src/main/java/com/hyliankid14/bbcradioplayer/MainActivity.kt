@@ -245,8 +245,14 @@ class MainActivity : AppCompatActivity() {
     // Refresh the Saved Episodes UI card and adapter (called after import or when saved episodes change)
     private fun refreshSavedEpisodesSection() {
         try {
-            val savedEntries = SavedEpisodes.getSavedEntries(this)
             val savedContainer = findViewById<View>(R.id.saved_episodes_container)
+            if (currentMode != "favorites") {
+                // Only show saved episodes when the Favorites view is active — avoids overlap in other views
+                savedContainer.visibility = View.GONE
+                return
+            }
+
+            val savedEntries = SavedEpisodes.getSavedEntries(this)
             val savedHeader = findViewById<View>(R.id.saved_episodes_header_container)
             val savedExpandIcon = findViewById<ImageView>(R.id.saved_episodes_expand_icon)
             val savedDivider = findViewById<View>(R.id.saved_episodes_divider)
@@ -274,12 +280,12 @@ class MainActivity : AppCompatActivity() {
                         putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
                     }
                     startService(intent)
-                }, onOpenEpisode = { episode, podcastTitle ->
+                }, onOpenEpisode = { episode, podcastTitle, podcastImage ->
                     val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
                         putExtra("preview_episode", episode)
                         putExtra("preview_use_play_ui", true)
                         putExtra("preview_podcast_title", podcastTitle)
-                        putExtra("preview_podcast_image", episode.imageUrl)
+                        putExtra("preview_podcast_image", episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage)
                     }
                     startActivity(intent)
                 }, onRemoveSaved = { id ->
@@ -308,7 +314,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             } else {
-                findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                savedContainer.visibility = View.GONE
             }
         } catch (e: Exception) {
             // Swallow — UI refresh should never crash the app
@@ -440,6 +446,8 @@ class MainActivity : AppCompatActivity() {
                     favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
                 }
             }
+            // Refresh Saved Episodes UI so it appears under Subscribed Podcasts when the Favorites view opens
+            refreshSavedEpisodesSection()
 
             // Make sure the inner RecyclerView doesn't intercept header clicks by disabling nested scrolling
             favoritesPodcastsRecycler.isNestedScrollingEnabled = false

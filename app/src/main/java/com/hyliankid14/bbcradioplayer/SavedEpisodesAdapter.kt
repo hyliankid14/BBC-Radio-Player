@@ -13,7 +13,7 @@ class SavedEpisodesAdapter(
     private val context: Context,
     private var entries: List<SavedEpisodes.Entry>,
     private val onPlayEpisode: (Episode) -> Unit,
-    private val onOpenEpisode: (Episode, String) -> Unit,
+    private val onOpenEpisode: (Episode, String, String) -> Unit,
     private val onRemoveSaved: (String) -> Unit
 ) : RecyclerView.Adapter<SavedEpisodesAdapter.ViewHolder>() {
 
@@ -82,7 +82,7 @@ class SavedEpisodesAdapter(
         )
 
         holder.play?.setOnClickListener { onPlayEpisode(episode) }
-        holder.itemView.setOnClickListener { onOpenEpisode(episode, e.podcastTitle) }
+        holder.itemView.setOnClickListener { onOpenEpisode(episode, e.podcastTitle, e.imageUrl) }
         holder.itemView.setOnLongClickListener {
             // Remove saved episode on long press
             onRemoveSaved(e.id)
