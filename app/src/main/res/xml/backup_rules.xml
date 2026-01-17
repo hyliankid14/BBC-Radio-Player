@@ -5,4 +5,5 @@
     <include domain="sharedpref" path="podcast_subscriptions.xml" />
     <include domain="sharedpref" path="playback_prefs.xml" />
     <include domain="sharedpref" path="scrolling_prefs.xml" />
+    <include domain="sharedpref" path="saved_episodes_prefs.xml" />
 </full-backup-content>

@@ -398,6 +398,76 @@ class MainActivity : AppCompatActivity() {
         } else {
             favoritesPodcastsContainer.visibility = View.GONE
         }
+
+        // Load saved episodes and display underneath Subscribed Podcasts in the Favorites section
+        val savedEntries = SavedEpisodes.getSavedEntries(this)
+        val savedContainer = findViewById<View>(R.id.saved_episodes_container)
+        val savedHeader = findViewById<View>(R.id.saved_episodes_header_container)
+        val savedExpandIcon = findViewById<ImageView>(R.id.saved_episodes_expand_icon)
+        val savedDivider = findViewById<View>(R.id.saved_episodes_divider)
+        val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
+
+        if (savedEntries.isNotEmpty()) {
+            savedContainer.visibility = View.VISIBLE
+
+            // Style header
+            val onSurface = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface)
+            savedHeader.isClickable = true
+            savedHeader.isFocusable = true
+            savedExpandIcon?.setColorFilter(onSurface)
+            savedHeader.elevation = 8f
+
+            savedRecycler.layoutManager = LinearLayoutManager(this)
+            savedRecycler.isNestedScrollingEnabled = false
+            // Start collapsed
+            var savedExpanded = false
+            savedRecycler.visibility = View.GONE
+            savedDivider.visibility = View.GONE
+            savedExpandIcon.visibility = View.VISIBLE
+
+            val savedAdapter = SavedEpisodesAdapter(this, savedEntries, onPlayEpisode = { episode ->
+                val intent = android.content.Intent(this, RadioService::class.java).apply {
+                    action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                    putExtra(RadioService.EXTRA_EPISODE, episode)
+                    putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                }
+                startService(intent)
+            }, onOpenEpisode = { episode, podcastTitle ->
+                val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
+                    putExtra("preview_episode", episode)
+                    putExtra("preview_use_play_ui", true)
+                    putExtra("preview_podcast_title", podcastTitle)
+                    putExtra("preview_podcast_image", episode.imageUrl)
+                }
+                startActivity(intent)
+            }, onRemoveSaved = { id ->
+                SavedEpisodes.remove(this, id)
+                val updated = SavedEpisodes.getSavedEntries(this)
+                savedAdapter.updateEntries(updated)
+                if (updated.isEmpty()) savedContainer.visibility = View.GONE
+            })
+
+            savedRecycler.adapter = savedAdapter
+
+            savedHeader.setOnClickListener {
+                savedExpanded = !savedExpanded
+                if (savedExpanded) {
+                    savedRecycler.visibility = View.VISIBLE
+                    savedDivider.visibility = View.VISIBLE
+                    savedExpandIcon.setImageResource(R.drawable.ic_expand_less)
+                    try {
+                        val parentScroll = findViewById<androidx.core.widget.NestedScrollView>(R.id.podcasts_scroll)
+                        parentScroll?.post { parentScroll.smoothScrollTo(0, savedContainer.top) }
+                    } catch (_: Exception) {}
+                } else {
+                    savedRecycler.visibility = View.GONE
+                    savedDivider.visibility = View.GONE
+                    savedExpandIcon.setImageResource(R.drawable.ic_expand_more)
+                }
+            }
+        } else {
+            findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+        }
     }
 
     private fun showSettings() {
@@ -932,10 +1002,15 @@ class MainActivity : AppCompatActivity() {
             // Update play/pause button - always show the correct state
             miniPlayerPlayPause.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
-            // Update favorite button state - swap drawable based on favorite status
+            // Update favorite button state - for podcasts, show saved-episode state if an episode is playing; otherwise show podcast subscription
             val isPodcast = station.id.startsWith("podcast_")
             val isFavorited = if (isPodcast) {
-                PodcastSubscriptions.isSubscribed(this, station.id.removePrefix("podcast_"))
+                val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
+                if (!currentEpisodeId.isNullOrEmpty()) {
+                    SavedEpisodes.isSaved(this, currentEpisodeId)
+                } else {
+                    PodcastSubscriptions.isSubscribed(this, station.id.removePrefix("podcast_"))
+                }
             } else {
                 FavoritesPreference.isFavorite(this, station.id)
             }
@@ -1025,9 +1100,30 @@ class MainActivity : AppCompatActivity() {
         val station = PlaybackStateHelper.getCurrentStation()
         if (station != null) {
             if (station.id.startsWith("podcast_")) {
-                PodcastSubscriptions.toggleSubscription(this, station.id.removePrefix("podcast_"))
-                if (currentMode == "favorites") {
-                    showFavorites()
+                // If an episode is currently playing, save/unsave the episode. Otherwise toggle podcast subscription.
+                val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
+                if (!currentEpisodeId.isNullOrEmpty()) {
+                    val episode = com.hyliankid14.bbcradioplayer.Episode(
+                        id = currentEpisodeId,
+                        title = PlaybackStateHelper.getCurrentShow()?.episodeTitle ?: "Saved episode",
+                        description = PlaybackStateHelper.getCurrentShow()?.description ?: "",
+                        audioUrl = "",
+                        imageUrl = PlaybackStateHelper.getCurrentShow()?.imageUrl ?: "",
+                        pubDate = "",
+                        durationMins = 0,
+                        podcastId = station.id.removePrefix("podcast_")
+                    )
+                    val podcastTitle = PlaybackStateHelper.getCurrentStation()?.title ?: ""
+                    val nowSaved = SavedEpisodes.toggleSaved(this, episode, podcastTitle)
+                    if (currentMode == "favorites") showFavorites()
+                    updateMiniPlayer()
+                    val msg = if (nowSaved) "Saved episode: ${episode.title}" else "Removed saved episode: ${episode.title}"
+                    com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).setAnchorView(miniPlayer).show()
+                } else {
+                    PodcastSubscriptions.toggleSubscription(this, station.id.removePrefix("podcast_"))
+                    if (currentMode == "favorites") {
+                        showFavorites()
+                    }
                 }
             } else {
                 FavoritesPreference.toggleFavorite(this, station.id)

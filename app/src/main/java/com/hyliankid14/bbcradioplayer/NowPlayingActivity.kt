@@ -187,7 +187,7 @@ class NowPlayingActivity : AppCompatActivity() {
         PlaybackStateHelper.onShowChange(showChangeListener)
         
         // If we're opened in preview mode for an episode (no playback), show that episode's details
-        val previewEpisode: Episode? = getParcelableExtraCompat("preview_episode", Episode::class.java)
+        val previewEpisode: Episode? = intent.getParcelableExtraCompat<Episode>("preview_episode", Episode::class.java)
         if (previewEpisode != null) {
             isPreviewMode = true
             previewEpisodeProp = previewEpisode
@@ -497,12 +497,12 @@ class NowPlayingActivity : AppCompatActivity() {
         currentShownEpisodeId = episode.id
         updateMarkPlayedButtonState()
 
-        // Update favorite (subscribe) button to reflect subscription status for the previewed podcast
+        // Update favorite button to reflect saved-episode state for the previewed episode (separate from podcast subscriptions)
         try {
-            val subscribed = PodcastSubscriptions.isSubscribed(this, episode.podcastId)
-            favoriteButton.icon = ContextCompat.getDrawable(this, if (subscribed) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
+            val saved = SavedEpisodes.isSaved(this, episode.id)
+            favoriteButton.icon = ContextCompat.getDrawable(this, if (saved) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
             favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-            favoriteButton.setBackgroundColor(if (subscribed) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
+            favoriteButton.setBackgroundColor(if (saved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
         } catch (_: Exception) {}
 
         // Show scrubber controls if episode has a duration so user can see progress
@@ -816,21 +816,18 @@ class NowPlayingActivity : AppCompatActivity() {
             return
         }
 
-        // If in preview mode, operate on the preview episode's podcast id
+        // If in preview mode, operate on the preview episode: save/unsave the episode (distinct from podcast subscription)
         val preview = previewEpisodeProp
         if (preview != null) {
-            PodcastSubscriptions.toggleSubscription(this, preview.podcastId)
-            val now = PodcastSubscriptions.isSubscribed(this, preview.podcastId)
-            val podcastName = supportActionBar?.title?.toString() ?: preview.podcastId
-            val msg = if (now) "Subscribed to ${podcastName}" else "Unsubscribed from ${podcastName}"
+            val nowSaved = SavedEpisodes.toggleSaved(this, preview, supportActionBar?.title?.toString())
+            val msg = if (nowSaved) "Saved episode: ${preview.title}" else "Removed saved episode: ${preview.title}"
             com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
                 .setAnchorView(findViewById(R.id.playback_controls))
                 .show()
-            // Update icon/background to reflect change
-            val subscribed = now
-            favoriteButton.icon = ContextCompat.getDrawable(this, if (subscribed) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
+            // Update icon/background to reflect saved state
+            favoriteButton.icon = ContextCompat.getDrawable(this, if (nowSaved) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
             favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-            favoriteButton.setBackgroundColor(if (subscribed) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
+            favoriteButton.setBackgroundColor(if (nowSaved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
         }
     }
 

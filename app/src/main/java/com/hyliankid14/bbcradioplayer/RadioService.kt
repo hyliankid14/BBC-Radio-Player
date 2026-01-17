@@ -261,12 +261,19 @@ class RadioService : MediaBrowserServiceCompat() {
     private fun updatePlaybackState(state: Int) {
         val isPodcast = currentStationId.startsWith("podcast_")
         val podcastId = currentPodcastId
-        val isFavorite = if (isPodcast && podcastId != null) {
+        // For podcasts with an active episode, treat the star as saved-episode state. Otherwise treat as subscription state.
+        val currentEpisode = PlaybackStateHelper.getCurrentEpisodeId()
+        val isFavorite = if (isPodcast && !currentEpisode.isNullOrEmpty()) {
+            SavedEpisodes.isSaved(this, currentEpisode)
+        } else if (isPodcast && podcastId != null) {
             PodcastSubscriptions.isSubscribed(this, podcastId)
         } else {
             currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
         }
+
         val favoriteLabel = when {
+            isPodcast && !currentEpisode.isNullOrEmpty() && isFavorite -> "Remove saved episode"
+            isPodcast && !currentEpisode.isNullOrEmpty() -> "Save episode"
             isPodcast && isFavorite -> "Unsubscribe"
             isPodcast -> "Subscribe"
             isFavorite -> "Remove from Favorites"
@@ -463,34 +470,59 @@ class RadioService : MediaBrowserServiceCompat() {
                     result.sendResult(itemsWithShowInfo)
                 }
                 MEDIA_ID_PODCASTS -> {
-                    val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
-                    if (subscribed.isEmpty()) {
-                        result.sendResult(emptyList())
-                    } else {
-                        try {
-                            val repo = PodcastRepository(this@RadioService)
-                            val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
-                            val podcasts = all.filter { subscribed.contains(it.id) }
-                            val itemsPodcasts = podcasts.map { p ->
-                                MediaItem(
-                                    MediaDescriptionCompat.Builder()
-                                        .setMediaId("podcast_${p.id}")
-                                        .setTitle(p.title)
-                                        .setSubtitle("")
-                                        .setIconUri(android.net.Uri.parse(p.imageUrl))
-                                        .build(),
-                                    MediaItem.FLAG_BROWSABLE
-                                )
-                            }
-                            result.sendResult(itemsPodcasts)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error loading podcasts for Android Auto", e)
-                            result.sendResult(emptyList())
-                        }
-                    }
+                    // Present two folders: Subscribed Podcasts and Saved Episodes
+                    val items = mutableListOf<MediaItem>()
+                    items.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_subscribed").setTitle("Subscribed Podcasts").build(), MediaItem.FLAG_BROWSABLE))
+                    items.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_saved_episodes").setTitle("Saved Episodes").build(), MediaItem.FLAG_BROWSABLE))
+                    result.sendResult(items)
                 }
                 else -> {
-                    if (parentId.startsWith("podcast_")) {
+                    if (parentId == "podcasts_subscribed") {
+                        val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
+                        if (subscribed.isEmpty()) {
+                            result.sendResult(emptyList())
+                        } else {
+                            try {
+                                val repo = PodcastRepository(this@RadioService)
+                                val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                                val podcasts = all.filter { subscribed.contains(it.id) }
+                                val itemsPodcasts = podcasts.map { p ->
+                                    MediaItem(
+                                        MediaDescriptionCompat.Builder()
+                                            .setMediaId("podcast_${p.id}")
+                                            .setTitle(p.title)
+                                            .setSubtitle("")
+                                            .setIconUri(android.net.Uri.parse(p.imageUrl))
+                                            .build(),
+                                        MediaItem.FLAG_BROWSABLE
+                                    )
+                                }
+                                result.sendResult(itemsPodcasts)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error loading podcasts for Android Auto", e)
+                                result.sendResult(emptyList())
+                            }
+                        }
+                    } else if (parentId == "podcasts_saved_episodes") {
+                        try {
+                            val saved = SavedEpisodes.getSavedEntries(this@RadioService)
+                            val itemsSaved = saved.map { s ->
+                                MediaItem(
+                                    MediaDescriptionCompat.Builder()
+                                        .setMediaId("podcast_episode_${s.id}")
+                                        .setTitle(s.title)
+                                        .setSubtitle(s.podcastTitle)
+                                        .setIconUri(android.net.Uri.parse(s.imageUrl))
+                                        .build(),
+                                    MediaItem.FLAG_PLAYABLE
+                                )
+                            }
+                            result.sendResult(itemsSaved)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error loading saved episodes for Android Auto", e)
+                            result.sendResult(emptyList())
+                        }
+                    } else if (parentId.startsWith("podcast_")) {
                         // Support paged requests using mediaId format: podcast_<id>[:start=<n>[:count=<m>]]
                         val parts = parentId.split(':')
                         val podcastId = parts[0].removePrefix("podcast_")
@@ -1268,7 +1300,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     id?.let { playStation(it) }
                 }
                 ACTION_PLAY_PODCAST_EPISODE -> {
-                    val episode = getParcelableExtraCompat(EXTRA_EPISODE, Episode::class.java)
+                    val episode: Episode? = it.getParcelableExtraCompat<Episode>(EXTRA_EPISODE, Episode::class.java)
                     android.util.Log.d(TAG, "onStartCommand: ACTION_PLAY_PODCAST_EPISODE received, episode=$episode")
                     episode?.let { ep -> playPodcastEpisode(ep, it) }
                 }
@@ -1582,8 +1614,31 @@ class RadioService : MediaBrowserServiceCompat() {
     private fun toggleFavoriteAndNotify(stationId: String) {
         Log.d(TAG, "toggleFavoriteAndNotify - stationId: $stationId")
         if (stationId.startsWith("podcast_")) {
-            val podcastId = stationId.removePrefix("podcast_")
-            PodcastSubscriptions.toggleSubscription(this, podcastId)
+            // If an episode is playing, toggle saved-episode state. Otherwise toggle podcast subscription.
+            val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
+            if (!currentEpisodeId.isNullOrEmpty()) {
+                // Toggle saved entry using minimal current show metadata
+                val episode = com.hyliankid14.bbcradioplayer.Episode(
+                    id = currentEpisodeId,
+                    title = PlaybackStateHelper.getCurrentShow()?.episodeTitle ?: "",
+                    description = PlaybackStateHelper.getCurrentShow()?.description ?: "",
+                    audioUrl = "",
+                    imageUrl = PlaybackStateHelper.getCurrentShow()?.imageUrl ?: "",
+                    pubDate = "",
+                    durationMins = 0,
+                    podcastId = stationId.removePrefix("podcast_")
+                )
+                SavedEpisodes.toggleSaved(this, episode, PlaybackStateHelper.getCurrentStation()?.title ?: "")
+                // Saved episodes list changed — notify relevant media children and favorites UI
+                notifyChildrenChanged(MEDIA_ID_FAVORITES)
+                notifyChildrenChanged(MEDIA_ID_PODCASTS)
+                notifyChildrenChanged("podcasts_saved_episodes")
+            } else {
+                val podcastId = stationId.removePrefix("podcast_")
+                PodcastSubscriptions.toggleSubscription(this, podcastId)
+                notifyChildrenChanged(MEDIA_ID_FAVORITES)
+                notifyChildrenChanged(MEDIA_ID_PODCASTS)
+            }
         } else {
             FavoritesPreference.toggleFavorite(this, stationId)
             notifyChildrenChanged(MEDIA_ID_FAVORITES)
