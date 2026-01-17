@@ -311,6 +311,13 @@ class NowPlayingActivity : AppCompatActivity() {
         val show = PlaybackStateHelper.getCurrentShow()
         val isPodcast = station?.id?.startsWith("podcast_") == true
 
+        // Hide the open-podcast button while playing a podcast
+        if (isPodcast) {
+            matchedPodcast = null
+            findViewById<MaterialButton?>(R.id.now_playing_open_podcast)?.visibility = View.GONE
+            lastOpenPodcastStationId = null
+        }
+
         val currentStationId = station?.id
         if (lastOpenPodcastStationId != currentStationId) {
             // Station changed, clear previous match and hide button
@@ -364,6 +371,8 @@ class NowPlayingActivity : AppCompatActivity() {
                 // Radio: show name plus artist/track metadata
                 showName.visibility = android.view.View.VISIBLE
                 showName.text = show.title.ifEmpty { "BBC Radio" }
+                // Ensure the action bar shows the radio station name
+                supportActionBar?.title = station?.title ?: "BBC Radio"
                 
                 if (!show.episodeTitle.isNullOrEmpty()) {
                     episodeTitle.text = show.episodeTitle
@@ -573,6 +582,13 @@ class NowPlayingActivity : AppCompatActivity() {
         val station = PlaybackStateHelper.getCurrentStation()
         val isPodcast = station?.id?.startsWith("podcast_") == true
         
+        // Hide the open-podcast button when playback is a podcast
+        if (isPodcast) {
+            matchedPodcast = null
+            findViewById<MaterialButton?>(R.id.now_playing_open_podcast)?.visibility = View.GONE
+            lastOpenPodcastStationId = null
+        }
+        
         if (isPodcast) {
             showName.visibility = android.view.View.GONE
 
@@ -607,8 +623,8 @@ class NowPlayingActivity : AppCompatActivity() {
         } else {
             showName.visibility = android.view.View.VISIBLE
             // Update show name
-            showName.text = show.title.ifEmpty { "BBC Radio" }
-            
+            showName.text = show.title.ifEmpty { "BBC Radio" }            // Ensure the action bar shows the radio station name when not a podcast
+            supportActionBar?.title = station?.title ?: "BBC Radio"            
             // Update episode title if available
             if (!show.episodeTitle.isNullOrEmpty()) {
                 episodeTitle.text = show.episodeTitle
