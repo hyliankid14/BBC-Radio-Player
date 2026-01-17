@@ -302,10 +302,18 @@ class MainActivity : AppCompatActivity() {
 
                 savedHeader.setOnClickListener {
                     savedExpanded = !savedExpanded
+                    val defaultPadding = (8 * resources.displayMetrics.density).toInt()
                     if (savedExpanded) {
                         savedRecycler.visibility = View.VISIBLE
                         savedDivider.visibility = View.VISIBLE
                         savedExpandIcon.setImageResource(R.drawable.ic_expand_less)
+                        // Ensure list content sits below the header to avoid overlap with header's rounded corner
+                        savedRecycler.setPadding(
+                            savedRecycler.paddingLeft,
+                            savedHeader.height,
+                            savedRecycler.paddingRight,
+                            savedRecycler.paddingBottom
+                        )
                         try {
                             val parentScroll = findViewById<androidx.core.widget.NestedScrollView>(R.id.podcasts_scroll)
                             parentScroll?.post { parentScroll.smoothScrollTo(0, savedContainer.top) }
@@ -314,6 +322,13 @@ class MainActivity : AppCompatActivity() {
                         savedRecycler.visibility = View.GONE
                         savedDivider.visibility = View.GONE
                         savedExpandIcon.setImageResource(R.drawable.ic_expand_more)
+                        // Reset padding when collapsed
+                        savedRecycler.setPadding(
+                            savedRecycler.paddingLeft,
+                            defaultPadding,
+                            savedRecycler.paddingRight,
+                            savedRecycler.paddingBottom
+                        )
                     }
                 }
             } else {
@@ -446,10 +461,18 @@ class MainActivity : AppCompatActivity() {
             // Header tap toggles expand/collapse (original behaviour)
             favoritesPodcastsHeaderContainer.setOnClickListener {
                 isExpanded = !isExpanded
+                val defaultPadding = (8 * resources.displayMetrics.density).toInt()
                 if (isExpanded) {
                     favoritesPodcastsRecycler.visibility = View.VISIBLE
                     divider.visibility = View.VISIBLE
                     favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_less)
+                    // Ensure content sits below the header to avoid overlap
+                    favoritesPodcastsRecycler.setPadding(
+                        favoritesPodcastsRecycler.paddingLeft,
+                        favoritesPodcastsHeaderContainer.height,
+                        favoritesPodcastsRecycler.paddingRight,
+                        favoritesPodcastsRecycler.paddingBottom
+                    )
                     // Scroll the card into view so the header remains visible after expansion
                     try {
                         val parentScroll = findViewById<androidx.core.widget.NestedScrollView>(R.id.podcasts_scroll)
@@ -459,6 +482,13 @@ class MainActivity : AppCompatActivity() {
                     favoritesPodcastsRecycler.visibility = View.GONE
                     divider.visibility = View.GONE
                     favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
+                    // Reset to default padding to keep layout tight when collapsed
+                    favoritesPodcastsRecycler.setPadding(
+                        favoritesPodcastsRecycler.paddingLeft,
+                        defaultPadding,
+                        favoritesPodcastsRecycler.paddingRight,
+                        favoritesPodcastsRecycler.paddingBottom
+                    )
                 }
             }
             // Refresh Saved Episodes UI so it appears under Subscribed Podcasts when the Favorites view opens

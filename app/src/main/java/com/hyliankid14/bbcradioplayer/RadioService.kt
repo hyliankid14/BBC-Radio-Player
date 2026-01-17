@@ -1284,17 +1284,19 @@ class RadioService : MediaBrowserServiceCompat() {
         val displayBitmap = artworkBitmap ?: currentArtworkBitmap
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
-            // Use metadata keys that make Android Auto show podcast title as the main title and episode as subtitle
+            // Use metadata keys that make Android Auto show correct fields for podcasts and streams
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, 
                 if (currentStationId.startsWith("podcast_")) PlaybackStateHelper.getCurrentEpisodeId() ?: currentStationId else currentStationId)
-            // Title: for podcasts keep station/podcast name; for streams prefer Artist - Track if available
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, 
-                if (currentStationId.startsWith("podcast_")) currentStationTitle else (if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else currentStationTitle))
-            // Artist field: for podcasts use episode title (fallback to show title); for streams use the show/program name
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, 
-                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else currentShowName)
+            // For podcasts: title = podcast name, artist = episode title
+            // For streams: set title=track (if available) and artist=artist (if available); otherwise fall back to show/station
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE,
+                if (currentStationId.startsWith("podcast_")) currentStationTitle
+                else (currentShowInfo.tertiary ?: if (!currentShowInfo.secondary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else currentStationTitle))
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST,
+                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle)
+                else (currentShowInfo.secondary ?: currentShowName))
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
-            // Display title/subtitle control what's shown in Android Auto UI: ensure podcast->title: podcast, subtitle: episode
+            // Display title: keep podcast/station as the main top title; subtitle: for streams show Artist - Track when available
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
                 if (currentStationId.startsWith("podcast_")) currentStationTitle else currentStationTitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE,
@@ -1306,7 +1308,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     else -> currentShowTitle
                 })
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, 
-                if (currentStationId.startsWith("podcast_")) "Podcast" else "Live Stream")
+                if (currentStationId.startsWith("podcast_")) "Podcast" else currentShowName.ifEmpty { "Live Stream" })
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
@@ -1319,7 +1321,18 @@ class RadioService : MediaBrowserServiceCompat() {
             metadataBuilder.putBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART, displayBitmap)
         }
 
-        mediaSession.setMetadata(metadataBuilder.build())
+        val metadata = metadataBuilder.build()
+        mediaSession.setMetadata(metadata)
+        // Debug log: ensure artist/track fields are present when song data is available
+        try {
+            val mTitle = metadata.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE)
+            val mArtist = metadata.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST)
+            val mDisplayTitle = metadata.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE)
+            val mDisplaySubtitle = metadata.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE)
+            Log.d(TAG, "MediaMetadata updated - title=$mTitle, artist=$mArtist, displayTitle=$mDisplayTitle, displaySubtitle=$mDisplaySubtitle")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to log metadata: ${e.message}")
+        }
     }
 
     private fun stopPlayback() {
