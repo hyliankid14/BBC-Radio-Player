@@ -721,8 +721,8 @@ class MainActivity : AppCompatActivity() {
         indexNowBtn.setOnClickListener {
             try {
                 indexStatus.text = "Starting index..."
-                indexProgress.isIndeterminate = true
-                indexProgress.progress = 0
+                indexEpisodesProgress.isIndeterminate = true
+                indexEpisodesProgress.progress = 0
                 lifecycleScope.launch {
                     com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent, isEpisodePhase ->
                         runOnUiThread {
