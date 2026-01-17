@@ -38,6 +38,7 @@ import androidx.core.graphics.ColorUtils
 import android.view.WindowManager
 import android.view.GestureDetector
 import android.view.MotionEvent
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.tabs.TabLayout
 import com.hyliankid14.bbcradioplayer.PodcastSubscriptions
 
@@ -720,7 +721,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 indexStatus.text = "Starting index..."
                 indexProgress.isIndeterminate = true
-                androidx.lifecycle.lifecycleScope.launch {
+                lifecycleScope.launch {
                     com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status ->
                         runOnUiThread { indexStatus.text = status }
                     }
