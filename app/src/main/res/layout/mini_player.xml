@@ -2,14 +2,14 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/mini_player"
     android:layout_width="match_parent"
-    android:layout_height="130dp"
+    android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@color/md_theme_surfaceContainer"
     android:gravity="center_vertical"
     android:paddingStart="16dp"
     android:paddingEnd="16dp"
-    android:paddingTop="12dp"
-    android:paddingBottom="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
     android:visibility="gone"
     android:elevation="2dp">
 
@@ -78,7 +78,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             style="@style/MiniPlayerControlsLayout"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="6dp"
             android:layout_marginStart="@dimen/mini_player_controls_margin_horizontal"
             android:layout_marginEnd="@dimen/mini_player_controls_margin_horizontal">
 

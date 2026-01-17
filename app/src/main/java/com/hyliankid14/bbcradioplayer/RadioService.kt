@@ -825,7 +825,11 @@ class RadioService : MediaBrowserServiceCompat() {
                     val track = currentShowInfo.tertiary ?: ""
                     if (artist.isNotEmpty() && track.isNotEmpty()) "$artist — $track" else currentShowInfo.getFormattedTitle()
                 }
-                else -> (currentShowInfo.description ?: currentShowTitle)
+                else -> {
+                    val showName = currentShowName.ifEmpty { currentShowInfo.title ?: "" }
+                    val showTitle = currentShowTitle.ifEmpty { currentShowInfo.episodeTitle ?: "" }
+                    if (showName.isNotEmpty() && showTitle.isNotEmpty()) "$showName — $showTitle" else (currentShowInfo.description ?: currentShowTitle)
+                }
             }
             val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
@@ -965,10 +969,25 @@ class RadioService : MediaBrowserServiceCompat() {
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
 
+                    val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
+                    val notificationContentText = when {
+                        currentStationId.startsWith("podcast_") -> (currentShowInfo.episodeTitle ?: currentShowTitle)
+                        hasSongData -> {
+                            val artist = currentShowInfo.secondary ?: ""
+                            val track = currentShowInfo.tertiary ?: ""
+                            if (artist.isNotEmpty() && track.isNotEmpty()) "$artist — $track" else currentShowInfo.getFormattedTitle()
+                        }
+                        else -> {
+                            val showName = currentShowName.ifEmpty { currentShowInfo.title ?: "" }
+                            val showTitle = currentShowTitle.ifEmpty { currentShowInfo.episodeTitle ?: "" }
+                            if (showName.isNotEmpty() && showTitle.isNotEmpty()) "$showName — $showTitle" else (currentShowInfo.description ?: currentShowTitle)
+                        }
+                    }
+
                     val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
                         .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
                         // For podcasts: use episode title as content text so Android Auto gets subtitle info
-                        .setContentText(if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else currentShowTitle)
+                        .setContentText(notificationContentText)
                         .setSmallIcon(android.R.drawable.ic_media_play)
                         .setLargeIcon(bitmap)
                         .setContentIntent(pendingIntent)
