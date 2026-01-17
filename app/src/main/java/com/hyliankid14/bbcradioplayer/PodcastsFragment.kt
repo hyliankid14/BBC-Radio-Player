@@ -499,21 +499,22 @@ class PodcastsFragment : Fragment() {
 
             // Partition results immediately for name/description matches (fast, local)
             val remainingCandidates = mutableListOf<Podcast>()
-val qLower = q.lowercase(Locale.getDefault())
-        for (p in baseFiltered) {
-            val kind = repository.podcastMatchKind(p, qLower)
-            when (kind) {
-                "title" -> titleMatches.add(p)
-                "description" -> descMatches.add(p)
-                else -> remainingCandidates.add(p)
+            val qLower = q.lowercase(Locale.getDefault())
+            for (p in baseFiltered) {
+                val kind = repository.podcastMatchKind(p, qLower)
+                when (kind) {
+                    "title" -> titleMatches.add(p)
+                    "description" -> descMatches.add(p)
+                    else -> remainingCandidates.add(p)
                 }
             }
 
             // If query is short, avoid expensive episode searches. Show only title/description matches.
             if (q.length < 3) {
-                    // Cache these quick results so returning to the list is instant
-                    viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
+                // Cache these quick results so returning to the list is instant
+                viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
 
+                searchAdapter = SearchResultsAdapter(
                     requireContext(),
                     titleMatches,
                     descMatches,
@@ -538,6 +539,23 @@ val qLower = q.lowercase(Locale.getDefault())
                             putExtra("preview_podcast_image", podcast.imageUrl)
                         }
                         startActivity(intent)
+                    }
+                )
+
+                recyclerView.adapter = searchAdapter
+                if (titleMatches.isEmpty() && descMatches.isEmpty()) {
+                    emptyState.visibility = View.VISIBLE
+                    recyclerView.visibility = View.GONE
+                } else {
+                    emptyState.visibility = View.GONE
+                    recyclerView.visibility = View.VISIBLE
+                }
+
+                // Cancel any previous episode search and return early
+                searchJob?.cancel()
+                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+                return@launch
+            }
                     }
                 )
 
