@@ -486,7 +486,16 @@ val qLower = q.lowercase(Locale.getDefault())
                                     val added = matched.map { it to p }
                                     episodeMatches.addAll(added)
                                     globalMatches += added.size
-                                    recyclerView.post { (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches) }
+                                    recyclerView.post {
+                                        (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches)
+                                        if (episodeMatches.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()) {
+                                            emptyState.visibility = View.GONE
+                                            recyclerView.visibility = View.VISIBLE
+                                        } else {
+                                            emptyState.visibility = View.VISIBLE
+                                            recyclerView.visibility = View.GONE
+                                        }
+                                    }
                                     android.util.Log.d("PodcastsFragment", "FTS global matched ${added.size} episodes in podcast='${p.title}' for query='$q'")
                                 }
                             }
@@ -545,7 +554,16 @@ val qLower = q.lowercase(Locale.getDefault())
                                 episodeMatches.addAll(added)
                                 totalMatches += added.size
                                 // Update adapter's episode list incrementally
-                                recyclerView.post { (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches) }
+                                recyclerView.post {
+                                    (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches)
+                                    if (episodeMatches.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()) {
+                                        emptyState.visibility = View.GONE
+                                        recyclerView.visibility = View.VISIBLE
+                                    } else {
+                                        emptyState.visibility = View.VISIBLE
+                                        recyclerView.visibility = View.GONE
+                                    }
+                                }
                                 android.util.Log.d("PodcastsFragment", "Found ${added.size} episode matches in podcast '${p.title}' for query '$q'")
                                 if (totalMatches >= 50) break
                             }
