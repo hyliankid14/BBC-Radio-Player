@@ -446,10 +446,48 @@ val qLower = q.lowercase(Locale.getDefault())
                     val candidatesToCheck = remainingCandidates.take(candidateLimit)
                     android.util.Log.d("PodcastsFragment", "Episode search: checking ${candidatesToCheck.size} candidates (limit=$candidateLimit) for query '$q' (gen=$generation)")
 
-                    // Global FTS-based episode search disabled temporarily due to Gradle/Kapt compatibility issues.
-                    // Continue with per-podcast indexed search + on-demand fetch fallback already implemented below.
+                    // Global FTS-based episode search: use the on-disk index to quickly find matching
+                    // episodes across all podcasts, then fetch the episode objects for display.
                     try {
-                        // no-op; placeholder for future FTS fast path
+                        val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
+                        val ftsResults = try {
+                            index.searchEpisodes(q, 200)
+                        } catch (e: Exception) {
+                            android.util.Log.w("PodcastsFragment", "FTS global search failed: ${e.message}")
+                            emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
+                        }
+
+                        if (ftsResults.isNotEmpty()) {
+                            android.util.Log.d("PodcastsFragment", "FTS global returned ${ftsResults.size} hits for query '$q'")
+                            // Group FTS hits by podcastId for efficient per-podcast resolution
+                            val grouped = ftsResults.groupBy { it.podcastId }
+                            var globalMatches = 0
+                            for ((podId, eps) in grouped) {
+                                if (generation != searchGeneration) break
+                                if (globalMatches >= 50) break
+                                // Only consider candidates that are within the remainingCandidates set
+                                val p = remainingCandidates.find { it.id == podId } ?: continue
+                                val episodes = repository.fetchEpisodesIfNeeded(p)
+                                // Map FTS episode ids to actual Episode objects; limit per-podcast
+                                val matched = eps.mapNotNull { ef -> episodes.find { it.id == ef.episodeId } }.take(3)
+                                if (matched.isNotEmpty()) {
+                                    val added = matched.map { it to p }
+                                    episodeMatches.addAll(added)
+                                    globalMatches += added.size
+                                    recyclerView.post { (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches) }
+                                    android.util.Log.d("PodcastsFragment", "FTS global matched ${added.size} episodes in podcast='${p.title}' for query='$q'")
+                                }
+                            }
+
+                            // Avoid re-checking podcasts already matched by the global FTS search
+                            remainingCandidates.removeAll { pm -> episodeMatches.any { it.second.id == pm.id } }
+
+                            // If we've already reached the display limit, skip further per-podcast scanning
+                            if (episodeMatches.size >= 50) {
+                                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+                                return@launch
+                            }
+                        }
                     } catch (e: Exception) {
                         android.util.Log.w("PodcastsFragment", "FTS pre-search unavailable: ${e.message}")
                     }
