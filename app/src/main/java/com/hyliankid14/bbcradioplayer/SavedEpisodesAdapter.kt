@@ -60,7 +60,12 @@ class SavedEpisodesAdapter(
         val e = entries[position]
         holder.title.text = e.title
         holder.desc.text = sanitize(e.description)
-        holder.podcastTitle?.text = e.podcastTitle
+        if (e.podcastTitle.isNullOrBlank()) {
+            holder.podcastTitle?.visibility = View.GONE
+        } else {
+            holder.podcastTitle?.visibility = View.VISIBLE
+            holder.podcastTitle?.text = e.podcastTitle
+        }
         holder.date.text = formatDate(e.pubDate)
         holder.duration?.text = "${e.durationMins} min"
         // Note: item_episode layout doesn't include an image view by default, so we don't attempt to load it here

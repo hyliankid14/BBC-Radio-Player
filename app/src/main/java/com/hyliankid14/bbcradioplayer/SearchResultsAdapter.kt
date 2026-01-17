@@ -157,9 +157,14 @@ class SearchResultsAdapter(
             // Show podcast title as small subtitle appended to description for context
             val desc = sanitize(episode.description)
             descriptionView.text = desc
-            // Set podcast subtitle separately
+            // Set podcast subtitle separately and hide if empty
             val podcastTitleView: TextView? = itemView.findViewById(R.id.episode_podcast)
-            podcastTitleView?.text = podcast.title
+            if (podcast.title.isNullOrBlank()) {
+                podcastTitleView?.visibility = View.GONE
+            } else {
+                podcastTitleView?.visibility = View.VISIBLE
+                podcastTitleView?.text = podcast.title
+            }
             dateView.text = formatDate(episode.pubDate)
             durationView?.text = "${episode.durationMins} min"
 
