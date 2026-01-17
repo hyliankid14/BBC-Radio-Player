@@ -101,16 +101,29 @@ class PodcastRepository(private val context: Context) {
     fun searchCachedEpisodes(podcastId: String, queryLower: String, maxResults: Int = 3): List<Episode> {
         val eps = episodesCache[podcastId] ?: return emptyList()
         val idx = episodesIndex[podcastId] ?: return emptyList()
-        val results = mutableListOf<Episode>()
+        val titleMatches = mutableListOf<Episode>()
+        val descMatches = mutableListOf<Episode>()
+
         for (i in idx.indices) {
             val (titleLower, descLower) = idx[i]
-            if (containsPhraseOrAllTokens(titleLower, queryLower) || containsPhraseOrAllTokens(descLower, queryLower)) {
-                results.add(eps[i])
-                android.util.Log.d("PodcastRepository", "searchCachedEpisodes: matched podcast=$podcastId episode='${eps[i].title}' for query='$queryLower'")
-                if (results.size >= maxResults) break
+            if (containsPhraseOrAllTokens(titleLower, queryLower)) {
+                titleMatches.add(eps[i])
+                android.util.Log.d("PodcastRepository", "searchCachedEpisodes: title matched podcast=$podcastId episode='${eps[i].title}' for query='$queryLower'")
+            } else if (containsPhraseOrAllTokens(descLower, queryLower)) {
+                descMatches.add(eps[i])
+                android.util.Log.d("PodcastRepository", "searchCachedEpisodes: description matched podcast=$podcastId episode='${eps[i].title}' for query='$queryLower'")
             }
+            if (titleMatches.size >= maxResults) break
+            // continue scanning to collect description matches if needed
         }
-        return results
+
+        // Merge, preferring title matches first, then description matches up to maxResults
+        val combined = mutableListOf<Episode>()
+        combined.addAll(titleMatches)
+        if (combined.size < maxResults) {
+            combined.addAll(descMatches.take(maxResults - combined.size))
+        }
+        return combined
     }
 
     suspend fun fetchPodcasts(forceRefresh: Boolean = false): List<Podcast> = withContext(Dispatchers.IO) {

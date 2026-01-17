@@ -715,8 +715,8 @@ class MainActivity : AppCompatActivity() {
 
         // Podcast indexing controls (manual trigger + progress)
         val indexNowBtn: Button = findViewById(R.id.index_now_button)
-        val indexProgress: android.widget.ProgressBar = findViewById(R.id.index_progress)
         val indexStatus: TextView = findViewById(R.id.index_status_text)
+        val indexEpisodesProgress: android.widget.ProgressBar = findViewById(R.id.index_episodes_progress)
 
         indexNowBtn.setOnClickListener {
             try {
@@ -728,36 +728,26 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread {
                             indexStatus.text = status
 
-                            // Overall index progress bar
-                            if (percent < 0) {
-                                indexProgress.isIndeterminate = true
-                                indexProgress.visibility = android.view.View.VISIBLE
+                            // Only use the episode-specific progress bar (under the status text)
+                            if (isEpisodePhase) {
+                                indexEpisodesProgress.visibility = android.view.View.VISIBLE
+                                if (percent < 0) {
+                                    indexEpisodesProgress.isIndeterminate = true
+                                } else {
+                                    indexEpisodesProgress.isIndeterminate = false
+                                    indexEpisodesProgress.max = 100
+                                    indexEpisodesProgress.progress = percent.coerceIn(0, 100)
+                                }
                             } else {
-                                indexProgress.isIndeterminate = false
-                                indexProgress.max = 100
-                                indexProgress.progress = percent
-                                indexProgress.visibility = android.view.View.VISIBLE
-                            }
-
-                            // Episode-specific visual progress (hidden when not episode phase)
-                            val epBar = findViewById<android.widget.ProgressBar>(R.id.index_episodes_progress)
-                            if (isEpisodePhase && percent >= 0) {
-                                epBar.visibility = android.view.View.VISIBLE
-                                epBar.progress = percent.coerceIn(0, 100)
-                            } else if (isEpisodePhase && percent < 0) {
-                                epBar.visibility = android.view.View.VISIBLE
-                                epBar.isIndeterminate = true
-                            } else {
-                                epBar.visibility = android.view.View.GONE
-                                epBar.isIndeterminate = false
-                                epBar.progress = 0
+                                indexEpisodesProgress.visibility = android.view.View.GONE
+                                indexEpisodesProgress.isIndeterminate = false
+                                indexEpisodesProgress.progress = 0
                             }
                         }
                     }
-                    indexProgress.isIndeterminate = false
                     indexStatus.text = "Index finished"
                     // Ensure episode bar hidden once done
-                    findViewById<android.widget.ProgressBar>(R.id.index_episodes_progress).visibility = android.view.View.GONE
+                    indexEpisodesProgress.visibility = android.view.View.GONE
                 }
             } catch (e: Exception) {
                 indexStatus.text = "Failed to schedule indexing: ${e.message}"

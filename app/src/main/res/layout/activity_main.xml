@@ -337,22 +337,10 @@
 
                     <Button
                         android:id="@+id/index_now_button"
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:text="Index Now" />
 
-                    <ProgressBar
-                        android:id="@+id/index_progress"
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:indeterminate="false"
-                        android:max="100"
-                        android:progress="0"
-                        android:visibility="gone"
-                        android:layout_marginStart="8dp" />
                 </LinearLayout>
 
                 <TextView
@@ -361,7 +349,9 @@
                     android:layout_height="wrap_content"
                     android:text="Index status: idle"
                     android:textSize="14sp"
-                    android:layout_marginTop="8dp" />
+                    android:layout_marginTop="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
 
                 <!-- Visual progress bar for episode indexing (shows only during episode indexing) -->
                 <ProgressBar

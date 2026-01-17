@@ -37,7 +37,7 @@ object IndexWorker {
                 for ((i, p) in podcasts.withIndex()) {
                     // map podcast-fetch progress to 5..40%
                     val fetchPct = 5 + ((i + 1) * 35 / podcasts.size)
-                    onProgress("Fetching episodes for: ${p.title} (${i + 1}/${podcasts.size})", fetchPct, true)
+                    onProgress("Fetching episodes for: ${p.title}", fetchPct, true)
                     val eps = repo.fetchEpisodesIfNeeded(p)
                     allEpisodes.addAll(eps)
                     count += eps.size
@@ -48,7 +48,7 @@ object IndexWorker {
                 // Index episodes and map episode progress into 40..99%
                 store.replaceAllEpisodes(allEpisodes) { processed, total ->
                     val percent = if (total <= 0) 99 else 40 + (processed * 59 / total)
-                    onProgress("Indexing episodes: $processed/$total", percent.coerceIn(0, 99), true)
+                    onProgress("Indexing episodes", percent.coerceIn(0, 99), true)
                 }
 
                 onProgress("Index complete: ${podcasts.size} podcasts, $count episodes", 100, false)

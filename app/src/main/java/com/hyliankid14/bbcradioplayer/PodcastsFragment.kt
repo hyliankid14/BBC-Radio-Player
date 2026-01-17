@@ -35,6 +35,8 @@ class PodcastsFragment : Fragment() {
     private var currentSort: String = "Most popular"
     private var cachedUpdates: Map<String, Long> = emptyMap()
     private var searchQuery = ""
+    // Active search state: retains the most recent non-empty search until Reset is pressed
+    private var activeSearchQuery: String? = null
     // Debounce job for search input changes
     private var filterDebounceJob: kotlinx.coroutines.Job? = null
     // Job for ongoing incremental episode search; cancel when a new query arrives
@@ -76,6 +78,22 @@ class PodcastsFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 searchQuery = s?.toString() ?: ""
+                // If the user cleared the search box, clear the active persisted search and update immediately
+                if (searchQuery.isBlank()) {
+                    activeSearchQuery = null
+                    searchJob?.cancel()
+                    filterDebounceJob?.cancel()
+                    // Apply filters immediately so results disappear when the box is cleared
+                    fragmentScope.launch {
+                        if (!isAdded) return@launch
+                        applyFilters(loadingIndicator, emptyState, recyclerView)
+                    }
+                    return
+                }
+
+                // When user types a non-empty query, set it as the active search that will persist
+                activeSearchQuery = searchQuery
+
                 // Debounce the application of filters to avoid running heavy searches on every keystroke
                 filterDebounceJob?.cancel()
                 filterDebounceJob = fragmentScope.launch {
@@ -93,6 +111,8 @@ class PodcastsFragment : Fragment() {
                 val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                 imm.hideSoftInputFromWindow(v.windowToken, 0)
                 v.clearFocus()
+                // Treat IME search as committing the current query as the active search
+                if (searchQuery.isNotBlank()) activeSearchQuery = searchQuery
                 applyFilters(loadingIndicator, emptyState, recyclerView)
                 true
             } else {
@@ -127,7 +147,10 @@ class PodcastsFragment : Fragment() {
         // Duration filter removed
 
         resetButton.setOnClickListener {
+            // Clear both the typed query and the active persisted search
+            searchJob?.cancel()
             searchQuery = ""
+            activeSearchQuery = null
             searchEditText.text.clear()
             currentFilter = PodcastFilter()
             // Set exposed dropdowns back to 'All Genres' / default label
@@ -272,7 +295,9 @@ class PodcastsFragment : Fragment() {
     ) {
         // Offload the expensive filtering operation to Default dispatcher to keep UI responsive
         fragmentScope.launch {
-            val effectiveFilter = currentFilter.copy(searchQuery = searchQuery)
+            // Use activeSearchQuery when set to persist results until Reset is pressed
+            val active = activeSearchQuery ?: searchQuery
+            val effectiveFilter = currentFilter.copy(searchQuery = active)
             val filtered = withContext(Dispatchers.Default) { repository.filterPodcasts(allPodcasts, effectiveFilter) }
 
             // If there's no search query, use the normal podcast adapter with sorting & pagination
@@ -326,7 +351,7 @@ class PodcastsFragment : Fragment() {
             }
 
             // For search queries, build grouped results (Podcast Name / Description / Episode)
-            val q = searchQuery.trim()
+            val q = (activeSearchQuery ?: searchQuery).trim()
             val titleMatches = mutableListOf<Podcast>()
             val descMatches = mutableListOf<Podcast>()
             val episodeMatches = mutableListOf<Pair<Episode, Podcast>>()
@@ -468,19 +493,41 @@ val qLower = q.lowercase(Locale.getDefault())
                                 // Only consider candidates that are within the remainingCandidates set
                                 val p = remainingCandidates.find { it.id == podId } ?: continue
                                 val episodes = repository.fetchEpisodesIfNeeded(p)
-                                // Map FTS episode ids to actual Episode objects if present, otherwise construct a lightweight preview Episode
-                                val matched = eps.mapNotNull { ef ->
-                                    episodes.find { it.id == ef.episodeId } ?: com.hyliankid14.bbcradioplayer.Episode(
-                                        id = ef.episodeId,
-                                        title = ef.title,
-                                        description = ef.description,
-                                        audioUrl = "",
-                                        imageUrl = p.imageUrl,
-                                        pubDate = "",
-                                        durationMins = 0,
-                                        podcastId = p.id
-                                    )
-                                }.take(3)
+                                // Prefer title matches over description matches when mapping FTS hits
+                                val titleMatched = mutableListOf<com.hyliankid14.bbcradioplayer.Episode>()
+                                val descMatched = mutableListOf<com.hyliankid14.bbcradioplayer.Episode>()
+                                for (ef in eps) {
+                                    val found = episodes.find { it.id == ef.episodeId }
+                                    if (repository.textMatchesNormalized(ef.title, q)) {
+                                        if (found != null) titleMatched.add(found) else titleMatched.add(
+                                            com.hyliankid14.bbcradioplayer.Episode(
+                                                id = ef.episodeId,
+                                                title = ef.title,
+                                                description = ef.description,
+                                                audioUrl = "",
+                                                imageUrl = p.imageUrl,
+                                                pubDate = "",
+                                                durationMins = 0,
+                                                podcastId = p.id
+                                            )
+                                        )
+                                    } else if (repository.textMatchesNormalized(ef.description, q)) {
+                                        if (found != null) descMatched.add(found) else descMatched.add(
+                                            com.hyliankid14.bbcradioplayer.Episode(
+                                                id = ef.episodeId,
+                                                title = ef.title,
+                                                description = ef.description,
+                                                audioUrl = "",
+                                                imageUrl = p.imageUrl,
+                                                pubDate = "",
+                                                durationMins = 0,
+                                                podcastId = p.id
+                                            )
+                                        )
+                                    }
+                                }
+
+                                val matched = (titleMatched + descMatched).take(3)
 
                                 if (matched.isNotEmpty()) {
                                     val added = matched.map { it to p }

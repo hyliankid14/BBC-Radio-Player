@@ -156,15 +156,18 @@ class SearchResultsAdapter(
             titleView.text = episode.title
             // Show podcast title as small subtitle appended to description for context
             val desc = sanitize(episode.description)
-            val combined = if (desc.isNotEmpty()) "$desc\n\n${podcast.title}" else podcast.title
-            descriptionView.text = combined
+            descriptionView.text = desc
+            // Set podcast subtitle separately
+            val podcastTitleView: TextView? = itemView.findViewById(R.id.episode_podcast)
+            podcastTitleView?.text = podcast.title
             dateView.text = formatDate(episode.pubDate)
             durationView?.text = "${episode.durationMins} min"
 
             playButton?.setOnClickListener { onPlayEpisode(episode) }
 
-            // Open preview (full activity) when title or description tapped
+            // Open preview (full activity) when title, podcast, or description tapped
             titleView.setOnClickListener { onOpenEpisode(episode, podcast) }
+            podcastTitleView?.setOnClickListener { onOpenEpisode(episode, podcast) }
             descriptionView.setOnClickListener { onOpenEpisode(episode, podcast) }
         }
 
