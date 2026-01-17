@@ -15,34 +15,47 @@ import kotlinx.coroutines.withContext
 object IndexWorker {
     private const val TAG = "IndexWorker"
 
-    suspend fun reindexAll(context: Context, onProgress: (String) -> Unit = {}) {
+    suspend fun reindexAll(context: Context, onProgress: (String, Int) -> Unit = { _, _ -> }) {
         withContext(Dispatchers.IO) {
             try {
-                onProgress("Fetching podcasts...")
+                onProgress("Starting index...", -1)
+                onProgress("Fetching podcasts...", 0)
                 val repo = PodcastRepository(context)
                 val podcasts = repo.fetchPodcasts(forceRefresh = true)
-                onProgress("Indexing ${podcasts.size} podcasts...")
+                if (podcasts.isEmpty()) {
+                    onProgress("No podcasts to index", 100)
+                    return@withContext
+                }
+
+                onProgress("Indexing ${podcasts.size} podcasts...", 5)
                 val store = IndexStore.getInstance(context)
                 store.replaceAllPodcasts(podcasts)
 
                 // Fetch episodes for podcasts (best-effort); aggregate into a single list
                 val allEpisodes = mutableListOf<com.hyliankid14.bbcradioplayer.Episode>()
                 var count = 0
-                for (p in podcasts) {
-                    onProgress("Fetching episodes for: ${p.title}")
+                for ((i, p) in podcasts.withIndex()) {
+                    // map podcast-fetch progress to 5..40%
+                    val fetchPct = 5 + ((i + 1) * 35 / podcasts.size)
+                    onProgress("Fetching episodes for: ${p.title} (${i + 1}/${podcasts.size})", fetchPct)
                     val eps = repo.fetchEpisodesIfNeeded(p)
                     allEpisodes.addAll(eps)
                     count += eps.size
                 }
 
-                onProgress("Indexing $count episodes...")
-                store.replaceAllEpisodes(allEpisodes)
+                onProgress("Indexing $count episodes...", 40)
 
-                onProgress("Index complete: ${podcasts.size} podcasts, $count episodes")
+                // Index episodes and map episode progress into 40..99%
+                store.replaceAllEpisodes(allEpisodes) { processed, total ->
+                    val percent = if (total <= 0) 99 else 40 + (processed * 59 / total)
+                    onProgress("Indexing episodes: $processed/$total", percent.coerceIn(0, 99))
+                }
+
+                onProgress("Index complete: ${podcasts.size} podcasts, $count episodes", 100)
                 Log.d(TAG, "Reindex complete: podcasts=${podcasts.size}, episodes=$count")
             } catch (e: Exception) {
                 Log.e(TAG, "Reindex failed", e)
-                onProgress("Index failed: ${e.message}")
+                onProgress("Index failed: ${e.message}", -1)
             }
         }
     }

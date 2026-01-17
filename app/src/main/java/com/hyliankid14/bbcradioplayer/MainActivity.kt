@@ -722,9 +722,19 @@ class MainActivity : AppCompatActivity() {
             try {
                 indexStatus.text = "Starting index..."
                 indexProgress.isIndeterminate = true
+                indexProgress.progress = 0
                 lifecycleScope.launch {
-                    com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status ->
-                        runOnUiThread { indexStatus.text = status }
+                    com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent ->
+                        runOnUiThread {
+                            indexStatus.text = status
+                            if (percent < 0) {
+                                indexProgress.isIndeterminate = true
+                            } else {
+                                indexProgress.isIndeterminate = false
+                                indexProgress.max = 100
+                                indexProgress.progress = percent
+                            }
+                        }
                     }
                     indexProgress.isIndeterminate = false
                     indexStatus.text = "Index finished"

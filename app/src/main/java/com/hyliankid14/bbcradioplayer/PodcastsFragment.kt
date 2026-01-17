@@ -468,8 +468,20 @@ val qLower = q.lowercase(Locale.getDefault())
                                 // Only consider candidates that are within the remainingCandidates set
                                 val p = remainingCandidates.find { it.id == podId } ?: continue
                                 val episodes = repository.fetchEpisodesIfNeeded(p)
-                                // Map FTS episode ids to actual Episode objects; limit per-podcast
-                                val matched = eps.mapNotNull { ef -> episodes.find { it.id == ef.episodeId } }.take(3)
+                                // Map FTS episode ids to actual Episode objects if present, otherwise construct a lightweight preview Episode
+                                val matched = eps.mapNotNull { ef ->
+                                    episodes.find { it.id == ef.episodeId } ?: com.hyliankid14.bbcradioplayer.Episode(
+                                        id = ef.episodeId,
+                                        title = ef.title,
+                                        description = ef.description,
+                                        audioUrl = "",
+                                        imageUrl = p.imageUrl,
+                                        pubDate = "",
+                                        durationMins = 0,
+                                        podcastId = p.id
+                                    )
+                                }.take(3)
+
                                 if (matched.isNotEmpty()) {
                                     val added = matched.map { it to p }
                                     episodeMatches.addAll(added)
