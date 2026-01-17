@@ -18,17 +18,18 @@ data class CurrentShow(
 ) {
     // Format the full subtitle as "primary - secondary - tertiary"
     fun getFormattedTitle(): String {
-        // If we have an explicit episode title (podcast episode or track), prefer that as the subtitle
-        if (!episodeTitle.isNullOrEmpty()) return episodeTitle
-
-        // Otherwise prioritize "Artist - Track" if available, otherwise use Show Name
+        // Prefer artist/track (RMS) when present — this is more useful for music segments than schedule episode titles
         val parts = mutableListOf<String>()
         if (!secondary.isNullOrEmpty()) parts.add(secondary)
         if (!tertiary.isNullOrEmpty()) parts.add(tertiary)
-        
         if (parts.isNotEmpty()) {
             return parts.joinToString(" - ")
         }
+
+        // If no song data available, fall back to episode title (from ESS) if present
+        if (!episodeTitle.isNullOrEmpty()) return episodeTitle
+
+        // Otherwise use the show/brand name
         return title
     }
 }

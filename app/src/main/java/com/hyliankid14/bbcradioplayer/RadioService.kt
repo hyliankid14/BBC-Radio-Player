@@ -819,9 +819,18 @@ class RadioService : MediaBrowserServiceCompat() {
         )
 
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-            // For podcasts, prefer episode title as the notification content text so Android Auto has consistent subtitle
-            .setContentText(if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else (if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else (currentShowInfo.description ?: currentShowTitle)))
+            val notificationContentText = when {
+                currentStationId.startsWith("podcast_") -> (currentShowInfo.episodeTitle ?: currentShowTitle)
+                !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> {
+                    val artist = currentShowInfo.secondary ?: ""
+                    val track = currentShowInfo.tertiary ?: ""
+                    if (artist.isNotEmpty() && track.isNotEmpty()) "$artist — $track" else currentShowInfo.getFormattedTitle()
+                }
+                else -> (currentShowInfo.description ?: currentShowTitle)
+            }
+            val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
+                .setContentText(notificationContentText)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -1287,19 +1296,27 @@ class RadioService : MediaBrowserServiceCompat() {
 
         val displayBitmap = artworkBitmap ?: currentArtworkBitmap
 
+        val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
+        val artistStr = if (!currentShowInfo.secondary.isNullOrEmpty()) currentShowInfo.secondary!! else currentShowName
+        val trackStr = if (!currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.tertiary!! else currentShowTitle
+
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             // Use metadata keys that make Android Auto show correct fields for podcasts and streams
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, 
                 if (currentStationId.startsWith("podcast_")) PlaybackStateHelper.getCurrentEpisodeId() ?: currentStationId else currentStationId)
             // For podcasts: title = podcast name, artist = episode title
-            // For streams: set title = formatted show title (Artist - Track) to maximize compatibility with various UIs
+            // For streams: keep title as show/episode title (for display) but provide redundant fields for compatibility
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE,
                 if (currentStationId.startsWith("podcast_")) currentStationTitle
-                else (if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else currentStationTitle))
+                else (if (hasSongData) currentShowInfo.getFormattedTitle() else currentStationTitle))
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST,
                 if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle)
-                else (currentShowInfo.secondary ?: currentShowName))
+                else (if (hasSongData) artistStr else currentShowName))
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
+            // Redundant artist fields for head-units that read alternate keys
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistStr)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistStr)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistStr)
             // Display title: keep podcast/station as the main top title; subtitle: for streams show Artist - Track when available
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
                 if (currentStationId.startsWith("podcast_")) currentStationTitle else currentStationTitle)
@@ -1307,12 +1324,12 @@ class RadioService : MediaBrowserServiceCompat() {
                 if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title)
                 else when {
                     // If RMS provides artist/track, show Artist - Track as the subtitle
-                    !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> currentShowInfo.getFormattedTitle()
+                    hasSongData -> currentShowInfo.getFormattedTitle()
                     currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
                     else -> currentShowTitle
                 })
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, 
-                if (currentStationId.startsWith("podcast_")) "Podcast" else currentShowName.ifEmpty { "Live Stream" })
+                if (currentStationId.startsWith("podcast_")) "Podcast" else if (hasSongData) trackStr else currentShowName.ifEmpty { "Live Stream" })
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
