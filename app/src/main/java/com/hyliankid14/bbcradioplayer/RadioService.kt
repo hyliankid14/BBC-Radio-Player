@@ -1210,7 +1210,11 @@ class RadioService : MediaBrowserServiceCompat() {
                 
                 PlaybackStateHelper.setCurrentShow(finalShow)
                 Log.d(TAG, "Set currentShowName to: $currentShowName, currentShowTitle to: $currentShowTitle, episodeTitle: $currentEpisodeTitle, imageUrl: ${finalShow.imageUrl}")
-                
+
+                // Debug: log whether RMS provided song data
+                val hasSongData = !finalShow.secondary.isNullOrEmpty() || !finalShow.tertiary.isNullOrEmpty()
+                Log.d(TAG, "Song data present=${'$'}hasSongData (artist=${finalShow.secondary}, track=${finalShow.tertiary})")
+
                 // Switch to main thread to update UI
                 handler.post {
                     Log.d(TAG, "Updating UI with show title: $currentShowTitle")
@@ -1288,10 +1292,10 @@ class RadioService : MediaBrowserServiceCompat() {
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, 
                 if (currentStationId.startsWith("podcast_")) PlaybackStateHelper.getCurrentEpisodeId() ?: currentStationId else currentStationId)
             // For podcasts: title = podcast name, artist = episode title
-            // For streams: set title=track (if available) and artist=artist (if available); otherwise fall back to show/station
+            // For streams: set title = formatted show title (Artist - Track) to maximize compatibility with various UIs
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE,
                 if (currentStationId.startsWith("podcast_")) currentStationTitle
-                else (currentShowInfo.tertiary ?: if (!currentShowInfo.secondary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else currentStationTitle))
+                else (if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else currentStationTitle))
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST,
                 if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle)
                 else (currentShowInfo.secondary ?: currentShowName))
