@@ -12,7 +12,7 @@ import androidx.core.text.HtmlCompat
 class SavedEpisodesAdapter(
     private val context: Context,
     private var entries: List<SavedEpisodes.Entry>,
-    private val onPlayEpisode: (Episode) -> Unit,
+    private val onPlayEpisode: (Episode, String, String) -> Unit,
     private val onOpenEpisode: (Episode, String, String) -> Unit,
     private val onRemoveSaved: (String) -> Unit
 ) : RecyclerView.Adapter<SavedEpisodesAdapter.ViewHolder>() {
@@ -81,7 +81,7 @@ class SavedEpisodesAdapter(
             podcastId = e.podcastId
         )
 
-        holder.play?.setOnClickListener { onPlayEpisode(episode) }
+        holder.play?.setOnClickListener { onPlayEpisode(episode, e.podcastTitle, e.imageUrl) }
         holder.itemView.setOnClickListener { onOpenEpisode(episode, e.podcastTitle, e.imageUrl) }
         holder.itemView.setOnLongClickListener {
             // Remove saved episode on long press

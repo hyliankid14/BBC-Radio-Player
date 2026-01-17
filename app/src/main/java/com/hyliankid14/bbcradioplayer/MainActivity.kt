@@ -273,11 +273,14 @@ class MainActivity : AppCompatActivity() {
                 savedDivider.visibility = View.GONE
                 savedExpandIcon.visibility = View.VISIBLE
 
-                val savedAdapter = SavedEpisodesAdapter(this, savedEntries, onPlayEpisode = { episode ->
+                val savedAdapter = SavedEpisodesAdapter(this, savedEntries, onPlayEpisode = { episode, podcastTitle, podcastImage ->
                     val intent = android.content.Intent(this, RadioService::class.java).apply {
                         action = RadioService.ACTION_PLAY_PODCAST_EPISODE
                         putExtra(RadioService.EXTRA_EPISODE, episode)
                         putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                        // Provide title and image so the service and mini-player can show correct info immediately
+                        putExtra(RadioService.EXTRA_PODCAST_TITLE, podcastTitle)
+                        putExtra(RadioService.EXTRA_PODCAST_IMAGE, episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage)
                     }
                     startService(intent)
                 }, onOpenEpisode = { episode, podcastTitle, podcastImage ->
@@ -373,6 +376,16 @@ class MainActivity : AppCompatActivity() {
         parent?.let {
             it.removeView(favoritesPodcastsContainer)
             it.addView(favoritesPodcastsContainer, 0)
+
+            // Ensure the saved-episodes card is immediately after the subscribed podcasts card
+            try {
+                val savedContainer = findViewById<View>(R.id.saved_episodes_container)
+                if (savedContainer != null) {
+                    // Remove and re-insert at index 1 (after the favorites card we just moved)
+                    it.removeView(savedContainer)
+                    it.addView(savedContainer, 1)
+                }
+            } catch (_: Exception) { /* no-op */ }
         }
         
         val stations = FavoritesPreference.getFavorites(this).toMutableList()
