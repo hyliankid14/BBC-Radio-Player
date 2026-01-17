@@ -308,18 +308,47 @@ class PodcastRepository(private val context: Context) {
         indexPodcasts(baseFiltered)
         val qLower = q.lowercase(Locale.getDefault())
 
-        // FTS indexing/search currently disabled in this build (Room/KAPT compatibility issue).
-        // Fallback in-memory search below will be used instead.
-        // When the toolchain is repaired we'll re-enable the AppDatabase/FTS path for deep global searches.
-        // (No-op placeholder to keep intent clear.)
-
-        // Prioritise podcasts whose TITLE matches the query, then podcast DESCRIPTION,
-        // then EPISODE titles, then EPISODE descriptions.
+        // Attempt to use the on-disk FTS index (SQLite FTS4) if available. This provides
+        // fast, global searching across podcast titles/descriptions and episode text.
         val titleMatches = mutableListOf<Podcast>()
         val descMatches = mutableListOf<Podcast>()
         val epTitleMatches = mutableListOf<Podcast>()
         val epDescMatches = mutableListOf<Podcast>()
 
+        try {
+            val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(context)
+
+            val pMatches = index.searchPodcasts(q, 50)
+            val pTitleIds = pMatches.filter { textMatchesNormalized(it.title, q) }.map { it.podcastId }.toSet()
+            val pDescIds = pMatches.filter { !textMatchesNormalized(it.title, q) && textMatchesNormalized(it.description, q) }.map { it.podcastId }.toSet()
+
+            val eMatches = index.searchEpisodes(q, 200)
+            val eTitleIds = eMatches.filter { textMatchesNormalized(it.title, q) }.map { it.podcastId }.toSet()
+            val eDescIds = eMatches.filter { !textMatchesNormalized(it.title, q) && textMatchesNormalized(it.description, q) }.map { it.podcastId }.toSet()
+
+            val seen = mutableSetOf<String>()
+            for (p in baseFiltered) {
+                when (p.id) {
+                    in pTitleIds -> { titleMatches.add(p); seen.add(p.id) }
+                    in pDescIds -> { descMatches.add(p); seen.add(p.id) }
+                }
+            }
+            for (p in baseFiltered) {
+                if (p.id in seen) continue
+                if (p.id in eTitleIds) { epTitleMatches.add(p); seen.add(p.id) }
+            }
+            for (p in baseFiltered) {
+                if (p.id in seen) continue
+                if (p.id in eDescIds) { epDescMatches.add(p); seen.add(p.id) }
+            }
+
+            return titleMatches + descMatches + epTitleMatches + epDescMatches
+        } catch (e: Exception) {
+            // Fall back to previous in-memory checks if the index is unavailable or fails
+            android.util.Log.w("PodcastRepository", "Index lookup failed, falling back to in-memory: ${e.message}")
+        }
+
+        // Original in-memory fallback (unchanged behavior)
         for (p in baseFiltered) {
             if (podcastMatches(p, qLower)) {
                 // determine whether it matched title or description first

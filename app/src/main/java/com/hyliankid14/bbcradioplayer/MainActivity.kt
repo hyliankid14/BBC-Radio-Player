@@ -718,15 +718,23 @@ class MainActivity : AppCompatActivity() {
 
         indexNowBtn.setOnClickListener {
             try {
-                indexStatus.text = "Indexing currently unavailable"
-                android.util.Log.w("MainActivity", "Manual indexing disabled due to Gradle/Kapt compatibility; FTS path will be re-enabled once resolved.")
+                indexStatus.text = "Starting index..."
+                indexProgress.isIndeterminate = true
+                androidx.lifecycle.lifecycleScope.launch {
+                    com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status ->
+                        runOnUiThread { indexStatus.text = status }
+                    }
+                    indexProgress.isIndeterminate = false
+                    indexStatus.text = "Index finished"
+                }
             } catch (e: Exception) {
                 indexStatus.text = "Failed to schedule indexing: ${e.message}"
+                android.util.Log.w("MainActivity", "Failed to start indexing: ${e.message}")
             }
         }
 
-        // Periodic indexing disabled due to Gradle/Kapt compatibility; will re-enable when toolchain is fixed.
-        android.util.Log.w("MainActivity", "Periodic indexing disabled due to Gradle/Kapt compatibility; FTS path will be re-enabled once resolved.")
+        // Periodic background indexing may be scheduled by the app in future; manual trigger available above.
+        android.util.Log.d("MainActivity", "Indexing controls wired up")
     }
 
     private fun playStation(id: String) {
