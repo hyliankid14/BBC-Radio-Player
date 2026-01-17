@@ -77,28 +77,24 @@ class NowPlayingActivity : AppCompatActivity() {
                     show.episodeTitle?.takeIf { it.isNotEmpty() },
                     station.title?.takeIf { it.isNotEmpty() }
                 )
-                // Prefer exact title match first
+                // Only accept exact title match (case-insensitive). Do NOT fall back to approximate matching here.
                 var found: Podcast? = null
                 for (q in queries) {
                     found = podcasts.find { it.title.equals(q, ignoreCase = true) }
                     if (found != null) break
                 }
-                // Fall back to approximate match using repository method
-                if (found == null) {
-                    for (q in queries) {
-                        val qLower = q.lowercase(Locale.getDefault())
-                        found = podcasts.find { repo.podcastMatches(it, qLower) }
-                        if (found != null) break
-                    }
-                }
 
                 // Ensure the result is still relevant for the current generation and station
-                if (found != null && generation == openPodcastGeneration) {
+                if (generation == openPodcastGeneration) {
                     val currentStationId = PlaybackStateHelper.getCurrentStation()?.id
-                    if (currentStationId == station.id && !station.id.startsWith("podcast_")) {
+                    if (found != null && currentStationId == station.id && !station.id.startsWith("podcast_")) {
                         matchedPodcast = found
                         lastOpenPodcastStationId = station.id
                         findViewById<MaterialButton>(R.id.now_playing_open_podcast).visibility = View.VISIBLE
+                    } else {
+                        // No exact match — ensure button is hidden and any previous match cleared
+                        matchedPodcast = null
+                        findViewById<MaterialButton>(R.id.now_playing_open_podcast).visibility = View.GONE
                     }
                 }
             } catch (e: Exception) {

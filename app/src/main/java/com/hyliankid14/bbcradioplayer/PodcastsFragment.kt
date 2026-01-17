@@ -245,8 +245,9 @@ class PodcastsFragment : Fragment() {
                 // (prefetching all podcasts was too expensive and caused slowdown).
                 fragmentScope.launch {
                     try {
-                        withContext(Dispatchers.IO) { repository.prefetchEpisodesForPodcasts(allPodcasts.take(10), limit = 10) }
-                        android.util.Log.d("PodcastsFragment", "Prefetched episode metadata for top ${Math.min(10, allPodcasts.size)} podcasts")
+                        val prefetchCount = Math.min(20, allPodcasts.size)
+                        withContext(Dispatchers.IO) { repository.prefetchEpisodesForPodcasts(allPodcasts.take(prefetchCount), limit = prefetchCount) }
+                        android.util.Log.d("PodcastsFragment", "Prefetched episode metadata for top $prefetchCount podcasts")
                     } catch (e: Exception) {
                         android.util.Log.w("PodcastsFragment", "Episode prefetch failed: ${e.message}")
                     }
@@ -439,8 +440,9 @@ val qLower = q.lowercase(Locale.getDefault())
             searchJob = fragmentScope.launch {
                 try {
                     // Limit number of podcasts we fetch episodes for to avoid overloading network
-                    val candidatesToCheck = remainingCandidates.take(30)
-                    android.util.Log.d("PodcastsFragment", "Episode search: checking ${candidatesToCheck.size} candidates for query '$q' (gen=$generation)")
+                    val candidateLimit = if (q.trim().contains(" ")) 100 else 30
+                    val candidatesToCheck = remainingCandidates.take(candidateLimit)
+                    android.util.Log.d("PodcastsFragment", "Episode search: checking ${candidatesToCheck.size} candidates (limit=$candidateLimit) for query '$q' (gen=$generation)")
 
                     // Check in small parallel chunks (bounded concurrency) to reduce wall-clock time
                     val chunkSize = 4
@@ -457,7 +459,20 @@ val qLower = q.lowercase(Locale.getDefault())
                                 // Otherwise fetch episodes (repository will index them) then search using the same indexed helper
                                 val eps = repository.fetchEpisodesIfNeeded(p)
                                 val postHits = repository.searchCachedEpisodes(p.id, qLower, 3)
-                                p to postHits
+                                if (postHits.isNotEmpty()) return@async p to postHits
+
+                                // As a last resort, attempt a looser token-AND search on the raw episode strings
+                                val tokens = qLower.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                                if (tokens.isNotEmpty() && eps.isNotEmpty()) {
+                                    val hits = eps.filter { ep ->
+                                        val t = ep.title.lowercase(Locale.getDefault())
+                                        val d = (ep.description ?: "").lowercase(Locale.getDefault())
+                                        tokens.all { tok -> t.contains(tok) || d.contains(tok) }
+                                    }.take(3)
+                                    return@async p to hits
+                                }
+
+                                p to emptyList<Episode>()
                             }
                         }
                         val results = deferreds.awaitAll()
