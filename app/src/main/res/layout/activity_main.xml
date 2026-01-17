@@ -264,7 +264,7 @@
                     android:layout_height="wrap_content"
                     android:text="Index status: idle"
                     android:textSize="14sp"
-                    android:layout_marginTop="8dp" />                </LinearLayout>
+                    android:layout_marginTop="8dp" />
 
                 <RadioGroup
                     android:id="@+id/quality_radio_group"
