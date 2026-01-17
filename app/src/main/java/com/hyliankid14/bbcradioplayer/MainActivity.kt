@@ -443,7 +443,8 @@ class MainActivity : AppCompatActivity() {
             }, onRemoveSaved = { id ->
                 SavedEpisodes.remove(this, id)
                 val updated = SavedEpisodes.getSavedEntries(this)
-                savedAdapter.updateEntries(updated)
+                // Update via recycler's adapter reference to avoid capturing the uninitialized local variable
+                savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
                 if (updated.isEmpty()) savedContainer.visibility = View.GONE
             })
 

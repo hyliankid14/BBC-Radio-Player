@@ -24,7 +24,6 @@ class SavedEpisodesAdapter(
         val date: TextView = view.findViewById(R.id.episode_date)
         val duration: TextView? = view.findViewById(R.id.episode_duration)
         val play: View? = view.findViewById(R.id.episode_play_icon)
-        val image: ImageView? = view.findViewById(R.id.episode_image)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -39,10 +38,7 @@ class SavedEpisodesAdapter(
         holder.podcastTitle?.text = e.podcastTitle
         holder.date.text = e.pubDate
         holder.duration?.text = "${e.durationMins} min"
-        // episode image may be in imageUrl; item_episode may not expose image view - ignore if null
-        holder.image?.let { iv ->
-            if (e.imageUrl.isNotEmpty()) Glide.with(context).load(e.imageUrl).into(iv) else iv.setImageResource(R.drawable.ic_podcast_placeholder)
-        }
+        // Note: item_episode layout doesn't include an image view by default, so we don't attempt to load it here
 
         val episode = Episode(
             id = e.id,
