@@ -725,15 +725,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Also ensure periodic daily indexing job is scheduled (keeps index fresh)
-        try {
-            val periodic = androidx.work.PeriodicWorkRequestBuilder<com.hyliankid14.bbcradioplayer.workers.IndexWorker>(1, java.util.concurrent.TimeUnit.DAYS)
-                .addTag("podcast_index_daily")
-                .build()
-            androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork("podcast_index_daily", androidx.work.ExistingPeriodicWorkPolicy.KEEP, periodic)
-        } catch (e: Exception) {
-            android.util.Log.w("MainActivity", "Failed to schedule periodic indexing: ${e.message}")
-        }
+        // Periodic indexing disabled due to Gradle/Kapt compatibility; will re-enable when toolchain is fixed.
+        android.util.Log.w("MainActivity", "Periodic indexing disabled due to Gradle/Kapt compatibility; FTS path will be re-enabled once resolved.")
     }
 
     private fun playStation(id: String) {

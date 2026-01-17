@@ -308,70 +308,10 @@ class PodcastRepository(private val context: Context) {
         indexPodcasts(baseFiltered)
         val qLower = q.lowercase(Locale.getDefault())
 
-        // Try FTS-first: if we have an indexed DB, use it to do the heavy lifting across all podcasts/episodes
-        try {
-            val db = com.hyliankid14.bbcradioplayer.db.AppDatabase.getInstance(context)
-            val normQ = com.hyliankid14.bbcradioplayer.util.TextNormalizer.normalize(q)
-            // Phrase match (quoted) has higher priority
-            val phraseQuery = if (q.trim().contains(" ")) "\"$normQ\"" else normQ
-
-            // Search podcasts by phrase first, then token-AND fallback
-            val podcastHits = withContext(Dispatchers.IO) { db.ftsDao().searchPodcasts(phraseQuery, 200) }
-            val podcastResults = if (podcastHits.isEmpty() && q.trim().contains(" ")) {
-                val tokens = normQ.split(Regex("\\s+")).filter { it.isNotEmpty() }
-                val tokenQuery = tokens.joinToString(" AND ")
-                withContext(Dispatchers.IO) { db.ftsDao().searchPodcasts(tokenQuery, 200) }
-            } else podcastHits
-
-            val titleMatches = mutableListOf<Podcast>()
-            val descMatches = mutableListOf<Podcast>()
-
-            for (ph in podcastResults) {
-                // Only include podcasts that pass base filters (genres/duration)
-                val p = baseFiltered.find { it.id == ph.podcastId } ?: continue
-                // Decide whether hit looks like title or description by checking normalized fields
-                val titleNorm = ph.title
-                val descNorm = ph.description
-                if (titleNorm.contains(normQ) || (q.trim().contains(" ") && titleNorm.contains(normQ))) titleMatches.add(p)
-                else descMatches.add(p)
-            }
-
-            // Search episodes via FTS
-            val episodeHits = withContext(Dispatchers.IO) { db.ftsDao().searchEpisodes(phraseQuery, 500) }
-            val episodeResults = if (episodeHits.isEmpty() && q.trim().contains(" ")) {
-                val tokens = normQ.split(Regex("\\s+")).filter { it.isNotEmpty() }
-                val tokenQuery = tokens.joinToString(" AND ")
-                withContext(Dispatchers.IO) { db.ftsDao().searchEpisodes(tokenQuery, 500) }
-            } else episodeHits
-
-            val epTitleMatches = mutableListOf<Podcast>()
-            val epDescMatches = mutableListOf<Podcast>()
-
-            // Map episode hits to full Episode objects and filter by baseFiltered set
-            val seenPodcastIds = mutableSetOf<String>()
-            for (eh in episodeResults) {
-                if (seenPodcastIds.size > 200) break // limit to avoid exploding results
-                val p = baseFiltered.find { it.id == eh.podcastId } ?: continue
-                // Try to get Episode object from cache or fetch
-                val eps = episodesCache[p.id] ?: try { fetchEpisodesIfNeeded(p) } catch (_: Exception) { emptyList() }
-                val matchedEpisodes = eps.filter { e ->
-                    val t = TextNormalizer.normalize(e.title)
-                    val d = TextNormalizer.normalize(e.description ?: "")
-                    containsPhraseOrAllTokens(t, normQ) || containsPhraseOrAllTokens(d, normQ)
-                }
-                if (matchedEpisodes.isNotEmpty()) {
-                    // Put podcast into epTitleMatches or epDescMatches based on where the first match is
-                    val first = matchedEpisodes.first()
-                    if (containsPhraseOrAllTokens(TextNormalizer.normalize(first.title), normQ)) epTitleMatches.add(p) else epDescMatches.add(p)
-                    seenPodcastIds.add(p.id)
-                }
-            }
-
-            return titleMatches + descMatches + epTitleMatches + epDescMatches
-        } catch (e: Exception) {
-            // If FTS fails for any reason, gracefully fallback to previous in-memory checks
-            android.util.Log.w("PodcastRepository", "FTS search failed, falling back: ${e.message}")
-        }
+        // FTS indexing/search currently disabled in this build (Room/KAPT compatibility issue).
+        // Fallback in-memory search below will be used instead.
+        // When the toolchain is repaired we'll re-enable the AppDatabase/FTS path for deep global searches.
+        // (No-op placeholder to keep intent clear.)
 
         // Prioritise podcasts whose TITLE matches the query, then podcast DESCRIPTION,
         // then EPISODE titles, then EPISODE descriptions.

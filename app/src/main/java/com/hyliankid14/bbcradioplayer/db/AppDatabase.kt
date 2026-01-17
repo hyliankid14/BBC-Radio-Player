@@ -1,13 +1,21 @@
 package com.hyliankid14.bbcradioplayer.db
 
 import android.content.Context
-import androidx.room.Database
-import androidx.room.Room
-import androidx.room.RoomDatabase
 
-@Database(entities = [PodcastFts::class, EpisodeFts::class], version = 1, exportSchema = false)
-abstract class AppDatabase : RoomDatabase() {
-    abstract fun ftsDao(): FtsDao
+/**
+ * Stubbed AppDatabase while Room is disabled in build. Provides a lightweight getInstance() so
+ * code referencing this class compiles; the returned instance's ftsDao() will throw if used.
+ */
+class AppDatabase private constructor() {
+    fun ftsDao(): FtsDao = object : FtsDao {
+        override suspend fun searchPodcasts(match: String, limit: Int): List<PodcastFts> = emptyList()
+        override suspend fun insertPodcasts(entries: List<PodcastFts>) {}
+        override suspend fun clearPodcasts() {}
+        override suspend fun searchEpisodes(match: String, limit: Int): List<EpisodeFts> = emptyList()
+        override suspend fun insertEpisodes(entries: List<EpisodeFts>) {}
+        override suspend fun deleteEpisodesForPodcast(podcastId: String) {}
+        override suspend fun clearEpisodes() {}
+    }
 
     companion object {
         @Volatile
@@ -15,11 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "bbcradioplayer_db"
-                ).build()
+                val instance = AppDatabase()
                 INSTANCE = instance
                 instance
             }

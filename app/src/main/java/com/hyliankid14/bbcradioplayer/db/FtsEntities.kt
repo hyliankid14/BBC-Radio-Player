@@ -1,22 +1,15 @@
 package com.hyliankid14.bbcradioplayer.db
 
-import androidx.room.Entity
-import androidx.room.Fts4
-
 /**
- * FTS entities for fast phrase and token searches.
- * We normalize text on insertion so that searches are robust to punctuation/diacritics.
+ * Stub FTS entity classes (annotations removed while Room is disabled in build).
+ * When Room is re-enabled we'll restore FTS4 annotations.
  */
-@Fts4
-@Entity(tableName = "podcast_fts")
 data class PodcastFts(
     val podcastId: String,
     val title: String,
     val description: String
 )
 
-@Fts4
-@Entity(tableName = "episode_fts")
 data class EpisodeFts(
     val episodeId: String,
     val podcastId: String,
