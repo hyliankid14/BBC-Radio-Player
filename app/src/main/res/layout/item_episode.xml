@@ -97,12 +97,20 @@
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp" />
 
+    <!-- Barrier ensures the date/duration row sits below either the progress bar (when visible) or the text container -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/episode_bottom_barrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="episode_progress_bar,episode_text_container" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/episode_progress_bar"
+        app:layout_constraintTop_toBottomOf="@id/episode_bottom_barrier"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@id/episode_play_icon"
         android:layout_marginStart="12dp"
