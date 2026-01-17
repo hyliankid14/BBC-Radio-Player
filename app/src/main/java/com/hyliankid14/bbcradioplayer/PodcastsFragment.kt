@@ -556,23 +556,6 @@ class PodcastsFragment : Fragment() {
                 view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
                 return@launch
             }
-                    }
-                )
-
-                recyclerView.adapter = searchAdapter
-                if (titleMatches.isEmpty() && descMatches.isEmpty()) {
-                    emptyState.visibility = View.VISIBLE
-                    recyclerView.visibility = View.GONE
-                } else {
-                    emptyState.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                }
-
-                // Cancel any previous episode search and return early
-                searchJob?.cancel()
-                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
-                return@launch
-            }
 
             // At this point query is >= 3 chars; build initial adapter with no episodes, and then search episodes
             searchAdapter = SearchResultsAdapter(
