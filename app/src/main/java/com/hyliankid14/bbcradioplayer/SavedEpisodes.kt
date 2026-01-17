@@ -18,6 +18,7 @@ object SavedEpisodes {
         val title: String,
         val description: String,
         val imageUrl: String,
+        val audioUrl: String,
         val pubDate: String,
         val durationMins: Int,
         val podcastId: String,
@@ -36,6 +37,7 @@ object SavedEpisodes {
                     title = j.optString("title", ""),
                     description = j.optString("description", ""),
                     imageUrl = j.optString("imageUrl", ""),
+                    audioUrl = j.optString("audioUrl", ""),
                     pubDate = j.optString("pubDate", ""),
                     durationMins = j.optInt("durationMins", 0),
                     podcastId = j.optString("podcastId", ""),
@@ -65,8 +67,7 @@ object SavedEpisodes {
             j.put("id", episode.id)
             j.put("title", episode.title ?: "")
             j.put("description", episode.description ?: "")
-            j.put("imageUrl", episode.imageUrl ?: "")
-            j.put("pubDate", episode.pubDate ?: "")
+            j.put("imageUrl", episode.imageUrl ?: "")            j.put("audioUrl", episode.audioUrl ?: "")            j.put("pubDate", episode.pubDate ?: "")
             j.put("durationMins", episode.durationMins)
             j.put("podcastId", episode.podcastId)
             j.put("podcastTitle", podcastTitle ?: "")

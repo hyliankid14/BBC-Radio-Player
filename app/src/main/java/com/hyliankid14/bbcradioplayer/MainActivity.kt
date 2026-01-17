@@ -152,6 +152,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, if (success) "Import successful" else "Import failed", Toast.LENGTH_LONG).show()
                         ThemeManager.applyTheme(ThemePreference.getTheme(this))
                         refreshCurrentView()
+                        refreshSavedEpisodesSection()
                         updateMiniPlayer()
                     }
                 }.start()
@@ -238,6 +239,80 @@ class MainActivity : AppCompatActivity() {
                 // Recreate favorites view to clear its cache
                 showFavorites()
             }
+        }
+    }
+
+    // Refresh the Saved Episodes UI card and adapter (called after import or when saved episodes change)
+    private fun refreshSavedEpisodesSection() {
+        try {
+            val savedEntries = SavedEpisodes.getSavedEntries(this)
+            val savedContainer = findViewById<View>(R.id.saved_episodes_container)
+            val savedHeader = findViewById<View>(R.id.saved_episodes_header_container)
+            val savedExpandIcon = findViewById<ImageView>(R.id.saved_episodes_expand_icon)
+            val savedDivider = findViewById<View>(R.id.saved_episodes_divider)
+            val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
+
+            if (savedEntries.isNotEmpty()) {
+                savedContainer.visibility = View.VISIBLE
+                val onSurface = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface)
+                savedHeader.isClickable = true
+                savedHeader.isFocusable = true
+                savedExpandIcon?.setColorFilter(onSurface)
+                savedHeader.elevation = 8f
+
+                savedRecycler.layoutManager = LinearLayoutManager(this)
+                savedRecycler.isNestedScrollingEnabled = false
+                var savedExpanded = false
+                savedRecycler.visibility = View.GONE
+                savedDivider.visibility = View.GONE
+                savedExpandIcon.visibility = View.VISIBLE
+
+                val savedAdapter = SavedEpisodesAdapter(this, savedEntries, onPlayEpisode = { episode ->
+                    val intent = android.content.Intent(this, RadioService::class.java).apply {
+                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                        putExtra(RadioService.EXTRA_EPISODE, episode)
+                        putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                    }
+                    startService(intent)
+                }, onOpenEpisode = { episode, podcastTitle ->
+                    val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
+                        putExtra("preview_episode", episode)
+                        putExtra("preview_use_play_ui", true)
+                        putExtra("preview_podcast_title", podcastTitle)
+                        putExtra("preview_podcast_image", episode.imageUrl)
+                    }
+                    startActivity(intent)
+                }, onRemoveSaved = { id ->
+                    SavedEpisodes.remove(this, id)
+                    val updated = SavedEpisodes.getSavedEntries(this)
+                    savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
+                    if (updated.isEmpty()) savedContainer.visibility = View.GONE
+                })
+
+                savedRecycler.adapter = savedAdapter
+
+                savedHeader.setOnClickListener {
+                    savedExpanded = !savedExpanded
+                    if (savedExpanded) {
+                        savedRecycler.visibility = View.VISIBLE
+                        savedDivider.visibility = View.VISIBLE
+                        savedExpandIcon.setImageResource(R.drawable.ic_expand_less)
+                        try {
+                            val parentScroll = findViewById<androidx.core.widget.NestedScrollView>(R.id.podcasts_scroll)
+                            parentScroll?.post { parentScroll.smoothScrollTo(0, savedContainer.top) }
+                        } catch (_: Exception) {}
+                    } else {
+                        savedRecycler.visibility = View.GONE
+                        savedDivider.visibility = View.GONE
+                        savedExpandIcon.setImageResource(R.drawable.ic_expand_more)
+                    }
+                }
+            } else {
+                findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+            }
+        } catch (e: Exception) {
+            // Swallow — UI refresh should never crash the app
+            android.util.Log.w("MainActivity", "refreshSavedEpisodesSection failed: ${e.message}")
         }
     }
 
@@ -400,75 +475,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Load saved episodes and display underneath Subscribed Podcasts in the Favorites section
-        val savedEntries = SavedEpisodes.getSavedEntries(this)
-        val savedContainer = findViewById<View>(R.id.saved_episodes_container)
-        val savedHeader = findViewById<View>(R.id.saved_episodes_header_container)
-        val savedExpandIcon = findViewById<ImageView>(R.id.saved_episodes_expand_icon)
-        val savedDivider = findViewById<View>(R.id.saved_episodes_divider)
-        val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
-
-        if (savedEntries.isNotEmpty()) {
-            savedContainer.visibility = View.VISIBLE
-
-            // Style header
-            val onSurface = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface)
-            savedHeader.isClickable = true
-            savedHeader.isFocusable = true
-            savedExpandIcon?.setColorFilter(onSurface)
-            savedHeader.elevation = 8f
-
-            savedRecycler.layoutManager = LinearLayoutManager(this)
-            savedRecycler.isNestedScrollingEnabled = false
-            // Start collapsed
-            var savedExpanded = false
-            savedRecycler.visibility = View.GONE
-            savedDivider.visibility = View.GONE
-            savedExpandIcon.visibility = View.VISIBLE
-
-            val savedAdapter = SavedEpisodesAdapter(this, savedEntries, onPlayEpisode = { episode ->
-                val intent = android.content.Intent(this, RadioService::class.java).apply {
-                    action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                    putExtra(RadioService.EXTRA_EPISODE, episode)
-                    putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                }
-                startService(intent)
-            }, onOpenEpisode = { episode, podcastTitle ->
-                val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
-                    putExtra("preview_episode", episode)
-                    putExtra("preview_use_play_ui", true)
-                    putExtra("preview_podcast_title", podcastTitle)
-                    putExtra("preview_podcast_image", episode.imageUrl)
-                }
-                startActivity(intent)
-            }, onRemoveSaved = { id ->
-                SavedEpisodes.remove(this, id)
-                val updated = SavedEpisodes.getSavedEntries(this)
-                // Update via recycler's adapter reference to avoid capturing the uninitialized local variable
-                savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
-                if (updated.isEmpty()) savedContainer.visibility = View.GONE
-            })
-
-            savedRecycler.adapter = savedAdapter
-
-            savedHeader.setOnClickListener {
-                savedExpanded = !savedExpanded
-                if (savedExpanded) {
-                    savedRecycler.visibility = View.VISIBLE
-                    savedDivider.visibility = View.VISIBLE
-                    savedExpandIcon.setImageResource(R.drawable.ic_expand_less)
-                    try {
-                        val parentScroll = findViewById<androidx.core.widget.NestedScrollView>(R.id.podcasts_scroll)
-                        parentScroll?.post { parentScroll.smoothScrollTo(0, savedContainer.top) }
-                    } catch (_: Exception) {}
-                } else {
-                    savedRecycler.visibility = View.GONE
-                    savedDivider.visibility = View.GONE
-                    savedExpandIcon.setImageResource(R.drawable.ic_expand_more)
-                }
-            }
-        } else {
-            findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
-        }
+        refreshSavedEpisodesSection()
     }
 
     private fun showSettings() {
@@ -1260,7 +1267,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "played_episodes_prefs", "playback_prefs", "scrolling_prefs", "theme_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "playback_prefs", "scrolling_prefs", "theme_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)

@@ -393,7 +393,7 @@ class PodcastsFragment : Fragment() {
             val filtered = withContext(Dispatchers.Default) { repository.filterPodcasts(allPodcasts, effectiveFilter) }
 
             // If there's no search query, use the normal podcast adapter with sorting & pagination
-            if (searchQuery.isEmpty()) {
+            if (active.isNullOrEmpty()) {
                 // Do not exclude subscribed podcasts — show all podcasts in the main list while
                 // still listing subscribed ones in the Favorites section above.
                 val toShow = filtered
@@ -444,6 +444,8 @@ class PodcastsFragment : Fragment() {
 
             // For search queries, build grouped results (Podcast Name / Description / Episode)
             val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
+            // Keep local searchQuery field in sync so other code paths that reference it don't mis-detect emptiness
+            searchQuery = q
 
             // If we have a cached result for this query, reuse it immediately to avoid rebuilding
             val cached = viewModel.getCachedSearch()

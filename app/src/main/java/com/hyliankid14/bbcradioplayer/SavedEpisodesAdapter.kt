@@ -69,7 +69,7 @@ class SavedEpisodesAdapter(
             id = e.id,
             title = e.title,
             description = e.description,
-            audioUrl = "",
+            audioUrl = e.audioUrl,
             imageUrl = e.imageUrl,
             pubDate = e.pubDate,
             durationMins = e.durationMins,
