@@ -348,6 +348,8 @@ class MainActivity : AppCompatActivity() {
         // Default to National category
         showCategoryStations(StationCategory.NATIONAL)
         setupFilterButtons()
+        // Ensure saved episodes UI is hidden when switching to All Stations
+        refreshSavedEpisodesSection()
     }
 
     private fun showFavorites() {

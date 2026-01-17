@@ -61,7 +61,10 @@
                 android:id="@+id/favorites_podcasts_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
                 app:cardCornerRadius="24dp"
                 app:cardUseCompatPadding="true"
                 app:cardElevation="4dp"
@@ -115,7 +118,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:visibility="gone"
-                    android:paddingTop="56dp"
+                    android:paddingTop="16dp"
                     android:clipToPadding="true"
                     android:scrollbars="vertical" />
             </com.google.android.material.card.MaterialCardView>
@@ -125,7 +128,9 @@
                 android:id="@+id/saved_episodes_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginTop="4dp"
                 android:layout_marginBottom="8dp"
                 app:cardCornerRadius="24dp"
                 app:cardUseCompatPadding="true"
@@ -178,7 +183,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:visibility="gone"
-                    android:paddingTop="56dp"
+                    android:paddingTop="96dp"
                     android:clipToPadding="true"
                     android:scrollbars="vertical" />
 
