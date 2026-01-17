@@ -69,7 +69,12 @@ class PodcastsFragment : Fragment() {
         viewModel = ViewModelProvider(requireActivity()).get(PodcastsViewModel::class.java)
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
-        val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
+        val searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.search_podcast_edittext)
+        // Setup search history backing and adapter
+        val searchHistory = SearchHistory(requireContext())
+        val historyAdapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, searchHistory.getRecent())
+        searchEditText.setAdapter(historyAdapter)
+
         // Restore the active search into the edit text when the view is (re)created, without triggering the watcher
         suppressSearchWatcher = true
         val restored = viewModel.activeSearchQuery.value
@@ -136,6 +141,17 @@ class PodcastsFragment : Fragment() {
                     // If fragment is gone, abort
                     if (!isAdded) return@launch
                     applyFilters(loadingIndicator, emptyState, recyclerView)
+
+                    // Add to search history (deduplicated inside helper) and refresh adapter
+                    try {
+                        searchHistory.add(searchQuery)
+                        withContext(Dispatchers.Main) {
+                            historyAdapter.clear()
+                            historyAdapter.addAll(searchHistory.getRecent())
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("PodcastsFragment", "Failed to update search history: ${e.message}")
+                    }
                 }
             }
         })
@@ -147,7 +163,16 @@ class PodcastsFragment : Fragment() {
                 imm.hideSoftInputFromWindow(v.windowToken, 0)
                 v.clearFocus()
                 // Treat IME search as committing the current query as the active search
-                if (searchQuery.isNotBlank()) viewModel.setActiveSearch(searchQuery)
+                if (searchQuery.isNotBlank()) {
+                    viewModel.setActiveSearch(searchQuery)
+                    try {
+                        searchHistory.add(searchQuery)
+                        historyAdapter.clear()
+                        historyAdapter.addAll(searchHistory.getRecent())
+                    } catch (e: Exception) {
+                        android.util.Log.w("PodcastsFragment", "Failed to persist search history: ${e.message}")
+                    }
+                }
                 applyFilters(loadingIndicator, emptyState, recyclerView)
                 true
             } else {
@@ -173,6 +198,32 @@ class PodcastsFragment : Fragment() {
             }
         })
         recyclerView.adapter = podcastAdapter
+
+        // Show a dropdown of recent searches when the field is focused or typed into
+        searchEditText.onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                historyAdapter.clear()
+                historyAdapter.addAll(searchHistory.getRecent())
+                searchEditText.showDropDown()
+            }
+        }
+        // When the user selects a history item, populate search and apply immediately
+        searchEditText.setOnItemClickListener { parent, _, position, _ ->
+            val sel = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
+            suppressSearchWatcher = true
+            searchEditText.setText(sel)
+            searchEditText.setSelection(sel.length)
+            suppressSearchWatcher = false
+            viewModel.setActiveSearch(sel)
+            try {
+                searchHistory.add(sel)
+                historyAdapter.clear()
+                historyAdapter.addAll(searchHistory.getRecent())
+            } catch (e: Exception) {
+                android.util.Log.w("PodcastsFragment", "Failed to update search history on selection: ${e.message}")
+            }
+            applyFilters(loadingIndicator, emptyState, recyclerView)
+        }
 
         // Ensure the global action bar is shown when navigating into a podcast detail
         val originalOnPodcastClick = podcastAdapter
@@ -711,6 +762,25 @@ val qLower = q.lowercase(Locale.getDefault())
         super.onResume()
         android.util.Log.d("PodcastsFragment", "onResume: activeSearchQuery='${viewModel.activeSearchQuery.value}' searchQuery='${searchQuery}' allPodcasts.size=${allPodcasts.size}")
         if (allPodcasts.isNotEmpty()) {
+            // If we're already showing the search results adapter and an active search exists, keep them
+            val active = viewModel.activeSearchQuery.value
+            val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+            if (rv != null) {
+                if (active.isNullOrBlank()) {
+                    // No active persisted search — if we're already showing the main podcasts list, skip reapplying filters
+                    if (searchQuery.isBlank() && rv.adapter == podcastAdapter) {
+                        android.util.Log.d("PodcastsFragment", "onResume: no active search and already showing podcasts, skipping rebuild")
+                        return
+                    }
+                } else {
+                    // An active search is persisted; if we're already showing the search results adapter, keep it to avoid re-running expensive searches
+                    if (rv.adapter == searchAdapter) {
+                        android.util.Log.d("PodcastsFragment", "onResume: keeping existing search results (active='${active}'), skipping rebuild")
+                        return
+                    }
+                }
+            }
+
             view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loading ->
                 view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
                     view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { rv ->

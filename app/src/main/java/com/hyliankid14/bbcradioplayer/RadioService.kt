@@ -1268,7 +1268,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     id?.let { playStation(it) }
                 }
                 ACTION_PLAY_PODCAST_EPISODE -> {
-                    val episode = it.getParcelableExtra<Episode>(EXTRA_EPISODE)
+                    val episode = getParcelableExtraCompat(EXTRA_EPISODE, Episode::class.java)
                     android.util.Log.d(TAG, "onStartCommand: ACTION_PLAY_PODCAST_EPISODE received, episode=$episode")
                     episode?.let { ep -> playPodcastEpisode(ep, it) }
                 }

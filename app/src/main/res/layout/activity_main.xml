@@ -353,6 +353,16 @@
                     android:ellipsize="end"
                     android:maxLines="1" />
 
+                <TextView
+                    android:id="@+id/index_last_rebuilt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Last rebuilt: —"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+
                 <!-- Visual progress bar for episode indexing (shows only during episode indexing) -->
                 <ProgressBar
                     android:id="@+id/index_episodes_progress"

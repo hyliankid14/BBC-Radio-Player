@@ -68,7 +68,7 @@ class NowPlayingActivity : AppCompatActivity() {
         openPodcastJob = lifecycleScope.launch {
             try {
                 // Only attempt when we have a radio station (not a podcast) and a non-empty show title
-                if (station == null || station.id.startsWith("podcast_") || show.title.isNullOrEmpty()) return@launch
+                if (station == null || station.id.startsWith("podcast_") || show.title.isBlank()) return@launch
 
                 val repo = PodcastRepository(this@NowPlayingActivity)
                 val podcasts = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
@@ -187,7 +187,7 @@ class NowPlayingActivity : AppCompatActivity() {
         PlaybackStateHelper.onShowChange(showChangeListener)
         
         // If we're opened in preview mode for an episode (no playback), show that episode's details
-        val previewEpisode: Episode? = intent.getParcelableExtra("preview_episode")
+        val previewEpisode: Episode? = getParcelableExtraCompat("preview_episode", Episode::class.java)
         if (previewEpisode != null) {
             isPreviewMode = true
             previewEpisodeProp = previewEpisode
@@ -336,7 +336,7 @@ class NowPlayingActivity : AppCompatActivity() {
         // Only update the main UI when we have a valid station; otherwise hide controls
         if (station != null) {
             // Only attempt to find matches for radio stations (not podcasts) and when there's a show title
-            if (!isPodcast && !show.title.isNullOrEmpty()) {
+            if (!isPodcast && show.title.isNotBlank()) {
                 openPodcastGeneration += 1
                 findMatchingPodcastAsync(station, show, openPodcastGeneration)
             }
@@ -864,8 +864,6 @@ class NowPlayingActivity : AppCompatActivity() {
 
     private fun updateMarkPlayedButtonState() {
         val station = PlaybackStateHelper.getCurrentStation()
-        val isPodcast = station?.id?.startsWith("podcast_") == true || previewEpisodeProp != null
-        val eid = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
 
         // The mark-as-played control is intentionally hidden from the app bar to avoid duplication with
         // the main star subscription action. Keep it GONE so it does not display in the app bar.

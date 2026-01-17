@@ -115,7 +115,7 @@ class PodcastAdapter(
             }
 
             // Highlight subscribed podcasts when used in the Favorites list using fixed lavender color
-            if ((itemView.context as? android.app.Activity) != null && (adapterPosition >= 0)) {
+            if ((itemView.context as? android.app.Activity) != null && (bindingAdapterPosition >= 0)) {
                 if (highlightSubscribed && PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
                     val bg = androidx.core.content.ContextCompat.getColor(itemView.context, R.color.subscribed_podcasts_bg)
                     val on = androidx.core.content.ContextCompat.getColor(itemView.context, R.color.subscribed_podcasts_text)
@@ -298,7 +298,7 @@ class EpisodeAdapter(
             }
             return parsed?.let {
                 SimpleDateFormat("EEE, dd MMM yyyy", Locale.US).format(it)
-            } ?: raw.substringBefore(":").trim()
+            } ?: (if (raw.contains(":")) raw.substringBefore(":").substringBeforeLast(" ").trim() else raw.trim())
         }
     }
 }

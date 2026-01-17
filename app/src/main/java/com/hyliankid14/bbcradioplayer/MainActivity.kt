@@ -313,11 +313,8 @@ class MainActivity : AppCompatActivity() {
             }
             
             override fun onMove(recyclerView: RecyclerView, source: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
-                if (adapter is FavoritesAdapter) {
-                    adapter.moveItem(source.bindingAdapterPosition, target.bindingAdapterPosition)
-                    return true
-                }
-                return false
+                adapter.moveItem(source.bindingAdapterPosition, target.bindingAdapterPosition)
+                return true
             }
             
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
@@ -716,7 +713,20 @@ class MainActivity : AppCompatActivity() {
         // Podcast indexing controls (manual trigger + progress)
         val indexNowBtn: Button = findViewById(R.id.index_now_button)
         val indexStatus: TextView = findViewById(R.id.index_status_text)
+        val indexLastRebuilt: TextView = findViewById(R.id.index_last_rebuilt)
         val indexEpisodesProgress: android.widget.ProgressBar = findViewById(R.id.index_episodes_progress)
+
+        fun updateLastRebuilt(ts: Long?) {
+            indexLastRebuilt.text = if (ts != null) {
+                val fmt = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+                "Last rebuilt: ${fmt.format(java.util.Date(ts))}"
+            } else {
+                "Last rebuilt: —"
+            }
+        }
+
+        // Initialize display from persisted value
+        updateLastRebuilt(com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this).getLastReindexTime())
 
         indexNowBtn.setOnClickListener {
             try {
@@ -743,11 +753,19 @@ class MainActivity : AppCompatActivity() {
                                 indexEpisodesProgress.isIndeterminate = false
                                 indexEpisodesProgress.progress = 0
                             }
+
+                            // When index completes, update the last rebuilt timestamp immediately
+                            if (percent == 100 || (status != null && status.startsWith("Index complete"))) {
+                                val now = System.currentTimeMillis()
+                                updateLastRebuilt(now)
+                            }
                         }
                     }
                     indexStatus.text = "Index finished"
                     // Ensure episode bar hidden once done
                     indexEpisodesProgress.visibility = android.view.View.GONE
+                    // Also refresh persisted value (in case it was updated by the worker)
+                    updateLastRebuilt(com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this@MainActivity).getLastReindexTime())
                 }
             } catch (e: Exception) {
                 indexStatus.text = "Failed to schedule indexing: ${e.message}"

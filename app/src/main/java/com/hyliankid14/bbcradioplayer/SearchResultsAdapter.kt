@@ -177,7 +177,30 @@ class SearchResultsAdapter(
         }
 
         private fun formatDate(raw: String): String {
-            return raw.substringBefore(":").trim()
+            val patterns = listOf(
+                "EEE, dd MMM yyyy HH:mm:ss Z",
+                "dd MMM yyyy HH:mm:ss Z",
+                "EEE, dd MMM yyyy HH",
+                "EEE, dd MMM yyyy",
+                "dd MMM yyyy HH",
+                "dd MMM yyyy"
+            )
+            val parsed: java.util.Date? = patterns.firstNotNullOfOrNull { pattern ->
+                try {
+                    java.text.SimpleDateFormat(pattern, Locale.US).parse(raw)
+                } catch (e: java.text.ParseException) {
+                    null
+                }
+            }
+            // Robust fallback: trim, drop trailing timezone tokens, and remove stray trailing hour numbers (e.g. " ... 20")
+            val cleaned = raw.trim()
+                .replace(Regex("\\s+(GMT|UTC|UT)", RegexOption.IGNORE_CASE), "")
+                .replace(Regex(",\\s+"), ", ")
+            val fallback = cleaned.replace(Regex("\\s+\\d{1,2}$"), "").trim()
+
+            return parsed?.let {
+                java.text.SimpleDateFormat("EEE, dd MMM yyyy", Locale.US).format(it)
+            } ?: fallback
         }
     }
 }

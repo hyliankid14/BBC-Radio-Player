@@ -53,6 +53,11 @@ object IndexWorker {
 
                 onProgress("Index complete: ${podcasts.size} podcasts, $count episodes", 100, false)
                 Log.d(TAG, "Reindex complete: podcasts=${podcasts.size}, episodes=$count")
+                try {
+                    store.setLastReindexTime(System.currentTimeMillis())
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to persist last reindex time: ${e.message}")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Reindex failed", e)
                 onProgress("Index failed: ${e.message}", -1, false)

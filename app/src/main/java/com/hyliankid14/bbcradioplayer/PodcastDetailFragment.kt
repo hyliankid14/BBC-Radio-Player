@@ -53,7 +53,7 @@ class PodcastDetailFragment : Fragment() {
 
         repository = PodcastRepository(requireContext())
 
-        currentPodcast = arguments?.getParcelable("podcast")
+        currentPodcast = arguments?.let { bundle -> getParcelableCompat("podcast", Podcast::class.java) }
         currentPodcast?.let { podcast ->
             val headerContainer: View = view.findViewById(R.id.podcast_detail_header)
             val imageView: ImageView = view.findViewById(R.id.podcast_detail_image)

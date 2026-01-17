@@ -229,4 +229,17 @@ class IndexStore private constructor(private val context: Context) {
 
         return emptyList()
     }
+
+    /**
+     * Persist and retrieve last reindex time to help users see when the on-disk index was last rebuilt.
+     */
+    fun setLastReindexTime(timeMillis: Long) {
+        val prefs = context.getSharedPreferences("index_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putLong("last_reindex_time", timeMillis).apply()
+    }
+
+    fun getLastReindexTime(): Long? {
+        val prefs = context.getSharedPreferences("index_prefs", android.content.Context.MODE_PRIVATE)
+        return if (prefs.contains("last_reindex_time")) prefs.getLong("last_reindex_time", 0L) else null
+    }
 }
