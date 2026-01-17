@@ -14,6 +14,7 @@ import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +27,7 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class PodcastsFragment : Fragment() {
+    private val viewModel: PodcastsViewModel by viewModels()
     private lateinit var repository: PodcastRepository
     // Keep both adapters and swap depending on whether a search query is active
     private lateinit var podcastAdapter: PodcastAdapter
@@ -35,8 +37,7 @@ class PodcastsFragment : Fragment() {
     private var currentSort: String = "Most popular"
     private var cachedUpdates: Map<String, Long> = emptyMap()
     private var searchQuery = ""
-    // Active search state: retains the most recent non-empty search until Reset is pressed
-    private var activeSearchQuery: String? = null
+    // Active search state is persisted in the ViewModel while the activity lives
     // Suppress the text watcher when programmatically updating the search EditText
     private var suppressSearchWatcher: Boolean = false
     // Debounce job for search input changes
@@ -69,9 +70,31 @@ class PodcastsFragment : Fragment() {
         val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
         // Restore the active search into the edit text when the view is (re)created, without triggering the watcher
         suppressSearchWatcher = true
-        searchEditText.setText(activeSearchQuery ?: "")
-        if (!activeSearchQuery.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
+        val restored = viewModel.activeSearchQuery.value
+        searchEditText.setText(restored ?: "")
+        if (!restored.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
         suppressSearchWatcher = false
+        android.util.Log.d("PodcastsFragment", "onViewCreated: viewModel.activeSearchQuery='${restored}' searchEditText='${searchEditText.text}'")
+
+        // Observe active search and update hint + edit text when it changes
+        val activeHintView: TextView = view.findViewById(R.id.active_search_hint)
+        viewModel.activeSearchQuery.observe(viewLifecycleOwner) { q ->
+            if (!q.isNullOrBlank()) {
+                activeHintView.text = "Active search: '$q' (Reset to clear)"
+                activeHintView.visibility = View.VISIBLE
+            } else {
+                activeHintView.visibility = View.GONE
+            }
+
+            // Ensure edit text reflects current active search without triggering watcher
+            val current = searchEditText.text?.toString() ?: ""
+            if (current != (q ?: "")) {
+                suppressSearchWatcher = true
+                searchEditText.setText(q ?: "")
+                if (!q.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
+                suppressSearchWatcher = false
+            }
+        }
 
         val filterButton: android.widget.ImageButton = view.findViewById(R.id.podcasts_filter_button)
         val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_filter_spinner)
@@ -89,7 +112,8 @@ class PodcastsFragment : Fragment() {
                 searchQuery = s?.toString() ?: ""
                 // If the user cleared the search box, clear the active persisted search and update immediately
                 if (searchQuery.isBlank()) {
-                    activeSearchQuery = null
+                    android.util.Log.d("PodcastsFragment", "afterTextChanged: search box cleared, clearing active search (was='${viewModel.activeSearchQuery.value}')")
+                    viewModel.clearActiveSearch()
                     searchJob?.cancel()
                     filterDebounceJob?.cancel()
                     // Apply filters immediately so results disappear when the box is cleared
@@ -101,7 +125,7 @@ class PodcastsFragment : Fragment() {
                 }
 
                 // When user types a non-empty query, set it as the active search that will persist
-                activeSearchQuery = searchQuery
+                viewModel.setActiveSearch(searchQuery)
 
                 // Debounce the application of filters to avoid running heavy searches on every keystroke
                 filterDebounceJob?.cancel()
@@ -121,7 +145,7 @@ class PodcastsFragment : Fragment() {
                 imm.hideSoftInputFromWindow(v.windowToken, 0)
                 v.clearFocus()
                 // Treat IME search as committing the current query as the active search
-                if (searchQuery.isNotBlank()) activeSearchQuery = searchQuery
+                if (searchQuery.isNotBlank()) viewModel.setActiveSearch(searchQuery)
                 applyFilters(loadingIndicator, emptyState, recyclerView)
                 true
             } else {
@@ -159,7 +183,7 @@ class PodcastsFragment : Fragment() {
             // Clear both the typed query and the active persisted search
             searchJob?.cancel()
             searchQuery = ""
-            activeSearchQuery = null
+            viewModel.clearActiveSearch()
             searchEditText.text.clear()
             currentFilter = PodcastFilter()
             // Set exposed dropdowns back to 'All Genres' / default label
@@ -304,8 +328,8 @@ class PodcastsFragment : Fragment() {
     ) {
         // Offload the expensive filtering operation to Default dispatcher to keep UI responsive
         fragmentScope.launch {
-            // Use activeSearchQuery when set to persist results until Reset is pressed
-            val active = activeSearchQuery ?: searchQuery
+            // Use persisted active search from ViewModel when set to persist results until Reset is pressed
+            val active = viewModel.activeSearchQuery.value ?: searchQuery
             val effectiveFilter = currentFilter.copy(searchQuery = active)
             val filtered = withContext(Dispatchers.Default) { repository.filterPodcasts(allPodcasts, effectiveFilter) }
 
@@ -360,7 +384,7 @@ class PodcastsFragment : Fragment() {
             }
 
             // For search queries, build grouped results (Podcast Name / Description / Episode)
-            val q = (activeSearchQuery ?: searchQuery).trim()
+            val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
             val titleMatches = mutableListOf<Podcast>()
             val descMatches = mutableListOf<Podcast>()
             val episodeMatches = mutableListOf<Pair<Episode, Podcast>>()
@@ -683,6 +707,7 @@ val qLower = q.lowercase(Locale.getDefault())
 
     override fun onResume() {
         super.onResume()
+        android.util.Log.d("PodcastsFragment", "onResume: activeSearchQuery='${viewModel.activeSearchQuery.value}' searchQuery='${searchQuery}' allPodcasts.size=${allPodcasts.size}")
         if (allPodcasts.isNotEmpty()) {
             view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loading ->
                 view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
