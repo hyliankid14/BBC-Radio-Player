@@ -37,6 +37,8 @@ class PodcastsFragment : Fragment() {
     private var searchQuery = ""
     // Active search state: retains the most recent non-empty search until Reset is pressed
     private var activeSearchQuery: String? = null
+    // Suppress the text watcher when programmatically updating the search EditText
+    private var suppressSearchWatcher: Boolean = false
     // Debounce job for search input changes
     private var filterDebounceJob: kotlinx.coroutines.Job? = null
     // Job for ongoing incremental episode search; cancel when a new query arrives
@@ -65,6 +67,12 @@ class PodcastsFragment : Fragment() {
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
+        // Restore the active search into the edit text when the view is (re)created, without triggering the watcher
+        suppressSearchWatcher = true
+        searchEditText.setText(activeSearchQuery ?: "")
+        if (!activeSearchQuery.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
+        suppressSearchWatcher = false
+
         val filterButton: android.widget.ImageButton = view.findViewById(R.id.podcasts_filter_button)
         val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_filter_spinner)
         val sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.sort_spinner)
@@ -77,6 +85,7 @@ class PodcastsFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
+                if (suppressSearchWatcher) return
                 searchQuery = s?.toString() ?: ""
                 // If the user cleared the search box, clear the active persisted search and update immediately
                 if (searchQuery.isBlank()) {
@@ -534,8 +543,16 @@ val qLower = q.lowercase(Locale.getDefault())
                                     episodeMatches.addAll(added)
                                     globalMatches += added.size
                                     recyclerView.post {
-                                        (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches)
-                                        if (episodeMatches.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()) {
+                                        // Sort episodes so title matches appear first across all podcasts
+                                        val sorted = episodeMatches.sortedWith(compareByDescending<Pair<com.hyliankid14.bbcradioplayer.Episode, com.hyliankid14.bbcradioplayer.Podcast>> { pair ->
+                                            when {
+                                                repository.textMatchesNormalized(pair.first.title, q) -> 2
+                                                repository.textMatchesNormalized(pair.first.description ?: "", q) -> 1
+                                                else -> 0
+                                            }
+                                        })
+                                        (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(sorted)
+                                        if (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()) {
                                             emptyState.visibility = View.GONE
                                             recyclerView.visibility = View.VISIBLE
                                         } else {
@@ -600,10 +617,17 @@ val qLower = q.lowercase(Locale.getDefault())
                                 val added = matched.take(3).map { it to p } // limit per-podcast
                                 episodeMatches.addAll(added)
                                 totalMatches += added.size
-                                // Update adapter's episode list incrementally
+                                // Update adapter's episode list incrementally — sort so title matches appear first
                                 recyclerView.post {
-                                    (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(episodeMatches)
-                                    if (episodeMatches.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()) {
+                                    val sorted = episodeMatches.sortedWith(compareByDescending<Pair<com.hyliankid14.bbcradioplayer.Episode, com.hyliankid14.bbcradioplayer.Podcast>> { pair ->
+                                        when {
+                                            repository.textMatchesNormalized(pair.first.title, q) -> 2
+                                            repository.textMatchesNormalized(pair.first.description ?: "", q) -> 1
+                                            else -> 0
+                                        }
+                                    })
+                                    (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(sorted)
+                                    if (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()) {
                                         emptyState.visibility = View.GONE
                                         recyclerView.visibility = View.VISIBLE
                                     } else {
