@@ -454,10 +454,10 @@ val qLower = q.lowercase(Locale.getDefault())
                                 // Prefer cached indexed search when available
                                 val cachedHits = repository.searchCachedEpisodes(p.id, qLower, 3)
                                 if (cachedHits.isNotEmpty()) return@async p to cachedHits
-                                // Otherwise fetch episodes (repository will index them)
+                                // Otherwise fetch episodes (repository will index them) then search using the same indexed helper
                                 val eps = repository.fetchEpisodesIfNeeded(p)
-                                val hits = eps.filter { it.title.contains(q, ignoreCase = true) || it.description.contains(q, ignoreCase = true) }
-                                p to hits
+                                val postHits = repository.searchCachedEpisodes(p.id, qLower, 3)
+                                p to postHits
                             }
                         }
                         val results = deferreds.awaitAll()

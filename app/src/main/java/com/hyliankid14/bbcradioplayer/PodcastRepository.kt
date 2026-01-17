@@ -32,10 +32,15 @@ class PodcastRepository(private val context: Context) {
     }
 
     private fun containsPhraseOrAllTokens(textLower: String, queryLower: String): Boolean {
-        if (textLower.contains(queryLower)) return true
-        val tokens = queryLower.split(Regex("\\s+")) .filter { it.isNotEmpty() }
+        // Normalize both text and query by removing non-alphanumeric characters (retain unicode letters/digits)
+        val normalize = { s: String -> s.replace(Regex("[^\\p{L}0-9\\s]"), " ").replace(Regex("\\s+"), " ").trim() }
+        val textNorm = normalize(textLower)
+        val queryNorm = normalize(queryLower)
+
+        if (textNorm.contains(queryNorm)) return true
+        val tokens = queryNorm.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (tokens.size <= 1) return false
-        return tokens.all { textLower.contains(it) }
+        return tokens.all { textNorm.contains(it) }
     }
 
     fun podcastMatches(podcast: Podcast, queryLower: String): Boolean {
@@ -330,11 +335,11 @@ class PodcastRepository(private val context: Context) {
                 }
             } else if (!episodes.isNullOrEmpty()) {
                 // Fallback: older cached episodes without precomputed index
-                if (episodes.any { it.title.contains(q, ignoreCase = true) }) {
+                if (episodes.any { containsPhraseOrAllTokens(it.title.lowercase(Locale.getDefault()), qLower) }) {
                     epTitleMatches.add(p)
                     continue
                 }
-                if (episodes.any { it.description.contains(q, ignoreCase = true) }) {
+                if (episodes.any { containsPhraseOrAllTokens((it.description ?: "").lowercase(Locale.getDefault()), qLower) }) {
                     epDescMatches.add(p)
                     continue
                 }

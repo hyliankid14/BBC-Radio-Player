@@ -44,6 +44,10 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var markPlayedButton: android.widget.ImageButton
     private var currentShownEpisodeId: String? = null
     private var matchedPodcast: Podcast? = null
+    // Track the async job/generation for finding matching podcasts to avoid flicker
+    private var openPodcastJob: kotlinx.coroutines.Job? = null
+    private var openPodcastGeneration: Int = 0
+    private var lastOpenPodcastStationId: String? = null
 
     // When true the activity is showing a preview episode passed via intent and should not be
     // overwritten by subsequent playback state updates until playback starts.
@@ -58,16 +62,20 @@ class NowPlayingActivity : AppCompatActivity() {
         runOnUiThread { updateFromShow(show) }
     }
 
-    private fun findMatchingPodcastAsync(station: Station?, show: CurrentShow) {
-        // Run in lifecycle scope (non-blocking). Try several queries in order and favor exact title matches.
-        lifecycleScope.launch {
+    private fun findMatchingPodcastAsync(station: Station?, show: CurrentShow, generation: Int) {
+        // Cancel any previous job for finding an open podcast match
+        openPodcastJob?.cancel()
+        openPodcastJob = lifecycleScope.launch {
             try {
+                // Only attempt when we have a radio station (not a podcast) and a non-empty show title
+                if (station == null || station.id.startsWith("podcast_") || show.title.isNullOrEmpty()) return@launch
+
                 val repo = PodcastRepository(this@NowPlayingActivity)
                 val podcasts = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                 val queries = listOfNotNull(
                     show.title?.takeIf { it.isNotEmpty() },
                     show.episodeTitle?.takeIf { it.isNotEmpty() },
-                    station?.title?.takeIf { it.isNotEmpty() }
+                    station.title?.takeIf { it.isNotEmpty() }
                 )
                 // Prefer exact title match first
                 var found: Podcast? = null
@@ -83,10 +91,15 @@ class NowPlayingActivity : AppCompatActivity() {
                         if (found != null) break
                     }
                 }
-                if (found != null) {
-                    matchedPodcast = found
-                    // Show button
-                    runOnUiThread { findViewById<MaterialButton>(R.id.now_playing_open_podcast).visibility = View.VISIBLE }
+
+                // Ensure the result is still relevant for the current generation and station
+                if (found != null && generation == openPodcastGeneration) {
+                    val currentStationId = PlaybackStateHelper.getCurrentStation()?.id
+                    if (currentStationId == station.id && !station.id.startsWith("podcast_")) {
+                        matchedPodcast = found
+                        lastOpenPodcastStationId = station.id
+                        findViewById<MaterialButton>(R.id.now_playing_open_podcast).visibility = View.VISIBLE
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.w("NowPlayingActivity", "Failed to find matching podcast: ${e.message}")
@@ -297,20 +310,26 @@ class NowPlayingActivity : AppCompatActivity() {
         if (isFinishing || isDestroyed) return
         // Don't overwrite preview UI when in preview mode
         if (isPreviewMode) return
-        // Reset podcast link until we find a match
-        matchedPodcast = null
-        findViewById<MaterialButton?>(R.id.now_playing_open_podcast)?.visibility = View.GONE
-        
         val station = PlaybackStateHelper.getCurrentStation()
         val isPlaying = PlaybackStateHelper.getIsPlaying()
         val show = PlaybackStateHelper.getCurrentShow()
         val isPodcast = station?.id?.startsWith("podcast_") == true
 
+        val currentStationId = station?.id
+        if (lastOpenPodcastStationId != currentStationId) {
+            // Station changed, clear previous match and hide button
+            matchedPodcast = null
+            findViewById<MaterialButton?>(R.id.now_playing_open_podcast)?.visibility = View.GONE
+            lastOpenPodcastStationId = null
+        }
+
         // Only update the main UI when we have a valid station; otherwise hide controls
         if (station != null) {
-            // Try to find a matching podcast for the current show/station (non-blocking)
-            findMatchingPodcastAsync(station, show)
-            
+            // Only attempt to find matches for radio stations (not podcasts) and when there's a show title
+            if (!isPodcast && !show.title.isNullOrEmpty()) {
+                openPodcastGeneration += 1
+                findMatchingPodcastAsync(station, show, openPodcastGeneration)
+            }
             if (isPodcast) {
                 // Podcasts: action bar already shows podcast name; hide duplicate header
                 showName.visibility = android.view.View.GONE
