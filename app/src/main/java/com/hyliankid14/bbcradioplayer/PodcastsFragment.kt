@@ -14,7 +14,7 @@ import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class PodcastsFragment : Fragment() {
-    private val viewModel: PodcastsViewModel by viewModels()
+    private lateinit var viewModel: PodcastsViewModel
     private lateinit var repository: PodcastRepository
     // Keep both adapters and swap depending on whether a search query is active
     private lateinit var podcastAdapter: PodcastAdapter
@@ -65,6 +65,8 @@ class PodcastsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         repository = PodcastRepository(requireContext())
+        // Initialize ViewModel scoped to the Activity so it survives fragment navigation
+        viewModel = ViewModelProvider(requireActivity()).get(PodcastsViewModel::class.java)
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: EditText = view.findViewById(R.id.search_podcast_edittext)
