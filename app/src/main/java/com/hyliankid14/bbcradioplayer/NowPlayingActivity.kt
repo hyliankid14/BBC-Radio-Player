@@ -219,7 +219,7 @@ class NowPlayingActivity : AppCompatActivity() {
             supportActionBar?.title = initialTitle
         }
 
-        // If opened in preview for a specific episode with a podcast id, show the open podcast button immediately
+        // If opened in preview for a specific episode with a podcast id, show the open podcast button only when a radio station is playing
         val openPodcastButtonInit: MaterialButton? = findViewById(R.id.now_playing_open_podcast)
         val previewPodcastId = previewEpisodeProp?.podcastId ?: intent.getStringExtra("initial_podcast_id")
         if (!previewPodcastId.isNullOrEmpty()) {
@@ -229,8 +229,15 @@ class NowPlayingActivity : AppCompatActivity() {
                 val pods = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                 val found = pods.find { it.id == previewPodcastId }
                 if (found != null) {
-                    matchedPodcast = found
-                    openPodcastButtonInit?.visibility = View.VISIBLE
+                    val currentStation = PlaybackStateHelper.getCurrentStation()
+                    // Only show the button when there is an active radio station (not a podcast) playing
+                    if (currentStation != null && !currentStation.id.startsWith("podcast_")) {
+                        matchedPodcast = found
+                        openPodcastButtonInit?.visibility = View.VISIBLE
+                    } else {
+                        matchedPodcast = null
+                        openPodcastButtonInit?.visibility = View.GONE
+                    }
                 }
             }
         }
