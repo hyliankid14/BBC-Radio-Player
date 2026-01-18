@@ -707,7 +707,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupFilterButtons() {
-        tabLayout = findViewById(R.id.filter_buttons_include)
+        // Find the TabLayout inside the included layout and handle missing cases safely
+        val tabs = findViewById<com.google.android.material.tabs.TabLayout?>(R.id.filter_tabs)
+        if (tabs == null) {
+            android.util.Log.w("MainActivity", "TabLayout with id 'filter_tabs' not found; filter buttons disabled")
+            return
+        }
+        tabLayout = tabs
         
         tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
