@@ -104,7 +104,8 @@ class MainActivity : AppCompatActivity() {
         stationsView = findViewById(R.id.stations_view)
         stationsContent = findViewById(R.id.stations_content)
         
-        filterButtonsContainer = findViewById(R.id/filter_buttons_include)
+        // Use the tabs inside the included layout directly (some build environments don't generate the include id)
+        filterButtonsContainer = findViewById(R.id.filter_tabs)
         
         settingsContainer = findViewById(R.id.settings_container)
         
