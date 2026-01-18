@@ -1518,6 +1518,28 @@ class MainActivity : AppCompatActivity() {
                 }
                 edit.apply()
             }
+
+            // Ensure critical preferences are set via their helpers so any logic they perform runs
+            try {
+                if (root.has("scrolling_prefs")) {
+                    val sp = root.getJSONObject("scrolling_prefs")
+                    if (sp.has("scroll_mode")) {
+                        val mode = sp.optString("scroll_mode", ScrollingPreference.MODE_ALL_STATIONS)
+                        ScrollingPreference.setScrollMode(this, mode)
+                    }
+                }
+            } catch (e: Exception) { /* Ignore */ }
+
+            try {
+                if (root.has("playback_prefs")) {
+                    val pp = root.getJSONObject("playback_prefs")
+                    if (pp.has("auto_resume_android_auto")) {
+                        val enabled = pp.optBoolean("auto_resume_android_auto", false)
+                        PlaybackPreference.setAutoResumeAndroidAuto(this, enabled)
+                    }
+                }
+            } catch (e: Exception) { /* Ignore */ }
+
             // Notify listeners that played-status/progress may have changed so UI updates
             try {
                 val intent = android.content.Intent(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED)
