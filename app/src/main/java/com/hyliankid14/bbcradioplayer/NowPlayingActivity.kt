@@ -269,12 +269,32 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        navigateBackToPodcastDetail()
-        return true
+        if (isTaskRoot) {
+            // No previous activity in the task — go to MainActivity without forcing a specific podcast
+            val intent = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+            finish()
+            return true
+        } else {
+            // Let the system handle navigation when there is a previous activity
+            onBackPressed()
+            return true
+        }
     }
 
     override fun onBackPressed() {
-        navigateBackToPodcastDetail()
+        if (isTaskRoot) {
+            // If we're the root activity, navigate back to the main screen (no podcast deep-link)
+            val intent = Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+            finish()
+        } else {
+            super.onBackPressed()
+        }
     }
 
     private fun navigateBackToPodcastDetail() {
