@@ -107,9 +107,11 @@ class MainActivity : AppCompatActivity() {
         
         // Try multiple ids because some build/tooling combinations either generate the include id
         // or only the ids from the included layout itself. Fall back to a hidden placeholder if none found.
+        val fbRuntimeId = resources.getIdentifier("filter_buttons", "id", packageName).takeIf { it != 0 }
+        val fbRuntimeView = fbRuntimeId?.let { findViewById<View?>(it) }
         filterButtonsContainer = findViewById<View?>(R.id.filter_buttons_include)
             ?: findViewById<View?>(R.id.filter_tabs)
-            ?: findViewById<View?>(R.id.filter_buttons)
+            ?: fbRuntimeView
             ?: run {
                 android.util.Log.w("MainActivity", "Filter buttons view not found; continuing without it")
                 // Create an invisible placeholder so callers can safely invoke visibility changes
