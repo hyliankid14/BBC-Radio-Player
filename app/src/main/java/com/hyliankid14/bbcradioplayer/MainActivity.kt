@@ -977,6 +977,12 @@ class MainActivity : AppCompatActivity() {
         
         // Clear show cache and refresh the current view to prevent stale show names
         refreshCurrentView()
+
+        // Ensure the action bar reflects the current section when returning from other activities
+        if (currentMode != "podcasts") {
+            supportActionBar?.show()
+        }
+        updateActionBarTitle()
     }
     
     override fun onPause() {

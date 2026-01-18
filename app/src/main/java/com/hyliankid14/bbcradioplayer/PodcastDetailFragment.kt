@@ -228,7 +228,15 @@ class PodcastDetailFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         currentPodcast?.let { podcast ->
-            (activity as? AppCompatActivity)?.supportActionBar?.title = podcast.title
+            // Ensure the action bar is visible and the Up affordance is enabled so the back button
+            // reliably appears regardless of how the fragment was opened (Favourites / Podcasts / Intent)
+            (activity as? AppCompatActivity)?.supportActionBar?.apply {
+                show()
+                title = podcast.title
+                setDisplayHomeAsUpEnabled(true)
+                setDisplayShowHomeEnabled(true)
+                setHomeAsUpIndicator(R.drawable.ic_arrow_back)
+            }
         }
     }
 
