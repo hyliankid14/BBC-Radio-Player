@@ -979,10 +979,16 @@ class MainActivity : AppCompatActivity() {
         refreshCurrentView()
 
         // Ensure the action bar reflects the current section when returning from other activities
-        if (currentMode != "podcasts") {
-            supportActionBar?.show()
-        }
         updateActionBarTitle()
+        if (currentMode != "podcasts") {
+            // Explicitly clear any Up/home affordance left by a detail fragment so
+            // the 'Favourites' / 'All Stations' titles display correctly
+            supportActionBar?.apply {
+                show()
+                setDisplayHomeAsUpEnabled(false)
+                setDisplayShowHomeEnabled(false)
+            }
+        }
     }
     
     override fun onPause() {

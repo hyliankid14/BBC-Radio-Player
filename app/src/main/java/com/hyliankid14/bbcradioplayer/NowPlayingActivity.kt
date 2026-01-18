@@ -273,6 +273,17 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
+        // If we were opened for a specific podcast (preview or provided initial id) or the current
+        // playback station is a podcast, prefer navigating back to the podcast detail screen.
+        val hasPodcastContext = previewEpisodeProp != null
+                || !intent.getStringExtra("initial_podcast_id").isNullOrEmpty()
+                || PlaybackStateHelper.getCurrentStation()?.id?.startsWith("podcast_") == true
+
+        if (hasPodcastContext) {
+            navigateBackToPodcastDetail()
+            return true
+        }
+
         if (isTaskRoot) {
             // No previous activity in the task — go to MainActivity without forcing a specific podcast
             val intent = Intent(this, MainActivity::class.java).apply {
@@ -289,6 +300,17 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        // If we were opened for a specific podcast (preview or provided initial id) or the current
+        // playback station is a podcast, prefer navigating back to the podcast detail screen.
+        val hasPodcastContext = previewEpisodeProp != null
+                || !intent.getStringExtra("initial_podcast_id").isNullOrEmpty()
+                || PlaybackStateHelper.getCurrentStation()?.id?.startsWith("podcast_") == true
+
+        if (hasPodcastContext) {
+            navigateBackToPodcastDetail()
+            return
+        }
+
         if (isTaskRoot) {
             // If we're the root activity, navigate back to the main screen (no podcast deep-link)
             val intent = Intent(this, MainActivity::class.java).apply {
