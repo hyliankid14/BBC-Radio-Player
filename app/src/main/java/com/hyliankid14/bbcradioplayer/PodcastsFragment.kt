@@ -336,7 +336,7 @@ class PodcastsFragment : Fragment() {
                 genreSpinner.setText(genres[0], false)
 
                 genreSpinner.setOnItemClickListener { parent, _, position, _ ->
-                    val selected = parent?.getItemAtPosition(position) as String
+                    val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
                     currentFilter = if (selected == "All Genres") {
                         currentFilter.copy(genres = emptySet())
                     } else {
@@ -356,7 +356,7 @@ class PodcastsFragment : Fragment() {
                 sortSpinner.setAdapter(sortAdapter)
                 sortSpinner.setText(currentSort, false)
                 sortSpinner.setOnItemClickListener { parent, _, position, _ ->
-                    val selected = parent?.getItemAtPosition(position) as String
+                    val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
                     currentSort = selected
                     // Changing sort invalidates cached search results
                     viewModel.clearCachedSearch()
@@ -696,7 +696,7 @@ class PodcastsFragment : Fragment() {
                                         val sorted = episodeMatches.sortedWith(compareByDescending<Pair<com.hyliankid14.bbcradioplayer.Episode, com.hyliankid14.bbcradioplayer.Podcast>> { pair ->
                                             when {
                                                 repository.textMatchesNormalized(pair.first.title, q) -> 2
-                                                repository.textMatchesNormalized(pair.first.description ?: "", q) -> 1
+                                                repository.textMatchesNormalized(pair.first.description, q) -> 1
                                                 else -> 0
                                             }
                                         })
@@ -750,7 +750,7 @@ class PodcastsFragment : Fragment() {
                                 if (tokens.isNotEmpty() && eps.isNotEmpty()) {
                                     val hits = eps.filter { ep ->
                                         val t = ep.title.lowercase(Locale.getDefault())
-                                        val d = (ep.description ?: "").lowercase(Locale.getDefault())
+                                        val d = ep.description.lowercase(Locale.getDefault())
                                         tokens.all { tok -> t.contains(tok) || d.contains(tok) }
                                     }.take(3)
                                     if (hits.isNotEmpty()) android.util.Log.d("PodcastsFragment", "token-AND fallback matched ${hits.size} items in podcast='${p.title}' for query='$q'")
@@ -855,7 +855,7 @@ class PodcastsFragment : Fragment() {
                 }
             }
 
-            view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loading ->
+            view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { _ ->
                 view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
                     view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { rv ->
                         applyFilters(empty, rv)

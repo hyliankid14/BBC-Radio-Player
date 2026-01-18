@@ -75,7 +75,7 @@ class PodcastDetailFragment : Fragment() {
             requireActivity().title = podcast.title
 
             // Podcast title is shown in the action bar; hide the inline title to avoid duplication
-            val fullDescriptionHtml = podcast.description ?: ""
+            val fullDescriptionHtml = podcast.description
             descriptionView.text = HtmlCompat.fromHtml(fullDescriptionHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
             titleView.visibility = View.GONE
             

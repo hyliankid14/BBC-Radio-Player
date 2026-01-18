@@ -519,10 +519,10 @@ class RadioService : MediaBrowserServiceCompat() {
                 }
                 MEDIA_ID_PODCASTS -> {
                     // Present two folders: Subscribed Podcasts and Saved Episodes
-                    val items = mutableListOf<MediaItem>()
-                    items.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_subscribed").setTitle("Subscribed Podcasts").build(), MediaItem.FLAG_BROWSABLE))
-                    items.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_saved_episodes").setTitle("Saved Episodes").build(), MediaItem.FLAG_BROWSABLE))
-                    result.sendResult(items)
+                    val itemsPodcasts = mutableListOf<MediaItem>()
+                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_subscribed").setTitle("Subscribed Podcasts").build(), MediaItem.FLAG_BROWSABLE))
+                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_saved_episodes").setTitle("Saved Episodes").build(), MediaItem.FLAG_BROWSABLE))
+                    result.sendResult(itemsPodcasts)
                 }
                 else -> {
                     if (parentId == "podcasts_subscribed") {

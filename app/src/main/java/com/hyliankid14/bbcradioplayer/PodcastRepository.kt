@@ -401,7 +401,7 @@ class PodcastRepository(private val context: Context) {
                     epTitleMatches.add(p)
                     continue
                 }
-                if (episodes.any { containsPhraseOrAllTokens((it.description ?: "").lowercase(Locale.getDefault()), qLower) }) {
+                if (episodes.any { containsPhraseOrAllTokens(it.description.lowercase(Locale.getDefault()), qLower) }) {
                     epDescMatches.add(p)
                     continue
                 }
