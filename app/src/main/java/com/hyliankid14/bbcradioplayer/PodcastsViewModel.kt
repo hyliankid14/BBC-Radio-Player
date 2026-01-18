@@ -23,11 +23,13 @@ class PodcastsViewModel : ViewModel() {
     private var cachedSearch: SearchCache? = null
 
     fun setActiveSearch(query: String?) {
-        _activeSearchQuery.postValue(query)
+        // Use synchronous set so callers on the main (UI) thread can read the updated
+        // value immediately (avoids races when applyFilters reads the LiveData right away).
+        _activeSearchQuery.value = query
     }
 
     fun clearActiveSearch() {
-        _activeSearchQuery.postValue(null)
+        _activeSearchQuery.value = null
     }
 
     fun getCachedSearch(): SearchCache? = cachedSearch

@@ -176,11 +176,16 @@ class PodcastsFragment : Fragment() {
             imm.hideSoftInputFromWindow(v.windowToken, 0)
             v.clearFocus()
 
+            // Read the current text directly from the view to avoid races (IME or composition may not have updated local state)
+            val current = (v.text?.toString() ?: "").trim()
+            // Keep local searchQuery in sync so other code paths rely on the latest value
+            searchQuery = current
+
             // Commit current query as active search and add to history
-            if (searchQuery.isNotBlank()) {
-                viewModel.setActiveSearch(searchQuery)
+            if (current.isNotBlank()) {
+                viewModel.setActiveSearch(current)
                 try {
-                    searchHistory.add(searchQuery)
+                    searchHistory.add(current)
                     historyAdapter.clear()
                     historyAdapter.addAll(searchHistory.getRecent())
                 } catch (e: Exception) {
@@ -226,6 +231,8 @@ class PodcastsFragment : Fragment() {
             searchEditText.setText(sel)
             searchEditText.setSelection(sel.length)
             suppressSearchWatcher = false
+            // Keep local state in sync and commit immediately so applyFilters uses the selected text
+            searchQuery = sel
             viewModel.setActiveSearch(sel)
             try {
                 searchHistory.add(sel)
