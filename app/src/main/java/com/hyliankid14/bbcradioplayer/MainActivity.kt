@@ -842,31 +842,43 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Create a snapshot overlay of the outgoing content so we can swap the RecyclerView's adapter
+        // Create a snapshot overlay (or fallback view) of the outgoing content so we can swap the RecyclerView's adapter
+        val parent = staticContentContainer as? android.view.ViewGroup
         val bitmap = try {
             Bitmap.createBitmap(stationsContent.width, stationsContent.height, Bitmap.Config.ARGB_8888).also { b ->
                 val c = android.graphics.Canvas(b)
                 stationsContent.draw(c)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
 
-        // Prepare overlay ImageView
-        val overlayView = bitmap?.let { bmp ->
+        // Prepare overlay view (image if possible, otherwise a solid surface copy)
+        val overlayView = if (bitmap != null) {
             ImageView(this).apply {
-                setImageBitmap(bmp)
-                translationX = 0f
+                setImageBitmap(bitmap)
+                translationX = stationsContent.x
+                translationY = stationsContent.y
                 alpha = 1f
                 setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                layoutParams = android.view.ViewGroup.LayoutParams(stationsContent.width, stationsContent.height)
+            }
+        } else {
+            View(this).apply {
+                background = stationsContent.background ?: android.graphics.drawable.ColorDrawable(android.graphics.Color.WHITE)
+                translationX = stationsContent.x
+                translationY = stationsContent.y
+                alpha = 1f
+                setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                layoutParams = android.view.ViewGroup.LayoutParams(stationsContent.width, stationsContent.height)
             }
         }
 
         // Add overlay above the content so we can animate it away while preparing the new list
-        val parent = staticContentContainer as? android.view.ViewGroup
-        overlayView?.let { ov ->
-            parent?.addView(ov, parent.indexOfChild(stationsContent) + 1)
-        }
+        try {
+            val insertIndex = parent?.indexOfChild(stationsContent)?.plus(1) ?: -1
+            if (insertIndex >= 0) parent?.addView(overlayView, insertIndex) else parent?.addView(overlayView)
+        } catch (_: Exception) {}
 
         // Use hardware layer and disable nested scrolling during the animation to avoid blurring/jitter
         stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
@@ -882,7 +894,7 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
 
         // Animate the overlay out
-        (overlayView ?: stationsContent).animate()
+        overlayView.animate()
             .translationX(exitTranslation)
             .alpha(0f)
             .setDuration(200)
@@ -908,11 +920,11 @@ class MainActivity : AppCompatActivity() {
                             // Reveal the RecyclerView content now that it's laid out
                             stationsList.visibility = View.VISIBLE
                             // Remove overlay and recycle bitmap
-                            overlayView?.let { ov ->
-                                try {
-                                    parent?.removeView(ov)
-                                } catch (_: Exception) {}
-                                (ov.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap?.recycle()
+                            try {
+                                parent?.removeView(overlayView)
+                            } catch (_: Exception) {}
+                            (overlayView as? ImageView)?.drawable?.let { d ->
+                                (d as? android.graphics.drawable.BitmapDrawable)?.bitmap?.recycle()
                             }
                             // Restore animator
                             try {
