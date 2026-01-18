@@ -52,4 +52,8 @@
     <color name="search_field_bg">#E7E0EC</color>
     <color name="search_field_text">#1C1B1F</color>
     <color name="search_field_hint">#49454E</color>
+
+    <!-- Episode status colors -->
+    <color name="episode_check_green">#4CAF50</color>
+    <color name="episode_tilde_amber">#FFC107</color>
 </resources>

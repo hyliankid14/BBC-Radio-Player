@@ -16,6 +16,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.core.text.HtmlCompat
+import androidx.core.content.ContextCompat
 
 class PodcastAdapter(
     private val context: Context,
@@ -192,7 +193,7 @@ class EpisodeAdapter(
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
         private val playButton: MaterialButton = itemView.findViewById(R.id.episode_play_icon)
-        private val playedIcon: ImageView? = itemView.findViewById(R.id.episode_played_icon)
+        private val playedIcon: TextView? = itemView.findViewById(R.id.episode_played_icon)
         private var isExpanded = false
         private val collapsedLines = 2
 
@@ -258,15 +259,17 @@ class EpisodeAdapter(
                 progressBar.visibility = View.GONE
             }
 
-            // Show indicator: check for completed, hollow circle for in-progress, otherwise hidden
+            // Show indicator: check (green) for completed, tilde (amber) for in-progress, otherwise hidden
             if (isPlayed) {
-                playedIcon?.setImageResource(R.drawable.ic_check)
+                playedIcon?.text = "\u2713"
+                playedIcon?.setTextColor(ContextCompat.getColor(itemView.context, R.color.episode_check_green))
                 playedIcon?.visibility = View.VISIBLE
             } else if (durMs > 0 && progressMs > 0L) {
                 // Consider in-progress when progress > 0 and < 95%
                 val ratio = progressMs.toDouble() / durMs.toDouble()
                 if (ratio < 0.95) {
-                    playedIcon?.setImageResource(R.drawable.ic_circle_outline)
+                    playedIcon?.text = "~"
+                    playedIcon?.setTextColor(ContextCompat.getColor(itemView.context, R.color.episode_tilde_amber))
                     playedIcon?.visibility = View.VISIBLE
                 } else {
                     playedIcon?.visibility = View.GONE
