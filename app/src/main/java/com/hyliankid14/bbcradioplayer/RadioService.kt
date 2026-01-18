@@ -821,6 +821,7 @@ class RadioService : MediaBrowserServiceCompat() {
             val notificationContentText = when {
                 currentStationId.startsWith("podcast_") -> (currentShowInfo.episodeTitle ?: currentShowTitle)
                 !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> {
+                    // For song metadata, show artist and track in the notification title (Artist - Track)
                     val artist = currentShowInfo.secondary ?: ""
                     val track = currentShowInfo.tertiary ?: ""
                     if (artist.isNotEmpty() && track.isNotEmpty()) "$artist — $track" else currentShowInfo.getFormattedTitle()
@@ -831,8 +832,16 @@ class RadioService : MediaBrowserServiceCompat() {
                     if (showName.isNotEmpty() && showTitle.isNotEmpty()) "$showName — $showTitle" else (currentShowInfo.description ?: currentShowTitle)
                 }
             }
+            // Use Artist - Track as notification title when available so it is visible in the shade
+            val notificationTitle = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
+                val artist = currentShowInfo.secondary ?: ""
+                val track = currentShowInfo.tertiary ?: ""
+                if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
+            } else {
+                currentStationTitle.ifEmpty { "BBC Radio Player" }
+            }
             val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
+                .setContentTitle(notificationTitle)
                 .setContentText(notificationContentText)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
@@ -984,8 +993,16 @@ class RadioService : MediaBrowserServiceCompat() {
                         }
                     }
 
+                    // Use Artist - Track as notification title when available so it is visible in the shade
+                    val notificationTitle = if (hasSongData) {
+                        val artist = currentShowInfo.secondary ?: ""
+                        val track = currentShowInfo.tertiary ?: ""
+                        if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
+                    } else {
+                        currentStationTitle.ifEmpty { "BBC Radio Player" }
+                    }
                     val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
-                        .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
+                        .setContentTitle(notificationTitle)
                         // For podcasts: use episode title as content text so Android Auto gets subtitle info
                         .setContentText(notificationContentText)
                         .setSmallIcon(android.R.drawable.ic_media_play)
@@ -1635,9 +1652,17 @@ class RadioService : MediaBrowserServiceCompat() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
+            val titleText = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
+                val artist = currentShowInfo.secondary ?: ""
+                val track = currentShowInfo.tertiary ?: ""
+                if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
+            } else {
+                currentStationTitle.ifEmpty { "BBC Radio Player" }
+            }
+            val contentText = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else (currentShowInfo.description ?: currentShowTitle)
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(currentStationTitle.ifEmpty { "BBC Radio Player" })
-                .setContentText(if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else (currentShowInfo.description ?: currentShowTitle))
+                .setContentTitle(titleText)
+                .setContentText(contentText)
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
