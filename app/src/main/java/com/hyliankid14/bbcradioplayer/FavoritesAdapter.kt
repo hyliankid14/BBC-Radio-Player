@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewParent
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import android.widget.ImageView
@@ -158,7 +159,7 @@ class FavoritesAdapter(
         holder.textView.setOnLongClickListener {
             // Give tactile feedback and request parent not to intercept while dragging
             holder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            (holder.itemView.parent as? View)?.requestDisallowInterceptTouchEvent(true)
+            (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(true)
             onStartDrag?.invoke(holder)
             true
         }
