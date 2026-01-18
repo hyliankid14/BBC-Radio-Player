@@ -559,7 +559,8 @@ class MainActivity : AppCompatActivity() {
                         latest > lastPlayed
                     }.map { it.id }.toSet()
                     runOnUiThread {
-                        val adapter = favoritesPodcastsRecycler.adapter
+                        val rv = try { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler) } catch (_: Exception) { null }
+                        val adapter = rv?.adapter
                         if (adapter is PodcastAdapter) {
                             adapter.updateNewEpisodes(newSet)
                         }
