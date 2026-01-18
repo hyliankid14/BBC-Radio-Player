@@ -416,7 +416,8 @@ class MainActivity : AppCompatActivity() {
         })
         stationsList.adapter = adapter
         
-        // Setup ItemTouchHelper for drag-and-drop
+        // Setup ItemTouchHelper for drag-and-drop. We disable the default long-press start and instead
+        // start drags explicitly when the user long-presses the station name or touches the drag handle.
         val itemTouchHelperCallback = object : ItemTouchHelper.Callback() {
             override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
                 val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
@@ -429,12 +430,34 @@ class MainActivity : AppCompatActivity() {
             }
             
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
-            
-            override fun isLongPressDragEnabled(): Boolean = true
+
+            // We will call startDrag manually from the adapter's long-press so disable the default long-press behavior
+            override fun isLongPressDragEnabled(): Boolean = false
+
+            // Visual feedback when an item is selected for dragging
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG && viewHolder != null) {
+                    val v = viewHolder.itemView
+                    v.bringToFront()
+                    v.animate().scaleX(1.02f).scaleY(1.02f).alpha(0.98f).setDuration(120).start()
+                    v.elevation = (16 * resources.displayMetrics.density)
+                }
+            }
+
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                super.clearView(recyclerView, viewHolder)
+                val v = viewHolder.itemView
+                v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150).start()
+                v.elevation = 0f
+            }
         }
         
         val itemTouchHelper = ItemTouchHelper(itemTouchHelperCallback)
         itemTouchHelper.attachToRecyclerView(stationsList)
+
+        // Wire the adapter so it can start drags when the user long-presses the title or touches the handle
+        adapter.onStartDrag = itemTouchHelper::startDrag
 
         // Load subscribed podcasts into Favorites section
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)

@@ -26,6 +26,9 @@ class FavoritesAdapter(
     private val fetchingIds = mutableSetOf<String>()
     private val CACHE_DURATION_MS = 120_000L // 2 minutes
 
+    // Hook provided by the host to start a drag operation (ItemTouchHelper.startDrag)
+    var onStartDrag: ((RecyclerView.ViewHolder) -> Unit)? = null
+
     class StationViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imageView: ImageView = view.findViewById(R.id.station_artwork)
         val textView: TextView = view.findViewById(R.id.station_title)
@@ -150,6 +153,25 @@ class FavoritesAdapter(
         attachTapGuard(holder.itemView) { onStationClick(station.id) }
         attachTapGuard(holder.imageView) { onStationClick(station.id) }
         attachTapGuard(holder.textView) { onStationClick(station.id) }
+
+        // Long-pressing the station title should start a drag (bringing the item to foreground)
+        holder.textView.setOnLongClickListener {
+            // Give tactile feedback and request parent not to intercept while dragging
+            holder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            (holder.itemView.parent as? View)?.requestDisallowInterceptTouchEvent(true)
+            onStartDrag?.invoke(holder)
+            true
+        }
+
+        // Touching the drag handle should also start the drag immediately on press
+        holder.dragHandle.setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                onStartDrag?.invoke(holder)
+                true
+            } else {
+                false
+            }
+        }
     }
     
     fun moveItem(fromPosition: Int, toPosition: Int) {
