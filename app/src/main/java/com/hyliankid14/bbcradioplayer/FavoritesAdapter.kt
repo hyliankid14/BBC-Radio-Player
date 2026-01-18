@@ -156,29 +156,52 @@ class FavoritesAdapter(
         attachTapGuard(holder.textView) { onStationClick(station.id) }
 
         // Long-pressing the station title should start a drag (bringing the item to foreground)
-        // Use a GestureDetector to detect the long-press and allow the same pointer to continue dragging
-        val gestureDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
-            override fun onLongPress(e: android.view.MotionEvent) {
-                // Give tactile feedback and prevent parent from intercepting while dragging
-                holder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(true)
-                onStartDrag?.invoke(holder)
-            }
-
-            override fun onDown(e: android.view.MotionEvent): Boolean = true
-        })
+        // Post a Runnable for the system long-press timeout so the same pointer can continue to move
+        val longPressTimeout = android.view.ViewConfiguration.getLongPressTimeout().toLong()
+        var longPressTriggered = false
+        var startX = 0f
+        var startY = 0f
+        val longPressRunnable = Runnable {
+            longPressTriggered = true
+            holder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(true)
+            onStartDrag?.invoke(holder)
+        }
 
         holder.textView.setOnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
-            // Don't consume - allow RecyclerView to receive subsequent MOVE events to drive the drag
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    startX = event.x
+                    startY = event.y
+                    longPressTriggered = false
+                    holder.itemView.postDelayed(longPressRunnable, longPressTimeout)
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val dx = kotlin.math.abs(event.x - startX)
+                    val dy = kotlin.math.abs(event.y - startY)
+                    val slop = android.view.ViewConfiguration.get(holder.textView.context).scaledTouchSlop
+                    if (dx > slop || dy > slop) {
+                        holder.itemView.removeCallbacks(longPressRunnable)
+                    }
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    holder.itemView.removeCallbacks(longPressRunnable)
+                    if (!longPressTriggered) {
+                        (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(false)
+                    }
+                }
+            }
+            // Don't consume; allow RecyclerView to receive MOVE events which ItemTouchHelper will use while dragging
             false
         }
 
-        // Touching the drag handle should also start the drag immediately on press. Return false
-        // so the pointer remains active and MOVE events get delivered for a smooth drag.
+        // Touching the drag handle should start the drag immediately on press; return false so pointer remains active
         holder.dragHandle.setOnTouchListener { _, event ->
             if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(true)
                 onStartDrag?.invoke(holder)
+            } else if (event.actionMasked == android.view.MotionEvent.ACTION_UP || event.actionMasked == android.view.MotionEvent.ACTION_CANCEL) {
+                (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(false)
             }
             false
         }
