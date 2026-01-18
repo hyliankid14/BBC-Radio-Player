@@ -720,17 +720,54 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.title = title
     }
 
+    private var filterButtonsSetupTried = false
+
     private fun setupFilterButtons() {
-        // Find the TabLayout inside the included layout and handle missing cases safely
-        val tabs = findViewById<com.google.android.material.tabs.TabLayout?>(R.id.filter_tabs)
+        // Robustly find a TabLayout: try id lookup first, then search inside the stations view
+        fun findTabLayoutRecursive(v: View): com.google.android.material.tabs.TabLayout? {
+            if (v is com.google.android.material.tabs.TabLayout) return v
+            if (v is android.view.ViewGroup) {
+                for (i in 0 until v.childCount) {
+                    val child = v.getChildAt(i)
+                    val found = findTabLayoutRecursive(child)
+                    if (found != null) return found
+                }
+            }
+            return null
+        }
+
+        var tabs = findViewById<com.google.android.material.tabs.TabLayout?>(R.id.filter_tabs)
         if (tabs == null) {
-            android.util.Log.w("MainActivity", "TabLayout with id 'filter_tabs' not found; filter buttons disabled, but swipe navigation will still be enabled")
-            // Enable swipe navigation even if tabs are missing so user can still switch categories
+            tabs = findTabLayoutRecursive(stationsView)
+        }
+        if (tabs == null) {
+            tabs = findTabLayoutRecursive(staticContentContainer)
+        }
+        // If the include wrapper exists but the TabLayout id wasn't found, search inside it
+        val fbContainer = filterButtonsContainer
+        if (tabs == null && fbContainer is android.view.ViewGroup) {
+            tabs = findTabLayoutRecursive(fbContainer)
+        }
+
+        if (tabs == null) {
+            if (!filterButtonsSetupTried) {
+                // Perhaps layout isn't laid out yet — try again after a layout pass
+                filterButtonsSetupTried = true
+                android.util.Log.d("MainActivity", "TabLayout not found yet; will retry after layout")
+                stationsView.post {
+                    setupFilterButtons()
+                }
+                return
+            }
+
+            android.util.Log.w("MainActivity", "TabLayout not found after retry; filter buttons disabled, but swipe navigation will still be enabled")
+            // Ensure swipe navigation is enabled even if the tabs are missing
             setupSwipeNavigation()
             return
         }
+
         tabLayout = tabs
-        
+
         tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
                 val newIndex = tab.position
@@ -759,7 +796,7 @@ class MainActivity : AppCompatActivity() {
             override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab) {}
         })
-        
+
         // Set National as default selected and sync index
         tabLayout.getTabAt(0)?.select()
         currentTabIndex = 0
@@ -801,6 +838,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun showCategoryStations(category: StationCategory) {
+        android.util.Log.d("MainActivity", "showCategoryStations: $category")
         val stations = StationRepository.getStationsByCategory(category)
         categorizedAdapter = CategorizedStationAdapter(this, stations, { stationId ->
             playStation(stationId)
@@ -938,9 +976,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun navigateToTab(index: Int) {
+        android.util.Log.d("MainActivity", "navigateToTab: requested=$index current=$currentTabIndex")
         if (!::tabLayout.isInitialized) return
         val maxIndex = tabLayout.tabCount - 1
         val target = index.coerceIn(0, maxIndex)
+        android.util.Log.d("MainActivity", "navigateToTab: target=$target")
         if (target != currentTabIndex) {
             tabLayout.getTabAt(target)?.select()
         }
