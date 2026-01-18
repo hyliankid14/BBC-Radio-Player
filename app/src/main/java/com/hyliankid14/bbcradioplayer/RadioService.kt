@@ -1541,6 +1541,40 @@ class RadioService : MediaBrowserServiceCompat() {
             // Ensure MediaSession metadata contains the podcast artwork URI immediately so UI/mini-player
             // can show the image before the progress runnable (which clears show.imageUrl) runs.
             updateMediaMetadata(artworkBitmap = null, artworkUri = syntheticStation.logoUrl)
+
+            // If we don't have a proper podcast image yet (saved episodes often lack it), attempt to
+            // resolve the podcast's series artwork in the background and update metadata/notification
+            // once we have it. We avoid overwriting an explicit image passed in the intent.
+            if (syntheticStation.logoUrl.isEmpty() || syntheticStation.logoUrl.endsWith("icon-apple-podcast.png")) {
+                serviceScope.launch {
+                    try {
+                        val repo = PodcastRepository(this@RadioService)
+                        val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                        val found = all.firstOrNull { it.id == episode.podcastId }
+                        val seriesImage = found?.imageUrl
+                        if (!seriesImage.isNullOrEmpty() && seriesImage != syntheticStation.logoUrl) {
+                            Log.d(TAG, "Resolved podcast series image for ${episode.podcastId}: $seriesImage")
+                            // Update cached station and metadata so UI/mini-player reflect it immediately
+                            val updatedStation = Station(
+                                id = syntheticStation.id,
+                                title = syntheticStation.title,
+                                serviceId = syntheticStation.serviceId,
+                                logoUrl = seriesImage,
+                                category = syntheticStation.category
+                            )
+                            currentStationLogo = seriesImage
+                            currentArtworkUri = seriesImage
+                            PlaybackStateHelper.setCurrentStation(updatedStation)
+                            updateMediaMetadata(artworkBitmap = null, artworkUri = seriesImage)
+                            // Update notification on main thread
+                            handler.post { startForegroundNotification() }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to resolve podcast series image: ${e.message}")
+                    }
+                }
+            }
+
             updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
             startForegroundNotification()
             Log.d(TAG, "Playing podcast episode: ${episode.title}")
