@@ -810,6 +810,8 @@ class MainActivity : AppCompatActivity() {
     private fun animateListTransition(direction: Int, onFadeOutComplete: () -> Unit) {
         val screenWidth = stationsContent.width.toFloat().takeIf { it > 0f } ?: stationsList.width.toFloat()
         val exitTranslation = if (direction > 0) -screenWidth else screenWidth
+        // Make incoming content start very close (15% off-screen) so it appears almost immediately
+        val enterTranslation = if (direction > 0) screenWidth * 0.15f else -screenWidth * 0.15f
         // If we don't have a valid size, fall back to the simple animation
         if (stationsContent.width <= 0 || stationsContent.height <= 0) {
             stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
@@ -893,9 +895,6 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
 
         // Animate the overlay out and overlap the incoming content animation for a snappier feel
-        // Make incoming content start very close (15% off-screen) so it appears almost immediately
-        val enterTranslation = if (direction > 0) screenWidth * 0.15f else -screenWidth * 0.15f
-
         val exitDuration = 100L
         val enterDuration = 100L
         // Start the incoming animation immediately so the new list is visible sooner
