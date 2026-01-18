@@ -187,28 +187,30 @@ class NowPlayingActivity : AppCompatActivity() {
         PlaybackStateHelper.onShowChange(showChangeListener)
 
         // Handle back navigation using the modern OnBackPressedDispatcher
-        onBackPressedDispatcher.addCallback(this) {
-            val hasPodcastContext = previewEpisodeProp != null
-                    || !intent.getStringExtra("initial_podcast_id").isNullOrEmpty()
-                    || PlaybackStateHelper.getCurrentStation()?.id?.startsWith("podcast_") == true
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val hasPodcastContext = previewEpisodeProp != null
+                        || !intent.getStringExtra("initial_podcast_id").isNullOrEmpty()
+                        || PlaybackStateHelper.getCurrentStation()?.id?.startsWith("podcast_") == true
 
-            if (hasPodcastContext) {
-                navigateBackToPodcastDetail()
-                return@addCallback
-            }
-
-            if (isTaskRoot) {
-                val intent = Intent(this@NowPlayingActivity, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                if (hasPodcastContext) {
+                    navigateBackToPodcastDetail()
+                    return
                 }
-                startActivity(intent)
-                finish()
-            } else {
-                // Fall through to default behavior
-                isEnabled = false
-                onBackPressedDispatcher.onBackPressed()
+
+                if (isTaskRoot) {
+                    val intent = Intent(this@NowPlayingActivity, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    }
+                    startActivity(intent)
+                    finish()
+                } else {
+                    // Fall through to default behavior
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
             }
-        }
+        })
         
         // If we're opened in preview mode for an episode (no playback), show that episode's details
         val previewEpisode: Episode? = intent.getParcelableExtraCompat<Episode>("preview_episode", Episode::class.java)
