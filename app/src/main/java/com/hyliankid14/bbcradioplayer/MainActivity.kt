@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
     private var categorizedAdapter: CategorizedStationAdapter? = null
     private var currentTabIndex = 0
     private var savedItemAnimator: androidx.recyclerview.widget.RecyclerView.ItemAnimator? = null
+    private var selectionFromSwipe = false
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
@@ -784,13 +785,17 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 // If the stations content isn't laid out (width == 0), fall back to immediate update
+                val wasSwipeSelection = selectionFromSwipe
+                if (wasSwipeSelection) selectionFromSwipe = false
+                val slowTransition = !wasSwipeSelection
+
                 if (stationsContent.width <= 0) {
                     android.util.Log.d("MainActivity", "stationsContent not laid out yet; updating immediately")
                     showCategoryStations(category)
                 } else {
-                    animateListTransition(direction) {
+                    animateListTransition(direction, {
                         showCategoryStations(category)
-                    }
+                    }, slowTransition)
                 }
             }
 
@@ -807,11 +812,13 @@ class MainActivity : AppCompatActivity() {
         setupSwipeNavigation()
     }
 
-    private fun animateListTransition(direction: Int, onFadeOutComplete: () -> Unit) {
+    private fun animateListTransition(direction: Int, onFadeOutComplete: () -> Unit, slow: Boolean = false) {
         val screenWidth = stationsContent.width.toFloat().takeIf { it > 0f } ?: stationsList.width.toFloat()
         val exitTranslation = if (direction > 0) -screenWidth else screenWidth
         // Make incoming content start very close (15% off-screen) so it appears almost immediately
         val enterTranslation = if (direction > 0) screenWidth * 0.15f else -screenWidth * 0.15f
+        val exitDuration = if (slow) 200L else 100L
+        val enterDuration = if (slow) 200L else 100L
         // If we don't have a valid size, fall back to the simple animation
         if (stationsContent.width <= 0 || stationsContent.height <= 0) {
             stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
@@ -895,8 +902,6 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
 
         // Animate the overlay out and overlap the incoming content animation for a snappier feel
-        val exitDuration = 100L
-        val enterDuration = 100L
         // Start the incoming animation immediately so the new list is visible sooner
         val overlapDelay = 0L
 
@@ -1079,8 +1084,10 @@ class MainActivity : AppCompatActivity() {
                             val off = if (dxTotal < 0) -stationsContent.width.toFloat() else stationsContent.width.toFloat()
                             stationsContent.animate().translationX(off).setDuration(180).withEndAction {
                                 if (dxTotal < 0) {
+                                    selectionFromSwipe = true
                                     navigateToTab(currentTabIndex + 1)
                                 } else {
+                                    selectionFromSwipe = true
                                     navigateToTab(currentTabIndex - 1)
                                 }
                                 // Ensure translation reset after navigation (animateListTransition will animate new content)
