@@ -738,29 +738,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun animateListTransition(direction: Int, onFadeOutComplete: () -> Unit) {
-        val screenWidth = stationsList.width.toFloat()
+        val screenWidth = stationsView.width.toFloat().takeIf { it > 0f } ?: stationsList.width.toFloat()
         val exitTranslation = if (direction > 0) -screenWidth else screenWidth
         val enterTranslation = if (direction > 0) screenWidth else -screenWidth
 
         // Use a hardware layer and disable nested scrolling during the animation to avoid blurring/jitter
-        stationsList.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        stationsView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         stationsList.isNestedScrollingEnabled = false
 
-        stationsList.animate()
+        stationsView.animate()
             .translationX(exitTranslation)
             .alpha(0f)
             .setDuration(200)
             .withEndAction {
                 onFadeOutComplete()
-                stationsList.translationX = enterTranslation
-                stationsList.alpha = 0f
-                stationsList.animate()
+                stationsView.translationX = enterTranslation
+                stationsView.alpha = 0f
+                stationsView.animate()
                     .translationX(0f)
                     .alpha(1f)
                     .setDuration(200)
                     .withEndAction {
                         // Restore normal rendering after animation completes
-                        stationsList.setLayerType(View.LAYER_TYPE_NONE, null)
+                        stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
                         stationsList.isNestedScrollingEnabled = true
                     }
                     .start()
@@ -803,15 +803,23 @@ class MainActivity : AppCompatActivity() {
                     MotionEvent.ACTION_MOVE -> {
                         val dx = e.x - downX
                         val dy = e.y - downY
+                        val maxIndex = if (::tabLayout.isInitialized) tabLayout.tabCount - 1 else 2
+
                         if (!dragging) {
                             val horizontalEnough = Math.abs(dx) > Math.abs(dy) * 1.5f && Math.abs(dx) > touchSlop
                             if (horizontalEnough) {
+                                // Do not start a horizontal drag if it would move past the first or last tab
+                                if ((dx > 0 && currentTabIndex == 0) || (dx < 0 && currentTabIndex == maxIndex)) {
+                                    // Let the RecyclerView (or parent) handle the gesture; do not intercept
+                                    return false
+                                }
+
                                 // Start dragging: take over touch events and prepare for smooth animation
                                 dragging = true
                                 rv.parent?.requestDisallowInterceptTouchEvent(true)
                                 rv.isNestedScrollingEnabled = false
-                                stationsList.animate().cancel()
-                                stationsList.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                                stationsView.animate().cancel()
+                                stationsView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                                 return true
                             }
                         } else {
@@ -825,7 +833,7 @@ class MainActivity : AppCompatActivity() {
                         dragging = false
                         rv.parent?.requestDisallowInterceptTouchEvent(false)
                         rv.isNestedScrollingEnabled = true
-                        stationsList.setLayerType(View.LAYER_TYPE_NONE, null)
+                        stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
                     }
                 }
                 return false
@@ -837,39 +845,42 @@ class MainActivity : AppCompatActivity() {
                     MotionEvent.ACTION_MOVE -> {
                         if (!dragging) return
                         val dx = e.x - downX
-                        val maxTrans = rv.width.toFloat()
-                        val trans = dx.coerceIn(-maxTrans, maxTrans)
-                        stationsList.translationX = trans
+                        val maxTrans = stationsView.width.toFloat().takeIf { it > 0f } ?: rv.width.toFloat()
+                        // Round to integer pixels to avoid sub-pixel text blurring
+                        val trans = Math.round(dx.coerceIn(-maxTrans, maxTrans)).toFloat()
+                        stationsView.translationX = trans
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         if (!dragging) return
                         velocityTracker?.computeCurrentVelocity(1000)
                         val vx = velocityTracker?.xVelocity ?: 0f
                         val dxTotal = e.x - downX
-                        val threshold = rv.width * 0.25f
+                        val threshold = (stationsView.width.takeIf { it > 0 } ?: rv.width) * 0.25f
+                        val maxIndex = if (::tabLayout.isInitialized) tabLayout.tabCount - 1 else 2
+                        val target = if (dxTotal < 0) currentTabIndex + 1 else currentTabIndex - 1
                         val shouldNavigate = Math.abs(dxTotal) > threshold || Math.abs(vx) > Math.max(minFlingVelocity, 1000)
 
                         // Restore parent handling after the gesture is finished
                         rv.parent?.requestDisallowInterceptTouchEvent(false)
                         rv.isNestedScrollingEnabled = true
 
-                        if (shouldNavigate) {
+                        if (shouldNavigate && target in 0..maxIndex) {
                             // Animate off-screen in the swipe direction for a smooth feel, then navigate
-                            val off = if (dxTotal < 0) -rv.width.toFloat() else rv.width.toFloat()
-                            stationsList.animate().translationX(off).setDuration(180).withEndAction {
+                            val off = if (dxTotal < 0) -stationsView.width.toFloat() else stationsView.width.toFloat()
+                            stationsView.animate().translationX(off).setDuration(180).withEndAction {
                                 if (dxTotal < 0) {
                                     navigateToTab(currentTabIndex + 1)
                                 } else {
                                     navigateToTab(currentTabIndex - 1)
                                 }
                                 // Ensure translation reset after navigation (animateListTransition will animate new content)
-                                stationsList.translationX = 0f
-                                stationsList.setLayerType(View.LAYER_TYPE_NONE, null)
+                                stationsView.translationX = 0f
+                                stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
                             }.start()
                         } else {
                             // animate back into place
-                            stationsList.animate().translationX(0f).setDuration(200).withEndAction {
-                                stationsList.setLayerType(View.LAYER_TYPE_NONE, null)
+                            stationsView.animate().translationX(0f).setDuration(200).withEndAction {
+                                stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
                             }.start()
                         }
                         velocityTracker?.recycle()
