@@ -857,6 +857,7 @@ class MainActivity : AppCompatActivity() {
         stationsList.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
             private var downX = 0f
             private var downY = 0f
+            private var activePointerId = MotionEvent.INVALID_POINTER_ID
             private var dragging = false
             private var velocityTracker: android.view.VelocityTracker? = null
             private var lastTranslation = 0f
@@ -864,8 +865,10 @@ class MainActivity : AppCompatActivity() {
             override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        downX = e.x
-                        downY = e.y
+                        // Start tracking this pointer explicitly
+                        activePointerId = e.getPointerId(0)
+                        downX = e.getX(0)
+                        downY = e.getY(0)
                         dragging = false
                         lastTranslation = 0f
                         velocityTracker?.recycle()
@@ -873,8 +876,11 @@ class MainActivity : AppCompatActivity() {
                         velocityTracker?.addMovement(e)
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        val dx = e.x - downX
-                        val dy = e.y - downY
+                        val idx = try { e.findPointerIndex(activePointerId) } catch (_: Exception) { 0 }
+                        val px = if (idx >= 0) e.getX(idx) else e.x
+                        val py = if (idx >= 0) e.getY(idx) else e.y
+                        val dx = px - downX
+                        val dy = py - downY
                         val maxIndex = if (::tabLayout.isInitialized) tabLayout.tabCount - 1 else 2
 
                         if (!dragging) {
@@ -882,13 +888,11 @@ class MainActivity : AppCompatActivity() {
                             if (horizontalEnough) {
                                 // Do not start a horizontal drag if it would move past the first or last tab
                                 if ((dx > 0 && currentTabIndex == 0) || (dx < 0 && currentTabIndex == maxIndex)) {
-                                    // Let the RecyclerView (or parent) handle the gesture; do not intercept
                                     return false
                                 }
 
                                 // Start dragging: take over touch events and prepare for smooth animation
                                 dragging = true
-                                // Ensure lastTranslation matches current translation to avoid an initial jump
                                 lastTranslation = stationsContent.translationX
                                 rv.stopScroll() // stop any ongoing fling to avoid jitter
                                 rv.parent?.requestDisallowInterceptTouchEvent(true)
@@ -903,12 +907,14 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        // Clean up even if we never started dragging
                         velocityTracker?.recycle()
                         velocityTracker = null
                         dragging = false
                         rv.parent?.requestDisallowInterceptTouchEvent(false)
                         rv.isNestedScrollingEnabled = true
                         stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                        activePointerId = MotionEvent.INVALID_POINTER_ID
                     }
                 }
                 return false
@@ -919,21 +925,28 @@ class MainActivity : AppCompatActivity() {
                 when (e.actionMasked) {
                     MotionEvent.ACTION_MOVE -> {
                         if (!dragging) return
-                        val dx = e.x - downX
+                        val idx = try { e.findPointerIndex(activePointerId) } catch (_: Exception) { 0 }
+                        val px = if (idx >= 0) e.getX(idx) else e.x
+                        val dx = px - downX
                         val maxTrans = stationsContent.width.toFloat().takeIf { it > 0f } ?: rv.width.toFloat()
-                        // Round to integer pixels to avoid sub-pixel text blurring
-                        val trans = Math.round(dx.coerceIn(-maxTrans, maxTrans)).toFloat()
-                        // Only apply translation when it actually changes to reduce rendering churn
-                        if (trans != lastTranslation) {
+                        // Use float translation for smooth tracking; avoid aggressive rounding which can cause jitter
+                        val trans = (dx).coerceIn(-maxTrans, maxTrans)
+                        // Only apply translation when it actually changes significantly to reduce rendering churn
+                        if (Math.abs(trans - lastTranslation) > 0.5f) {
                             stationsContent.translationX = trans
                             lastTranslation = trans
                         }
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        if (!dragging) return
+                        if (!dragging) {
+                            activePointerId = MotionEvent.INVALID_POINTER_ID
+                            return
+                        }
                         velocityTracker?.computeCurrentVelocity(1000)
-                        val vx = velocityTracker?.xVelocity ?: 0f
-                        val dxTotal = e.x - downX
+                        val vx = try { velocityTracker?.getXVelocity(activePointerId) ?: 0f } catch (_: Exception) { velocityTracker?.xVelocity ?: 0f }
+                        val idx = try { e.findPointerIndex(activePointerId) } catch (_: Exception) { -1 }
+                        val px = if (idx >= 0) e.getX(idx) else e.x
+                        val dxTotal = px - downX
                         val threshold = (stationsContent.width.takeIf { it > 0 } ?: rv.width) * 0.25f
                         val maxIndex = if (::tabLayout.isInitialized) tabLayout.tabCount - 1 else 2
                         val target = if (dxTotal < 0) currentTabIndex + 1 else currentTabIndex - 1
@@ -967,6 +980,7 @@ class MainActivity : AppCompatActivity() {
                         velocityTracker?.recycle()
                         velocityTracker = null
                         dragging = false
+                        activePointerId = MotionEvent.INVALID_POINTER_ID
                     }
                 }
             }
