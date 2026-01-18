@@ -156,22 +156,31 @@ class FavoritesAdapter(
         attachTapGuard(holder.textView) { onStationClick(station.id) }
 
         // Long-pressing the station title should start a drag (bringing the item to foreground)
-        holder.textView.setOnLongClickListener {
-            // Give tactile feedback and request parent not to intercept while dragging
-            holder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(true)
-            onStartDrag?.invoke(holder)
-            true
+        // Use a GestureDetector to detect the long-press and allow the same pointer to continue dragging
+        val gestureDetector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onLongPress(e: android.view.MotionEvent) {
+                // Give tactile feedback and prevent parent from intercepting while dragging
+                holder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(true)
+                onStartDrag?.invoke(holder)
+            }
+
+            override fun onDown(e: android.view.MotionEvent): Boolean = true
+        })
+
+        holder.textView.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            // Don't consume - allow RecyclerView to receive subsequent MOVE events to drive the drag
+            false
         }
 
-        // Touching the drag handle should also start the drag immediately on press
+        // Touching the drag handle should also start the drag immediately on press. Return false
+        // so the pointer remains active and MOVE events get delivered for a smooth drag.
         holder.dragHandle.setOnTouchListener { _, event ->
             if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
                 onStartDrag?.invoke(holder)
-                true
-            } else {
-                false
             }
+            false
         }
     }
     
