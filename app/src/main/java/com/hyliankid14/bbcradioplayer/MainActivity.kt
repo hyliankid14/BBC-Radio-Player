@@ -724,7 +724,9 @@ class MainActivity : AppCompatActivity() {
         // Find the TabLayout inside the included layout and handle missing cases safely
         val tabs = findViewById<com.google.android.material.tabs.TabLayout?>(R.id.filter_tabs)
         if (tabs == null) {
-            android.util.Log.w("MainActivity", "TabLayout with id 'filter_tabs' not found; filter buttons disabled")
+            android.util.Log.w("MainActivity", "TabLayout with id 'filter_tabs' not found; filter buttons disabled, but swipe navigation will still be enabled")
+            // Enable swipe navigation even if tabs are missing so user can still switch categories
+            setupSwipeNavigation()
             return
         }
         tabLayout = tabs
@@ -733,17 +735,24 @@ class MainActivity : AppCompatActivity() {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
                 val newIndex = tab.position
                 val direction = if (newIndex > currentTabIndex) 1 else -1
+                android.util.Log.d("MainActivity", "Tab selected: $newIndex (current=$currentTabIndex), direction=$direction")
                 currentTabIndex = newIndex
-                
+
                 val category = when (newIndex) {
                     0 -> StationCategory.NATIONAL
                     1 -> StationCategory.REGIONS
                     2 -> StationCategory.LOCAL
                     else -> StationCategory.NATIONAL
                 }
-                
-                animateListTransition(direction) {
+
+                // If the stations content isn't laid out (width == 0), fall back to immediate update
+                if (stationsContent.width <= 0) {
+                    android.util.Log.d("MainActivity", "stationsContent not laid out yet; updating immediately")
                     showCategoryStations(category)
+                } else {
+                    animateListTransition(direction) {
+                        showCategoryStations(category)
+                    }
                 }
             }
 
