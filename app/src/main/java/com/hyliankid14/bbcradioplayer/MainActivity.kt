@@ -893,51 +893,56 @@ class MainActivity : AppCompatActivity() {
             stationsList.itemAnimator = null
         } catch (_: Exception) {}
 
-        // Animate the overlay out (shorter duration for snappier reveal)
+        // Animate the overlay out and overlap the incoming content animation for a snappier feel
         val exitDuration = 140L
         val enterDuration = 140L
+        val overlapDelay = (exitDuration * 0.35f).toLong()
+
+        // Start overlay exit animation
         overlayView.animate()
             .translationX(exitTranslation)
             .alpha(0f)
             .setDuration(exitDuration)
-            .withEndAction {
-                try {
-                    onFadeOutComplete()
-                } catch (_: Exception) {}
-
-                // Position incoming content off-screen and make it invisible until its animation starts
-                stationsContent.translationX = enterTranslation
-                stationsContent.alpha = 0f
-
-                // Ensure RecyclerView has updated content/layout before animating in
-                stationsList.post {
-                    stationsContent.animate()
-                        .translationX(0f)
-                        .alpha(1f)
-                        .setDuration(enterDuration)
-                        .withEndAction {
-                            // Restore normal rendering after animation completes
-                            stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
-                            stationsList.isNestedScrollingEnabled = true
-                            // Reveal the RecyclerView content now that it's laid out
-                            stationsList.visibility = View.VISIBLE
-                            // Remove overlay and recycle bitmap
-                            try {
-                                parent?.removeView(overlayView)
-                            } catch (_: Exception) {}
-                            (overlayView as? ImageView)?.drawable?.let { d ->
-                                (d as? android.graphics.drawable.BitmapDrawable)?.bitmap?.recycle()
-                            }
-                            // Restore animator
-                            try {
-                                stationsList.itemAnimator = savedItemAnimator
-                                savedItemAnimator = null
-                            } catch (_: Exception) {}
-                        }
-                        .start()
-                }
-            }
             .start()
+
+        // After a short delay (while overlay is still moving), swap content and animate incoming list
+        overlayView.postDelayed({
+            try {
+                onFadeOutComplete()
+            } catch (_: Exception) {}
+
+            // Position incoming content off-screen and make it invisible until its animation starts
+            stationsContent.translationX = enterTranslation
+            stationsContent.alpha = 0f
+
+            // Ensure RecyclerView has updated content/layout before animating in
+            stationsList.post {
+                stationsContent.animate()
+                    .translationX(0f)
+                    .alpha(1f)
+                    .setDuration(enterDuration)
+                    .withEndAction {
+                        // Restore normal rendering after animation completes
+                        stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                        stationsList.isNestedScrollingEnabled = true
+                        // Reveal the RecyclerView content now that it's laid out
+                        stationsList.visibility = View.VISIBLE
+                        // Remove overlay and recycle bitmap
+                        try {
+                            parent?.removeView(overlayView)
+                        } catch (_: Exception) {}
+                        (overlayView as? ImageView)?.drawable?.let { d ->
+                            (d as? android.graphics.drawable.BitmapDrawable)?.bitmap?.recycle()
+                        }
+                        // Restore animator
+                        try {
+                            stationsList.itemAnimator = savedItemAnimator
+                            savedItemAnimator = null
+                        } catch (_: Exception) {}
+                    }
+                    .start()
+            }
+        }, overlapDelay)
     }
     
     private fun showCategoryStations(category: StationCategory) {
