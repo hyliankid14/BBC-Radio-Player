@@ -62,7 +62,7 @@
                     android:clipToPadding="false"
                     android:scrollbars="vertical" />
 
- 
+            </LinearLayout>
 
             <!-- Favorites: Subscribed Podcasts (Material 3 card with larger rounded corners) -->
             <com.google.android.material.card.MaterialCardView
