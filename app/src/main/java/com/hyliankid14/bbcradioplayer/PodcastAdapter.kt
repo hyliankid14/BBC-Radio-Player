@@ -27,6 +27,8 @@ class PodcastAdapter(
     private val showSubscribedIcon: Boolean = true
 ) : RecyclerView.Adapter<PodcastAdapter.PodcastViewHolder>() {
 
+    private var newEpisodeIds: Set<String> = emptySet()
+
     fun updatePodcasts(newPodcasts: List<Podcast>) {
         podcasts = newPodcasts
         notifyDataSetChanged()
@@ -34,6 +36,11 @@ class PodcastAdapter(
 
     fun addPodcasts(newPodcasts: List<Podcast>) {
         podcasts = podcasts + newPodcasts
+        notifyDataSetChanged()
+    }
+
+    fun updateNewEpisodes(newSet: Set<String>) {
+        newEpisodeIds = newSet
         notifyDataSetChanged()
     }
 
@@ -113,6 +120,14 @@ class PodcastAdapter(
                 subscribedIcon?.visibility = View.VISIBLE
             } else {
                 subscribedIcon?.visibility = View.GONE
+            }
+
+            // New-episode indicator dot (shown when this podcast has unseen episodes)
+            val newDot: TextView? = itemView.findViewById(R.id.podcast_new_dot)
+            if (newEpisodeIds.contains(podcast.id)) {
+                newDot?.visibility = View.VISIBLE
+            } else {
+                newDot?.visibility = View.GONE
             }
 
             // Highlight subscribed podcasts when used in the Favorites list using fixed lavender color

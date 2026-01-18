@@ -30,6 +30,40 @@ object PlayedEpisodesPreference {
         }
     }
 
+    // Record the last-played epoch for a podcast (used to detect newer episodes)
+    private const val KEY_LAST_PLAYED_PREFIX = "last_played_epoch_"
+
+    fun setLastPlayedEpoch(context: Context, podcastId: String, epochMs: Long) {
+        prefs(context).edit().putLong(KEY_LAST_PLAYED_PREFIX + podcastId, epochMs).apply()
+    }
+
+    fun getLastPlayedEpoch(context: Context, podcastId: String): Long {
+        return prefs(context).getLong(KEY_LAST_PLAYED_PREFIX + podcastId, 0L)
+    }
+
+    /**
+     * Mark an episode as played and update the podcast's last-played epoch if provided.
+     * This should be used when we know the episode's publish date.
+     */
+    fun markPlayedWithMeta(context: Context, episodeId: String, podcastId: String?, pubDateEpochMs: Long?) {
+        val current = getPlayedIds(context).toMutableSet()
+        if (!current.contains(episodeId)) {
+            current.add(episodeId)
+            // Remove saved progress when episode is considered completed
+            removeProgress(context, episodeId)
+            prefs(context).edit().putStringSet(KEY_PLAYED_IDS, current).apply()
+            pubDateEpochMs?.let { epoch ->
+                podcastId?.let { pid ->
+                    val existing = getLastPlayedEpoch(context, pid)
+                    if (epoch > existing) setLastPlayedEpoch(context, pid, epoch)
+                }
+            }
+            // Broadcast change so UI can update
+            val intent = android.content.Intent(ACTION_PLAYED_STATUS_CHANGED)
+            context.sendBroadcast(intent)
+        }
+    }
+
     fun markUnplayed(context: Context, episodeId: String) {
         val current = getPlayedIds(context).toMutableSet()
         if (current.contains(episodeId)) {

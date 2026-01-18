@@ -19,14 +19,34 @@
         android:orientation="vertical"
         android:layout_marginStart="12dp">
 
-        <TextView
-            android:id="@+id/podcast_title"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:maxLines="2"
-            android:ellipsize="end" />
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/podcast_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:maxLines="2"
+                android:ellipsize="end" />
+
+            <!-- Small dot indicator for new episodes (hidden by default) -->
+            <TextView
+                android:id="@+id/podcast_new_dot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="•"
+                android:textSize="18sp"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="6dp"
+                android:visibility="gone"
+                android:textColor="@color/episode_tilde_amber"
+                android:contentDescription="New episodes" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/podcast_description"

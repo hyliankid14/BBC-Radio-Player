@@ -534,12 +534,16 @@ class RadioService : MediaBrowserServiceCompat() {
                                 val repo = PodcastRepository(this@RadioService)
                                 val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                                 val podcasts = all.filter { subscribed.contains(it.id) }
-                                val itemsPodcasts = podcasts.map { p ->
+                                // Fetch cached latest update epochs and sort subscribed podcasts by newest update first
+                                val updates = withContext(Dispatchers.IO) { repo.fetchLatestUpdates(podcasts) }
+                                val sorted = podcasts.sortedByDescending { updates[it.id] ?: 0L }
+                                val itemsPodcasts = sorted.map { p ->
+                                    val subtitle = if ((updates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@RadioService, p.id)) "New" else ""
                                     MediaItem(
                                         MediaDescriptionCompat.Builder()
                                             .setMediaId("podcast_${p.id}")
                                             .setTitle(p.title)
-                                            .setSubtitle("")
+                                            .setSubtitle(subtitle)
                                             .setIconUri(android.net.Uri.parse(p.imageUrl))
                                             .build(),
                                         MediaItem.FLAG_BROWSABLE
@@ -1754,7 +1758,19 @@ class RadioService : MediaBrowserServiceCompat() {
             if (dur <= 0) return
             val ratio = pos.toDouble() / dur.toDouble()
             if (ratio >= 0.95) {
-                PlayedEpisodesPreference.markPlayed(this, episode.id)
+                // Try to parse pubDate to epoch and record it when marking played so we can detect newer episodes
+                val epoch = try {
+                    val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy")
+                    var parsed: Long? = null
+                    for (pattern in patterns) {
+                        try {
+                            val t = java.text.SimpleDateFormat(pattern, java.util.Locale.US).parse(episode.pubDate)?.time
+                            if (t != null) { parsed = t; break }
+                        } catch (_: Exception) { }
+                    }
+                    parsed
+                } catch (_: Exception) { null }
+                PlayedEpisodesPreference.markPlayedWithMeta(this, episode.id, episode.podcastId, epoch)
                 android.util.Log.d(TAG, "Marked episode as played (95% reached): ${episode.id}")
             }
         } catch (e: Exception) {

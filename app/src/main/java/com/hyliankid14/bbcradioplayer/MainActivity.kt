@@ -502,7 +502,16 @@ class MainActivity : AppCompatActivity() {
             val repo = PodcastRepository(this)
             Thread {
                 val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
-                val subs = all.filter { subscribedIds.contains(it.id) }
+                var subs = all.filter { subscribedIds.contains(it.id) }
+                // Fetch cached latest update epochs and sort subscribed podcasts by newest update first
+                val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
+                subs = subs.sortedByDescending { updates[it.id] ?: 0L }
+                // Determine which subscriptions have unseen episodes (latest update > last played epoch)
+                val newSet = subs.filter { p ->
+                    val latest = updates[p.id] ?: 0L
+                    val lastPlayed = PlayedEpisodesPreference.getLastPlayedEpoch(this, p.id)
+                    latest > lastPlayed
+                }.map { it.id }.toSet()
                 runOnUiThread {
                         val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
                         // Show app bar so podcast title and back button are visible
@@ -521,6 +530,7 @@ class MainActivity : AppCompatActivity() {
                     }, highlightSubscribed = true, showSubscribedIcon = false)
                     favoritesPodcastsRecycler.adapter = podcastAdapter
                     podcastAdapter.updatePodcasts(subs)
+                    podcastAdapter.updateNewEpisodes(newSet)
                 }
             }.start()
         } else {
@@ -529,6 +539,48 @@ class MainActivity : AppCompatActivity() {
 
         // Load saved episodes and display underneath Subscribed Podcasts in the Favorites section
         refreshSavedEpisodesSection()
+    }
+
+    // BroadcastReceiver to respond to played-status changes and update the "new episodes" indicators
+    private val playedStatusReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            try {
+                // Recompute which subscribed podcasts have newer episodes and update adapter
+                val subscribedIds = PodcastSubscriptions.getSubscribedIds(this@MainActivity)
+                if (subscribedIds.isEmpty()) return
+                Thread {
+                    val repo = PodcastRepository(this@MainActivity)
+                    val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
+                    val subs = all.filter { subscribedIds.contains(it.id) }
+                    val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
+                    val newSet = subs.filter { p ->
+                        val latest = updates[p.id] ?: 0L
+                        val lastPlayed = PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
+                        latest > lastPlayed
+                    }.map { it.id }.toSet()
+                    runOnUiThread {
+                        val adapter = favoritesPodcastsRecycler.adapter
+                        if (adapter is PodcastAdapter) {
+                            adapter.updateNewEpisodes(newSet)
+                        }
+                    }
+                }.start()
+            } catch (_: Exception) {}
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        try {
+            registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED))
+        } catch (_: Exception) {}
+    }
+
+    override fun onStop() {
+        super.onStop()
+        try {
+            unregisterReceiver(playedStatusReceiver)
+        } catch (_: Exception) {}
     }
 
     private fun showSettings() {
