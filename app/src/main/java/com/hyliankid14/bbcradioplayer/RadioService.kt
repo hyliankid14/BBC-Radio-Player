@@ -1290,41 +1290,66 @@ class RadioService : MediaBrowserServiceCompat() {
                         startForegroundNotification()
                     }
                 } else {
-                    // For live streams, schedule a delayed apply to match ~30s stream latency
-                    pendingShowInfo = finalShow
-                    // Clear any previously scheduled apply
-                    applyShowInfoRunnable?.let { handler.removeCallbacks(it) }
-                    applyShowInfoRunnable = Runnable {
-                        // Ensure the station hasn't changed since scheduling
-                        if (stationId == currentStationId && pendingShowInfo != null) {
-                            currentShowInfo = pendingShowInfo!!
-                            currentShowName = currentShowInfo!!.title
-                            val fmt = currentShowInfo!!.getFormattedTitle()
-                            currentShowTitle = if (fmt == "BBC Radio") "" else fmt
-                            currentEpisodeTitle = currentShowInfo!!.episodeTitle ?: ""
-                            PlaybackStateHelper.setCurrentShow(currentShowInfo!!)
-                            Log.d(TAG, "Applying delayed show info after ${'$'}{NOW_PLAYING_UPDATE_DELAY_MS}ms for station: ${'$'}stationId")
+                    // For live streams, apply immediately if this is the first fetch after switching stations.
+                    val isInitialApply = currentShowInfo.title.isNullOrEmpty() && currentShowName.isEmpty()
+                    if (isInitialApply) {
+                        // Apply immediately so the now playing field isn't blank on first play/switch
+                        currentShowInfo = finalShow
+                        currentShowName = finalShow.title
+                        currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
+                        currentEpisodeTitle = finalShow.episodeTitle ?: ""
+                        PlaybackStateHelper.setCurrentShow(finalShow)
+                        Log.d(TAG, "Applying initial show info immediately for station: $stationId")
 
-                            // Update UI on main thread
-                            handler.post {
-                                Log.d(TAG, "Updating UI with show title: $currentShowTitle (delayed)")
-                                val nowPlayingImageUrl = currentShowInfo!!.imageUrl
-                                if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
-                                    currentArtworkUri = nowPlayingImageUrl
-                                } else {
-                                    currentArtworkUri = null
-                                }
-                                updateMediaMetadata()
-                                startForegroundNotification()
+                        // Update UI right away
+                        handler.post {
+                            Log.d(TAG, "Updating UI with show title: $currentShowTitle (initial immediate)")
+                            val nowPlayingImageUrl = finalShow.imageUrl
+                            if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
+                                currentArtworkUri = nowPlayingImageUrl
+                            } else {
+                                currentArtworkUri = null
                             }
-                        } else {
-                            Log.d(TAG, "Station changed before applying delayed show info (requested: $stationId, current: $currentStationId), ignoring")
+                            updateMediaMetadata()
+                            startForegroundNotification()
                         }
-                        // Clear pending references
-                        pendingShowInfo = null
-                        applyShowInfoRunnable = null
+                    } else {
+                        // For subsequent updates, schedule a delayed apply to match ~30s stream latency
+                        pendingShowInfo = finalShow
+                        // Clear any previously scheduled apply
+                        applyShowInfoRunnable?.let { handler.removeCallbacks(it) }
+                        applyShowInfoRunnable = Runnable {
+                            // Ensure the station hasn't changed since scheduling
+                            if (stationId == currentStationId && pendingShowInfo != null) {
+                                currentShowInfo = pendingShowInfo!!
+                                currentShowName = currentShowInfo!!.title
+                                val fmt = currentShowInfo!!.getFormattedTitle()
+                                currentShowTitle = if (fmt == "BBC Radio") "" else fmt
+                                currentEpisodeTitle = currentShowInfo!!.episodeTitle ?: ""
+                                PlaybackStateHelper.setCurrentShow(currentShowInfo!!)
+                                Log.d(TAG, "Applying delayed show info after ${'$'}{NOW_PLAYING_UPDATE_DELAY_MS}ms for station: ${'$'}stationId")
+
+                                // Update UI on main thread
+                                handler.post {
+                                    Log.d(TAG, "Updating UI with show title: $currentShowTitle (delayed)")
+                                    val nowPlayingImageUrl = currentShowInfo!!.imageUrl
+                                    if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
+                                        currentArtworkUri = nowPlayingImageUrl
+                                    } else {
+                                        currentArtworkUri = null
+                                    }
+                                    updateMediaMetadata()
+                                    startForegroundNotification()
+                                }
+                            } else {
+                                Log.d(TAG, "Station changed before applying delayed show info (requested: $stationId, current: $currentStationId), ignoring")
+                            }
+                            // Clear pending references
+                            pendingShowInfo = null
+                            applyShowInfoRunnable = null
+                        }
+                        handler.postDelayed(applyShowInfoRunnable!!, NOW_PLAYING_UPDATE_DELAY_MS)
                     }
-                    handler.postDelayed(applyShowInfoRunnable!!, NOW_PLAYING_UPDATE_DELAY_MS)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Error fetching show info: ${e.message}", e)
