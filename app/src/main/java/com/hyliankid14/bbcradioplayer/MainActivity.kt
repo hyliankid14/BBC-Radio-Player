@@ -811,29 +811,102 @@ class MainActivity : AppCompatActivity() {
         val screenWidth = stationsContent.width.toFloat().takeIf { it > 0f } ?: stationsList.width.toFloat()
         val exitTranslation = if (direction > 0) -screenWidth else screenWidth
         val enterTranslation = if (direction > 0) screenWidth else -screenWidth
+        // If we don't have a valid size, fall back to the simple animation
+        if (stationsContent.width <= 0 || stationsContent.height <= 0) {
+            stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            stationsList.isNestedScrollingEnabled = false
+            stationsContent.animate().translationX(exitTranslation).alpha(0f).setDuration(200).withEndAction {
+                onFadeOutComplete()
+                stationsContent.translationX = enterTranslation
+                stationsContent.alpha = 0f
+                stationsContent.animate().translationX(0f).alpha(1f).setDuration(200).withEndAction {
+                    stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                    stationsList.isNestedScrollingEnabled = true
+                }.start()
+            }.start()
+            return
+        }
 
-        // Use a hardware layer and disable nested scrolling during the animation to avoid blurring/jitter
+        // Create a snapshot overlay of the outgoing content so we can swap the RecyclerView's adapter
+        val bitmap = try {
+            Bitmap.createBitmap(stationsContent.width, stationsContent.height, Bitmap.Config.ARGB_8888).also { b ->
+                val c = android.graphics.Canvas(b)
+                stationsContent.draw(c)
+            }
+        } catch (e: Exception) {
+            null
+        }
+
+        // Prepare overlay ImageView
+        val overlayView = bitmap?.let { bmp ->
+            ImageView(this).apply {
+                setImageBitmap(bmp)
+                translationX = 0f
+                alpha = 1f
+                setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            }
+        }
+
+        // Add overlay above the content so we can animate it away while preparing the new list
+        val parent = staticContentContainer as? android.view.ViewGroup
+        overlayView?.let { ov ->
+            parent?.addView(ov, parent.indexOfChild(stationsContent) + 1)
+        }
+
+        // Use hardware layer and disable nested scrolling during the animation to avoid blurring/jitter
         stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         stationsList.isNestedScrollingEnabled = false
 
-        stationsContent.animate()
+        // Hide the actual RecyclerView content while overlay animates out
+        stationsList.visibility = View.INVISIBLE
+
+        // Disable item animator while swapping content
+        try {
+            savedItemAnimator = stationsList.itemAnimator
+            stationsList.itemAnimator = null
+        } catch (_: Exception) {}
+
+        // Animate the overlay out
+        (overlayView ?: stationsContent).animate()
             .translationX(exitTranslation)
             .alpha(0f)
             .setDuration(200)
             .withEndAction {
-                onFadeOutComplete()
+                try {
+                    onFadeOutComplete()
+                } catch (_: Exception) {}
+
+                // Position incoming content off-screen and make it invisible until its animation starts
                 stationsContent.translationX = enterTranslation
                 stationsContent.alpha = 0f
-                stationsContent.animate()
-                    .translationX(0f)
-                    .alpha(1f)
-                    .setDuration(200)
-                    .withEndAction {
-                        // Restore normal rendering after animation completes
-                        stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
-                        stationsList.isNestedScrollingEnabled = true
-                    }
-                    .start()
+
+                // Ensure RecyclerView has updated content/layout before animating in
+                stationsList.post {
+                    stationsContent.animate()
+                        .translationX(0f)
+                        .alpha(1f)
+                        .setDuration(200)
+                        .withEndAction {
+                            // Restore normal rendering after animation completes
+                            stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                            stationsList.isNestedScrollingEnabled = true
+                            // Reveal the RecyclerView content now that it's laid out
+                            stationsList.visibility = View.VISIBLE
+                            // Remove overlay and recycle bitmap
+                            overlayView?.let { ov ->
+                                try {
+                                    parent?.removeView(ov)
+                                } catch (_: Exception) {}
+                                (ov.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap?.recycle()
+                            }
+                            // Restore animator
+                            try {
+                                stationsList.itemAnimator = savedItemAnimator
+                                savedItemAnimator = null
+                            } catch (_: Exception) {}
+                        }
+                        .start()
+                }
             }
             .start()
     }
