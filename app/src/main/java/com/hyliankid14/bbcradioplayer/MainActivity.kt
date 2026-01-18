@@ -457,7 +457,22 @@ class MainActivity : AppCompatActivity() {
         itemTouchHelper.attachToRecyclerView(stationsList)
 
         // Wire the adapter so it can start drags when the user long-presses the title or touches the handle
-        adapter.onStartDrag = itemTouchHelper::startDrag
+        adapter.onStartDrag = { vh, screenX, screenY ->
+            // Start the ItemTouchHelper drag
+            itemTouchHelper.startDrag(vh)
+            // Synthesize a small ACTION_DOWN on the RecyclerView at the long-press location so the
+            // active pointer is attached to the recycler for subsequent MOVE events (smooth drag)
+            try {
+                val rv = stationsList
+                val rvLoc = IntArray(2).also { rv.getLocationOnScreen(it) }
+                val x = (screenX - rvLoc[0]).toFloat()
+                val y = (screenY - rvLoc[1]).toFloat()
+                val now = android.os.SystemClock.uptimeMillis()
+                val down = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_DOWN, x, y, 0)
+                rv.dispatchTouchEvent(down)
+                down.recycle()
+            } catch (_: Exception) { }
+        }
 
         // Load subscribed podcasts into Favorites section
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
