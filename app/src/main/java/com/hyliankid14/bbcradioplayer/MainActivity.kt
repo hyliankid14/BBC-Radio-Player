@@ -63,7 +63,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerFavorite: ImageButton
     private lateinit var createDocumentLauncher: ActivityResultLauncher<String>
     private lateinit var openDocumentLauncher: ActivityResultLauncher<Array<String>>
-    private lateinit var filterButtonsContainer: View
+    // May be absent in some builds; make nullable and handle safely
+    private var filterButtonsContainer: View? = null
     private lateinit var tabLayout: TabLayout
     private var categorizedAdapter: CategorizedStationAdapter? = null
     private var currentTabIndex = 0
@@ -104,8 +105,16 @@ class MainActivity : AppCompatActivity() {
         stationsView = findViewById(R.id.stations_view)
         stationsContent = findViewById(R.id.stations_content)
         
-        // Use the tabs inside the included layout directly (some build environments don't generate the include id)
-        filterButtonsContainer = findViewById(R.id.filter_tabs)
+        // Try multiple ids because some build/tooling combinations either generate the include id
+        // or only the ids from the included layout itself. Fall back to a hidden placeholder if none found.
+        filterButtonsContainer = findViewById<View?>(R.id.filter_buttons_include)
+            ?: findViewById<View?>(R.id.filter_tabs)
+            ?: findViewById<View?>(R.id.filter_buttons)
+            ?: run {
+                android.util.Log.w("MainActivity", "Filter buttons view not found; continuing without it")
+                // Create an invisible placeholder so callers can safely invoke visibility changes
+                View(this).apply { visibility = View.GONE }
+            }
         
         settingsContainer = findViewById(R.id.settings_container)
         
@@ -353,7 +362,7 @@ class MainActivity : AppCompatActivity() {
         staticContentContainer.visibility = View.VISIBLE
         stationsView.visibility = View.VISIBLE
         stationsList.visibility = View.VISIBLE
-        filterButtonsContainer.visibility = View.VISIBLE
+        filterButtonsContainer?.visibility = View.VISIBLE
         settingsContainer.visibility = View.GONE
         // Ensure action bar reflects the section and clear any podcast-specific up affordance
         supportActionBar?.apply {
@@ -372,6 +381,9 @@ class MainActivity : AppCompatActivity() {
         setupFilterButtons()
         // Ensure saved episodes UI is hidden when switching to All Stations
         refreshSavedEpisodesSection()
+        
+        // Hide filter buttons if not available
+        filterButtonsContainer?.visibility = View.VISIBLE
     }
 
     private fun showFavorites() {
@@ -380,7 +392,7 @@ class MainActivity : AppCompatActivity() {
         staticContentContainer.visibility = View.VISIBLE
         stationsView.visibility = View.VISIBLE
         stationsList.visibility = View.VISIBLE
-        filterButtonsContainer.visibility = View.GONE
+        filterButtonsContainer?.visibility = View.GONE
         settingsContainer.visibility = View.GONE
         // Ensure action bar reflects the section and clear any podcast-specific up affordance
         supportActionBar?.apply {
@@ -635,7 +647,7 @@ class MainActivity : AppCompatActivity() {
         staticContentContainer.visibility = View.VISIBLE
         stationsView.visibility = View.GONE
         stationsList.visibility = View.GONE
-        filterButtonsContainer.visibility = View.GONE
+        filterButtonsContainer?.visibility = View.GONE
         settingsContainer.visibility = View.VISIBLE
         // Ensure action bar reflects the section and clear any podcast-specific up affordance
         supportActionBar?.apply {
