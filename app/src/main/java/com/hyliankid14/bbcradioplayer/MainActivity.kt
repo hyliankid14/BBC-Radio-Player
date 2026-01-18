@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tabLayout: TabLayout
     private var categorizedAdapter: CategorizedStationAdapter? = null
     private var currentTabIndex = 0
+    private var savedItemAnimator: androidx.recyclerview.widget.RecyclerView.ItemAnimator? = null
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
@@ -894,6 +895,11 @@ class MainActivity : AppCompatActivity() {
                                 // Start dragging: take over touch events and prepare for smooth animation
                                 dragging = true
                                 lastTranslation = stationsContent.translationX
+                                // Disable RecyclerView item animations to avoid layout jitter during drag
+                                try {
+                                    savedItemAnimator = stationsList.itemAnimator
+                                    stationsList.itemAnimator = null
+                                } catch (_: Exception) {}
                                 rv.stopScroll() // stop any ongoing fling to avoid jitter
                                 rv.parent?.requestDisallowInterceptTouchEvent(true)
                                 rv.isNestedScrollingEnabled = false
@@ -931,10 +937,11 @@ class MainActivity : AppCompatActivity() {
                         val maxTrans = stationsContent.width.toFloat().takeIf { it > 0f } ?: rv.width.toFloat()
                         // Use float translation for smooth tracking; avoid aggressive rounding which can cause jitter
                         val trans = (dx).coerceIn(-maxTrans, maxTrans)
-                        // Only apply translation when it actually changes significantly to reduce rendering churn
-                        if (Math.abs(trans - lastTranslation) > 0.5f) {
-                            stationsContent.translationX = trans
-                            lastTranslation = trans
+                        // Apply slight exponential smoothing to reduce micro-jitter while still following finger
+                        val smoothed = lastTranslation + (trans - lastTranslation) * 0.35f
+                        if (Math.abs(smoothed - lastTranslation) > 0.25f) {
+                            stationsContent.translationX = smoothed
+                            lastTranslation = smoothed
                         }
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -955,6 +962,11 @@ class MainActivity : AppCompatActivity() {
                         // Restore parent handling after the gesture is finished
                         rv.parent?.requestDisallowInterceptTouchEvent(false)
                         rv.isNestedScrollingEnabled = true
+                        // Restore RecyclerView item animator
+                        try {
+                            stationsList.itemAnimator = savedItemAnimator
+                            savedItemAnimator = null
+                        } catch (_: Exception) {}
 
                         if (shouldNavigate && target in 0..maxIndex) {
                             // Animate off-screen in the swipe direction for a smooth feel, then navigate
@@ -975,6 +987,11 @@ class MainActivity : AppCompatActivity() {
                             stationsContent.animate().translationX(0f).setDuration(200).withEndAction {
                                 stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
                                 lastTranslation = 0f
+                                // Restore animator if not already restored
+                                try {
+                                    stationsList.itemAnimator = savedItemAnimator
+                                    savedItemAnimator = null
+                                } catch (_: Exception) {}
                             }.start()
                         }
                         velocityTracker?.recycle()
