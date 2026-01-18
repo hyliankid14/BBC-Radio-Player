@@ -238,6 +238,21 @@ class NowPlayingActivity : AppCompatActivity() {
                         matchedPodcast = null
                         openPodcastButtonInit?.visibility = View.GONE
                     }
+
+                    // If preview artwork is missing or is the generic placeholder, prefer the series image
+                    try {
+                        val previewArtworkMissing = lastArtworkUrl.isNullOrEmpty() || lastArtworkUrl!!.contains("icon-apple-podcast.png")
+                        if (previewArtworkMissing && !found.imageUrl.isNullOrEmpty()) {
+                            lastArtworkUrl = found.imageUrl
+                            runOnUiThread {
+                                Glide.with(this@NowPlayingActivity)
+                                    .load(lastArtworkUrl)
+                                    .into(stationArtwork)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("NowPlayingActivity", "Failed to apply series artwork: ${e.message}")
+                    }
                 }
             }
         }
