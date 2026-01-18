@@ -44,8 +44,7 @@ object NetworkQualityDetector {
             false
         } else {
             @Suppress("DEPRECATION")
-            val activeNetwork = connectivityManager.activeNetworkInfo
-            activeNetwork?.type == ConnectivityManager.TYPE_WIFI
+            return connectivityManager.activeNetworkInfo?.type == ConnectivityManager.TYPE_WIFI
         }
     }
 }

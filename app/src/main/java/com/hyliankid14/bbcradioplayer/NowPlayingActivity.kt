@@ -73,9 +73,9 @@ class NowPlayingActivity : AppCompatActivity() {
                 val repo = PodcastRepository(this@NowPlayingActivity)
                 val podcasts = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                 val queries = listOfNotNull(
-                    show.title?.takeIf { it.isNotEmpty() },
+                    show.title.takeIf { it.isNotEmpty() },
                     show.episodeTitle?.takeIf { it.isNotEmpty() },
-                    station.title?.takeIf { it.isNotEmpty() }
+                    station.title.takeIf { it.isNotEmpty() }
                 )
                 // Only accept exact title match (case-insensitive). Do NOT fall back to approximate matching here.
                 var found: Podcast? = null
@@ -185,6 +185,30 @@ class NowPlayingActivity : AppCompatActivity() {
 
         // Register listener for show changes
         PlaybackStateHelper.onShowChange(showChangeListener)
+
+        // Handle back navigation using the modern OnBackPressedDispatcher
+        onBackPressedDispatcher.addCallback(this) {
+            val hasPodcastContext = previewEpisodeProp != null
+                    || !intent.getStringExtra("initial_podcast_id").isNullOrEmpty()
+                    || PlaybackStateHelper.getCurrentStation()?.id?.startsWith("podcast_") == true
+
+            if (hasPodcastContext) {
+                navigateBackToPodcastDetail()
+                return@addCallback
+            }
+
+            if (isTaskRoot) {
+                val intent = Intent(this@NowPlayingActivity, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                startActivity(intent)
+                finish()
+            } else {
+                // Fall through to default behavior
+                isEnabled = false
+                onBackPressedDispatcher.onBackPressed()
+            }
+        }
         
         // If we're opened in preview mode for an episode (no playback), show that episode's details
         val previewEpisode: Episode? = intent.getParcelableExtraCompat<Episode>("preview_episode", Episode::class.java)
@@ -230,7 +254,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 val found = pods.find { it.id == previewPodcastId }
                 if (found != null) {
                     val currentStation = PlaybackStateHelper.getCurrentStation()
-                    val currentShowTitle = PlaybackStateHelper.getCurrentShow()?.title ?: ""
+                    val currentShowTitle = PlaybackStateHelper.getCurrentShow().title
                     // Only show the button when there is an active radio station (not a podcast) playing
                     // AND the currently playing show's title exactly matches the podcast series title.
                     if (currentStation != null && !currentStation.id.startsWith("podcast_")
@@ -299,29 +323,7 @@ class NowPlayingActivity : AppCompatActivity() {
         }
     }
 
-    override fun onBackPressed() {
-        // If we were opened for a specific podcast (preview or provided initial id) or the current
-        // playback station is a podcast, prefer navigating back to the podcast detail screen.
-        val hasPodcastContext = previewEpisodeProp != null
-                || !intent.getStringExtra("initial_podcast_id").isNullOrEmpty()
-                || PlaybackStateHelper.getCurrentStation()?.id?.startsWith("podcast_") == true
-
-        if (hasPodcastContext) {
-            navigateBackToPodcastDetail()
-            return
-        }
-
-        if (isTaskRoot) {
-            // If we're the root activity, navigate back to the main screen (no podcast deep-link)
-            val intent = Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            }
-            startActivity(intent)
-            finish()
-        } else {
-            super.onBackPressed()
-        }
-    }
+    // Back navigation handled by OnBackPressedDispatcher callback (added in onCreate).
 
     private fun navigateBackToPodcastDetail() {
         // Prefer the explicit preview episode's podcastId when available, otherwise derive from current station
@@ -501,7 +503,7 @@ class NowPlayingActivity : AppCompatActivity() {
             // Update play/pause button
             playPauseButton.icon = ContextCompat.getDrawable(this, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
-            val podcastId = station.id.removePrefix("podcast_") ?: ""
+            val podcastId = station.id.removePrefix("podcast_")
             val isFavorited = if (isPodcast) {
                 PodcastSubscriptions.isSubscribed(this, podcastId)
             } else {
@@ -921,8 +923,6 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     private fun updateMarkPlayedButtonState() {
-        val station = PlaybackStateHelper.getCurrentStation()
-
         // The mark-as-played control is intentionally hidden from the app bar to avoid duplication with
         // the main star subscription action. Keep it GONE so it does not display in the app bar.
         markPlayedButton.visibility = android.view.View.GONE

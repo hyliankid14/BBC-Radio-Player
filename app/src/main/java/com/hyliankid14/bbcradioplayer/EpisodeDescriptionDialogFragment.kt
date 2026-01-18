@@ -83,7 +83,7 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT
             ))
             // assign to the class-level ref
-            (this@EpisodeDescriptionDialogFragment as EpisodeDescriptionDialogFragment).scrollViewRef = this
+            this@EpisodeDescriptionDialogFragment.scrollViewRef = this
         }
 
         return AlertDialog.Builder(requireContext())
@@ -93,6 +93,7 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
             .create()
     }
 
+    @Suppress("DEPRECATION")
     override fun onStart() {
         super.onStart()
         // After the dialog is shown, measure content and limit height to a reasonable maximum

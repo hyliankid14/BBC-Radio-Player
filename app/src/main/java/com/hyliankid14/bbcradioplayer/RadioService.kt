@@ -831,7 +831,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     if (artist.isNotEmpty() && track.isNotEmpty()) "$artist — $track" else currentShowInfo.getFormattedTitle()
                 }
                 else -> {
-                    val showName = currentShowName.ifEmpty { currentShowInfo.title ?: "" }
+                    val showName = currentShowName.ifEmpty { currentShowInfo.title }
                     val showTitle = currentShowTitle.ifEmpty { currentShowInfo.episodeTitle ?: "" }
                     if (showName.isNotEmpty() && showTitle.isNotEmpty()) "$showName — $showTitle" else (currentShowInfo.description ?: currentShowTitle)
                 }
@@ -991,7 +991,7 @@ class RadioService : MediaBrowserServiceCompat() {
                             if (artist.isNotEmpty() && track.isNotEmpty()) "$artist — $track" else currentShowInfo.getFormattedTitle()
                         }
                         else -> {
-                            val showName = currentShowName.ifEmpty { currentShowInfo.title ?: "" }
+                            val showName = currentShowName.ifEmpty { currentShowInfo.title }
                             val showTitle = currentShowTitle.ifEmpty { currentShowInfo.episodeTitle ?: "" }
                             if (showName.isNotEmpty() && showTitle.isNotEmpty()) "$showName — $showTitle" else (currentShowInfo.description ?: currentShowTitle)
                         }
@@ -1802,10 +1802,10 @@ class RadioService : MediaBrowserServiceCompat() {
                 // Toggle saved entry using minimal current show metadata
                 val episode = com.hyliankid14.bbcradioplayer.Episode(
                     id = currentEpisodeId,
-                    title = PlaybackStateHelper.getCurrentShow()?.episodeTitle ?: "",
-                    description = PlaybackStateHelper.getCurrentShow()?.description ?: "",
+                    title = PlaybackStateHelper.getCurrentShow().episodeTitle ?: "",
+                    description = PlaybackStateHelper.getCurrentShow().description ?: "",
                     audioUrl = "",
-                    imageUrl = PlaybackStateHelper.getCurrentShow()?.imageUrl ?: "",
+                    imageUrl = PlaybackStateHelper.getCurrentShow().imageUrl ?: "",
                     pubDate = "",
                     durationMins = 0,
                     podcastId = stationId.removePrefix("podcast_")

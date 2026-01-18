@@ -1231,10 +1231,10 @@ class MainActivity : AppCompatActivity() {
                 if (!currentEpisodeId.isNullOrEmpty()) {
                     val episode = com.hyliankid14.bbcradioplayer.Episode(
                         id = currentEpisodeId,
-                        title = PlaybackStateHelper.getCurrentShow()?.episodeTitle ?: "Saved episode",
-                        description = PlaybackStateHelper.getCurrentShow()?.description ?: "",
+                        title = PlaybackStateHelper.getCurrentShow().episodeTitle ?: "Saved episode",
+                        description = PlaybackStateHelper.getCurrentShow().description ?: "",
                         audioUrl = "",
-                        imageUrl = PlaybackStateHelper.getCurrentShow()?.imageUrl ?: "",
+                        imageUrl = PlaybackStateHelper.getCurrentShow().imageUrl ?: "",
                         pubDate = "",
                         durationMins = 0,
                         podcastId = station.id.removePrefix("podcast_")
