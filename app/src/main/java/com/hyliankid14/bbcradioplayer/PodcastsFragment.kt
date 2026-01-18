@@ -622,7 +622,7 @@ class PodcastsFragment : Fragment() {
             // Show a small spinner while episode search is in progress
             view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.VISIBLE
 
-            searchJob = fragmentScope.launch {
+            searchJob = fragmentScope.launch search@{
                 try {
                     // Limit number of podcasts we fetch episodes for to avoid overloading network
                     val candidateLimit = if (q.trim().contains(" ")) 100 else 30
@@ -721,7 +721,7 @@ class PodcastsFragment : Fragment() {
                             // If we've already reached the display limit, skip further per-podcast scanning
                             if (episodeMatches.size >= 50) {
                                 view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
-                                return@launch
+                                return@search
                             }
                         }
                     } catch (e: Exception) {

@@ -21,6 +21,7 @@ class AppDatabase private constructor() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        @Suppress("UNUSED_PARAMETER")
         fun getInstance(_context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = AppDatabase()
