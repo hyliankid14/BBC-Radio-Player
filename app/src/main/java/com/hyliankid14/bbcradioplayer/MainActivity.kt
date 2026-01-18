@@ -893,11 +893,13 @@ class MainActivity : AppCompatActivity() {
             stationsList.itemAnimator = null
         } catch (_: Exception) {}
 
-        // Animate the overlay out
+        // Animate the overlay out (shorter duration for snappier reveal)
+        val exitDuration = 140L
+        val enterDuration = 140L
         overlayView.animate()
             .translationX(exitTranslation)
             .alpha(0f)
-            .setDuration(200)
+            .setDuration(exitDuration)
             .withEndAction {
                 try {
                     onFadeOutComplete()
@@ -912,7 +914,7 @@ class MainActivity : AppCompatActivity() {
                     stationsContent.animate()
                         .translationX(0f)
                         .alpha(1f)
-                        .setDuration(200)
+                        .setDuration(enterDuration)
                         .withEndAction {
                             // Restore normal rendering after animation completes
                             stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
