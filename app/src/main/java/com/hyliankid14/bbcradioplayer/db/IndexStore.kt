@@ -57,8 +57,8 @@ class IndexStore private constructor(private val context: Context) {
             for (p in podcasts) {
                 stmt.clearBindings()
                 stmt.bindString(1, p.id)
-                stmt.bindString(2, p.title ?: "")
-                stmt.bindString(3, p.description ?: "")
+                stmt.bindString(2, p.title)
+                stmt.bindString(3, p.description)
                 stmt.executeInsert()
             }
             db.setTransactionSuccessful()
@@ -80,8 +80,8 @@ class IndexStore private constructor(private val context: Context) {
                 stmt.clearBindings()
                 stmt.bindString(1, e.id)
                 stmt.bindString(2, e.podcastId)
-                stmt.bindString(3, e.title ?: "")
-                stmt.bindString(4, e.description ?: "")
+                stmt.bindString(3, e.title)
+                stmt.bindString(4, e.description)
                 stmt.executeInsert()
                 processed++
                 if (processed % reportInterval == 0 || processed == total) {

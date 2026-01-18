@@ -69,7 +69,7 @@ class SearchResultsAdapter(
         // Clear any previous Episode items
         items.removeAll { it is Item.EpisodeItem }
         // Remove any existing Section("Episode") header
-        items.removeAll { it is Item.Section && (it as Item.Section).title == "Episode" }
+        items.removeAll { it is Item.Section && it.title == "Episode" }
         if (newEpisodeMatches.isNotEmpty()) {
             items.add(Item.Section("Episode"))
             newEpisodeMatches.forEach { (ep, p) -> items.add(Item.EpisodeItem(ep, p)) }

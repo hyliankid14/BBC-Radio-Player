@@ -736,28 +736,32 @@ class PodcastsFragment : Fragment() {
                         if (generation != searchGeneration) break
                         val deferreds = chunk.map { p ->
                             async(Dispatchers.IO) {
-                                val qLower = q.lowercase(Locale.getDefault())
+                                val qLowerLocal = q.lowercase(Locale.getDefault())
                                 // Prefer cached indexed search when available
-                                val cachedHits = repository.searchCachedEpisodes(p.id, qLower, 3)
-                                if (cachedHits.isNotEmpty()) return@async p to cachedHits
+                                val cachedHits = repository.searchCachedEpisodes(p.id, qLowerLocal, 3)
+
                                 // Otherwise fetch episodes (repository will index them) then search using the same indexed helper
                                 val eps = repository.fetchEpisodesIfNeeded(p)
-                                val postHits = repository.searchCachedEpisodes(p.id, qLower, 3)
-                                if (postHits.isNotEmpty()) return@async p to postHits
+                                val postHits = repository.searchCachedEpisodes(p.id, qLowerLocal, 3)
 
                                 // As a last resort, attempt a looser token-AND search on the raw episode strings
-                                val tokens = qLower.split(Regex("\\s+")).filter { it.isNotEmpty() }
-                                if (tokens.isNotEmpty() && eps.isNotEmpty()) {
-                                    val hits = eps.filter { ep ->
-                                        val t = ep.title.lowercase(Locale.getDefault())
-                                        val d = ep.description.lowercase(Locale.getDefault())
-                                        tokens.all { tok -> t.contains(tok) || d.contains(tok) }
-                                    }.take(3)
-                                    if (hits.isNotEmpty()) android.util.Log.d("PodcastsFragment", "token-AND fallback matched ${hits.size} items in podcast='${p.title}' for query='$q'")
-                                    return@async p to hits
-                                }
+                                val tokens = qLowerLocal.split(Regex("\\s+")).filter { it.isNotEmpty() }
 
-                                p to emptyList<Episode>()
+                                val result: Pair<com.hyliankid14.bbcradioplayer.Podcast, List<Episode>> = when {
+                                    cachedHits.isNotEmpty() -> p to cachedHits
+                                    postHits.isNotEmpty() -> p to postHits
+                                    tokens.isNotEmpty() && eps.isNotEmpty() -> {
+                                        val hits = eps.filter { ep ->
+                                            val t = ep.title.lowercase(Locale.getDefault())
+                                            val d = ep.description.lowercase(Locale.getDefault())
+                                            tokens.all { tok -> t.contains(tok) || d.contains(tok) }
+                                        }.take(3)
+                                        if (hits.isNotEmpty()) android.util.Log.d("PodcastsFragment", "token-AND fallback matched ${hits.size} items in podcast='${p.title}' for query='$q'")
+                                        p to hits
+                                    }
+                                    else -> p to emptyList()
+                                }
+                                result
                             }
                         }
                         val results = deferreds.awaitAll()
@@ -773,7 +777,7 @@ class PodcastsFragment : Fragment() {
                                     val sorted = episodeMatches.sortedWith(compareByDescending<Pair<com.hyliankid14.bbcradioplayer.Episode, com.hyliankid14.bbcradioplayer.Podcast>> { pair ->
                                         when {
                                             repository.textMatchesNormalized(pair.first.title, q) -> 2
-                                            repository.textMatchesNormalized(pair.first.description ?: "", q) -> 1
+                                            repository.textMatchesNormalized(pair.first.description, q) -> 1
                                             else -> 0
                                         }
                                     })

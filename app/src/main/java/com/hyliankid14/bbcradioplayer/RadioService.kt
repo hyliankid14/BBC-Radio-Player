@@ -1261,7 +1261,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
                 // Debug: log whether RMS provided song data
                 val hasSongData = !finalShow.secondary.isNullOrEmpty() || !finalShow.tertiary.isNullOrEmpty()
-                Log.d(TAG, "Song data present=${'$'}hasSongData (artist=${finalShow.secondary}, track=${finalShow.tertiary})")
+                Log.d(TAG, "Song data present=$hasSongData (artist=${finalShow.secondary}, track=${finalShow.tertiary})")
 
                 // Switch to main thread to update UI
                 handler.post {
@@ -1487,7 +1487,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 id = "podcast_${episode.podcastId}",
                 title = podcastTitle,
                 serviceId = "podcast",
-                logoUrl = podcastImage ?: "https://assets.bbci.co.uk/sounds/3.11.1/img/icon-apple-podcast.png"
+                logoUrl = podcastImage
             )
 
             // Update playback helper & state
