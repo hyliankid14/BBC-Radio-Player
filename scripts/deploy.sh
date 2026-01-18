@@ -9,8 +9,8 @@ PACKAGE_NAME="com.hyliankid14.bbcradioplayer"
 ARTIFACT_NAME="bbc-radio-player"
 BRANCH="main"
 
-# Get commit message from argument
-COMMIT_MSG="$1"
+# Get commit message from all arguments (safer for multi-word messages)
+COMMIT_MSG="$*"
 
 if [ -z "$COMMIT_MSG" ]; then
   echo "Error: Commit message is required."

@@ -6,7 +6,7 @@
 			"type": "shell",
 			"command": "./scripts/deploy.sh",
 			"args": [
-				"${input:commitMessage}"
+				"\"${input:commitMessage}\""
 			],
 			"isBackground": false,
 			"problemMatcher": [],

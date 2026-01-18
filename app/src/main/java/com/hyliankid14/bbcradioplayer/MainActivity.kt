@@ -770,46 +770,82 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSwipeNavigation() {
-        val swipeThresholdDistance = (32 * resources.displayMetrics.density).toInt()
+        // Use touch slop and velocity to start a drag and make the list follow the finger
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+        val minFlingVelocity = android.view.ViewConfiguration.get(this).scaledMinimumFlingVelocity
+
         stationsList.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
-            var downX = 0f
-            var downY = 0f
-            var swipeHandled = false
+            private var downX = 0f
+            private var downY = 0f
+            private var dragging = false
+            private var velocityTracker: android.view.VelocityTracker? = null
 
             override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         downX = e.x
                         downY = e.y
-                        swipeHandled = false
+                        dragging = false
+                        velocityTracker?.recycle()
+                        velocityTracker = android.view.VelocityTracker.obtain()
+                        velocityTracker?.addMovement(e)
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        if (!swipeHandled) {
-                            val dx = e.x - downX
-                            val dy = e.y - downY
-                            val horizontalEnough = Math.abs(dx) > Math.abs(dy) * 1.5f
-                            val distanceOk = Math.abs(dx) > swipeThresholdDistance
-                            if (horizontalEnough && distanceOk) {
-                                if (dx < 0) {
-                                    navigateToTab(currentTabIndex + 1)
-                                } else {
-                                    navigateToTab(currentTabIndex - 1)
-                                }
-                                swipeHandled = true
-                                // Do not intercept; allow vertical scroll to continue
-                                return false
+                        val dx = e.x - downX
+                        val dy = e.y - downY
+                        if (!dragging) {
+                            val horizontalEnough = Math.abs(dx) > Math.abs(dy) * 1.5f && Math.abs(dx) > touchSlop
+                            if (horizontalEnough) {
+                                // Start intercepting so we receive subsequent events in onTouchEvent
+                                dragging = true
+                                return true
                             }
+                        } else {
+                            // already dragging; intercept
+                            return true
                         }
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        swipeHandled = false
+                        velocityTracker?.recycle()
+                        velocityTracker = null
+                        dragging = false
                     }
                 }
                 return false
             }
 
             override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {
-                // No-op; we don't need to consume events
+                velocityTracker?.addMovement(e)
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!dragging) return
+                        val dx = e.x - downX
+                        val maxTrans = rv.width.toFloat()
+                        val trans = dx.coerceIn(-maxTrans, maxTrans)
+                        stationsList.translationX = trans
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        if (!dragging) return
+                        velocityTracker?.computeCurrentVelocity(1000)
+                        val vx = velocityTracker?.xVelocity ?: 0f
+                        val dxTotal = e.x - downX
+                        val threshold = rv.width * 0.25f
+                        val shouldNavigate = Math.abs(dxTotal) > threshold || Math.abs(vx) > Math.max(minFlingVelocity, 1000)
+                        if (shouldNavigate) {
+                            if (dxTotal < 0) {
+                                navigateToTab(currentTabIndex + 1)
+                            } else {
+                                navigateToTab(currentTabIndex - 1)
+                            }
+                        } else {
+                            // animate back into place
+                            stationsList.animate().translationX(0f).setDuration(200).start()
+                        }
+                        velocityTracker?.recycle()
+                        velocityTracker = null
+                        dragging = false
+                    }
+                }
             }
 
             override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
