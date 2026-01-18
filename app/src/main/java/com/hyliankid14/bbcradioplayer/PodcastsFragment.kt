@@ -241,7 +241,7 @@ class PodcastsFragment : Fragment() {
             } catch (e: Exception) {
                 android.util.Log.w("PodcastsFragment", "Failed to update search history on selection: ${e.message}")
             }
-            applyFilters(loadingIndicator, emptyState, recyclerView)
+            applyFilters(emptyState, recyclerView)
         }
 
         // Ensure the global action bar is shown when navigating into a podcast detail
@@ -260,7 +260,7 @@ class PodcastsFragment : Fragment() {
             // Set exposed dropdowns back to 'All Genres' / default label
             genreSpinner.setText("All Genres", false)
             sortSpinner.setText("Most popular", false)
-            applyFilters(loadingIndicator, emptyState, recyclerView)
+            applyFilters(emptyState, recyclerView)
         }
 
         // Toggle filters visibility from the search app bar filter button
