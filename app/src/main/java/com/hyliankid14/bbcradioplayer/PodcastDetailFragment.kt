@@ -274,12 +274,16 @@ class PodcastDetailFragment : Fragment() {
         } catch (e: Exception) {
             // ignore
         }
-        (activity as? AppCompatActivity)?.supportActionBar?.apply {
-            // Reset action bar state and hide it so the Podcasts fragment can manage its own top bar
+        // Reset action bar state. Only hide the action bar if we're returning to the Podcasts fragment
+        val appCompat = activity as? AppCompatActivity
+        appCompat?.supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)
             title = "Podcasts"
-            hide()
+        }
+        val current = (activity as? AppCompatActivity)?.supportFragmentManager?.findFragmentById(R.id.fragment_container)
+        if (current is PodcastsFragment) {
+            (activity as? AppCompatActivity)?.supportActionBar?.hide()
         }
     }
 
