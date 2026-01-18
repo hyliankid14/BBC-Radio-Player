@@ -230,8 +230,12 @@ class NowPlayingActivity : AppCompatActivity() {
                 val found = pods.find { it.id == previewPodcastId }
                 if (found != null) {
                     val currentStation = PlaybackStateHelper.getCurrentStation()
+                    val currentShowTitle = PlaybackStateHelper.getCurrentShow()?.title ?: ""
                     // Only show the button when there is an active radio station (not a podcast) playing
-                    if (currentStation != null && !currentStation.id.startsWith("podcast_")) {
+                    // AND the currently playing show's title exactly matches the podcast series title.
+                    if (currentStation != null && !currentStation.id.startsWith("podcast_")
+                        && currentShowTitle.equals(found.title, ignoreCase = true)
+                    ) {
                         matchedPodcast = found
                         openPodcastButtonInit?.visibility = View.VISIBLE
                     } else {
