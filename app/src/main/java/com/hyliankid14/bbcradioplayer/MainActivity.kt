@@ -154,7 +154,9 @@ class MainActivity : AppCompatActivity() {
                         refreshCurrentView()
                         refreshSavedEpisodesSection()
                         updateMiniPlayer()
-                        // Recreate the activity so settings UI and any listeners reflect the newly imported preferences
+                        // Ensure settings UI reflects the newly imported preferences immediately
+                        setupSettings()
+                        // Recreate the activity so any remaining listeners and UI are fully refreshed
                         recreate()
                     }
                 }.start()
@@ -639,6 +641,8 @@ class MainActivity : AppCompatActivity() {
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)
         }
+        // Refresh the settings UI so controls reflect current preferences
+        setupSettings()
     }
 
     private fun showPodcasts() {
