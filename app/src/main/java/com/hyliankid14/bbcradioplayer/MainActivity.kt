@@ -896,7 +896,8 @@ class MainActivity : AppCompatActivity() {
         // Animate the overlay out and overlap the incoming content animation for a snappier feel
         val exitDuration = 140L
         val enterDuration = 140L
-        val overlapDelay = (exitDuration * 0.35f).toLong()
+        // Start the incoming animation very quickly after the overlay starts moving
+        val overlapDelay = 30L
 
         // Start overlay exit animation
         overlayView.animate()
