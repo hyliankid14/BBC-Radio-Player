@@ -900,51 +900,48 @@ class MainActivity : AppCompatActivity() {
         // Start the incoming animation immediately so the new list is visible sooner
         val overlapDelay = 0L
 
-        // Start overlay exit animation
+        // Start overlay exit animation immediately
         overlayView.animate()
             .translationX(exitTranslation)
             .alpha(0f)
             .setDuration(exitDuration)
             .start()
 
-        // After a short delay (while overlay is still moving), swap content and animate incoming list
-        overlayView.postDelayed({
-            try {
-                onFadeOutComplete()
-            } catch (_: Exception) {}
+        // Immediately swap content so the incoming list can begin animating while the old one exits
+        try {
+            onFadeOutComplete()
+        } catch (_: Exception) {}
 
-            // Position incoming content off-screen and make it invisible until its animation starts
-            stationsContent.translationX = enterTranslation
-            stationsContent.alpha = 0f
+        // Ensure the RecyclerView content is present underneath the overlay and prepare incoming animation
+        stationsList.visibility = View.VISIBLE
+        stationsContent.translationX = enterTranslation
+        stationsContent.alpha = 0f
 
-            // Ensure RecyclerView has updated content/layout before animating in
-            stationsList.post {
-                stationsContent.animate()
-                    .translationX(0f)
-                    .alpha(1f)
-                    .setDuration(enterDuration)
-                    .withEndAction {
-                        // Restore normal rendering after animation completes
-                        stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
-                        stationsList.isNestedScrollingEnabled = true
-                        // Reveal the RecyclerView content now that it's laid out
-                        stationsList.visibility = View.VISIBLE
-                        // Remove overlay and recycle bitmap
-                        try {
-                            parent?.removeView(overlayView)
-                        } catch (_: Exception) {}
-                        (overlayView as? ImageView)?.drawable?.let { d ->
-                            (d as? android.graphics.drawable.BitmapDrawable)?.bitmap?.recycle()
-                        }
-                        // Restore animator
-                        try {
-                            stationsList.itemAnimator = savedItemAnimator
-                            savedItemAnimator = null
-                        } catch (_: Exception) {}
+        // Start incoming animation without delay so it overlaps the overlay's exit
+        stationsList.post {
+            stationsContent.animate()
+                .translationX(0f)
+                .alpha(1f)
+                .setDuration(enterDuration)
+                .withEndAction {
+                    // Restore normal rendering after animation completes
+                    stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                    stationsList.isNestedScrollingEnabled = true
+                    // Remove overlay and recycle bitmap
+                    try {
+                        parent?.removeView(overlayView)
+                    } catch (_: Exception) {}
+                    (overlayView as? ImageView)?.drawable?.let { d ->
+                        (d as? android.graphics.drawable.BitmapDrawable)?.bitmap?.recycle()
                     }
-                    .start()
-            }
-        }, overlapDelay)
+                    // Restore animator
+                    try {
+                        stationsList.itemAnimator = savedItemAnimator
+                        savedItemAnimator = null
+                    } catch (_: Exception) {}
+                }
+                .start()
+        }
     }
     
     private fun showCategoryStations(category: StationCategory) {
