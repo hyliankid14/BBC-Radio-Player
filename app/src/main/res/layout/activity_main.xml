@@ -36,7 +36,7 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
-            <!-- Filter Buttons -->
+            <!-- Filter Buttons (static; won't move during swipes) -->
             <include
                 layout="@layout/filter_buttons"
                 android:layout_width="match_parent"
@@ -44,15 +44,23 @@
                 android:visibility="gone"
                 android:id="@+id/filter_buttons_include" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/stations_list"
+            <!-- Stations content (this is translated during swipes; tabs above remain static) -->
+            <LinearLayout
+                android:id="@+id/stations_content"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:paddingStart="0dp"
-                android:paddingEnd="0dp"
-                android:clipToPadding="false"
-                android:scrollbars="vertical" />
+                android:orientation="vertical">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/stations_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:clipToPadding="false"
+                    android:scrollbars="vertical" />
 
  
 

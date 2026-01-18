@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fragmentContainer: View
     private lateinit var staticContentContainer: View
     private lateinit var stationsView: View
+    private lateinit var stationsContent: View
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var miniPlayer: LinearLayout
     private lateinit var miniPlayerTitle: TextView
@@ -101,8 +102,9 @@ class MainActivity : AppCompatActivity() {
         fragmentContainer = findViewById(R.id.fragment_container)
         staticContentContainer = findViewById(R.id.static_content_container)
         stationsView = findViewById(R.id.stations_view)
+        stationsContent = findViewById(R.id.stations_content)
         
-        filterButtonsContainer = findViewById(R.id.filter_buttons_include)
+        filterButtonsContainer = findViewById(R.id/filter_buttons_include)
         
         settingsContainer = findViewById(R.id.settings_container)
         
@@ -738,29 +740,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun animateListTransition(direction: Int, onFadeOutComplete: () -> Unit) {
-        val screenWidth = stationsView.width.toFloat().takeIf { it > 0f } ?: stationsList.width.toFloat()
+        val screenWidth = stationsContent.width.toFloat().takeIf { it > 0f } ?: stationsList.width.toFloat()
         val exitTranslation = if (direction > 0) -screenWidth else screenWidth
         val enterTranslation = if (direction > 0) screenWidth else -screenWidth
 
         // Use a hardware layer and disable nested scrolling during the animation to avoid blurring/jitter
-        stationsView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         stationsList.isNestedScrollingEnabled = false
 
-        stationsView.animate()
+        stationsContent.animate()
             .translationX(exitTranslation)
             .alpha(0f)
             .setDuration(200)
             .withEndAction {
                 onFadeOutComplete()
-                stationsView.translationX = enterTranslation
-                stationsView.alpha = 0f
-                stationsView.animate()
+                stationsContent.translationX = enterTranslation
+                stationsContent.alpha = 0f
+                stationsContent.animate()
                     .translationX(0f)
                     .alpha(1f)
                     .setDuration(200)
                     .withEndAction {
                         // Restore normal rendering after animation completes
-                        stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
+                        stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
                         stationsList.isNestedScrollingEnabled = true
                     }
                     .start()
@@ -789,6 +791,7 @@ class MainActivity : AppCompatActivity() {
             private var downY = 0f
             private var dragging = false
             private var velocityTracker: android.view.VelocityTracker? = null
+            private var lastTranslation = 0f
 
             override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
                 when (e.actionMasked) {
@@ -796,6 +799,7 @@ class MainActivity : AppCompatActivity() {
                         downX = e.x
                         downY = e.y
                         dragging = false
+                        lastTranslation = 0f
                         velocityTracker?.recycle()
                         velocityTracker = android.view.VelocityTracker.obtain()
                         velocityTracker?.addMovement(e)
@@ -816,10 +820,11 @@ class MainActivity : AppCompatActivity() {
 
                                 // Start dragging: take over touch events and prepare for smooth animation
                                 dragging = true
+                                rv.stopScroll() // stop any ongoing fling to avoid jitter
                                 rv.parent?.requestDisallowInterceptTouchEvent(true)
                                 rv.isNestedScrollingEnabled = false
-                                stationsView.animate().cancel()
-                                stationsView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                                stationsContent.animate().cancel()
+                                stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                                 return true
                             }
                         } else {
@@ -833,7 +838,7 @@ class MainActivity : AppCompatActivity() {
                         dragging = false
                         rv.parent?.requestDisallowInterceptTouchEvent(false)
                         rv.isNestedScrollingEnabled = true
-                        stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
+                        stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
                     }
                 }
                 return false
@@ -845,17 +850,21 @@ class MainActivity : AppCompatActivity() {
                     MotionEvent.ACTION_MOVE -> {
                         if (!dragging) return
                         val dx = e.x - downX
-                        val maxTrans = stationsView.width.toFloat().takeIf { it > 0f } ?: rv.width.toFloat()
+                        val maxTrans = stationsContent.width.toFloat().takeIf { it > 0f } ?: rv.width.toFloat()
                         // Round to integer pixels to avoid sub-pixel text blurring
                         val trans = Math.round(dx.coerceIn(-maxTrans, maxTrans)).toFloat()
-                        stationsView.translationX = trans
+                        // Only apply translation when it actually changes to reduce rendering churn
+                        if (trans != lastTranslation) {
+                            stationsContent.translationX = trans
+                            lastTranslation = trans
+                        }
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         if (!dragging) return
                         velocityTracker?.computeCurrentVelocity(1000)
                         val vx = velocityTracker?.xVelocity ?: 0f
                         val dxTotal = e.x - downX
-                        val threshold = (stationsView.width.takeIf { it > 0 } ?: rv.width) * 0.25f
+                        val threshold = (stationsContent.width.takeIf { it > 0 } ?: rv.width) * 0.25f
                         val maxIndex = if (::tabLayout.isInitialized) tabLayout.tabCount - 1 else 2
                         val target = if (dxTotal < 0) currentTabIndex + 1 else currentTabIndex - 1
                         val shouldNavigate = Math.abs(dxTotal) > threshold || Math.abs(vx) > Math.max(minFlingVelocity, 1000)
@@ -866,21 +875,23 @@ class MainActivity : AppCompatActivity() {
 
                         if (shouldNavigate && target in 0..maxIndex) {
                             // Animate off-screen in the swipe direction for a smooth feel, then navigate
-                            val off = if (dxTotal < 0) -stationsView.width.toFloat() else stationsView.width.toFloat()
-                            stationsView.animate().translationX(off).setDuration(180).withEndAction {
+                            val off = if (dxTotal < 0) -stationsContent.width.toFloat() else stationsContent.width.toFloat()
+                            stationsContent.animate().translationX(off).setDuration(180).withEndAction {
                                 if (dxTotal < 0) {
                                     navigateToTab(currentTabIndex + 1)
                                 } else {
                                     navigateToTab(currentTabIndex - 1)
                                 }
                                 // Ensure translation reset after navigation (animateListTransition will animate new content)
-                                stationsView.translationX = 0f
-                                stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
+                                stationsContent.translationX = 0f
+                                stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                                lastTranslation = 0f
                             }.start()
                         } else {
                             // animate back into place
                             stationsView.animate().translationX(0f).setDuration(200).withEndAction {
                                 stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
+                                lastTranslation = 0f
                             }.start()
                         }
                         velocityTracker?.recycle()
