@@ -888,6 +888,8 @@ class MainActivity : AppCompatActivity() {
 
                                 // Start dragging: take over touch events and prepare for smooth animation
                                 dragging = true
+                                // Ensure lastTranslation matches current translation to avoid an initial jump
+                                lastTranslation = stationsContent.translationX
                                 rv.stopScroll() // stop any ongoing fling to avoid jitter
                                 rv.parent?.requestDisallowInterceptTouchEvent(true)
                                 rv.isNestedScrollingEnabled = false
@@ -956,9 +958,9 @@ class MainActivity : AppCompatActivity() {
                                 lastTranslation = 0f
                             }.start()
                         } else {
-                            // animate back into place
-                            stationsView.animate().translationX(0f).setDuration(200).withEndAction {
-                                stationsView.setLayerType(View.LAYER_TYPE_NONE, null)
+                            // animate back into place (apply to stationsContent, which is what we translate during the gesture)
+                            stationsContent.animate().translationX(0f).setDuration(200).withEndAction {
+                                stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
                                 lastTranslation = 0f
                             }.start()
                         }
