@@ -154,6 +154,8 @@ class MainActivity : AppCompatActivity() {
                         refreshCurrentView()
                         refreshSavedEpisodesSection()
                         updateMiniPlayer()
+                        // Recreate the activity so settings UI and any listeners reflect the newly imported preferences
+                        recreate()
                     }
                 }.start()
             }
@@ -1439,6 +1441,13 @@ class MainActivity : AppCompatActivity() {
                         is Number -> obj.put(k, v)
                         else -> obj.put(k, v?.toString())
                     }
+                }
+                // Ensure known defaults are present even if they were never explicitly stored
+                if (name == "scrolling_prefs") {
+                    if (!obj.has("scroll_mode")) obj.put("scroll_mode", ScrollingPreference.getScrollMode(this))
+                }
+                if (name == "playback_prefs") {
+                    if (!obj.has("auto_resume_android_auto")) obj.put("auto_resume_android_auto", PlaybackPreference.isAutoResumeAndroidAutoEnabled(this))
                 }
                 root.put(name, obj)
             }
