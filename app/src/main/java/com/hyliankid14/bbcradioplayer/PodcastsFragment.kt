@@ -127,7 +127,7 @@ class PodcastsFragment : Fragment() {
                     // Apply filters immediately so results disappear when the box is cleared
                     fragmentScope.launch {
                         if (!isAdded) return@launch
-                        applyFilters(loadingIndicator, emptyState, recyclerView)
+                        applyFilters(emptyState, recyclerView)
                     }
                     return
                 }
@@ -143,7 +143,7 @@ class PodcastsFragment : Fragment() {
                     kotlinx.coroutines.delay(300) // 300ms debounce
                     // If fragment is gone, abort
                     if (!isAdded) return@launch
-                    applyFilters(loadingIndicator, emptyState, recyclerView)
+                    applyFilters(emptyState, recyclerView)
 
                     // Add to search history (deduplicated inside helper) and refresh adapter
                     try {
@@ -193,7 +193,7 @@ class PodcastsFragment : Fragment() {
                 }
             }
 
-            applyFilters(loadingIndicator, emptyState, recyclerView)
+            applyFilters(emptyState, recyclerView)
             true
         }
 
@@ -245,7 +245,6 @@ class PodcastsFragment : Fragment() {
         }
 
         // Ensure the global action bar is shown when navigating into a podcast detail
-        val originalOnPodcastClick = podcastAdapter
 
         // Subscribed podcasts are shown in Favorites section, not here
 
@@ -345,10 +344,10 @@ class PodcastsFragment : Fragment() {
                     }
                     // Changing filters invalidates cached search results
                     viewModel.clearCachedSearch()
-                    applyFilters(loadingIndicator, emptyState, recyclerView)
+                    applyFilters(emptyState, recyclerView)
                 }
                 // ensure the list is shown by applying filters after spinner is configured
-                applyFilters(loadingIndicator, emptyState, recyclerView)
+                applyFilters(emptyState, recyclerView)
 
                 // Setup sort dropdown
                 val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
@@ -361,7 +360,7 @@ class PodcastsFragment : Fragment() {
                     currentSort = selected
                     // Changing sort invalidates cached search results
                     viewModel.clearCachedSearch()
-                    applyFilters(loadingIndicator, emptyState, recyclerView)
+                    applyFilters(emptyState, recyclerView)
                 }
 
                 // Sort by most recent update when starting
@@ -371,7 +370,7 @@ class PodcastsFragment : Fragment() {
                     allPodcasts.sortedByDescending { updates[it.id] ?: 0L }
                 } else allPodcasts
                 allPodcasts = sorted
-                applyFilters(loadingIndicator, emptyState, recyclerView)
+                applyFilters(emptyState, recyclerView)
 
                 // Start a background prefetch of episode metadata for the top podcasts only
                 // (prefetching all podcasts was too expensive and caused slowdown).
@@ -398,7 +397,6 @@ class PodcastsFragment : Fragment() {
     }
 
     private fun applyFilters(
-        loadingIndicator: ProgressBar,
         emptyState: TextView,
         recyclerView: RecyclerView
     ) {
@@ -860,7 +858,7 @@ class PodcastsFragment : Fragment() {
             view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loading ->
                 view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
                     view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { rv ->
-                        applyFilters(loading, empty, rv)
+                        applyFilters(empty, rv)
                     }
                 }
             }

@@ -320,7 +320,7 @@ class NowPlayingActivity : AppCompatActivity() {
             return true
         } else {
             // Let the system handle navigation when there is a previous activity
-            onBackPressed()
+            finish()
             return true
         }
     }
@@ -444,7 +444,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 showName.visibility = android.view.View.VISIBLE
                 showName.text = show.title.ifEmpty { "BBC Radio" }
                 // Ensure the action bar shows the radio station name
-                supportActionBar?.title = station?.title ?: "BBC Radio"
+                supportActionBar?.title = station.title
                 
                 if (!show.episodeTitle.isNullOrEmpty()) {
                     episodeTitle.text = show.episodeTitle
@@ -472,7 +472,7 @@ class NowPlayingActivity : AppCompatActivity() {
             }
             
             // Only reload if URL changed
-            if (artworkUrl != null && artworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
+            if (artworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
                 lastArtworkUrl = artworkUrl
                 val fallbackUrl = station.logoUrl
                 
@@ -530,7 +530,7 @@ class NowPlayingActivity : AppCompatActivity() {
         episodeTitle.text = episodeHeading
         episodeTitle.visibility = android.view.View.VISIBLE
 
-        val rawDesc = episode.description ?: ""
+        val rawDesc = episode.description
         if (rawDesc.isNotEmpty()) {
             fullDescriptionHtml = rawDesc
             val spanned = androidx.core.text.HtmlCompat.fromHtml(rawDesc, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY)

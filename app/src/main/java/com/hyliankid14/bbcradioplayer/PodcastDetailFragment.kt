@@ -55,7 +55,6 @@ class PodcastDetailFragment : Fragment() {
 
         currentPodcast = arguments?.let { bundle -> bundle.getParcelableCompat<Podcast>("podcast", Podcast::class.java) }
         currentPodcast?.let { podcast ->
-            val headerContainer: View = view.findViewById(R.id.podcast_detail_header)
             val imageView: ImageView = view.findViewById(R.id.podcast_detail_image)
             val titleView: TextView = view.findViewById(R.id.podcast_detail_title)
             val descriptionView: TextView = view.findViewById(R.id.podcast_detail_description)

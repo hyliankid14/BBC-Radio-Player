@@ -939,7 +939,7 @@ class MainActivity : AppCompatActivity() {
                             }
 
                             // When index completes, update the last rebuilt timestamp immediately
-                            if (percent == 100 || (status != null && status.startsWith("Index complete"))) {
+                            if (percent == 100 || status.startsWith("Index complete")) {
                                 val now = System.currentTimeMillis()
                                 updateLastRebuilt(now)
                             }
