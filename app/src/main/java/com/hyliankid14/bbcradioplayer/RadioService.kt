@@ -1538,6 +1538,9 @@ class RadioService : MediaBrowserServiceCompat() {
                     Log.d(TAG, "Resuming episode ${episode.id} at position ${savedPos}ms")
                 }
             }
+            // Ensure MediaSession metadata contains the podcast artwork URI immediately so UI/mini-player
+            // can show the image before the progress runnable (which clears show.imageUrl) runs.
+            updateMediaMetadata(artworkBitmap = null, artworkUri = syntheticStation.logoUrl)
             updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
             startForegroundNotification()
             Log.d(TAG, "Playing podcast episode: ${episode.title}")
