@@ -1334,6 +1334,9 @@ class RadioService : MediaBrowserServiceCompat() {
         val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
         val artistStr = if (!currentShowInfo.secondary.isNullOrEmpty()) currentShowInfo.secondary!! else currentShowName
         val trackStr = if (!currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.tertiary!! else currentShowTitle
+        // Combine artist and track when both are available so device UIs that show METADATA_KEY_ARTIST
+        // will display "Artist - Track" (matching the mini player)
+        val artistTrackStr = if (hasSongData && artistStr.isNotEmpty() && trackStr.isNotEmpty()) "$artistStr - $trackStr" else artistStr
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             // Use metadata keys that make Android Auto show correct fields for podcasts and streams
@@ -1346,12 +1349,12 @@ class RadioService : MediaBrowserServiceCompat() {
                 else (if (hasSongData) currentShowInfo.getFormattedTitle() else currentStationTitle))
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST,
                 if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle)
-                else (if (hasSongData) artistStr else currentShowName))
+                else (if (hasSongData) artistTrackStr else currentShowName))
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
-            // Redundant artist fields for head-units that read alternate keys
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistStr)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistStr)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistStr)
+            // Redundant artist fields for head-units that read alternate keys; set to combined string when possible
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistTrackStr)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistTrackStr)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistTrackStr)
             // Display title: keep podcast/station as the main top title; subtitle: for streams show Artist - Track when available
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
                 if (currentStationId.startsWith("podcast_")) currentStationTitle else currentStationTitle)
