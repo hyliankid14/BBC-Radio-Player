@@ -815,13 +815,28 @@ class MainActivity : AppCompatActivity() {
         if (stationsContent.width <= 0 || stationsContent.height <= 0) {
             stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
             stationsList.isNestedScrollingEnabled = false
+            // Hide actual RecyclerView and disable its animator to avoid a content flash
+            stationsList.visibility = View.INVISIBLE
+            try {
+                savedItemAnimator = stationsList.itemAnimator
+                stationsList.itemAnimator = null
+            } catch (_: Exception) {}
+
             stationsContent.animate().translationX(exitTranslation).alpha(0f).setDuration(200).withEndAction {
-                onFadeOutComplete()
+                try {
+                    onFadeOutComplete()
+                } catch (_: Exception) {}
                 stationsContent.translationX = enterTranslation
                 stationsContent.alpha = 0f
                 stationsContent.animate().translationX(0f).alpha(1f).setDuration(200).withEndAction {
                     stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
                     stationsList.isNestedScrollingEnabled = true
+                    // Reveal RecyclerView and restore animator
+                    stationsList.visibility = View.VISIBLE
+                    try {
+                        stationsList.itemAnimator = savedItemAnimator
+                        savedItemAnimator = null
+                    } catch (_: Exception) {}
                 }.start()
             }.start()
             return
