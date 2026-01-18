@@ -1434,20 +1434,7 @@ class MainActivity : AppCompatActivity() {
                     when (v) {
                         is Set<*> -> {
                             val arr = JSONArray()
-                            // If exporting saved episodes, omit full descriptions to reduce export size
-                            if (name == "saved_episodes_prefs" && k == "saved_set") {
-                                v.forEach {
-                                    try {
-                                        val jo = JSONObject(it.toString())
-                                        jo.remove("description")
-                                        arr.put(jo.toString())
-                                    } catch (e: Exception) {
-                                        arr.put(it.toString())
-                                    }
-                                }
-                            } else {
-                                v.forEach { arr.put(it.toString()) }
-                            }
+                            v.forEach { arr.put(it.toString()) }
                             obj.put(k, arr)
                         }
                         is Boolean -> obj.put(k, v)
