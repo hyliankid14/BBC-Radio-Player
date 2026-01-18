@@ -81,9 +81,10 @@ object ShowInfoFetcher {
                 
                 val segmentShow = parseShowFromRmsResponse(response)
                 if (segmentShow != null) {
-                    // RMS returns Artist in 'title' (primary) and Track in 'secondary'
+                    // RMS sometimes returns Artist in 'title' (primary) and Track in 'secondary' or 'tertiary'
                     artist = segmentShow.title
-                    track = segmentShow.secondary
+                    // Prefer 'secondary' (common) but fall back to 'tertiary' if needed
+                    track = segmentShow.secondary ?: segmentShow.tertiary
                     imageUrl = segmentShow.imageUrl
                     segmentStartMs = segmentShow.segmentStartMs
                     segmentDurationMs = segmentShow.segmentDurationMs
