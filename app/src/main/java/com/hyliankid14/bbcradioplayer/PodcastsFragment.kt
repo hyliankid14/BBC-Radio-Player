@@ -140,7 +140,7 @@ class PodcastsFragment : Fragment() {
                 // Debounce the application of filters to avoid running heavy searches on every keystroke
                 filterDebounceJob?.cancel()
                 filterDebounceJob = fragmentScope.launch {
-                    kotlinx.coroutines.delay(300) // 300ms debounce
+                    kotlinx.coroutines.delay(200) // 200ms debounce (more responsive)
                     // If fragment is gone, abort
                     if (!isAdded) return@launch
                     applyFilters(emptyState, recyclerView)
@@ -193,7 +193,8 @@ class PodcastsFragment : Fragment() {
                 }
             }
 
-            applyFilters(emptyState, recyclerView)
+            // Post the apply so the IME/view has time to commit composition state — prevents "stops after submit" bugs
+            v.post { applyFilters(emptyState, recyclerView) }
             true
         }
 
@@ -241,7 +242,8 @@ class PodcastsFragment : Fragment() {
             } catch (e: Exception) {
                 android.util.Log.w("PodcastsFragment", "Failed to update search history on selection: ${e.message}")
             }
-            applyFilters(emptyState, recyclerView)
+            // Post so AutoCompleteTextView finishes its internal state changes before we run the (potentially expensive) search
+            searchEditText.post { applyFilters(emptyState, recyclerView) }
         }
 
         // Ensure the global action bar is shown when navigating into a podcast detail
@@ -512,19 +514,29 @@ class PodcastsFragment : Fragment() {
             // IMPORTANT: ensure we operate on the base set filtered only by genres/duration
             // (do NOT apply the searchQuery filter here since episode matches may exist for
             // podcasts that don't match the podcast title/description yet).
-            val baseFiltered = repository.filterPodcasts(allPodcasts, currentFilter.copy(searchQuery = ""))
-
-            // Partition results immediately for name/description matches (fast, local)
-            val remainingCandidates = mutableListOf<Podcast>()
-            val qLower = q.lowercase(Locale.getDefault())
-            for (p in baseFiltered) {
-                val kind = repository.podcastMatchKind(p, qLower)
-                when (kind) {
-                    "title" -> titleMatches.add(p)
-                    "description" -> descMatches.add(p)
-                    else -> remainingCandidates.add(p)
+            // Perform the base filtering and partitioning off the main thread to avoid jank.
+            val (baseTitleMatches, baseDescMatches, baseRemaining) = withContext(Dispatchers.Default) {
+                val bf = repository.filterPodcasts(allPodcasts, currentFilter.copy(searchQuery = ""))
+                val rem = mutableListOf<Podcast>()
+                val tMatches = mutableListOf<Podcast>()
+                val dMatches = mutableListOf<Podcast>()
+                val qLowerLocal = q.lowercase(Locale.getDefault())
+                for (p in bf) {
+                    val kind = repository.podcastMatchKind(p, qLowerLocal)
+                    when (kind) {
+                        "title" -> tMatches.add(p)
+                        "description" -> dMatches.add(p)
+                        else -> rem.add(p)
+                    }
                 }
+                Triple(tMatches, dMatches, rem)
             }
+            // If fragment detached while we were off-thread, abort
+            if (!isAdded) return@launch
+
+            titleMatches.addAll(baseTitleMatches)
+            descMatches.addAll(baseDescMatches)
+            val remainingCandidates = baseRemaining
 
             // If query is short, avoid expensive episode searches. Show only title/description matches.
             if (q.length < 3) {
