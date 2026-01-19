@@ -903,7 +903,6 @@ class MainActivity : AppCompatActivity() {
 
         // Animate the overlay out and overlap the incoming content animation for a snappier feel
         // Start the incoming animation immediately so the new list is visible sooner
-        val overlapDelay = 0L
 
         // Start overlay exit animation immediately but keep it mostly transparent so incoming content shows through
         overlayView.alpha = 1f

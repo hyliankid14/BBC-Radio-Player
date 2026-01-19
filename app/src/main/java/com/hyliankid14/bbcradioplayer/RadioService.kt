@@ -1330,17 +1330,17 @@ class RadioService : MediaBrowserServiceCompat() {
                             // Ensure the station hasn't changed since scheduling
                             if (stationId == currentStationId && pendingShowInfo != null) {
                                 currentShowInfo = pendingShowInfo!!
-                                currentShowName = currentShowInfo!!.title
-                                val fmt = currentShowInfo!!.getFormattedTitle()
+                                currentShowName = currentShowInfo.title
+                                val fmt = currentShowInfo.getFormattedTitle()
                                 currentShowTitle = if (fmt == "BBC Radio") "" else fmt
-                                currentEpisodeTitle = currentShowInfo!!.episodeTitle ?: ""
-                                PlaybackStateHelper.setCurrentShow(currentShowInfo!!)
+                                currentEpisodeTitle = currentShowInfo.episodeTitle ?: ""
+                                PlaybackStateHelper.setCurrentShow(currentShowInfo)
                                 Log.d(TAG, "Applying delayed show info after ${'$'}{NOW_PLAYING_UPDATE_DELAY_MS}ms for station: ${'$'}stationId")
 
                                 // Update UI on main thread
                                 handler.post {
                                     Log.d(TAG, "Updating UI with show title: $currentShowTitle (delayed)")
-                                    val nowPlayingImageUrl = currentShowInfo!!.imageUrl
+                                    val nowPlayingImageUrl = currentShowInfo.imageUrl
                                     if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
                                         currentArtworkUri = nowPlayingImageUrl
                                     } else {
@@ -1418,8 +1418,8 @@ class RadioService : MediaBrowserServiceCompat() {
         val displayBitmap = artworkBitmap ?: currentArtworkBitmap
 
         val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
-        val artistStr = if (!currentShowInfo.secondary.isNullOrEmpty()) currentShowInfo.secondary!! else currentShowName
-        val trackStr = if (!currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.tertiary!! else currentShowTitle
+        val artistStr = if (!currentShowInfo.secondary.isNullOrEmpty()) currentShowInfo.secondary else currentShowName
+        val trackStr = if (!currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.tertiary else currentShowTitle
         // Combine artist and track when both are available so device UIs that show METADATA_KEY_ARTIST
         // will display "Artist - Track" (matching the mini player)
         val artistTrackStr = if (hasSongData && artistStr.isNotEmpty() && trackStr.isNotEmpty()) "$artistStr - $trackStr" else artistStr

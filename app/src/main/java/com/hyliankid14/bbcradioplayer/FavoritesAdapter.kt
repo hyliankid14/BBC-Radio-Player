@@ -138,7 +138,7 @@ class FavoritesAdapter(
             longPressTriggered = true
             justLongPressed = true
             holder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(true)
+            holder.itemView.parent?.requestDisallowInterceptTouchEvent(true)
             // Compute screen coordinates for the center of the item so the host can forward a synthetic touch
             val loc = IntArray(2)
             holder.itemView.getLocationOnScreen(loc)
@@ -196,7 +196,7 @@ class FavoritesAdapter(
                 android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
                     holder.itemView.removeCallbacks(longPressRunnable)
                     if (!longPressTriggered) {
-                        (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(false)
+                        holder.itemView.parent?.requestDisallowInterceptTouchEvent(false)
                     }
                     if (justLongPressed) {
                         // Prevent the tap that follows lifting the finger from triggering playback
@@ -211,12 +211,12 @@ class FavoritesAdapter(
         // Touching the drag handle should start the drag immediately on press; provide screen coords and return false
         holder.dragHandle.setOnTouchListener { _, event ->
             if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
-                (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(true)
+                holder.itemView.parent?.requestDisallowInterceptTouchEvent(true)
                 val rawX = event.rawX.toInt()
                 val rawY = event.rawY.toInt()
                 onStartDrag?.invoke(holder, rawX, rawY)
             } else if (event.actionMasked == android.view.MotionEvent.ACTION_UP || event.actionMasked == android.view.MotionEvent.ACTION_CANCEL) {
-                (holder.itemView.parent as? ViewParent)?.requestDisallowInterceptTouchEvent(false)
+                holder.itemView.parent?.requestDisallowInterceptTouchEvent(false)
             }
             false
         }
