@@ -344,8 +344,7 @@ class PodcastsFragment : Fragment() {
                     } else {
                         currentFilter.copy(genres = setOf(selected))
                     }
-                    // Changing filters invalidates cached search results
-                    viewModel.clearCachedSearch()
+                    // Re-apply filters against any existing cached search (do NOT clear cache here).
                     applyFilters(emptyState, recyclerView)
                 }
                 // ensure the list is shown by applying filters after spinner is configured
@@ -360,8 +359,7 @@ class PodcastsFragment : Fragment() {
                 sortSpinner.setOnItemClickListener { parent, _, position, _ ->
                     val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
                     currentSort = selected
-                    // Changing sort invalidates cached search results
-                    viewModel.clearCachedSearch()
+                    // Re-apply sort against any existing cached search (do NOT clear cache here).
                     applyFilters(emptyState, recyclerView)
                 }
 
@@ -467,8 +465,19 @@ class PodcastsFragment : Fragment() {
             // If we have a cached result for this query, reuse it immediately to avoid rebuilding
             val cached = viewModel.getCachedSearch()
             if (cached != null && cached.query == q) {
-                android.util.Log.d("PodcastsFragment", "applyFilters: using cached search results for query='$q'")
-                searchAdapter = SearchResultsAdapter(requireContext(), cached.titleMatches, cached.descMatches, cached.episodeMatches,
+                android.util.Log.d("PodcastsFragment", "applyFilters: using cached search results for query='$q' (re-filtering for UI filters)")
+
+                // The cache is computed globally (no UI filters). Re-apply currentFilter to cached results
+                // so the cache can persist across filter/sort changes until the user performs a new search
+                // or presses Reset.
+                val cachedPodcasts = (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
+                val filteredCachedPodcasts = repository.filterPodcasts(cachedPodcasts, currentFilter)
+
+                val filteredTitle = cached.titleMatches.filter { filteredCachedPodcasts.contains(it) }
+                val filteredDesc = cached.descMatches.filter { filteredCachedPodcasts.contains(it) }
+                val filteredEpisodes = cached.episodeMatches.filter { filteredCachedPodcasts.contains(it.second) }
+
+                searchAdapter = SearchResultsAdapter(requireContext(), filteredTitle, filteredDesc, filteredEpisodes,
                     onPodcastClick = { podcast ->
                         val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
                         parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
@@ -493,7 +502,7 @@ class PodcastsFragment : Fragment() {
                 )
 
                 recyclerView.adapter = searchAdapter
-                if (cached.titleMatches.isEmpty() && cached.descMatches.isEmpty() && cached.episodeMatches.isEmpty()) {
+                if (filteredTitle.isEmpty() && filteredDesc.isEmpty() && filteredEpisodes.isEmpty()) {
                     emptyState.visibility = View.VISIBLE
                     recyclerView.visibility = View.GONE
                 } else {
@@ -516,7 +525,10 @@ class PodcastsFragment : Fragment() {
             // podcasts that don't match the podcast title/description yet).
             // Perform the base filtering and partitioning off the main thread to avoid jank.
             val (baseTitleMatches, baseDescMatches, baseRemaining) = withContext(Dispatchers.Default) {
-                val bf = repository.filterPodcasts(allPodcasts, currentFilter.copy(searchQuery = ""))
+                // Compute global search matches across the full dataset (ignore UI filters).
+                // Caching is more useful when computed against the whole corpus so it can be
+                // re-filtered cheaply for different UI filters without being invalidated.
+                val bf = allPodcasts
                 val rem = mutableListOf<Podcast>()
                 val tMatches = mutableListOf<Podcast>()
                 val dMatches = mutableListOf<Podcast>()
