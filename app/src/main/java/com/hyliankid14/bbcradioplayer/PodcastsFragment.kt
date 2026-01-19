@@ -15,6 +15,7 @@ import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
@@ -290,7 +291,7 @@ class PodcastsFragment : Fragment() {
 
                 // Debounce the application of filters to avoid running heavy searches on every keystroke
                 filterDebounceJob?.cancel()
-                filterDebounceJob = fragmentScope.launch {
+                filterDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
                     kotlinx.coroutines.delay(150) // shorter debounce for snappier typing
                     // If fragment is gone, abort
                     if (!isAdded) return@launch
@@ -699,7 +700,7 @@ class PodcastsFragment : Fragment() {
             // Show a small spinner while episode search is in progress
             view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.VISIBLE
 
-            searchJob = fragmentScope.launch search@{
+            searchJob = viewLifecycleOwner.lifecycleScope.launch search@{
                 try {
                     // Limit number of podcasts we fetch episodes for to avoid overloading network
                     val candidateLimit = if (q.trim().contains(" ")) 100 else 30
