@@ -270,7 +270,7 @@ class PodcastsFragment : Fragment() {
                     searchJob?.cancel()
                     filterDebounceJob?.cancel()
                     // Apply filters immediately so results disappear when the box is cleared
-                    fragmentScope.launch {
+                    viewLifecycleOwner.lifecycleScope.launch {
                         if (!isAdded) return@launch
                         applyFilters(emptyState, recyclerView)
                     }
