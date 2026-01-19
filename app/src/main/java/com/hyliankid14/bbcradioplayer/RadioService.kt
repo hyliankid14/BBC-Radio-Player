@@ -1415,31 +1415,37 @@ class RadioService : MediaBrowserServiceCompat() {
         val displayBitmap = artworkBitmap ?: currentArtworkBitmap
 
         val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
-        val artistStr = if (!currentShowInfo.secondary.isNullOrEmpty()) currentShowInfo.secondary else currentShowName
-        val trackStr = if (!currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.tertiary else currentShowTitle
+        val artistStr = if (!currentShowInfo.secondary.isNullOrEmpty()) currentShowInfo.secondary ?: "" else currentShowName
+        val trackStr = if (!currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.tertiary ?: "" else currentShowTitle
         // Combine artist and track when both are available so device UIs that show METADATA_KEY_ARTIST
         // will display "Artist - Track" (matching the mini player)
         val artistTrackStr = if (hasSongData && artistStr.isNotEmpty() && trackStr.isNotEmpty()) "$artistStr - $trackStr" else artistStr
 
-        // Compute metadata fields with explicit null-handling to avoid nullable-receiver calls
-        val mediaIdVal: String = if (currentStationId.startsWith("podcast_")) {
-            PlaybackStateHelper.getCurrentEpisodeId() ?: currentStationId
-        } else currentStationId
+        // Defensive null-safety: treat station id/title fields as possibly-empty and avoid calling
+        // String methods on nullable receivers in case older branches declare them nullable.
+        val isPodcast = currentStationId?.startsWith("podcast_") == true
 
-        val titleVal: String = if (currentStationId.startsWith("podcast_")) {
-            currentStationTitle
-        } else if (hasSongData) {
-            currentShowInfo.getFormattedTitle()
+        val mediaIdVal: String = if (isPodcast) {
+            // Prefer currently-playing episode id; fall back to station id (never null at runtime, but coerce defensively)
+            PlaybackStateHelper.getCurrentEpisodeId().orEmpty().ifEmpty { currentStationId.orEmpty() }
         } else {
-            currentStationTitle
+            currentStationId.orEmpty()
         }
 
-        val artistVal: String = if (currentStationId.startsWith("podcast_")) {
-            currentShowInfo.episodeTitle ?: currentShowTitle
+        val titleVal: String = if (isPodcast) {
+            currentStationTitle.orEmpty()
         } else if (hasSongData) {
-            artistTrackStr
+            currentShowInfo.getFormattedTitle().ifEmpty { currentStationTitle.orEmpty() }
         } else {
-            currentShowName
+            currentStationTitle.orEmpty()
+        }
+
+        val artistVal: String = if (isPodcast) {
+            (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+        } else if (hasSongData) {
+            artistTrackStr.orEmpty()
+        } else {
+            currentShowName.orEmpty()
         }
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
@@ -1449,24 +1455,24 @@ class RadioService : MediaBrowserServiceCompat() {
             // For streams: keep title as show/episode title (for display) but provide redundant fields for compatibility
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, titleVal)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, artistVal)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle.orEmpty())
             // Redundant artist fields for head-units that read alternate keys; set to combined string when possible
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistTrackStr)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistTrackStr)
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistTrackStr)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistTrackStr.orEmpty())
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistTrackStr.orEmpty())
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistTrackStr.orEmpty())
             // Display title: keep podcast/station as the main top title; subtitle: for streams show Artist - Track when available
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
-                if (currentStationId.startsWith("podcast_")) currentStationTitle else currentStationTitle)
+                if (isPodcast) currentStationTitle.orEmpty() else currentStationTitle.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE,
-                if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowInfo.title)
+                if (isPodcast) (currentShowInfo.episodeTitle ?: currentShowInfo.title).orEmpty()
                 else when {
                     // If RMS provides artist/track, show Artist - Track as the subtitle
-                    hasSongData -> currentShowInfo.getFormattedTitle()
+                    hasSongData -> currentShowInfo.getFormattedTitle().orEmpty()
                     currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
-                    else -> currentShowTitle
+                    else -> currentShowTitle.orEmpty()
                 })
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, 
-                if (currentStationId.startsWith("podcast_")) "Podcast" else if (hasSongData) trackStr else currentShowName.ifEmpty { "Live Stream" })
+                if (isPodcast) "Podcast" else if (hasSongData) trackStr.orEmpty() else currentShowName.ifEmpty { "Live Stream" })
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
