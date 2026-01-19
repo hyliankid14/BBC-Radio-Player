@@ -527,7 +527,7 @@ class PodcastsFragment : Fragment() {
                             if (!kotlin.coroutines.coroutineContext.isActive) break
                             // Try cache first
                             val cached = repository.getEpisodesFromCache(podId) ?: emptyList()
-                            val found = ids.mapNotNull { eid -> cached.firstOrNull { it.id == eid } }
+                            val found = ids.mapNotNull { (eid, _) -> cached.firstOrNull { it.id == eid } }
                             val missing = ids.map { it.first }.filter { id -> found.none { it.id == id } }
 
                             if (found.isNotEmpty()) {
@@ -567,7 +567,13 @@ class PodcastsFragment : Fragment() {
                         searchAdapter?.updateEpisodeMatches(resolvedEpisodeMatches)
                         // Persist expanded cache
                         val cached = viewModel.getCachedSearch()
-                        persistCachedSearch(PodcastsViewModel.SearchCache(cached?.query ?: searchQuery, cached?.titleMatches ?: titleMatches.toList(), cached?.descMatches ?: descMatches.toList(), resolvedEpisodeMatches.toList(), isComplete = false))
+                        persistCachedSearch(PodcastsViewModel.SearchCache(
+                            cached?.query ?: searchQuery,
+                            cached?.titleMatches ?: emptyList(),
+                            cached?.descMatches ?: emptyList(),
+                            resolvedEpisodeMatches.toList(),
+                            isComplete = false
+                        ))
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("PodcastsFragment", "Error loading next episode page", e)
