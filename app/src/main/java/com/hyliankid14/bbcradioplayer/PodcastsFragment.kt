@@ -106,6 +106,15 @@ class PodcastsFragment : Fragment() {
     private var isLoadingPage = false
     private var filteredList: List<Podcast> = emptyList()
 
+    // Episode-search pagination state (index-backed)
+    private val INITIAL_EPISODE_DISPLAY_LIMIT = 150        // how many episodes to try to show immediately
+    private val EPISODE_PAGE_SIZE = 25                    // page size when scrolling
+    private var pendingIndexEpisodeIds: MutableList<Pair<String, String>> = mutableListOf() // (episodeId, podcastId)
+    private var resolvedEpisodeMatches: MutableList<Pair<Episode, Podcast>> = mutableListOf()
+    private val podcastsBeingFetched: MutableSet<String> = mutableSetOf() // avoid duplicate fetches per-podcast
+    // How many episode items are currently displayed by the adapter (used for search pagination)
+    private var displayedEpisodeCount: Int = 0
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -488,6 +497,89 @@ class PodcastsFragment : Fragment() {
 
     private fun loadNextPage() {
         if (isLoadingPage) return
+        // If we're showing search results, paginate episodes from the pending index queue
+        val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+        if (rv?.adapter == searchAdapter) {
+            if (displayedEpisodeCount >= resolvedEpisodeMatches.size && pendingIndexEpisodeIds.isEmpty()) return
+            isLoadingPage = true
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val toAdd = mutableListOf<Pair<Episode, Podcast>>()
+
+                    // First use any already-resolved episodes that aren't yet displayed
+                    if (resolvedEpisodeMatches.size > displayedEpisodeCount) {
+                        val take = resolvedEpisodeMatches.subList(displayedEpisodeCount, resolvedEpisodeMatches.size).take(EPISODE_PAGE_SIZE)
+                        toAdd.addAll(take)
+                        displayedEpisodeCount += take.size
+                    }
+
+                    // If we still need more, try to resolve ids from the pending index queue
+                    if (toAdd.size < EPISODE_PAGE_SIZE && pendingIndexEpisodeIds.isNotEmpty()) {
+                        val need = EPISODE_PAGE_SIZE - toAdd.size
+                        val slice = pendingIndexEpisodeIds.take(need).toList()
+
+                        // Group by podcast so we can fetch per-podcast only once if needed
+                        val byPod = slice.groupBy { it.second }
+                        val newlyResolved = mutableListOf<Pair<Episode, Podcast>>()
+
+                        for ((podId, ids) in byPod) {
+                            if (!kotlin.coroutines.coroutineContext.isActive) break
+                            // Try cache first
+                            val cached = repository.getEpisodesFromCache(podId) ?: emptyList()
+                            val found = ids.mapNotNull { eid -> cached.firstOrNull { it.id == eid } }
+                            val missing = ids.map { it.first }.filter { id -> found.none { it.id == id } }
+
+                            if (found.isNotEmpty()) {
+                                newlyResolved.addAll(found.map { it to (allPodcasts.firstOrNull { p -> p.id == podId } ?: Podcast(podId, "", "", "", "", "", emptyList(), 0)) })
+                            }
+
+                            if (missing.isNotEmpty()) {
+                                // Attempt a short fetch for this podcast (only if not already being fetched)
+                                if (!podcastsBeingFetched.contains(podId)) {
+                                    podcastsBeingFetched.add(podId)
+                                    val fetched = try { withTimeoutOrNull(1500L) { repository.fetchEpisodesIfNeeded(allPodcasts.first { it.id == podId }) } } catch (_: Exception) { null }
+                                    podcastsBeingFetched.remove(podId)
+                                    if (!fetched.isNullOrEmpty()) {
+                                        newlyResolved.addAll(fetched.filter { it.id in missing }.map { it to allPodcasts.first { p -> p.id == podId } })
+                                    }
+                                }
+                            }
+                        }
+
+                        // Append newly resolved matches in index order
+                        for ((eid, pid) in slice) {
+                            val match = newlyResolved.firstOrNull { it.first.id == eid && it.second.id == pid }
+                            if (match != null) {
+                                toAdd.add(match)
+                                pendingIndexEpisodeIds.remove(eid to pid)
+                                displayedEpisodeCount += 1
+                            } else {
+                                // keep in queue for background resolution
+                            }
+                            if (toAdd.size >= EPISODE_PAGE_SIZE) break
+                        }
+                    }
+
+                    if (toAdd.isNotEmpty()) {
+                        // Merge into resolved list and update adapter
+                        resolvedEpisodeMatches.addAll(toAdd)
+                        searchAdapter?.updateEpisodeMatches(resolvedEpisodeMatches)
+                        // Persist expanded cache
+                        val cached = viewModel.getCachedSearch()
+                        persistCachedSearch(PodcastsViewModel.SearchCache(cached?.query ?: searchQuery, cached?.titleMatches ?: titleMatches.toList(), cached?.descMatches ?: descMatches.toList(), resolvedEpisodeMatches.toList(), isComplete = false))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("PodcastsFragment", "Error loading next episode page", e)
+                } finally {
+                    isLoadingPage = false
+                }
+            }
+
+            return
+        }
+
+        // Default: paginate podcasts list as before
         val start = (currentPage + 1) * pageSize
         if (start >= filteredList.size) return
         isLoadingPage = true
@@ -551,6 +643,8 @@ class PodcastsFragment : Fragment() {
                     val filteredEpisodes = cached.episodeMatches.filter { filteredCachedPodcasts.contains(it.second) }
 
                     searchAdapter = createSearchAdapter(filteredTitle, filteredDesc, filteredEpisodes)
+                    // track how many episode items the adapter is showing (used for incremental loads)
+                    displayedEpisodeCount = filteredEpisodes.size
 
                     cachedRv.adapter = searchAdapter
                     view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
@@ -760,7 +854,9 @@ class PodcastsFragment : Fragment() {
                         try {
                             val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
                             val ftsResults = try {
-                                index.searchEpisodes(q, 200)
+                                // request a much larger result set from the on-disk index so we can
+                                // surface all available matches (subject to the index size)
+                                index.searchEpisodes(q, 1000)
                             } catch (e: Exception) {
                                 android.util.Log.w("PodcastsFragment", "FTS episode search failed: ${e.message}")
                                 emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
@@ -797,14 +893,14 @@ class PodcastsFragment : Fragment() {
                                     }
 
                                     for (ef in (titleHits + descHits)) {
-                                        if (perPodcastAdded.size >= 3) break
+                                        if (perPodcastAdded.size >= 200) break
                                         perPodcastAdded.add(resolveHit(ef) to p)
                                         total += 1
-                                        if (total >= 50) break
+                                        if (total >= 1000) break
                                     }
 
                                     eps.addAll(perPodcastAdded)
-                                    if (total >= 50) break
+                                    if (total >= 1000) break
                                 }
                             }
                         } catch (e: Exception) {
@@ -813,7 +909,7 @@ class PodcastsFragment : Fragment() {
 
                         // Fallback: if index returned nothing or wasn't available, search cached episodes per-podcast
                         if (eps.isEmpty()) {
-                            val perPodcastLimit = 3
+                            val perPodcastLimit = 200
                             for (p in allPodcasts) {
                                 if (!kotlin.coroutines.coroutineContext.isActive) break
                                 val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
@@ -833,23 +929,44 @@ class PodcastsFragment : Fragment() {
                         ep.durationMins in currentFilter.minDuration..currentFilter.maxDuration
                     }
 
-                    // Sort episode matches according to the current sort selection
-                    val sorted = when (currentSort) {
-                        "Most recent" -> epsFiltered.sortedByDescending { pair ->
-                            val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy", "dd MMM yyyy")
-                            patterns.firstNotNullOfOrNull { pattern ->
-                                try { java.text.SimpleDateFormat(pattern, Locale.US).parse(pair.first.pubDate)?.time } catch (_: Exception) { null }
-                            } ?: 0L
-                        }
-                        "Alphabetical (A-Z)" -> epsFiltered.sortedWith(compareBy({ it.second.title.lowercase(Locale.getDefault()) }, { it.first.title.lowercase(Locale.getDefault()) }))
-                        else -> epsFiltered.sortedWith(compareBy<Pair<Episode, Podcast>> { getPopularRank(it.second) }
-                            .thenByDescending { pair ->
-                                val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy", "dd MMM yyyy")
-                                patterns.firstNotNullOfOrNull { pattern ->
-                                    try { java.text.SimpleDateFormat(pattern, Locale.US).parse(pair.first.pubDate)?.time } catch (_: Exception) { null }
-                                } ?: 0L
-                            })
+                    // Prioritise episodes that match the query in their TITLE, then description;
+                    // use the selected `currentSort` as a tiebreaker (recency / popularity / alphabetical).
+                    val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy", "dd MMM yyyy")
+                    fun epochOf(ep: Episode): Long {
+                        return patterns.firstNotNullOfOrNull { pattern ->
+                            try { java.text.SimpleDateFormat(pattern, Locale.US).parse(ep.pubDate)?.time } catch (_: Exception) { null }
+                        } ?: 0L
                     }
+
+                    val matchRank: (Pair<Episode, Podcast>) -> Int = { pair ->
+                        when {
+                            repository.textMatchesNormalized(pair.first.title, q) -> 2
+                            repository.textMatchesNormalized(pair.first.description, q) -> 1
+                            else -> 0
+                        }
+                    }
+
+                    val cmp = Comparator<Pair<Episode, Podcast>> { a, b ->
+                        val ma = matchRank(a)
+                        val mb = matchRank(b)
+                        if (ma != mb) return@Comparator mb - ma // higher matchRank first
+
+                        when (currentSort) {
+                            "Most recent" -> epochOf(b.first).compareTo(epochOf(a.first))
+                            "Alphabetical (A-Z)" -> {
+                                val c = a.first.title.compareTo(b.first.title, ignoreCase = true)
+                                if (c != 0) return@Comparator c
+                                return@Comparator a.second.title.compareTo(b.second.title, ignoreCase = true)
+                            }
+                            else -> {
+                                val c = getPopularRank(a.second).compareTo(getPopularRank(b.second))
+                                if (c != 0) return@Comparator c
+                                return@Comparator epochOf(b.first).compareTo(epochOf(a.first))
+                            }
+                        }
+                    }
+
+                    val sorted = epsFiltered.sortedWith(cmp)
 
                     // Eagerly enrich index-only hits (bounded & capped) so the user always sees
                     // a date, a non-zero duration and a playable audio URL for delivered results.
@@ -923,7 +1040,9 @@ class PodcastsFragment : Fragment() {
                     // If enrichment removed all index-hits, fall back to cached-per-podcast search so we surface
                     // playable episodes rather than empty stubs.
                     if (resultList.isEmpty()) {
-                        val perPodcastLimit = 3
+                        // If index couldn't produce playable hits, expand the cached-per-podcast search
+                        // to a much larger per-podcast limit so more episodes are returned up-front.
+                        val perPodcastLimit = 200
                         for (p in allPodcasts) {
                             if (!kotlin.coroutines.coroutineContext.isActive) break
                             val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
@@ -931,9 +1050,9 @@ class PodcastsFragment : Fragment() {
                                 if (ep.audioUrl.isNotBlank() && ep.pubDate.isNotBlank() && ep.durationMins > 0) {
                                     resultList.add(ep to p)
                                 }
-                                if (resultList.size >= 50) break
+                                if (resultList.size >= 1000) break
                             }
-                            if (resultList.size >= 50) break
+                            if (resultList.size >= 1000) break
                         }
                     }
 
@@ -941,6 +1060,8 @@ class PodcastsFragment : Fragment() {
                 }
 
                 searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
+                // record how many episode items are shown so pagination can append more later
+                displayedEpisodeCount = episodeMatches.size
                 persistCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
 
                 showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
