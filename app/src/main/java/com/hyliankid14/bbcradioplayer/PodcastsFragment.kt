@@ -642,8 +642,8 @@ class PodcastsFragment : Fragment() {
             // (title/desc/episode). A seeded/placeholder cache should not prevent the
             // background episode search from running.
             if (cached != null && normalizeQuery(cached.query) == normalizeQuery(q)
-                && (cached.titleMatches.isNotEmpty() || cached.descMatches.isNotEmpty() || cached.episodeMatches.isNotEmpty())) {
-                android.util.Log.d("PodcastsFragment", "applyFilters: using cached search results for query='$q' (re-filtering for UI filters)")
+                && (cached.titleMatches.isNotEmpty() || cached.descMatches.isNotEmpty() || cached.episodeMatches.isNotEmpty() || cached.isComplete)) {
+                android.util.Log.d("PodcastsFragment", "applyFilters: using cached search results for query='$q' (re-filtering for UI filters) — isComplete=${cached.isComplete}")
 
                 // The cache is computed globally (no UI filters). Re-apply currentFilter to cached results
                 // so the cache can persist across filter/sort changes until the user performs a new search
@@ -679,19 +679,17 @@ class PodcastsFragment : Fragment() {
                     }
                 )
 
-                recyclerView.adapter = searchAdapter
-                if (filteredTitle.isEmpty() && filteredDesc.isEmpty() && filteredEpisodes.isEmpty()) {
-                    emptyState.visibility = View.VISIBLE
-                    recyclerView.visibility = View.GONE
-                } else {
-                    emptyState.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                }
+                // Restore UI from cache (do NOT cancel background work if cache is partial)
+                showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = filteredTitle.isNotEmpty() || filteredDesc.isNotEmpty() || filteredEpisodes.isNotEmpty(), emptyState)
 
-                // Ensure any previous episode search is cancelled and spinner hidden
-                searchJob?.cancel()
-                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
-                return@launch
+                if (cached.isComplete) {
+                    // If this cache represents a finished search, cancel any in-flight episode search
+                    searchJob?.cancel()
+                    view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+                    return@launch
+                }
+                // Otherwise (partial cache) -- allow the function to continue so the background
+                // episode search can resume/fill-in more results (no early return).
             }
 
             val titleMatches = mutableListOf<Podcast>()
@@ -983,8 +981,15 @@ class PodcastsFragment : Fragment() {
                 } catch (e: Exception) {
                     android.util.Log.w("PodcastsFragment", "Episode search job failed: ${e.message}")
                 } finally {
-                    // Hide spinner when finished
+                    // When the episode search completes successfully for the current generation,
+                    // mark the in-memory cache as complete so future restores can short-circuit.
                     if (generation == searchGeneration) {
+                        try {
+                            val finalCache = PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true)
+                            viewModel.setCachedSearch(finalCache)
+                        } catch (e: Exception) {
+                            android.util.Log.w("PodcastsFragment", "Failed to mark cache complete: ${e.message}")
+                        }
                         view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
                     }
                 }

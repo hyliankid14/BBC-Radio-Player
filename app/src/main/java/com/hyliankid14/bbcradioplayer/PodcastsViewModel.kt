@@ -16,7 +16,13 @@ class PodcastsViewModel : ViewModel() {
         val query: String,
         val titleMatches: List<Podcast>,
         val descMatches: List<Podcast>,
-        val episodeMatches: List<Pair<Episode, Podcast>>
+        val episodeMatches: List<Pair<Episode, Podcast>>,
+        /**
+         * Whether this cached result represents a completed search (episodes/FTS scanned)
+         * or is a lightweight/partial cache populated by the quick-path. Partial caches
+         * should *not* short-circuit the background episode search.
+         */
+        val isComplete: Boolean = false
     )
 
     @Volatile
