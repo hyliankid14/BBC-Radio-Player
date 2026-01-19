@@ -46,7 +46,7 @@ class PodcastsFragment : Fragment() {
     // Job for ongoing incremental episode search; cancel when a new query arrives
     private var searchJob: kotlinx.coroutines.Job? = null
     private var searchGeneration: Int = 0
-    private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
+    // Use viewLifecycleOwner.lifecycleScope for UI coroutines (auto-cancelled when the view is destroyed)
 
     // Normalize queries for robust cache lookups (trim + locale-aware lowercase)
     private fun normalizeQuery(q: String?): String = q?.trim()?.lowercase(Locale.getDefault()) ?: ""
@@ -92,7 +92,7 @@ class PodcastsFragment : Fragment() {
     private var quickSearchJob: kotlinx.coroutines.Job? = null
     private fun scheduleQuickSearch(emptyState: TextView, recyclerView: RecyclerView) {
         quickSearchJob?.cancel()
-        quickSearchJob = fragmentScope.launch {
+        quickSearchJob = viewLifecycleOwner.lifecycleScope.launch {
             applyFiltersQuick(emptyState, recyclerView)
         }
     }
@@ -177,29 +177,7 @@ class PodcastsFragment : Fragment() {
         if (qNorm != normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)) return
 
         // Build adapter including any cached episode matches we found quickly
-        val adapter = SearchResultsAdapter(requireContext(), titleMatches, descMatches, episodeMatches,
-            onPodcastClick = { podcast ->
-                val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
-                parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
-            },
-            onPlayEpisode = { episode ->
-                val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-                    action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                    putExtra(RadioService.EXTRA_EPISODE, episode)
-                    putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                }
-                requireContext().startService(intent)
-            },
-            onOpenEpisode = { episode, podcast ->
-                val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
-                    putExtra("preview_episode", episode)
-                    putExtra("preview_use_play_ui", true)
-                    putExtra("preview_podcast_title", podcast.title)
-                    putExtra("preview_podcast_image", podcast.imageUrl)
-                }
-                startActivity(intent)
-            }
-        )
+        val adapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
 
         // Cache the lightweight results so UI can restore quickly; do NOT treat this as a full cache hit
         viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
@@ -376,22 +354,7 @@ class PodcastsFragment : Fragment() {
         }
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        podcastAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast ->
-            android.util.Log.d("PodcastsFragment", "onPodcastClick triggered for: ${podcast.title}")
-            // Show the global action bar so the podcast title and back button are visible
-            (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.show()
-
-            val detailFragment = PodcastDetailFragment().apply {
-                arguments = Bundle().apply {
-                    putParcelable("podcast", podcast)
-                }
-            }
-            parentFragmentManager.beginTransaction().apply {
-                replace(R.id.fragment_container, detailFragment)
-                addToBackStack(null)
-                commit()
-            }
-        })
+        podcastAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast -> onPodcastClicked(podcast) })
         recyclerView.adapter = podcastAdapter
 
         // Show a dropdown of recent searches when the field is focused or typed into
@@ -499,7 +462,7 @@ class PodcastsFragment : Fragment() {
     ) {
         loadingIndicator.visibility = View.VISIBLE
         emptyState.text = "No podcasts found"
-        fragmentScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 allPodcasts = repository.fetchPodcasts()
                 android.util.Log.d("PodcastsFragment", "Loaded ${allPodcasts.size} podcasts")
@@ -555,7 +518,7 @@ class PodcastsFragment : Fragment() {
 
                 // Start a background prefetch of episode metadata for the top podcasts only
                 // (prefetching all podcasts was too expensive and caused slowdown).
-                fragmentScope.launch {
+                viewLifecycleOwner.lifecycleScope.launch {
                     try {
                         val prefetchCount = Math.min(20, allPodcasts.size)
                         withContext(Dispatchers.IO) { repository.prefetchEpisodesForPodcasts(allPodcasts.take(prefetchCount), limit = prefetchCount) }
@@ -582,7 +545,7 @@ class PodcastsFragment : Fragment() {
         recyclerView: RecyclerView
     ) {
         // Offload the expensive filtering operation to Default dispatcher to keep UI responsive
-        fragmentScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             // Use persisted active search from ViewModel when set to persist results until Reset is pressed
             val active = viewModel.activeSearchQuery.value ?: searchQuery
             val effectiveFilter = currentFilter.copy(searchQuery = active)
@@ -655,29 +618,7 @@ class PodcastsFragment : Fragment() {
                 val filteredDesc = cached.descMatches.filter { filteredCachedPodcasts.contains(it) }
                 val filteredEpisodes = cached.episodeMatches.filter { filteredCachedPodcasts.contains(it.second) }
 
-                searchAdapter = SearchResultsAdapter(requireContext(), filteredTitle, filteredDesc, filteredEpisodes,
-                    onPodcastClick = { podcast ->
-                        val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
-                        parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
-                    },
-                    onPlayEpisode = { episode ->
-                        val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-                            action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                            putExtra(RadioService.EXTRA_EPISODE, episode)
-                            putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                        }
-                        requireContext().startService(intent)
-                    },
-                    onOpenEpisode = { episode, podcast ->
-                        val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
-                            putExtra("preview_episode", episode)
-                            putExtra("preview_use_play_ui", true)
-                            putExtra("preview_podcast_title", podcast.title)
-                            putExtra("preview_podcast_image", podcast.imageUrl)
-                        }
-                        startActivity(intent)
-                    }
-                )
+                searchAdapter = createSearchAdapter(filteredTitle, filteredDesc, filteredEpisodes)
 
                 // Restore UI from cache (do NOT cancel background work if cache is partial)
                 showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = filteredTitle.isNotEmpty() || filteredDesc.isNotEmpty() || filteredEpisodes.isNotEmpty(), emptyState)
@@ -731,33 +672,7 @@ class PodcastsFragment : Fragment() {
                 // Cache these quick results so returning to the list is instant
                 viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
 
-                searchAdapter = SearchResultsAdapter(
-                    requireContext(),
-                    titleMatches,
-                    descMatches,
-                    episodeMatches,
-                    onPodcastClick = { podcast ->
-                        val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
-                        parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
-                    },
-                    onPlayEpisode = { episode ->
-                        val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-                            action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                            putExtra(RadioService.EXTRA_EPISODE, episode)
-                            putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                        }
-                        requireContext().startService(intent)
-                    },
-                    onOpenEpisode = { episode, podcast ->
-                        val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
-                            putExtra("preview_episode", episode)
-                            putExtra("preview_use_play_ui", true)
-                            putExtra("preview_podcast_title", podcast.title)
-                            putExtra("preview_podcast_image", podcast.imageUrl)
-                        }
-                        startActivity(intent)
-                    }
-                )
+                searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
 
                 // Show results atomically to avoid flicker
                 showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty(), emptyState)
@@ -769,33 +684,7 @@ class PodcastsFragment : Fragment() {
             }
 
             // At this point query is >= 3 chars; build initial adapter with no episodes, and then search episodes
-            searchAdapter = SearchResultsAdapter(
-                requireContext(),
-                titleMatches,
-                descMatches,
-                episodeMatches,
-                onPodcastClick = { podcast ->
-                    val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
-                    parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
-                },
-                onPlayEpisode = { episode ->
-                    val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                        putExtra(RadioService.EXTRA_EPISODE, episode)
-                        putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                    }
-                    requireContext().startService(intent)
-                },
-                onOpenEpisode = { episode, podcast ->
-                    val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
-                        putExtra("preview_episode", episode)
-                        putExtra("preview_use_play_ui", true)
-                        putExtra("preview_podcast_title", podcast.title)
-                        putExtra("preview_podcast_image", podcast.imageUrl)
-                    }
-                    startActivity(intent)
-                }
-            )
+            searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
 
             // Cache the initial adapter state (no episodes yet) so returning to the list is fast
             viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
@@ -1006,7 +895,7 @@ class PodcastsFragment : Fragment() {
         if (start >= filteredList.size) return
         isLoadingPage = true
 
-        fragmentScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val end = (start + pageSize).coerceAtMost(filteredList.size)
                 val next = filteredList.subList(start, end)
@@ -1020,9 +909,13 @@ class PodcastsFragment : Fragment() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        fragmentScope.coroutineContext[Job]?.cancel()
+    override fun onDestroyView() {
+        super.onDestroyView()
+        quickSearchJob?.cancel()
+        filterDebounceJob?.cancel()
+        searchJob?.cancel()
+        // Avoid leaking adapter/view references
+        view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.adapter = null
     }
 
     override fun onResume() {
@@ -1061,29 +954,7 @@ class PodcastsFragment : Fragment() {
                     val filteredDesc = cached.descMatches.filter { filteredCachedPodcasts.contains(it) }
                     val filteredEpisodes = cached.episodeMatches.filter { filteredCachedPodcasts.contains(it.second) }
 
-                    searchAdapter = SearchResultsAdapter(requireContext(), filteredTitle, filteredDesc, filteredEpisodes,
-                        onPodcastClick = { podcast ->
-                            val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
-                            parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
-                        },
-                        onPlayEpisode = { episode ->
-                            val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-                                action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                                putExtra(RadioService.EXTRA_EPISODE, episode)
-                                putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                            }
-                            requireContext().startService(intent)
-                        },
-                        onOpenEpisode = { episode, podcast ->
-                            val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
-                                putExtra("preview_episode", episode)
-                                putExtra("preview_use_play_ui", true)
-                                putExtra("preview_podcast_title", podcast.title)
-                                putExtra("preview_podcast_image", podcast.imageUrl)
-                            }
-                            startActivity(intent)
-                        }
-                    )
+                    searchAdapter = createSearchAdapter(filteredTitle, filteredDesc, filteredEpisodes)
 
                     rv.adapter = searchAdapter
                     view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
@@ -1104,7 +975,7 @@ class PodcastsFragment : Fragment() {
                 // the user is viewing the player or returns to this fragment.
                 if ((cached.episodeMatches.isEmpty()) && normalizeQuery(cached.query).length >= 3 && searchJob?.isActive != true) {
                     // Launch without changing the current UI state (showResultsSafely prevents flicker).
-                    fragmentScope.launch {
+                    viewLifecycleOwner.lifecycleScope.launch {
                         // Small delay to let the restored UI settle
                         kotlinx.coroutines.delay(20)
                         if (!isAdded) return@launch
@@ -1129,8 +1000,54 @@ class PodcastsFragment : Fragment() {
         }
     }
 
+    // Centralized UI action helpers + adapter factory to reduce duplication and make callbacks testable
+    private fun onPodcastClicked(podcast: Podcast) {
+        android.util.Log.d("PodcastsFragment", "onPodcastClick triggered for: ${'$'}{podcast.title}")
+        (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.show()
+        val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
+        parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
+    }
+
+    private fun playEpisode(episode: Episode) {
+        val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+            action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+            putExtra(RadioService.EXTRA_EPISODE, episode)
+            putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+        }
+        requireContext().startService(intent)
+    }
+
+    private fun openEpisodePreview(episode: Episode, podcast: Podcast) {
+        val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
+            putExtra("preview_episode", episode)
+            putExtra("preview_use_play_ui", true)
+            putExtra("preview_podcast_title", podcast.title)
+            putExtra("preview_podcast_image", podcast.imageUrl)
+        }
+        startActivity(intent)
+    }
+
+    private fun createSearchAdapter(
+        titles: List<Podcast>,
+        descs: List<Podcast>,
+        episodes: List<Pair<Episode, Podcast>>
+    ): SearchResultsAdapter {
+        return SearchResultsAdapter(requireContext(), titles, descs, episodes,
+            onPodcastClick = { onPodcastClicked(it) },
+            onPlayEpisode = { playEpisode(it) },
+            onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
+        )
+    }
+
     private fun getPopularRank(podcast: Podcast): Int {
-        val ranking = mapOf(
+        for ((key, rank) in POPULAR_RANKING) {
+            if (podcast.title.equals(key, ignoreCase = true)) return rank
+        }
+        return 21
+    }
+
+    companion object {
+        private val POPULAR_RANKING = mapOf(
             "Global News Podcast" to 1,
             "6 Minute English" to 2,
             "The Documentary Podcast" to 3,
@@ -1150,18 +1067,7 @@ class PodcastsFragment : Fragment() {
             "Friday Night Comedy from BBC Radio 4" to 17,
             "Rugby Union Weekly" to 18,
             "World Business Report" to 19,
-            "Woman's Hour" to 20,
+            "Woman's Hour" to 20
         )
-
-        // Exact match (case-insensitive) for top 20 podcasts
-        val title = podcast.title
-        for ((key, rank) in ranking) {
-            if (title.equals(key, ignoreCase = true)) {
-                return rank
-            }
-        }
-        
-        // Return rank > 20 for podcasts not in the top 20
-        return 21
     }
 }
