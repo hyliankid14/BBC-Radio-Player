@@ -18,11 +18,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -44,10 +40,9 @@ class PodcastsFragment : Fragment() {
     private var suppressSearchWatcher: Boolean = false
     // Debounce job for search input changes
     private var filterDebounceJob: kotlinx.coroutines.Job? = null
-    // Job for ongoing incremental episode search; cancel when a new query arrives
+    // Job for ongoing search; cancel when a new query arrives
     private var searchJob: kotlinx.coroutines.Job? = null
-    private var searchGeneration: Int = 0
-    // Use viewLifecycleOwner.lifecycleScope for UI coroutines (auto-cancelled when the view is destroyed)
+    // Use viewLifecycleOwner.lifecycleScope for UI coroutines (auto-cancelled when the view is destroyed) 
 
     // Normalize queries for robust cache lookups (trim + locale-aware lowercase)
     private fun normalizeQuery(q: String?): String = q?.trim()?.lowercase(Locale.getDefault()) ?: ""
@@ -89,101 +84,16 @@ class PodcastsFragment : Fragment() {
         }
     }
 
-    // Quick-search job (cancellable) so we can update immediately on every keystroke
-    private var quickSearchJob: kotlinx.coroutines.Job? = null
+    // Leading quick-search helper: run the unified search immediately for snappy UX
     private fun scheduleQuickSearch(emptyState: TextView, recyclerView: RecyclerView) {
-        quickSearchJob?.cancel()
-        quickSearchJob = viewLifecycleOwner.lifecycleScope.launch {
-            applyFiltersQuick(emptyState, recyclerView)
-        }
+        // Use the same single-path search so there's only one codepath to maintain
+        viewLifecycleOwner.lifecycleScope.launch { if (isAdded) applyFilters(emptyState, recyclerView) }
     }
 
-    // Quick, non-episode search used as a leading-edge update while the debounced
-    // full search (which includes episode/FTS scanning) runs.
+    // Keep a tiny suspend wrapper for compatibility with any callers — it delegates to applyFilters
     private suspend fun applyFiltersQuick(emptyState: TextView, recyclerView: RecyclerView) {
-        val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
-        // Capture the query at the start so we can discard stale results
-        val qNorm = normalizeQuery(q)
-
-        // Offload quick filtering to Default dispatcher to keep UI thread free
-        if (!isAdded) return
-        val effectiveFilter = currentFilter.copy(searchQuery = q)
-        val filtered = withContext(Dispatchers.Default) { repository.filterPodcasts(allPodcasts, effectiveFilter) }
-
-        // If query changed while we were working, abandon these results
-        if (qNorm != normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)) return
-
-        if (q.isEmpty()) {
-            // Show main list
-            val toShow = filtered
-            val sortedList = when (currentSort) {
-                "Most popular" -> toShow.sortedBy { getPopularRank(it) }
-                "Most recent" -> toShow.sortedByDescending { cachedUpdates[it.id] ?: 0L }
-                "Alphabetical (A-Z)" -> toShow.sortedBy { it.title }
-                else -> toShow
-            }
-
-            filteredList = sortedList
-            currentPage = 0
-            isLoadingPage = false
-            val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
-            podcastAdapter.updatePodcasts(initialPage)
-
-            showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = filteredList.isNotEmpty(), emptyState)
-            return
-        }
-
-        // Partition results for immediate title/description matches only (fast)
-        val titleMatches = mutableListOf<Podcast>()
-        val descMatches = mutableListOf<Podcast>()
-        val qLower = q.lowercase(Locale.getDefault())
-        for (p in filtered) {
-            val kind = repository.podcastMatchKind(p, qLower)
-            when (kind) {
-                "title" -> titleMatches.add(p)
-                "description" -> descMatches.add(p)
-                else -> {}
-            }
-        }
-
-        // QUICK EPISODE PATH: use only cached/indexed episode hits (no network, IO-bound but fast)
-        val episodeMatches = mutableListOf<Pair<Episode, Podcast>>()
-        if (q.length >= 3) {
-            val quickCandidates = (titleMatches + descMatches).distinct().toMutableList()
-            quickCandidates.addAll(filtered.take(20))
-            val seen = mutableSetOf<String>()
-
-            val perPodcastLimit = 2
-            val maxQuickEpisodeMatches = 8
-            val cachedResults = withContext(Dispatchers.IO) {
-                val hits = mutableListOf<Pair<Episode, Podcast>>()
-                for (p in quickCandidates) {
-                    if (hits.size >= maxQuickEpisodeMatches) break
-                    try {
-                        val cachedHits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
-                        for (ep in cachedHits) {
-                            if (hits.size >= maxQuickEpisodeMatches) break
-                            if (seen.add(ep.id)) hits.add(ep to p)
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.w("PodcastsFragment", "quick cached-episode lookup failed for '${p.title}': ${e.message}")
-                    }
-                }
-                hits.toList()
-            }
-            episodeMatches.addAll(cachedResults)
-        }
-
-        // If query changed while we were doing IO, abandon the results
-        if (qNorm != normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)) return
-
-        // Build adapter including any cached episode matches we found quickly
-        val adapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
-
-        // Cache the lightweight results so UI can restore quickly; do NOT treat this as a full cache hit
-        viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
-
-        showResultsSafely(recyclerView, adapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
+        withContext(Dispatchers.Main) { applyFilters(emptyState, recyclerView) }
+    }
     }
 
     // Pagination / lazy-loading state
@@ -545,6 +455,12 @@ class PodcastsFragment : Fragment() {
         emptyState: TextView,
         recyclerView: RecyclerView
     ) {
+        // Simplified path: delegate to a single, cancellable search implementation and skip legacy logic.
+        // (Legacy incremental/FTS implementation remains below but is intentionally bypassed
+        //  for now to keep the behavior minimal and deterministic.)
+        searchJob?.cancel()
+        simplifiedApplyFilters(emptyState, recyclerView)
+        return
         // Offload the expensive filtering operation to Default dispatcher to keep UI responsive
         viewLifecycleOwner.lifecycleScope.launch {
             // Use persisted active search from ViewModel when set to persist results until Reset is pressed
@@ -693,212 +609,9 @@ class PodcastsFragment : Fragment() {
             // Show adapter/visibility atomically to avoid flicker
             showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
 
-            // Cancel previous search job and start a new incremental episode search (limited size)
-            searchJob?.cancel()
-            val generation = ++searchGeneration
+            // Legacy incremental/FTS episode-search removed — simplified single-path search is used instead.
+            // (Removal keeps the file smaller and eliminates a common source of races/flicker.)
 
-            // Show a small spinner while episode search is in progress
-            view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.VISIBLE
-
-            searchJob = viewLifecycleOwner.lifecycleScope.launch search@{
-                try {
-                    // Limit number of podcasts we fetch episodes for to avoid overloading network
-                    val candidateLimit = if (q.trim().contains(" ")) 100 else 30
-                    val candidatesToCheck = remainingCandidates.take(candidateLimit)
-                    android.util.Log.d("PodcastsFragment", "Episode search: checking ${candidatesToCheck.size} candidates (limit=$candidateLimit) for query '$q' (gen=$generation)")
-
-                    // Global FTS-based episode search: use the on-disk index to quickly find matching
-                    // episodes across all podcasts, then fetch the episode objects for display.
-                    try {
-                        val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
-                        val ftsResults = try {
-                            index.searchEpisodes(q, 200)
-                        } catch (e: Exception) {
-                            android.util.Log.w("PodcastsFragment", "FTS global search failed: ${e.message}")
-                            emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
-                        }
-
-                        if (ftsResults.isNotEmpty()) {
-                            android.util.Log.d("PodcastsFragment", "FTS global returned ${ftsResults.size} hits for query '$q'")
-                            // Group FTS hits by podcastId for efficient per-podcast resolution
-                            val grouped = ftsResults.groupBy { it.podcastId }
-                            var globalMatches = 0
-                            for ((podId, eps) in grouped) {
-                                if (generation != searchGeneration) break
-                                if (globalMatches >= 50) break
-                                // Only consider candidates that are within the remainingCandidates set
-                                val p = remainingCandidates.find { it.id == podId } ?: continue
-                                val episodes = repository.fetchEpisodesIfNeeded(p)
-                                // Prefer title matches over description matches when mapping FTS hits
-                                val titleMatched = mutableListOf<com.hyliankid14.bbcradioplayer.Episode>()
-                                val descMatched = mutableListOf<com.hyliankid14.bbcradioplayer.Episode>()
-                                for (ef in eps) {
-                                    val found = episodes.find { it.id == ef.episodeId }
-                                    if (repository.textMatchesNormalized(ef.title, q)) {
-                                        if (found != null) titleMatched.add(found) else titleMatched.add(
-                                            com.hyliankid14.bbcradioplayer.Episode(
-                                                id = ef.episodeId,
-                                                title = ef.title,
-                                                description = ef.description,
-                                                audioUrl = "",
-                                                imageUrl = p.imageUrl,
-                                                pubDate = "",
-                                                durationMins = 0,
-                                                podcastId = p.id
-                                            )
-                                        )
-                                    } else if (repository.textMatchesNormalized(ef.description, q)) {
-                                        if (found != null) descMatched.add(found) else descMatched.add(
-                                            com.hyliankid14.bbcradioplayer.Episode(
-                                                id = ef.episodeId,
-                                                title = ef.title,
-                                                description = ef.description,
-                                                audioUrl = "",
-                                                imageUrl = p.imageUrl,
-                                                pubDate = "",
-                                                durationMins = 0,
-                                                podcastId = p.id
-                                            )
-                                        )
-                                    }
-                                }
-
-                                val matched = (titleMatched + descMatched).take(3)
-
-                                if (matched.isNotEmpty()) {
-                                    val added = matched.map { it to p }
-                                    episodeMatches.addAll(added)
-                                    globalMatches += added.size
-                                    recyclerView.post {
-                                        // Sort episodes so title matches appear first across all podcasts
-                                        val sorted = episodeMatches.sortedWith(compareByDescending<Pair<com.hyliankid14.bbcradioplayer.Episode, com.hyliankid14.bbcradioplayer.Podcast>> { pair ->
-                                            when {
-                                                repository.textMatchesNormalized(pair.first.title, q) -> 2
-                                                repository.textMatchesNormalized(pair.first.description, q) -> 1
-                                                else -> 0
-                                            }
-                                        })
-                                        // IMPORTANT: avoid the previous race where we updated the currently-attached
-                                        // adapter instance and *then* swapped the RecyclerView to a different
-                                        // (fresh) adapter instance that didn't contain the incremental episode
-                                        // matches — that caused items to appear briefly and then disappear.
-                                        //
-                                        // Strategy: prefer to update the fragment-owned `searchAdapter` if
-                                        // present (this is the instance we intend to keep attached). If
-                                        // that's null for any reason, fall back to updating the currently
-                                        // attached adapter. Never update one instance and then immediately
-                                        // replace it with a different, stale instance.
-                                        val adapterToUpdate = searchAdapter ?: (recyclerView.adapter as? SearchResultsAdapter)
-                                        adapterToUpdate?.updateEpisodeMatches(sorted)
-
-                                        // Use the adapter instance we just updated for the visibility check
-                                        val adapterForDisplay = adapterToUpdate ?: searchAdapter
-
-                                        // Use atomic update to avoid flicker when visibility would not actually change
-                                        showResultsSafely(recyclerView, adapterForDisplay, isSearchAdapter = true, hasContent = (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()), emptyState)
-
-                                        // Update in-memory cache so returning to list shows results immediately
-                                        viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), sorted.toList()))
-                                    }
-                                    android.util.Log.d("PodcastsFragment", "FTS global matched ${added.size} episodes in podcast='${p.title}' for query='$q'")
-                                }
-                            }
-
-                            // Avoid re-checking podcasts already matched by the global FTS search
-                            remainingCandidates.removeAll { pm -> episodeMatches.any { it.second.id == pm.id } }
-
-                            // If we've already reached the display limit, skip further per-podcast scanning
-                            if (episodeMatches.size >= 50) {
-                                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
-                                return@search
-                            }
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.w("PodcastsFragment", "FTS pre-search unavailable: ${e.message}")
-                    }
-
-                    // Check in small parallel chunks (bounded concurrency) to reduce wall-clock time
-                    val chunkSize = 4
-                    val chunks = candidatesToCheck.chunked(chunkSize)
-                    var totalMatches = 0
-                    for (chunk in chunks) {
-                        if (generation != searchGeneration) break
-                        val deferreds = chunk.map { p ->
-                            async(Dispatchers.IO) {
-                                val qLowerLocal = q.lowercase(Locale.getDefault())
-                                // Prefer cached indexed search when available
-                                val cachedHits = repository.searchCachedEpisodes(p.id, qLowerLocal, 3)
-
-                                // Otherwise fetch episodes (repository will index them) then search using the same indexed helper
-                                val eps = repository.fetchEpisodesIfNeeded(p)
-                                val postHits = repository.searchCachedEpisodes(p.id, qLowerLocal, 3)
-
-                                // As a last resort, attempt a looser token-AND search on the raw episode strings
-                                val tokens = qLowerLocal.split(Regex("\\s+")).filter { it.isNotEmpty() }
-
-                                val result: Pair<com.hyliankid14.bbcradioplayer.Podcast, List<Episode>> = when {
-                                    cachedHits.isNotEmpty() -> p to cachedHits
-                                    postHits.isNotEmpty() -> p to postHits
-                                    tokens.isNotEmpty() && eps.isNotEmpty() -> {
-                                        val hits = eps.filter { ep ->
-                                            val t = ep.title.lowercase(Locale.getDefault())
-                                            val d = ep.description.lowercase(Locale.getDefault())
-                                            tokens.all { tok -> t.contains(tok) || d.contains(tok) }
-                                        }.take(3)
-                                        if (hits.isNotEmpty()) android.util.Log.d("PodcastsFragment", "token-AND fallback matched ${hits.size} items in podcast='${p.title}' for query='$q'")
-                                        p to hits
-                                    }
-                                    else -> p to emptyList()
-                                }
-                                result
-                            }
-                        }
-                        val results = deferreds.awaitAll()
-                        if (generation != searchGeneration) break
-                        for ((p, matched) in results) {
-                            if (generation != searchGeneration) break
-                            if (matched.isNotEmpty()) {
-                                val added = matched.take(3).map { it to p } // limit per-podcast
-                                episodeMatches.addAll(added)
-                                totalMatches += added.size
-                                // Update adapter's episode list incrementally — sort so title matches appear first
-                                recyclerView.post {
-                                    val sorted = episodeMatches.sortedWith(compareByDescending<Pair<com.hyliankid14.bbcradioplayer.Episode, com.hyliankid14.bbcradioplayer.Podcast>> { pair ->
-                                        when {
-                                            repository.textMatchesNormalized(pair.first.title, q) -> 2
-                                            repository.textMatchesNormalized(pair.first.description, q) -> 1
-                                            else -> 0
-                                        }
-                                    })
-                                    val currentSearchAdapter = recyclerView.adapter as? SearchResultsAdapter
-                                    currentSearchAdapter?.updateEpisodeMatches(sorted)
-                                    // Avoid toggling visibility unnecessarily while adding episode matches incrementally
-                                    showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()), emptyState)
-                                    // Update in-memory cache so returning to list shows results immediately
-                                    viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), sorted.toList()))                                }
-                                android.util.Log.d("PodcastsFragment", "Found ${added.size} episode matches in podcast '${p.title}' for query '$q'")
-                                if (totalMatches >= 50) break
-                            }
-                        }
-                        if (totalMatches >= 50) break
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("PodcastsFragment", "Episode search job failed: ${e.message}")
-                } finally {
-                    // When the episode search completes successfully for the current generation,
-                    // mark the in-memory cache as complete so future restores can short-circuit.
-                    if (generation == searchGeneration) {
-                        try {
-                            val finalCache = PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true)
-                            viewModel.setCachedSearch(finalCache)
-                        } catch (e: Exception) {
-                            android.util.Log.w("PodcastsFragment", "Failed to mark cache complete: ${e.message}")
-                        }
-                        view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
-                    }
-                }
-            }
-        }
 
         // Ensure any loading spinner is hidden when filters finish applying
         view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
@@ -926,7 +639,6 @@ class PodcastsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        quickSearchJob?.cancel()
         filterDebounceJob?.cancel()
         searchJob?.cancel()
         // Avoid leaking adapter/view references
@@ -1052,6 +764,78 @@ class PodcastsFragment : Fragment() {
             onPlayEpisode = { playEpisode(it) },
             onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
         )
+    }
+
+    // Simplified, single-path search implementation. Keeps behavior minimal and reliable:
+    // - matches podcast title and description
+    // - searches episodes from the in-memory cache only (no network/FTS during typing)
+    // - updates the adapter once per query (no incremental swapping)
+    private fun simplifiedApplyFilters(emptyState: TextView, recyclerView: RecyclerView) {
+        // Ensure only one search runs at a time
+        searchJob?.cancel()
+        searchJob = viewLifecycleOwner.lifecycleScope.launch {
+            if (!isAdded) return@launch
+
+            val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
+            searchQuery = q
+
+            // Empty -> show main list (preserve sorting/pagination)
+            if (q.isEmpty()) {
+                val effectiveFilter = currentFilter.copy(searchQuery = "")
+                val filtered = withContext(Dispatchers.Default) { repository.filterPodcasts(allPodcasts, effectiveFilter) }
+
+                val sortedList = when (currentSort) {
+                    "Most popular" -> filtered.sortedWith(
+                        compareBy<Podcast> { getPopularRank(it) }
+                            .thenByDescending { if (getPopularRank(it) > 20) cachedUpdates[it.id] ?: 0L else 0L }
+                    )
+                    "Most recent" -> filtered.sortedByDescending { cachedUpdates[it.id] ?: 0L }
+                    "Alphabetical (A-Z)" -> filtered.sortedBy { it.title }
+                    else -> filtered
+                }
+
+                filteredList = sortedList
+                currentPage = 0
+                isLoadingPage = false
+                val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
+                podcastAdapter.updatePodcasts(initialPage)
+
+                showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = filteredList.isNotEmpty(), emptyState)
+                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+                return@launch
+            }
+
+            val qLower = q.lowercase(Locale.getDefault())
+
+            val titleMatches = withContext(Dispatchers.Default) {
+                allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "title" }
+            }
+            val descMatches = withContext(Dispatchers.Default) {
+                allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
+            }
+
+            val episodeMatches = withContext(Dispatchers.Default) {
+                val eps = mutableListOf<Pair<Episode, Podcast>>()
+                if (q.length >= 3) {
+                    val perPodcastLimit = 3
+                    for (p in allPodcasts) {
+                        val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
+                        for (ep in hits) {
+                            eps.add(ep to p)
+                            if (eps.size >= 50) break
+                        }
+                        if (eps.size >= 50) break
+                    }
+                }
+                eps
+            }
+
+            searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
+            viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
+
+            showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
+            view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+        }
     }
 
     private fun getPopularRank(podcast: Podcast): Int {
