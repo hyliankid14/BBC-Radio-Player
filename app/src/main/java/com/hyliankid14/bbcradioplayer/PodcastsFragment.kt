@@ -778,11 +778,25 @@ class PodcastsFragment : Fragment() {
                                                 else -> 0
                                             }
                                         })
-                                        // Capture the adapter reference so the compiler/runtime can't observe a race on the mutable property
-                                        val currentSearchAdapter = recyclerView.adapter as? SearchResultsAdapter
-                                        currentSearchAdapter?.updateEpisodeMatches(sorted)
+                                        // IMPORTANT: avoid the previous race where we updated the currently-attached
+                                        // adapter instance and *then* swapped the RecyclerView to a different
+                                        // (fresh) adapter instance that didn't contain the incremental episode
+                                        // matches — that caused items to appear briefly and then disappear.
+                                        //
+                                        // Strategy: prefer to update the fragment-owned `searchAdapter` if
+                                        // present (this is the instance we intend to keep attached). If
+                                        // that's null for any reason, fall back to updating the currently
+                                        // attached adapter. Never update one instance and then immediately
+                                        // replace it with a different, stale instance.
+                                        val adapterToUpdate = searchAdapter ?: (recyclerView.adapter as? SearchResultsAdapter)
+                                        adapterToUpdate?.updateEpisodeMatches(sorted)
+
+                                        // Use the adapter instance we just updated for the visibility check
+                                        val adapterForDisplay = adapterToUpdate ?: searchAdapter
+
                                         // Use atomic update to avoid flicker when visibility would not actually change
-                                        showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()), emptyState)
+                                        showResultsSafely(recyclerView, adapterForDisplay, isSearchAdapter = true, hasContent = (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()), emptyState)
+
                                         // Update in-memory cache so returning to list shows results immediately
                                         viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), sorted.toList()))
                                     }
