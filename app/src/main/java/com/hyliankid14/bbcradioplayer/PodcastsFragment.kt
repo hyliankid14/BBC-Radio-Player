@@ -512,7 +512,11 @@ class PodcastsFragment : Fragment() {
 
             // If we have a cached result for this query, reuse it immediately to avoid rebuilding
             val cached = viewModel.getCachedSearch()
-            if (cached != null && normalizeQuery(cached.query) == normalizeQuery(q)) {
+            // Only treat a cached result as a short-circuit hit if it contains real results
+            // (title/desc/episode). A seeded/placeholder cache should not prevent the
+            // background episode search from running.
+            if (cached != null && normalizeQuery(cached.query) == normalizeQuery(q)
+                && (cached.titleMatches.isNotEmpty() || cached.descMatches.isNotEmpty() || cached.episodeMatches.isNotEmpty())) {
                 android.util.Log.d("PodcastsFragment", "applyFilters: using cached search results for query='$q' (re-filtering for UI filters)")
 
                 // The cache is computed globally (no UI filters). Re-apply currentFilter to cached results
