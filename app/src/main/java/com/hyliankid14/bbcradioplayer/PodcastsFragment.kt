@@ -94,7 +94,6 @@ class PodcastsFragment : Fragment() {
     private suspend fun applyFiltersQuick(emptyState: TextView, recyclerView: RecyclerView) {
         withContext(Dispatchers.Main) { applyFilters(emptyState, recyclerView) }
     }
-    }
 
     // Pagination / lazy-loading state
     private val pageSize = 20
