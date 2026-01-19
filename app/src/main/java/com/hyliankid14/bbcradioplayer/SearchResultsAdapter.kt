@@ -166,9 +166,19 @@ class SearchResultsAdapter(
                 podcastTitleView?.text = podcast.title
             }
             dateView.text = formatDate(episode.pubDate)
-            durationView?.text = "${episode.durationMins} min"
+            // Show typical duration when exact duration is missing; use an ellipsis while resolving
+            val durText = when {
+                episode.durationMins > 0 -> "${episode.durationMins} min"
+                podcast.typicalDurationMins > 0 -> "${podcast.typicalDurationMins} min"
+                else -> "…"
+            }
+            durationView?.text = durText
 
-            playButton?.setOnClickListener { onPlayEpisode(episode) }
+            // Disable play affordance when we don't have an audio URL yet
+            val canPlay = episode.audioUrl.isNotEmpty()
+            playButton?.isEnabled = canPlay
+            playButton?.alpha = if (canPlay) 1.0f else 0.45f
+            playButton?.setOnClickListener(if (canPlay) { View.OnClickListener { onPlayEpisode(episode) } } else null)
 
             // Open preview (full activity) when title, podcast, or description tapped
             titleView.setOnClickListener { onOpenEpisode(episode, podcast) }

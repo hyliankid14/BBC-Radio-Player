@@ -589,12 +589,53 @@ class PodcastsFragment : Fragment() {
     }
 
     private fun playEpisode(episode: Episode) {
-        val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
-            action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-            putExtra(RadioService.EXTRA_EPISODE, episode)
-            putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+        // If we already have a playable URL, start immediately
+        if (episode.audioUrl.isNotBlank()) {
+            val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                putExtra(RadioService.EXTRA_EPISODE, episode)
+                putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+            }
+            requireContext().startService(intent)
+            return
         }
-        requireContext().startService(intent)
+
+        // Otherwise attempt a fast background resolution from the repository (bounded) and
+        // only start playback if we obtain a playable audioUrl. This avoids a full navigation
+        // to the podcast detail for index-only hits while respecting the no-spam network rule.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val pod = allPodcasts.find { it.id == episode.podcastId }
+            if (pod == null) {
+                // Unknown podcast — open preview so user can navigate
+                Toast.makeText(requireContext(), "Episode details unavailable", Toast.LENGTH_SHORT).show()
+                openEpisodePreview(episode, Podcast(id = episode.podcastId, title = "", description = "", rssUrl = "", imageUrl = "", typicalDurationMins = 0))
+                return@launch
+            }
+
+            // Try a quick fetch with timeout so we don't block the UI for long
+            val resolved: Episode? = try {
+                withTimeoutOrNull(3000L) {
+                    val fetched = repository.fetchEpisodesIfNeeded(pod)
+                    fetched.firstOrNull { it.id == episode.id }
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+            if (resolved?.audioUrl?.isNotBlank() == true) {
+                val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                    action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                    putExtra(RadioService.EXTRA_EPISODE, resolved)
+                    putExtra(RadioService.EXTRA_PODCAST_ID, resolved.podcastId)
+                }
+                requireContext().startService(intent)
+                return@launch
+            }
+
+            // Fallback UX: let the user open the episode preview (which can trigger a full fetch)
+            Toast.makeText(requireContext(), "Fetching episode details — open podcast to play", Toast.LENGTH_SHORT).show()
+            openEpisodePreview(episode, pod)
+        }
     }
 
     private fun openEpisodePreview(episode: Episode, podcast: Podcast) {
@@ -763,7 +804,95 @@ class PodcastsFragment : Fragment() {
                         }
                     })
 
-                    sorted.toMutableList()
+                    // Eagerly enrich index-only hits (bounded & capped) so the user always sees
+                    // a date, a non-zero duration and a playable audio URL for delivered results.
+                    val resultList = sorted.toMutableList()
+
+                    val incomplete = resultList.filter { (ep, _) -> ep.audioUrl.isBlank() || ep.pubDate.isBlank() || ep.durationMins <= 0 }
+                    if (incomplete.isNotEmpty()) {
+                        val podcastsToResolve = incomplete.map { it.second }.distinctBy { it.id }.take(6)
+
+                        try {
+                            val fetchedLists = kotlinx.coroutines.runBlocking {
+                                kotlinx.coroutines.coroutineScope {
+                                    val deferreds = podcastsToResolve.map { pod ->
+                                        kotlinx.coroutines.async(Dispatchers.IO) {
+                                            try {
+                                                withTimeoutOrNull(1200L) { repository.fetchEpisodesIfNeeded(pod) }
+                                            } catch (e: Exception) {
+                                                android.util.Log.w("PodcastsFragment", "Timed/enriched fetch failed for ${pod.id}: ${e.message}")
+                                                null
+                                            }
+                                        }
+                                    }
+                                    deferreds.mapNotNull { runCatching { it.await() }.getOrNull() }
+                                }
+                            }
+
+                            if (fetchedLists.isNotEmpty()) {
+                                val merged = resultList.map { (ep, p) ->
+                                    val improved = fetchedLists.firstOrNull { it.isNotEmpty() && it[0].podcastId == p.id }?.firstOrNull { it.id == ep.id }
+                                    if (improved != null) improved to p else ep to p
+                                }.toMutableList()
+
+                                val filtered = merged.filter { (ep, _) -> ep.audioUrl.isNotBlank() && ep.pubDate.isNotBlank() && ep.durationMins > 0 }
+                                if (filtered.isNotEmpty()) {
+                                    resultList.clear()
+                                    resultList.addAll(filtered)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("PodcastsFragment", "Synchronous enrichment failed: ${e.message}")
+                        }
+
+                        // Launch background resolution for any remaining incomplete hits so UI upgrades later
+                        val stillIncomplete = resultList.filter { (ep, _) -> ep.audioUrl.isBlank() || ep.pubDate.isBlank() || ep.durationMins <= 0 }
+                        if (stillIncomplete.isNotEmpty()) {
+                            val podcastsBg = stillIncomplete.map { it.second }.distinctBy { it.id }.take(6)
+                            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                                try {
+                                    for (pod in podcastsBg) {
+                                        if (!isActive) break
+                                        val fetched = try { repository.fetchEpisodesIfNeeded(pod) } catch (_: Exception) { null }
+                                        if (fetched.isNullOrEmpty()) continue
+                                        val updated = resultList.map { (ep, p) ->
+                                            val improved = if (p.id == pod.id) fetched.find { it.id == ep.id } else null
+                                            if (improved != null) improved to p else ep to p
+                                        }
+                                        withContext(Dispatchers.Main) {
+                                            if (!isAdded) return@withContext
+                                            val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)
+                                            if (activeNorm == qLower) {
+                                                searchAdapter?.updateEpisodeMatches(updated.filter { it.first.audioUrl.isNotEmpty() || it.first.durationMins > 0 })
+                                                viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), updated.toList(), isComplete = true))
+                                            }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.w("PodcastsFragment", "Background episode resolution failed: ${e.message}")
+                                }
+                            }
+                        }
+                    }
+
+                    // If enrichment removed all index-hits, fall back to cached-per-podcast search so we surface
+                    // playable episodes rather than empty stubs.
+                    if (resultList.isEmpty()) {
+                        val perPodcastLimit = 3
+                        for (p in allPodcasts) {
+                            if (!kotlin.coroutines.coroutineContext.isActive) break
+                            val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
+                            for (ep in hits) {
+                                if (ep.audioUrl.isNotBlank() && ep.pubDate.isNotBlank() && ep.durationMins > 0) {
+                                    resultList.add(ep to p)
+                                }
+                                if (resultList.size >= 50) break
+                            }
+                            if (resultList.size >= 50) break
+                        }
+                    }
+
+                    resultList
                 }
 
                 searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
