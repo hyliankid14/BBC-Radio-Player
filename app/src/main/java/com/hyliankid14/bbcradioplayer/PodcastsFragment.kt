@@ -22,8 +22,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import android.view.KeyEvent
+import android.widget.Toast
 
 class PodcastsFragment : Fragment() {
     private lateinit var viewModel: PodcastsViewModel
@@ -608,7 +612,7 @@ class PodcastsFragment : Fragment() {
             if (pod == null) {
                 // Unknown podcast — open preview so user can navigate
                 Toast.makeText(requireContext(), "Episode details unavailable", Toast.LENGTH_SHORT).show()
-                openEpisodePreview(episode, Podcast(id = episode.podcastId, title = "", description = "", rssUrl = "", imageUrl = "", typicalDurationMins = 0))
+                openEpisodePreview(episode, Podcast(id = episode.podcastId, title = "", description = "", rssUrl = "", htmlUrl = "", imageUrl = "", genres = emptyList(), typicalDurationMins = 0))
                 return@launch
             }
 
@@ -813,20 +817,18 @@ class PodcastsFragment : Fragment() {
                         val podcastsToResolve = incomplete.map { it.second }.distinctBy { it.id }.take(6)
 
                         try {
-                            val fetchedLists = kotlinx.coroutines.runBlocking {
-                                kotlinx.coroutines.coroutineScope {
-                                    val deferreds = podcastsToResolve.map { pod ->
-                                        kotlinx.coroutines.async(Dispatchers.IO) {
-                                            try {
-                                                withTimeoutOrNull(1200L) { repository.fetchEpisodesIfNeeded(pod) }
-                                            } catch (e: Exception) {
-                                                android.util.Log.w("PodcastsFragment", "Timed/enriched fetch failed for ${pod.id}: ${e.message}")
-                                                null
-                                            }
+                            val fetchedLists = coroutineScope {
+                                val deferreds = podcastsToResolve.map { pod ->
+                                    async(Dispatchers.IO) {
+                                        try {
+                                            withTimeoutOrNull(1200L) { repository.fetchEpisodesIfNeeded(pod) }
+                                        } catch (e: Exception) {
+                                            android.util.Log.w("PodcastsFragment", "Timed/enriched fetch failed for ${pod.id}: ${e.message}")
+                                            null
                                         }
                                     }
-                                    deferreds.mapNotNull { runCatching { it.await() }.getOrNull() }
                                 }
+                                deferreds.mapNotNull { runCatching { it.await() }.getOrNull() }
                             }
 
                             if (fetchedLists.isNotEmpty()) {
