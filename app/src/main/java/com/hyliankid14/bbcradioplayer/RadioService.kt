@@ -97,7 +97,7 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val CUSTOM_ACTION_SEEK_BACK = "SEEK_BACK_10"
 
         // Delay Now Playing updates for live streams by this amount to match the stream latency
-        private const val NOW_PLAYING_UPDATE_DELAY_MS = 30_000L
+        private const val NOW_PLAYING_UPDATE_DELAY_MS = 15_000L
         
         private const val MEDIA_ID_ROOT = "root"
         private const val MEDIA_ID_FAVORITES = "favorites"
@@ -1141,7 +1141,11 @@ class RadioService : MediaBrowserServiceCompat() {
         currentArtworkBitmap = null
         currentArtworkUri = currentStationLogo
         lastSongSignature = null // Reset last song signature for new station
-        
+
+        // If switching from a podcast, stop its progress updates and clear episode id so UI stops showing episode/progress
+        podcastProgressRunnable?.let { handler.removeCallbacks(it); podcastProgressRunnable = null }
+        PlaybackStateHelper.setCurrentEpisodeId(null)
+
         // Cancel existing show refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
         // Cancel any pending delayed Now Playing update from previous station
@@ -1199,6 +1203,10 @@ class RadioService : MediaBrowserServiceCompat() {
 
         Log.d(TAG, "Refreshing stream due to $reason. Station=${station.title}, HQ=$highQuality")
         lastSongSignature = null
+
+        // Ensure any podcast progress runnable is cancelled (prevents stale episode/progress persisting in UI)
+        podcastProgressRunnable?.let { handler.removeCallbacks(it); podcastProgressRunnable = null }
+        PlaybackStateHelper.setCurrentEpisodeId(null)
 
         player?.release()
         player = null
