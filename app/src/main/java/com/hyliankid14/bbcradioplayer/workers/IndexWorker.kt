@@ -45,8 +45,14 @@ object IndexWorker {
 
                 onProgress("Indexing $count episodes...", 40, true)
 
+                // Attach podcast title to episode description (improves queries that include podcast+term)
+                val enrichedEpisodes = allEpisodes.map { ep ->
+                    val seriesTitle = podcasts.firstOrNull { it.id == ep.podcastId }?.title ?: ""
+                    ep.copy(description = listOfNotNull(ep.description, seriesTitle).joinToString(" "))
+                }
+
                 // Index episodes and map episode progress into 40..99%
-                store.replaceAllEpisodes(allEpisodes) { processed, total ->
+                store.replaceAllEpisodes(enrichedEpisodes) { processed, total ->
                     val percent = if (total <= 0) 99 else 40 + (processed * 59 / total)
                     onProgress("Indexing episodes", percent.coerceIn(0, 99), true)
                 }

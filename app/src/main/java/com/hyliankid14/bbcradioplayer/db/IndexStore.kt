@@ -80,8 +80,27 @@ class IndexStore private constructor(private val context: Context) {
                 stmt.clearBindings()
                 stmt.bindString(1, e.id)
                 stmt.bindString(2, e.podcastId)
+                // Keep original title in its own column (for ranking/snippets)
                 stmt.bindString(3, e.title)
-                stmt.bindString(4, e.description)
+
+                // Build a richer searchable blob for the description column to improve recall:
+                // - include the original description (show-notes)
+                // - append normalized/cleaned title tokens (splits hyphens, punctuation)
+                // - append the pubDate (as text) so date-containing queries can match
+                // - append the audio filename (often contains useful tokens)
+                // - append the podcast title (so queries including podcast+term hit the episode row)
+                val cleanedTitle = e.title.replace(Regex("[\\p{Punct}\\s]+"), " ").trim().lowercase(Locale.getDefault())
+                val audioName = e.audioUrl.substringAfterLast('/').substringBefore('?').replace(Regex("[\\W_]+"), " ").lowercase(Locale.getDefault())
+                val pub = e.pubDate.trim().lowercase(Locale.getDefault())
+                val podcastTitle = try {
+                    // best-effort: try to look up podcast title from cached allPodcasts (may be empty during reindex)
+                    ""
+                } catch (_: Exception) { "" }
+                val searchBlob = listOf(e.description ?: "", cleanedTitle, pub, audioName, podcastTitle)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+
+                stmt.bindString(4, searchBlob)
                 stmt.executeInsert()
                 processed++
                 if (processed % reportInterval == 0 || processed == total) {
@@ -133,6 +152,9 @@ class IndexStore private constructor(private val context: Context) {
 
         val phrase = '"' + tokens.joinToString(" ") + '"'
         val near = tokens.joinToString(" NEAR/3 ") { it }
+        // bigram phrase variants: "t1 t2" OR "t2 t3" ... (helps match adjacent-word queries)
+        val bigramList = tokens.windowed(2).map { '"' + it.joinToString(" ") + '"' }
+        val bigramClause = if (bigramList.isNotEmpty()) bigramList.joinToString(" OR ") else ""
         val tokenAnd = tokens.joinToString(" AND ") { "${it}*" }
 
         val variants = mutableListOf<String>()
@@ -142,6 +164,8 @@ class IndexStore private constructor(private val context: Context) {
         variants.add("(title:$phrase) OR (description:$phrase)")
         // NEAR proximity (looser but adjacency-preserving)
         variants.add("($near)")
+        // Bigram adjacency fallback (helps where only partial phrase exists)
+        if (bigramClause.isNotBlank()) variants.add("($bigramClause)")
         // Prefix-AND fallback
         variants.add("($tokenAnd)")
         return variants

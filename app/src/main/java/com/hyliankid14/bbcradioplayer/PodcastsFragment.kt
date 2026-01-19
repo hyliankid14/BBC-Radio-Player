@@ -136,6 +136,16 @@ class PodcastsFragment : Fragment() {
         suppressSearchWatcher = false
         android.util.Log.d("PodcastsFragment", "onViewCreated: viewModel.activeSearchQuery='${restored}' searchEditText='${searchEditText.text}'")
 
+        // Try to restore a persisted search cache (survives navigation/process-restores). Only restore
+        // if the persisted query matches the currently active query so we don't override unrelated state.
+        try {
+            val persisted = SearchCacheStore.load(requireContext())
+            if (persisted != null && normalizeQuery(persisted.query) == normalizeQuery(viewModel.activeSearchQuery.value) && viewModel.getCachedSearch() == null) {
+                android.util.Log.d("PodcastsFragment", "Restoring persisted search cache for='${persisted.query}'")
+                viewModel.setCachedSearch(persisted)
+            }
+        } catch (_: Exception) { /* best-effort */ }
+
         // Observe active search and update hint + edit text when it changes
         val activeHintView: TextView = view.findViewById(R.id.active_search_hint)
         viewModel.activeSearchQuery.observe(viewLifecycleOwner) { q ->
@@ -193,7 +203,8 @@ class PodcastsFragment : Fragment() {
 
                 // When user types a non-empty query, set it as the active search that will persist
                 // Clear any previously cached results so we rebuild for the new query
-                viewModel.clearCachedSearch()
+                // Clear both in-memory and persisted search cache
+                clearCachedSearchPersisted()
                 viewModel.setActiveSearch(searchQuery)
 
                 // Leading-edge quick update: show title/description matches immediately for snappy UX
@@ -313,7 +324,8 @@ class PodcastsFragment : Fragment() {
             searchJob?.cancel()
             searchQuery = ""
             viewModel.clearActiveSearch()
-            viewModel.clearCachedSearch()
+            // Clear both in-memory and persisted search cache
+            clearCachedSearchPersisted()
             // Also forget the last displayed snapshot so UI won't attempt to re-use it
             lastDisplaySnapshot = null
             lastActiveQueryNorm = ""
@@ -664,6 +676,18 @@ class PodcastsFragment : Fragment() {
         )
     }
 
+    // Persist the UI search cache both in-memory (ViewModel) and on-disk so it survives
+    // navigation and short-lived process restarts. Clearing is best-effort.
+    private fun persistCachedSearch(cache: PodcastsViewModel.SearchCache) {
+        viewModel.setCachedSearch(cache)
+        try { SearchCacheStore.save(requireContext(), cache) } catch (_: Exception) {}
+    }
+
+    private fun clearCachedSearchPersisted() {
+        viewModel.clearCachedSearch()
+        try { SearchCacheStore.clear(requireContext()) } catch (_: Exception) {}
+    }
+
     // Simplified, single-path search implementation. Keeps behavior minimal and reliable:
     // - matches podcast title and description
     // - searches episodes from the in-memory cache only (no network/FTS during typing)
@@ -717,10 +741,13 @@ class PodcastsFragment : Fragment() {
                 val qLower = q.lowercase(Locale.getDefault())
 
                 val titleMatches = withContext(Dispatchers.Default) {
-                    allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "title" }
+                    val raw = allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "title" }
+                    repository.filterPodcasts(raw, currentFilter)
                 }
+
                 val descMatches = withContext(Dispatchers.Default) {
-                    allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
+                    val raw = allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
+                    repository.filterPodcasts(raw, currentFilter)
                 }
 
                 val episodeMatches = withContext(Dispatchers.IO) {
@@ -799,14 +826,30 @@ class PodcastsFragment : Fragment() {
                         }
                     }
 
-                    // Sort so title matches come before description matches across all podcasts
-                    val sorted = eps.sortedWith(compareByDescending<Pair<Episode, Podcast>> { pair ->
-                        when {
-                            repository.textMatchesNormalized(pair.first.title, q) -> 2
-                            repository.textMatchesNormalized(pair.first.description, q) -> 1
-                            else -> 0
+                    // Apply podcast-level filter and episode duration filter so the UI filters apply to episode hits
+                    val epsFiltered = eps.filter { (ep, pod) ->
+                        repository.filterPodcasts(listOf(pod), currentFilter).isNotEmpty()
+                    }.filter { (ep, _) ->
+                        ep.durationMins in currentFilter.minDuration..currentFilter.maxDuration
+                    }
+
+                    // Sort episode matches according to the current sort selection
+                    val sorted = when (currentSort) {
+                        "Most recent" -> epsFiltered.sortedByDescending { pair ->
+                            val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy", "dd MMM yyyy")
+                            patterns.firstNotNullOfOrNull { pattern ->
+                                try { java.text.SimpleDateFormat(pattern, Locale.US).parse(pair.first.pubDate)?.time } catch (_: Exception) { null }
+                            } ?: 0L
                         }
-                    })
+                        "Alphabetical (A-Z)" -> epsFiltered.sortedWith(compareBy({ it.second.title.lowercase(Locale.getDefault()) }, { it.first.title.lowercase(Locale.getDefault()) }))
+                        else -> epsFiltered.sortedWith(compareBy<Pair<Episode, Podcast>> { getPopularRank(it.second) }
+                            .thenByDescending { pair ->
+                                val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy", "dd MMM yyyy")
+                                patterns.firstNotNullOfOrNull { pattern ->
+                                    try { java.text.SimpleDateFormat(pattern, Locale.US).parse(pair.first.pubDate)?.time } catch (_: Exception) { null }
+                                } ?: 0L
+                            })
+                    }
 
                     // Eagerly enrich index-only hits (bounded & capped) so the user always sees
                     // a date, a non-zero duration and a playable audio URL for delivered results.
@@ -866,7 +909,7 @@ class PodcastsFragment : Fragment() {
                                             val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)
                                             if (activeNorm == qLower) {
                                                 searchAdapter?.updateEpisodeMatches(updated.filter { it.first.audioUrl.isNotEmpty() || it.first.durationMins > 0 })
-                                                viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), updated.toList(), isComplete = true))
+                                                persistCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), updated.toList(), isComplete = true))
                                             }
                                         }
                                     }
@@ -898,7 +941,7 @@ class PodcastsFragment : Fragment() {
                 }
 
                 searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
-                viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
+                persistCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
 
                 showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
                 loadingView?.visibility = View.GONE
