@@ -48,6 +48,41 @@ class PodcastsFragment : Fragment() {
     private var searchGeneration: Int = 0
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
 
+    // Normalize queries for robust cache lookups (trim + locale-aware lowercase)
+    private fun normalizeQuery(q: String?): String = q?.trim()?.lowercase(Locale.getDefault()) ?: ""
+
+    // Snapshot of what's currently displayed to avoid redundant adapter/visibility swaps
+    private data class DisplaySnapshot(val queryNorm: String, val filterHash: Int, val isSearchAdapter: Boolean)
+    private var lastDisplaySnapshot: DisplaySnapshot? = null
+    private var lastActiveQueryNorm: String = ""
+
+    private fun currentFilterHash(): Int = (currentFilter.hashCode() * 31) xor currentSort.hashCode()
+
+    private fun showResultsSafely(
+        recyclerView: RecyclerView,
+        adapter: RecyclerView.Adapter<*>,
+        isSearchAdapter: Boolean,
+        hasContent: Boolean,
+        emptyState: TextView
+    ) {
+        val queryNorm = normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)
+        val snap = DisplaySnapshot(queryNorm, currentFilterHash(), isSearchAdapter)
+        // If the same snapshot is already displayed and adapter instance matches, skip any UI work
+        if (lastDisplaySnapshot == snap && recyclerView.adapter == adapter) return
+        lastDisplaySnapshot = snap
+        lastActiveQueryNorm = queryNorm
+
+        // Apply adapter and visibility in a single, atomic UI update to avoid flicker
+        recyclerView.adapter = adapter
+        if (hasContent) {
+            emptyState.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        } else {
+            emptyState.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        }
+    }
+
     // Pagination / lazy-loading state
     private val pageSize = 20
     private var currentPage = 0
@@ -92,6 +127,13 @@ class PodcastsFragment : Fragment() {
                 activeHintView.visibility = View.VISIBLE
             } else {
                 activeHintView.visibility = View.GONE
+            }
+
+            // Avoid invalidating the display snapshot when the same query is re-applied programmatically
+            val newNorm = normalizeQuery(q)
+            if (newNorm != lastActiveQueryNorm) {
+                lastDisplaySnapshot = null
+                lastActiveQueryNorm = newNorm
             }
 
             // Ensure edit text reflects current active search without triggering watcher
@@ -258,6 +300,9 @@ class PodcastsFragment : Fragment() {
             searchQuery = ""
             viewModel.clearActiveSearch()
             viewModel.clearCachedSearch()
+            // Also forget the last displayed snapshot so UI won't attempt to re-use it
+            lastDisplaySnapshot = null
+            lastActiveQueryNorm = ""
             currentFilter = PodcastFilter()
             // Set exposed dropdowns back to 'All Genres' / default label
             genreSpinner.setText("All Genres", false)
@@ -442,15 +487,8 @@ class PodcastsFragment : Fragment() {
                 val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
                 podcastAdapter.updatePodcasts(initialPage)
 
-                recyclerView.adapter = podcastAdapter
-
-                if (filteredList.isEmpty()) {
-                    emptyState.visibility = View.VISIBLE
-                    recyclerView.visibility = View.GONE
-                } else {
-                    emptyState.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                }
+                // Update UI atomically and skip redundant swaps to prevent flicker
+                showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = filteredList.isNotEmpty(), emptyState)
 
                 // Ensure any loading spinner is hidden when filters finish applying
                 view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
@@ -464,7 +502,7 @@ class PodcastsFragment : Fragment() {
 
             // If we have a cached result for this query, reuse it immediately to avoid rebuilding
             val cached = viewModel.getCachedSearch()
-            if (cached != null && cached.query == q) {
+            if (cached != null && normalizeQuery(cached.query) == normalizeQuery(q)) {
                 android.util.Log.d("PodcastsFragment", "applyFilters: using cached search results for query='$q' (re-filtering for UI filters)")
 
                 // The cache is computed globally (no UI filters). Re-apply currentFilter to cached results
@@ -583,14 +621,8 @@ class PodcastsFragment : Fragment() {
                     }
                 )
 
-                recyclerView.adapter = searchAdapter
-                if (titleMatches.isEmpty() && descMatches.isEmpty()) {
-                    emptyState.visibility = View.VISIBLE
-                    recyclerView.visibility = View.GONE
-                } else {
-                    emptyState.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                }
+                // Show results atomically to avoid flicker
+                showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty(), emptyState)
 
                 // Cancel any previous episode search and return early
                 searchJob?.cancel()
@@ -627,17 +659,11 @@ class PodcastsFragment : Fragment() {
                 }
             )
 
-            recyclerView.adapter = searchAdapter
             // Cache the initial adapter state (no episodes yet) so returning to the list is fast
             viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList()))
 
-            if (titleMatches.isEmpty() && descMatches.isEmpty() && episodeMatches.isEmpty()) {
-                emptyState.visibility = View.VISIBLE
-                recyclerView.visibility = View.GONE
-            } else {
-                emptyState.visibility = View.GONE
-                recyclerView.visibility = View.VISIBLE
-            }
+            // Show adapter/visibility atomically to avoid flicker
+            showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
 
             // Cancel previous search job and start a new incremental episode search (limited size)
             searchJob?.cancel()
@@ -725,13 +751,8 @@ class PodcastsFragment : Fragment() {
                                             }
                                         })
                                         (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(sorted)
-                                        if (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()) {
-                                            emptyState.visibility = View.GONE
-                                            recyclerView.visibility = View.VISIBLE
-                                        } else {
-                                            emptyState.visibility = View.VISIBLE
-                                            recyclerView.visibility = View.GONE
-                                        }
+                                        // Use atomic update to avoid flicker when visibility would not actually change
+                                        showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()), emptyState)
                                         // Update in-memory cache so returning to list shows results immediately
                                         viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), sorted.toList()))
                                     }
@@ -806,13 +827,9 @@ class PodcastsFragment : Fragment() {
                                         }
                                     })
                                     (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(sorted)
-                                    if (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()) {
-                                        emptyState.visibility = View.GONE
-                                        recyclerView.visibility = View.VISIBLE
-                                    } else {
-                                        emptyState.visibility = View.VISIBLE
-                                        recyclerView.visibility = View.GONE
-                                    }                                    // Update in-memory cache so returning to list shows results immediately
+                                    // Avoid toggling visibility unnecessarily while adding episode matches incrementally
+                                    showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()), emptyState)
+                                    // Update in-memory cache so returning to list shows results immediately
                                     viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), sorted.toList()))                                }
                                 android.util.Log.d("PodcastsFragment", "Found ${added.size} episode matches in podcast '${p.title}' for query '$q'")
                                 if (totalMatches >= 50) break
@@ -881,6 +898,59 @@ class PodcastsFragment : Fragment() {
                         return
                     }
                 }
+            }
+
+            // Fast-path: if we have a cached search that matches the active query, restore it
+            // immediately to avoid re-running expensive searches when returning from other screens
+            val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value)
+            val cached = viewModel.getCachedSearch()
+            if (activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm) {
+                view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { rv ->
+                    // Re-filter cached results for current UI filters and restore adapter
+                    val cachedPodcasts = (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
+                    val filteredCachedPodcasts = repository.filterPodcasts(cachedPodcasts, currentFilter)
+                    val filteredTitle = cached.titleMatches.filter { filteredCachedPodcasts.contains(it) }
+                    val filteredDesc = cached.descMatches.filter { filteredCachedPodcasts.contains(it) }
+                    val filteredEpisodes = cached.episodeMatches.filter { filteredCachedPodcasts.contains(it.second) }
+
+                    searchAdapter = SearchResultsAdapter(requireContext(), filteredTitle, filteredDesc, filteredEpisodes,
+                        onPodcastClick = { podcast ->
+                            val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
+                            parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
+                        },
+                        onPlayEpisode = { episode ->
+                            val intent = android.content.Intent(requireContext(), RadioService::class.java).apply {
+                                action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                                putExtra(RadioService.EXTRA_EPISODE, episode)
+                                putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                            }
+                            requireContext().startService(intent)
+                        },
+                        onOpenEpisode = { episode, podcast ->
+                            val intent = android.content.Intent(requireContext(), NowPlayingActivity::class.java).apply {
+                                putExtra("preview_episode", episode)
+                                putExtra("preview_use_play_ui", true)
+                                putExtra("preview_podcast_title", podcast.title)
+                                putExtra("preview_podcast_image", podcast.imageUrl)
+                            }
+                            startActivity(intent)
+                        }
+                    )
+
+                    rv.adapter = searchAdapter
+                    view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
+                        if (filteredTitle.isEmpty() && filteredDesc.isEmpty() && filteredEpisodes.isEmpty()) {
+                            empty.visibility = View.VISIBLE
+                            rv.visibility = View.GONE
+                        } else {
+                            empty.visibility = View.GONE
+                            rv.visibility = View.VISIBLE
+                        }
+                    }
+                }
+
+                android.util.Log.d("PodcastsFragment", "onResume: restored cached search for='${viewModel.activeSearchQuery.value}' without rebuild")
+                return
             }
 
             view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { _ ->
