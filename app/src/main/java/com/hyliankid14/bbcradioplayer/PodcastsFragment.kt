@@ -306,7 +306,8 @@ class PodcastsFragment : Fragment() {
                 // Leading-edge quick update: show title/description matches immediately for snappy UX
                 // while the debounced full search (episodes + FTS) is scheduled.
                 if (filterDebounceJob == null || filterDebounceJob?.isActive == false) {
-                    applyFiltersQuick(emptyState, recyclerView)
+                    // Schedule the suspendable quick search from a coroutine (cancellable)
+                    scheduleQuickSearch(emptyState, recyclerView)
                 }
 
                 // Debounce the application of filters to avoid running heavy searches on every keystroke
