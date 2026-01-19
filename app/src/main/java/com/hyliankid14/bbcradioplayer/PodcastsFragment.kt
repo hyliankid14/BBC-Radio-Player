@@ -629,137 +629,152 @@ class PodcastsFragment : Fragment() {
         searchJob = viewLifecycleOwner.lifecycleScope.launch {
             if (!isAdded) return@launch
 
-            val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
-            searchQuery = q
+            val loadingView = view?.findViewById<ProgressBar>(R.id.loading_progress)
+            var spinnerShown = false
+            // Delay showing the spinner slightly to avoid a flicker on very-fast searches
+            val showSpinnerJob = launch {
+                kotlinx.coroutines.delay(120)
+                if (!isActive) return@launch
+                loadingView?.visibility = View.VISIBLE
+                spinnerShown = true
+            }
 
-            // Empty -> show main list (preserve sorting/pagination)
-            if (q.isEmpty()) {
-                val effectiveFilter = currentFilter.copy(searchQuery = "")
-                val filtered = withContext(Dispatchers.Default) { repository.filterPodcasts(allPodcasts, effectiveFilter) }
+            try {
+                val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
+                searchQuery = q
 
-                val sortedList = when (currentSort) {
-                    "Most popular" -> filtered.sortedWith(
-                        compareBy<Podcast> { getPopularRank(it) }
-                            .thenByDescending { if (getPopularRank(it) > 20) cachedUpdates[it.id] ?: 0L else 0L }
-                    )
-                    "Most recent" -> filtered.sortedByDescending { cachedUpdates[it.id] ?: 0L }
-                    "Alphabetical (A-Z)" -> filtered.sortedBy { it.title }
-                    else -> filtered
+                // Empty -> show main list (preserve sorting/pagination)
+                if (q.isEmpty()) {
+                    val effectiveFilter = currentFilter.copy(searchQuery = "")
+                    val filtered = withContext(Dispatchers.Default) { repository.filterPodcasts(allPodcasts, effectiveFilter) }
+
+                    val sortedList = when (currentSort) {
+                        "Most popular" -> filtered.sortedWith(
+                            compareBy<Podcast> { getPopularRank(it) }
+                                .thenByDescending { if (getPopularRank(it) > 20) cachedUpdates[it.id] ?: 0L else 0L }
+                        )
+                        "Most recent" -> filtered.sortedByDescending { cachedUpdates[it.id] ?: 0L }
+                        "Alphabetical (A-Z)" -> filtered.sortedBy { it.title }
+                        else -> filtered
+                    }
+
+                    filteredList = sortedList
+                    currentPage = 0
+                    isLoadingPage = false
+                    val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
+                    podcastAdapter.updatePodcasts(initialPage)
+
+                    showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = filteredList.isNotEmpty(), emptyState)
+                    loadingView?.visibility = View.GONE
+                    return@launch
                 }
 
-                filteredList = sortedList
-                currentPage = 0
-                isLoadingPage = false
-                val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
-                podcastAdapter.updatePodcasts(initialPage)
+                val qLower = q.lowercase(Locale.getDefault())
 
-                showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = filteredList.isNotEmpty(), emptyState)
-                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
-                return@launch
-            }
+                val titleMatches = withContext(Dispatchers.Default) {
+                    allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "title" }
+                }
+                val descMatches = withContext(Dispatchers.Default) {
+                    allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
+                }
 
-            val qLower = q.lowercase(Locale.getDefault())
+                val episodeMatches = withContext(Dispatchers.IO) {
+                    // Prefer on-disk FTS index when available — it's fast and returns global
+                    // episode hits across podcasts. Fall back to per-podcast cached search
+                    // if the index is unavailable or returns nothing.
+                    val eps = mutableListOf<Pair<Episode, Podcast>>()
 
-            val titleMatches = withContext(Dispatchers.Default) {
-                allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "title" }
-            }
-            val descMatches = withContext(Dispatchers.Default) {
-                allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
-            }
+                    if (q.length >= 3) {
+                        try {
+                            val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
+                            val ftsResults = try {
+                                index.searchEpisodes(q, 200)
+                            } catch (e: Exception) {
+                                android.util.Log.w("PodcastsFragment", "FTS episode search failed: ${e.message}")
+                                emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
+                            }
 
-            val episodeMatches = withContext(Dispatchers.IO) {
-                // Prefer on-disk FTS index when available — it's fast and returns global
-                // episode hits across podcasts. Fall back to per-podcast cached search
-                // if the index is unavailable or returns nothing.
-                val eps = mutableListOf<Pair<Episode, Podcast>>()
+                            if (ftsResults.isNotEmpty()) {
+                                // Group hits by podcast and prefer title matches when ordering
+                                val grouped = ftsResults.groupBy { it.podcastId }
+                                var total = 0
+                                for ((podId, hits) in grouped) {
+                                    if (!coroutineContext.isActive) break
+                                    val p = allPodcasts.find { it.id == podId } ?: continue
 
-                if (q.length >= 3) {
-                    try {
-                        val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
-                        val ftsResults = try {
-                            index.searchEpisodes(q, 200)
-                        } catch (e: Exception) {
-                            android.util.Log.w("PodcastsFragment", "FTS episode search failed: ${e.message}")
-                            emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
-                        }
+                                    // Try to resolve actual Episode objects from the in-memory cache
+                                    val cached = repository.getEpisodesFromCache(podId)
+                                    val perPodcastAdded = mutableListOf<Pair<Episode, Podcast>>()
 
-                        if (ftsResults.isNotEmpty()) {
-                            // Group hits by podcast and prefer title matches when ordering
-                            val grouped = ftsResults.groupBy { it.podcastId }
-                            var total = 0
-                            for ((podId, hits) in grouped) {
-                                if (!coroutineContext.isActive) break
-                                val p = allPodcasts.find { it.id == podId } ?: continue
+                                    // Prefer title matches first
+                                    val titleHits = hits.filter { repository.textMatchesNormalized(it.title, q) }
+                                    val descHits = hits.filter { !repository.textMatchesNormalized(it.title, q) && repository.textMatchesNormalized(it.description, q) }
 
-                                // Try to resolve actual Episode objects from the in-memory cache
-                                val cached = repository.getEpisodesFromCache(podId)
-                                val perPodcastAdded = mutableListOf<Pair<Episode, Podcast>>()
+                                    fun resolveHit(ef: com.hyliankid14.bbcradioplayer.db.EpisodeFts): Episode {
+                                        val found = cached?.find { it.id == ef.episodeId }
+                                        return found ?: Episode(
+                                            id = ef.episodeId,
+                                            title = ef.title,
+                                            description = ef.description ?: "",
+                                            audioUrl = "",
+                                            imageUrl = p.imageUrl,
+                                            pubDate = "",
+                                            durationMins = 0,
+                                            podcastId = p.id
+                                        )
+                                    }
 
-                                // Prefer title matches first
-                                val titleHits = hits.filter { repository.textMatchesNormalized(it.title, q) }
-                                val descHits = hits.filter { !repository.textMatchesNormalized(it.title, q) && repository.textMatchesNormalized(it.description, q) }
+                                    for (ef in (titleHits + descHits)) {
+                                        if (perPodcastAdded.size >= 3) break
+                                        perPodcastAdded.add(resolveHit(ef) to p)
+                                        total += 1
+                                        if (total >= 50) break
+                                    }
 
-                                fun resolveHit(ef: com.hyliankid14.bbcradioplayer.db.EpisodeFts): Episode {
-                                    val found = cached?.find { it.id == ef.episodeId }
-                                    return found ?: Episode(
-                                        id = ef.episodeId,
-                                        title = ef.title,
-                                        description = ef.description ?: "",
-                                        audioUrl = "",
-                                        imageUrl = p.imageUrl,
-                                        pubDate = "",
-                                        durationMins = 0,
-                                        podcastId = p.id
-                                    )
-                                }
-
-                                for (ef in (titleHits + descHits)) {
-                                    if (perPodcastAdded.size >= 3) break
-                                    perPodcastAdded.add(resolveHit(ef) to p)
-                                    total += 1
+                                    eps.addAll(perPodcastAdded)
                                     if (total >= 50) break
                                 }
-
-                                eps.addAll(perPodcastAdded)
-                                if (total >= 50) break
                             }
+                        } catch (e: Exception) {
+                            android.util.Log.w("PodcastsFragment", "IndexStore unavailable, falling back to cached-per-podcast search: ${e.message}")
                         }
-                    } catch (e: Exception) {
-                        android.util.Log.w("PodcastsFragment", "IndexStore unavailable, falling back to cached-per-podcast search: ${e.message}")
-                    }
 
-                    // Fallback: if index returned nothing or wasn't available, search cached episodes per-podcast
-                    if (eps.isEmpty()) {
-                        val perPodcastLimit = 3
-                        for (p in allPodcasts) {
-                            if (!kotlin.coroutines.coroutineContext.isActive) break
-                            val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
-                            for (ep in hits) {
-                                eps.add(ep to p)
+                        // Fallback: if index returned nothing or wasn't available, search cached episodes per-podcast
+                        if (eps.isEmpty()) {
+                            val perPodcastLimit = 3
+                            for (p in allPodcasts) {
+                                if (!kotlin.coroutines.coroutineContext.isActive) break
+                                val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
+                                for (ep in hits) {
+                                    eps.add(ep to p)
+                                    if (eps.size >= 50) break
+                                }
                                 if (eps.size >= 50) break
                             }
-                            if (eps.size >= 50) break
                         }
                     }
+
+                    // Sort so title matches come before description matches across all podcasts
+                    val sorted = eps.sortedWith(compareByDescending<Pair<Episode, Podcast>> { pair ->
+                        when {
+                            repository.textMatchesNormalized(pair.first.title, q) -> 2
+                            repository.textMatchesNormalized(pair.first.description, q) -> 1
+                            else -> 0
+                        }
+                    })
+
+                    sorted.toMutableList()
                 }
 
-                // Sort so title matches come before description matches across all podcasts
-                val sorted = eps.sortedWith(compareByDescending<Pair<Episode, Podcast>> { pair ->
-                    when {
-                        repository.textMatchesNormalized(pair.first.title, q) -> 2
-                        repository.textMatchesNormalized(pair.first.description, q) -> 1
-                        else -> 0
-                    }
-                })
+                searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
+                viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
 
-                sorted.toMutableList()
+                showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
+                loadingView?.visibility = View.GONE
+            } finally {
+                showSpinnerJob.cancel()
+                loadingView?.visibility = View.GONE
             }
-
-            searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
-            viewModel.setCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
-
-            showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
-            view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
         }
     }
 

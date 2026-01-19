@@ -1289,7 +1289,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     handler.post {
                         Log.d(TAG, "Updating UI with show title: $currentShowTitle (podcast immediate)")
                         val nowPlayingImageUrl = finalShow.imageUrl
-                        if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
+                        if (nowPlayingImageUrl?.startsWith("http") == true) {
                             currentArtworkUri = nowPlayingImageUrl
                         } else {
                             currentArtworkUri = null
@@ -1313,7 +1313,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         handler.post {
                             Log.d(TAG, "Updating UI with show title: $currentShowTitle (initial immediate)")
                             val nowPlayingImageUrl = finalShow.imageUrl
-                            if (!nowPlayingImageUrl.isNullOrEmpty() && nowPlayingImageUrl.startsWith("http")) {
+                            if (nowPlayingImageUrl?.startsWith("http") == true) {
                                 currentArtworkUri = nowPlayingImageUrl
                             } else {
                                 currentArtworkUri = null
@@ -1410,10 +1410,7 @@ class RadioService : MediaBrowserServiceCompat() {
         // Keep artwork sticky across metadata refreshes. Some OEM media UIs only show art
         // if a bitmap is present in the MediaSession metadata.
         // Prefer the latest now-playing artwork URL (RMS) when available.
-        val displayUri = artworkUri
-            ?: currentShowInfo.imageUrl
-            ?: currentArtworkUri
-            ?: currentStationLogo
+        val displayUri: String = (artworkUri ?: currentShowInfo.imageUrl ?: currentArtworkUri ?: currentStationLogo).orEmpty()
 
         val displayBitmap = artworkBitmap ?: currentArtworkBitmap
 
