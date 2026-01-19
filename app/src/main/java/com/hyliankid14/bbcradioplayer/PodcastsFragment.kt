@@ -60,15 +60,17 @@ class PodcastsFragment : Fragment() {
 
     private fun showResultsSafely(
         recyclerView: RecyclerView,
-        adapter: RecyclerView.Adapter<*>,
+        adapter: RecyclerView.Adapter<*>?,
         isSearchAdapter: Boolean,
         hasContent: Boolean,
         emptyState: TextView
     ) {
         val queryNorm = normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)
         val snap = DisplaySnapshot(queryNorm, currentFilterHash(), isSearchAdapter)
+        // Capture current adapter to avoid races with mutable properties
+        val currentAdapter = recyclerView.adapter
         // If the same snapshot is already displayed and adapter instance matches, skip any UI work
-        if (lastDisplaySnapshot == snap && recyclerView.adapter == adapter) return
+        if (lastDisplaySnapshot == snap && currentAdapter == adapter) return
         lastDisplaySnapshot = snap
         lastActiveQueryNorm = queryNorm
 
@@ -750,7 +752,9 @@ class PodcastsFragment : Fragment() {
                                                 else -> 0
                                             }
                                         })
-                                        (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(sorted)
+                                        // Capture the adapter reference so the compiler/runtime can't observe a race on the mutable property
+                                        val currentSearchAdapter = recyclerView.adapter as? SearchResultsAdapter
+                                        currentSearchAdapter?.updateEpisodeMatches(sorted)
                                         // Use atomic update to avoid flicker when visibility would not actually change
                                         showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()), emptyState)
                                         // Update in-memory cache so returning to list shows results immediately
@@ -826,7 +830,8 @@ class PodcastsFragment : Fragment() {
                                             else -> 0
                                         }
                                     })
-                                    (recyclerView.adapter as? SearchResultsAdapter)?.updateEpisodeMatches(sorted)
+                                    val currentSearchAdapter = recyclerView.adapter as? SearchResultsAdapter
+                                    currentSearchAdapter?.updateEpisodeMatches(sorted)
                                     // Avoid toggling visibility unnecessarily while adding episode matches incrementally
                                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = (sorted.isNotEmpty() || titleMatches.isNotEmpty() || descMatches.isNotEmpty()), emptyState)
                                     // Update in-memory cache so returning to list shows results immediately
