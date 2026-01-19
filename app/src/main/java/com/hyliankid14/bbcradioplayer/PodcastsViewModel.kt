@@ -26,6 +26,14 @@ class PodcastsViewModel : ViewModel() {
         // Use synchronous set so callers on the main (UI) thread can read the updated
         // value immediately (avoids races when applyFilters reads the LiveData right away).
         _activeSearchQuery.value = query
+
+        // Seed a minimal in-memory cache for the query so the UI can restore quickly
+        // even if the full/expensive search hasn't finished yet (e.g., user navigates
+        // to an episode immediately after typing). This cache will be replaced with
+        // real results once the background search completes.
+        if (!query.isNullOrBlank() && cachedSearch?.query != query) {
+            cachedSearch = SearchCache(query, emptyList(), emptyList(), emptyList())
+        }
     }
 
     fun clearActiveSearch() {

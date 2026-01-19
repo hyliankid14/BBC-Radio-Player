@@ -51,6 +51,9 @@ class PodcastsFragment : Fragment() {
     // Normalize queries for robust cache lookups (trim + locale-aware lowercase)
     private fun normalizeQuery(q: String?): String = q?.trim()?.lowercase(Locale.getDefault()) ?: ""
 
+    // Small delay to let IMEs commit composition before we read the EditText text
+    private val IME_COMMIT_DELAY_MS = 50L
+
     // Snapshot of what's currently displayed to avoid redundant adapter/visibility swaps
     private data class DisplaySnapshot(val queryNorm: String, val filterHash: Int, val isSearchAdapter: Boolean)
     private var lastDisplaySnapshot: DisplaySnapshot? = null
@@ -189,9 +192,13 @@ class PodcastsFragment : Fragment() {
                     if (!isAdded) return@launch
                     applyFilters(emptyState, recyclerView)
 
-                    // Add to search history (deduplicated inside helper) and refresh adapter
+                    // Add to search history (deduplicated and prefix-guarded inside helper) and refresh adapter
                     try {
-                        searchHistory.add(searchQuery)
+                        // Avoid adding very short queries from debounce (reduces noise)
+                        val MIN_HISTORY_LENGTH = 3
+                        if (searchQuery.length >= MIN_HISTORY_LENGTH) {
+                            searchHistory.add(searchQuery)
+                        }
                         withContext(Dispatchers.Main) {
                             historyAdapter.clear()
                             historyAdapter.addAll(searchHistory.getRecent())
@@ -238,7 +245,7 @@ class PodcastsFragment : Fragment() {
             }
 
             // Post the apply so the IME/view has time to commit composition state — prevents "stops after submit" bugs
-            v.post { applyFilters(emptyState, recyclerView) }
+            v.postDelayed({ if (isAdded) applyFilters(emptyState, recyclerView) }, IME_COMMIT_DELAY_MS)
             true
         }
 
@@ -286,8 +293,9 @@ class PodcastsFragment : Fragment() {
             } catch (e: Exception) {
                 android.util.Log.w("PodcastsFragment", "Failed to update search history on selection: ${e.message}")
             }
-            // Post so AutoCompleteTextView finishes its internal state changes before we run the (potentially expensive) search
-            searchEditText.post { applyFilters(emptyState, recyclerView) }
+            // Post with a tiny delay so AutoCompleteTextView finishes its internal state changes
+            // (some implementations update internal state asynchronously) before running search.
+            searchEditText.postDelayed({ if (isAdded) applyFilters(emptyState, recyclerView) }, IME_COMMIT_DELAY_MS)
         }
 
         // Ensure the global action bar is shown when navigating into a podcast detail
@@ -955,6 +963,24 @@ class PodcastsFragment : Fragment() {
                 }
 
                 android.util.Log.d("PodcastsFragment", "onResume: restored cached search for='${viewModel.activeSearchQuery.value}' without rebuild")
+
+                // If the cached search is present but incomplete (no episodeMatches yet),
+                // resume the background episode search so results continue populating while
+                // the user is viewing the player or returns to this fragment.
+                if ((cached.episodeMatches.isEmpty()) && normalizeQuery(cached.query).length >= 3 && searchJob?.isActive != true) {
+                    // Launch without changing the current UI state (showResultsSafely prevents flicker).
+                    fragmentScope.launch {
+                        // Small delay to let the restored UI settle
+                        kotlinx.coroutines.delay(20)
+                        if (!isAdded) return@launch
+                        view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
+                            view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { rv ->
+                                applyFilters(empty, rv)
+                            }
+                        }
+                    }
+                }
+
                 return
             }
 
