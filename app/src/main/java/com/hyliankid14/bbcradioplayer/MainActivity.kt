@@ -418,32 +418,33 @@ class MainActivity : AppCompatActivity() {
                     stationsList.visibility = View.GONE
                     favoritesPodcastsContainer.visibility = View.VISIBLE
                     savedContainer.visibility = View.GONE
-                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
                     historyContainer.visibility = View.GONE
+
+                    // Hide saved episodes recycler while showing subscribed list
+                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
+
                     // Refresh subscribed podcasts list whenever user selects this tab
                     Thread {
                         try {
                             val ids = PodcastSubscriptions.getSubscribedIds(this@MainActivity)
-                    savedContainer.visibility = View.GONE
-                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
+                            if (ids.isEmpty()) {
                                 runOnUiThread {
-                                    // Clear adapter and show empty state
                                     favoritesPodcastsRecycler.adapter = null
                                 }
                                 return@Thread
-                    savedContainer.visibility = View.VISIBLE
-                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
+                            }
+
                             val repo = PodcastRepository(this@MainActivity)
                             val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
                             var subs = all.filter { ids.contains(it.id) }
                             val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
                             subs = subs.sortedByDescending { updates[it.id] ?: 0L }
-                    savedContainer.visibility = View.GONE
-                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
+                            val newSet = subs.filter { p ->
                                 val latest = updates[p.id] ?: 0L
                                 val lastPlayed = PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
                                 latest > lastPlayed
                             }.map { it.id }.toSet()
+
                             runOnUiThread {
                                 val podcastAdapter = PodcastAdapter(this@MainActivity, onPodcastClick = { podcast ->
                                     supportActionBar?.show()
