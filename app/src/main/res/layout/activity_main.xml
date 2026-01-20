@@ -33,6 +33,10 @@
             android:layout_weight="1"
             android:layout_height="40dp"
             android:text="Stations"
+            app:icon="@drawable/ic_star"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconTint="?attr/colorOnSurface"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
@@ -43,6 +47,10 @@
             android:layout_weight="1"
             android:layout_height="40dp"
             android:text="Subscribed"
+            app:icon="@drawable/ic_podcast"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconTint="?attr/colorOnSurface"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
@@ -53,6 +61,10 @@
             android:layout_weight="1"
             android:layout_height="40dp"
             android:text="Saved"
+            app:icon="@drawable/ic_bookmark"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconTint="?attr/colorOnSurface"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
@@ -63,6 +75,10 @@
             android:layout_weight="1"
             android:layout_height="40dp"
             android:text="History"
+            app:icon="@drawable/ic_history"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconTint="?attr/colorOnSurface"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 

@@ -418,7 +418,52 @@ class MainActivity : AppCompatActivity() {
                     stationsList.visibility = View.GONE
                     favoritesPodcastsContainer.visibility = View.VISIBLE
                     savedContainer.visibility = View.GONE
+                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
                     historyContainer.visibility = View.GONE
+                    // Refresh subscribed podcasts list whenever user selects this tab
+                    Thread {
+                        try {
+                            val ids = PodcastSubscriptions.getSubscribedIds(this@MainActivity)
+                    savedContainer.visibility = View.GONE
+                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
+                                runOnUiThread {
+                                    // Clear adapter and show empty state
+                                    favoritesPodcastsRecycler.adapter = null
+                                }
+                                return@Thread
+                    savedContainer.visibility = View.VISIBLE
+                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
+                            val repo = PodcastRepository(this@MainActivity)
+                            val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
+                            var subs = all.filter { ids.contains(it.id) }
+                            val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
+                            subs = subs.sortedByDescending { updates[it.id] ?: 0L }
+                    savedContainer.visibility = View.GONE
+                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
+                                val latest = updates[p.id] ?: 0L
+                                val lastPlayed = PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
+                                latest > lastPlayed
+                            }.map { it.id }.toSet()
+                            runOnUiThread {
+                                val podcastAdapter = PodcastAdapter(this@MainActivity, onPodcastClick = { podcast ->
+                                    supportActionBar?.show()
+                                    fragmentContainer.visibility = View.VISIBLE
+                                    staticContentContainer.visibility = View.GONE
+                                    val detailFragment = PodcastDetailFragment().apply {
+                                        arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) }
+                                    }
+                                    supportFragmentManager.beginTransaction().apply {
+                                        replace(R.id.fragment_container, detailFragment)
+                                        addToBackStack(null)
+                                        commit()
+                                    }
+                                }, highlightSubscribed = true, showSubscribedIcon = false)
+                                favoritesPodcastsRecycler.adapter = podcastAdapter
+                                podcastAdapter.updatePodcasts(subs)
+                                podcastAdapter.updateNewEpisodes(newSet)
+                            }
+                        } catch (_: Exception) { }
+                    }.start()
                 }
                 "saved" -> {
                     stationsList.visibility = View.GONE
@@ -439,8 +484,39 @@ class MainActivity : AppCompatActivity() {
         favoritesToggle.check(R.id.fav_tab_stations)
         showFavoritesTab("stations")
 
+        // Helper to collapse non-selected buttons to icon-only and expand the selected button to show text
+        fun updateFavoritesToggleVisuals(selectedId: Int) {
+            val ids = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
+            val labels = mapOf(
+                R.id.fav_tab_stations to "Stations",
+                R.id.fav_tab_subscribed to "Subscribed",
+                R.id.fav_tab_saved to "Saved",
+                R.id.fav_tab_history to "History"
+            )
+            for (id in ids) {
+                try {
+                    val btn = findViewById<com.google.android.material.button.MaterialButton>(id)
+                    val lp = btn.layoutParams as? android.widget.LinearLayout.LayoutParams
+                    if (id == selectedId) {
+                        btn.text = labels[id]
+                        lp?.width = 0
+                        lp?.weight = 1f
+                    } else {
+                        btn.text = ""
+                        lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                        lp?.weight = 0f
+                    }
+                    btn.layoutParams = lp
+                } catch (_: Exception) { }
+            }
+        }
+
+        // Initial visuals
+        updateFavoritesToggleVisuals(R.id.fav_tab_stations)
+
         favoritesToggle.addOnButtonCheckedListener { group, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
+            updateFavoritesToggleVisuals(checkedId)
             when (checkedId) {
                 R.id.fav_tab_stations -> showFavoritesTab("stations")
                 R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
