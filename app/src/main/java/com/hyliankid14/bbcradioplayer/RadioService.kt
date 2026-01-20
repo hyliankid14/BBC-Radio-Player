@@ -843,16 +843,22 @@ class RadioService : MediaBrowserServiceCompat() {
                 }
             }
             // Use Artist - Track as notification title when available so it is visible in the shade
-            val notificationTitle = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
+            val notificationTitle = if (isPodcast) {
+                // For podcasts show podcast name as the notification title
+                currentStationTitle.ifEmpty { "BBC Radio Player" }
+            } else if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
                 val artist = currentShowInfo.secondary ?: ""
                 val track = currentShowInfo.tertiary ?: ""
                 if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
             } else {
                 currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
+
             val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(notificationTitle)
                 .setContentText(notificationContentText)
+                // SubText is used by many UIs (including some head‑units) for the second line — set for podcasts
+                .setSubText(notificationContentText)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -1034,6 +1040,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                         .build()
 
+                    // Ensure updated notification keeps podcast title + episode subtitle (some UIs read subText)
                     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     notificationManager.notify(NOTIFICATION_ID, updatedNotification)
                     Log.d(TAG, "Updated notification with artwork from: $finalUrl")
@@ -1432,8 +1439,12 @@ class RadioService : MediaBrowserServiceCompat() {
             currentStationId.orEmpty()
         }
 
+        // For podcasts we want the canonical mapping most head-units (including Android Auto)
+        // expect: METADATA_KEY_TITLE = episode title, METADATA_KEY_ALBUM = podcast title.
+        // Keep DISPLAY_* keys so modern UIs show podcast (top) + episode (subtitle).
         val titleVal: String = if (isPodcast) {
-            currentStationTitle.orEmpty()
+            // episode title is the primary "title" for podcast playback
+            (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
         } else if (hasSongData) {
             currentShowInfo.getFormattedTitle().ifEmpty { currentStationTitle.orEmpty() }
         } else {
@@ -1441,7 +1452,8 @@ class RadioService : MediaBrowserServiceCompat() {
         }
 
         val artistVal: String = if (isPodcast) {
-            (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+            // artist field can carry author/host or show name for podcasts
+            currentShowName.orEmpty()
         } else if (hasSongData) {
             artistTrackStr.orEmpty()
         } else {
@@ -1451,28 +1463,18 @@ class RadioService : MediaBrowserServiceCompat() {
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             // Use metadata keys that make Android Auto show correct fields for podcasts and streams
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaIdVal)
-            // For podcasts: title = podcast name, artist = episode title
-            // For streams: keep title as show/episode title (for display) but provide redundant fields for compatibility
+            // Podcast mapping: TITLE=episode, ALBUM=podcast; keep ARTIST/COMPOSER for compatibility
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, titleVal)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, if (isPodcast) currentStationTitle.orEmpty() else if (hasSongData) trackStr.orEmpty() else currentShowName.ifEmpty { "Live Stream" })
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST, artistVal)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_COMPOSER, currentEpisodeTitle.orEmpty())
             // Redundant artist fields for head-units that read alternate keys; set to combined string when possible
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistTrackStr.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistTrackStr.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistTrackStr.orEmpty())
-            // Display title: keep podcast/station as the main top title; subtitle: for streams show Artist - Track when available
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, 
-                if (isPodcast) currentStationTitle.orEmpty() else currentStationTitle.orEmpty())
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE,
-                if (isPodcast) (currentShowInfo.episodeTitle ?: currentShowInfo.title).orEmpty()
-                else when {
-                    // If RMS provides artist/track, show Artist - Track as the subtitle
-                    hasSongData -> currentShowInfo.getFormattedTitle().orEmpty()
-                    currentEpisodeTitle.isNotEmpty() && currentShowName.isNotEmpty() -> "$currentShowName | $currentEpisodeTitle"
-                    else -> currentShowTitle.orEmpty()
-                })
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM, 
-                if (isPodcast) "Podcast" else if (hasSongData) trackStr.orEmpty() else currentShowName.ifEmpty { "Live Stream" })
+            // Display title: podcast/station as the main top title; display subtitle: episode title
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle.orEmpty())
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
@@ -1800,17 +1802,21 @@ class RadioService : MediaBrowserServiceCompat() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val titleText = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
+            val titleText = if (currentStationId.startsWith("podcast_")) {
+                // For podcasts show podcast name as the title
+                currentStationTitle.ifEmpty { "BBC Radio Player" }
+            } else if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
                 val artist = currentShowInfo.secondary ?: ""
                 val track = currentShowInfo.tertiary ?: ""
                 if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
             } else {
                 currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
-            val contentText = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else (currentShowInfo.description ?: currentShowTitle)
+            val contentText = if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else (currentShowInfo.description ?: currentShowTitle)
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(titleText)
                 .setContentText(contentText)
+                .setSubText(contentText)
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -1831,7 +1837,9 @@ class RadioService : MediaBrowserServiceCompat() {
             // Attach large icon if we have it cached
             currentArtworkBitmap?.let { builder.setLargeIcon(it) }
 
-            // If podcast with known duration, display determinate progress
+            // If podcast with known duration, display determinate progress.
+            // Do NOT call setProgress for live streams — omitting the call prevents an empty progress bar
+            // from appearing on some OEM/Android versions.
             if (currentStationId.startsWith("podcast_")) {
                 val dur = currentShowInfo.segmentDurationMs ?: player?.duration ?: -1L
                 val pos = currentShowInfo.segmentStartMs ?: player?.currentPosition ?: 0L
@@ -1839,13 +1847,10 @@ class RadioService : MediaBrowserServiceCompat() {
                     val durInt = dur.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                     val posInt = pos.coerceIn(0L, dur).toInt()
                     builder.setProgress(durInt, posInt, false)
-                } else {
-                    // Clear progress if unknown
-                    builder.setProgress(0, 0, false)
                 }
+                // If duration is unknown, do not call setProgress — that keeps the notification clean.
             } else {
-                // Not a podcast: ensure progress isn't shown
-                builder.setProgress(0, 0, false)
+                // Live streams: intentionally do not set or clear progress (no progress bar required)
             }
 
             val notification = builder.build()
