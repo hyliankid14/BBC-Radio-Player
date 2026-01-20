@@ -7,6 +7,7 @@ import com.hyliankid14.bbcradioplayer.db.IndexStore
 import com.hyliankid14.bbcradioplayer.PodcastRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
 
 /**
  * IndexWorker: performs an on-disk FTS index build for podcasts and episodes using SQLite FTS4.
@@ -47,7 +48,7 @@ object IndexWorker {
                 }
 
                 for ((i, p) in podcasts.withIndex()) {
-                    if (!kotlin.coroutines.coroutineContext.isActive) break
+                    if (!isActive) break
                     val fetchPct = 5 + ((i + 1) * 35 / podcasts.size)
                     onProgress("Fetching episodes for: ${p.title}", fetchPct, true)
 
@@ -66,7 +67,7 @@ object IndexWorker {
                         val batchSize = 500
                         val chunks = enriched.chunked(batchSize)
                         for (chunk in chunks) {
-                            if (!kotlin.coroutines.coroutineContext.isActive) break
+                            if (!isActive) break
                             val added = try { store.appendEpisodesBatch(chunk) } catch (oom: OutOfMemoryError) {
                                 // try smaller chunks if we hit memory pressure
                                 var fallback = 0
@@ -91,14 +92,6 @@ object IndexWorker {
                 // final progress report (best-effort)
                 onProgress("Index complete: ${podcasts.size} podcasts, $processedEpisodes episodes", 100, false)
                 Log.d(TAG, "Reindex complete: podcasts=${podcasts.size}, episodes=$processedEpisodes")
-                try {
-                    store.setLastReindexTime(System.currentTimeMillis())
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to persist last reindex time: ${e.message}")
-                }
-
-                onProgress("Index complete: ${podcasts.size} podcasts, $count episodes", 100, false)
-                Log.d(TAG, "Reindex complete: podcasts=${podcasts.size}, episodes=$count")
                 try {
                     store.setLastReindexTime(System.currentTimeMillis())
                 } catch (e: Exception) {
