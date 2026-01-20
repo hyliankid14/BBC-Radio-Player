@@ -310,30 +310,6 @@ class MainActivity : AppCompatActivity() {
                 savedRecycler.adapter = null
                 savedContainer.visibility = View.GONE
             }
-                            savedHeader.height,
-                            savedRecycler.paddingRight,
-                            savedRecycler.paddingBottom
-                        )
-                        try {
-                            val parentScroll = findViewById<androidx.core.widget.NestedScrollView>(R.id.podcasts_scroll)
-                            parentScroll?.post { parentScroll.smoothScrollTo(0, savedContainer.top) }
-                        } catch (_: Exception) {}
-                    } else {
-                        savedRecycler.visibility = View.GONE
-                        savedDivider.visibility = View.GONE
-                        savedExpandIcon.setImageResource(R.drawable.ic_expand_more)
-                        // Reset padding when collapsed
-                        savedRecycler.setPadding(
-                            savedRecycler.paddingLeft,
-                            defaultPadding,
-                            savedRecycler.paddingRight,
-                            savedRecycler.paddingBottom
-                        )
-                    }
-                }
-            } else {
-                savedContainer.visibility = View.GONE
-            }
         } catch (e: Exception) {
             // Swallow — UI refresh should never crash the app
             android.util.Log.w("MainActivity", "refreshSavedEpisodesSection failed: ${e.message}")
@@ -1825,4 +1801,3 @@ class MainActivity : AppCompatActivity() {
             false
         }
     }
-}
