@@ -462,6 +462,7 @@ class MainActivity : AppCompatActivity() {
                                 favoritesPodcastsRecycler.adapter = podcastAdapter
                                 podcastAdapter.updatePodcasts(subs)
                                 podcastAdapter.updateNewEpisodes(newSet)
+                                favoritesPodcastsRecycler.visibility = View.VISIBLE
                             }
                         } catch (_: Exception) { }
                     }.start()
@@ -470,6 +471,8 @@ class MainActivity : AppCompatActivity() {
                     stationsList.visibility = View.GONE
                     favoritesPodcastsContainer.visibility = View.GONE
                     savedContainer.visibility = View.VISIBLE
+                    // Reveal the saved episodes recycler when Saved tab is selected
+                    try { savedRecycler.visibility = View.VISIBLE } catch (_: Exception) { }
                     historyContainer.visibility = View.GONE
                 }
                 "history" -> {
@@ -502,10 +505,16 @@ class MainActivity : AppCompatActivity() {
                         btn.text = labels[id]
                         lp?.width = 0
                         lp?.weight = 1f
+                        try {
+                            btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
+                        } catch (_: Exception) { }
                     } else {
                         btn.text = ""
                         lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                         lp?.weight = 0f
+                        try {
+                            btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START
+                        } catch (_: Exception) { }
                     }
                     btn.layoutParams = lp
                 } catch (_: Exception) { }
@@ -630,6 +639,7 @@ class MainActivity : AppCompatActivity() {
                     favoritesPodcastsRecycler.adapter = podcastAdapter
                     podcastAdapter.updatePodcasts(subs)
                     podcastAdapter.updateNewEpisodes(newSet)
+                    favoritesPodcastsRecycler.visibility = View.VISIBLE
                 }
             }.start()
         } else {
