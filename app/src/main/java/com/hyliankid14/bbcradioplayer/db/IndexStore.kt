@@ -67,49 +67,92 @@ class IndexStore private constructor(private val context: Context) {
         }
     }
 
-    fun replaceAllEpisodes(episodes: List<Episode>, onProgress: (processed: Int, total: Int) -> Unit = { _, _ -> }) {
+    private fun truncateForIndex(s: String?, maxLen: Int): String {
+        if (s.isNullOrBlank()) return ""
+        // strip basic HTML and collapse whitespace to reduce index size
+        val cleaned = s.replace(Regex("<[^>]+>"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return if (cleaned.length <= maxLen) cleaned else cleaned.substring(0, maxLen)
+    }
+
+    /**
+     * Append a batch of episodes into the FTS table. This is safe to call repeatedly to build the
+     * index in small transactions (keeps memory and journal size bounded).
+     */
+    fun appendEpisodesBatch(episodes: List<Episode>, maxFieldLength: Int = 4096): Int {
+        if (episodes.isEmpty()) return 0
         val db = helper.writableDatabase
-        val total = episodes.size
+        var inserted = 0
         db.beginTransaction()
         try {
-            db.execSQL("DELETE FROM episode_fts;")
             val stmt: SQLiteStatement = db.compileStatement("INSERT INTO episode_fts(episodeId, podcastId, title, description) VALUES (?, ?, ?, ?);")
-            var processed = 0
-            val reportInterval = if (total <= 100) 1 else (total / 100)
             for (e in episodes) {
                 stmt.clearBindings()
                 stmt.bindString(1, e.id)
                 stmt.bindString(2, e.podcastId)
-                // Keep original title in its own column (for ranking/snippets)
-                stmt.bindString(3, e.title)
+                // keep original title column short and safe
+                stmt.bindString(3, truncateForIndex(e.title, 512))
 
-                // Build a richer searchable blob for the description column to improve recall:
-                // - include the original description (show-notes)
-                // - append normalized/cleaned title tokens (splits hyphens, punctuation)
-                // - append the pubDate (as text) so date-containing queries can match
-                // - append the audio filename (often contains useful tokens)
-                // - append the podcast title (so queries including podcast+term hit the episode row)
-                val cleanedTitle = e.title.replace(Regex("[\\p{Punct}\\s]+"), " ").trim().lowercase(Locale.getDefault())
-                val audioName = e.audioUrl.substringAfterLast('/').substringBefore('?').replace(Regex("[\\W_]+"), " ").lowercase(Locale.getDefault())
-                val pub = e.pubDate.trim().lowercase(Locale.getDefault())
-                val podcastTitle = try {
-                    // best-effort: try to look up podcast title from cached allPodcasts (may be empty during reindex)
-                    ""
-                } catch (_: Exception) { "" }
-                val searchBlob = listOf(e.description ?: "", cleanedTitle, pub, audioName, podcastTitle)
+                // produce a trimmed, de-HTML'd searchable blob (bounded length)
+                val cleanedTitle = truncateForIndex(e.title.replace(Regex("[\\p{Punct}\\s]+"), " ").lowercase(Locale.getDefault()), 256)
+                val audioName = truncateForIndex(e.audioUrl.substringAfterLast('/').substringBefore('?').replace(Regex("[\\W_]+"), " ").lowercase(Locale.getDefault()), 128)
+                val pub = truncateForIndex(e.pubDate, 64)
+                val descPart = truncateForIndex(e.description, maxFieldLength)
+                val searchBlob = listOf(descPart, cleanedTitle, pub, audioName)
                     .filter { it.isNotBlank() }
                     .joinToString(" ")
 
                 stmt.bindString(4, searchBlob)
                 stmt.executeInsert()
-                processed++
-                if (processed % reportInterval == 0 || processed == total) {
-                    try { onProgress(processed, total) } catch (_: Exception) {}
-                }
+                inserted++
             }
             db.setTransactionSuccessful()
         } finally {
+            try { db.yieldIfContendedSafely() } catch (_: Throwable) { /* best-effort */ }
             db.endTransaction()
+        }
+        return inserted
+    }
+
+    /**
+     * Backwards-compatible replaceAllEpisodes that performs the work in bounded-size batches to
+     * avoid OOM/journal blowups on large libraries. Trims very long fields before inserting.
+     */
+    fun replaceAllEpisodes(episodes: List<Episode>, onProgress: (processed: Int, total: Int) -> Unit = { _, _ -> }) {
+        val total = episodes.size
+        if (total == 0) return
+
+        // Heuristic batch size: larger batches are faster but use more memory/journal.
+        val batchSize = when {
+            total <= 500 -> 100
+            total <= 5_000 -> 500
+            else -> 1500
+        }
+
+        // Do a single table wipe up-front, then append in batches.
+        val db = helper.writableDatabase
+        db.execSQL("DELETE FROM episode_fts;")
+
+        var processed = 0
+        var idx = 0
+        while (idx < total) {
+            val end = (idx + batchSize).coerceAtMost(total)
+            val batch = episodes.subList(idx, end)
+            try {
+                appendEpisodesBatch(batch)
+            } catch (oom: OutOfMemoryError) {
+                Log.w("IndexStore", "OOM during index batch (size=${batch.size}), falling back to smaller batches")
+                // Try much smaller batches as a fallback
+                val small = batch.chunked(50)
+                for (sb in small) appendEpisodesBatch(sb)
+            } catch (e: Exception) {
+                Log.w("IndexStore", "Failed to append episode batch: ${e.message}")
+            }
+            processed += batch.size
+            idx = end
+            try { onProgress(processed, total) } catch (_: Exception) {}
+            try { db.yieldIfContendedSafely() } catch (_: Throwable) { /* best-effort */ }
         }
     }
 
