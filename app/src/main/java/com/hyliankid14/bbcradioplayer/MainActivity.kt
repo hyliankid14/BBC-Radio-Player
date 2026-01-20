@@ -513,7 +513,6 @@ class MainActivity : AppCompatActivity() {
 
             // Refresh Saved Episodes data (visibility itself handled by the Saved tab)
             refreshSavedEpisodesSection()
-        }
 
             val repo = PodcastRepository(this)
             Thread {
