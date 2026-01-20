@@ -41,6 +41,7 @@ import android.view.MotionEvent
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import com.google.android.material.tabs.TabLayout
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.hyliankid14.bbcradioplayer.PodcastSubscriptions
 
 class MainActivity : AppCompatActivity() {
@@ -335,6 +336,10 @@ class MainActivity : AppCompatActivity() {
         // Hide subscribed podcasts section (only show in Favorites)
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
         favoritesPodcastsContainer.visibility = View.GONE
+        // Hide the favourites toggle group when showing all stations
+        try {
+            findViewById<MaterialButtonToggleGroup>(R.id.favorites_toggle_group).visibility = View.GONE
+        } catch (_: Exception) { }
         
         // Default to National category
         showCategoryStations(StationCategory.NATIONAL)
@@ -368,6 +373,8 @@ class MainActivity : AppCompatActivity() {
         val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
         val historyContainer = findViewById<View>(R.id.favorites_history_container)
         val favoritesToggle = findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group)
+        // Ensure the favourites toggle group is visible when in Favorites
+        try { favoritesToggle.visibility = View.VISIBLE } catch (_: Exception) { }
 
         // Ensure the favorites-related containers are near the top of the parent column so they appear
         // above other content when the Favorites view is selected.
@@ -616,6 +623,8 @@ class MainActivity : AppCompatActivity() {
         }
         // Refresh the settings UI so controls reflect current preferences
         setupSettings()
+        // Hide favourites toggle group in settings
+        try { findViewById<MaterialButtonToggleGroup>(R.id.favorites_toggle_group).visibility = View.GONE } catch (_: Exception) { }
     }
 
     private fun showPodcasts() {
@@ -624,6 +633,8 @@ class MainActivity : AppCompatActivity() {
         staticContentContainer.visibility = View.GONE
         // Hide the global action bar so the Podcasts fragment can present its own search app bar at the top
         supportActionBar?.hide()
+        // Hide favourites toggle group when viewing podcasts
+        try { findViewById<MaterialButtonToggleGroup>(R.id.favorites_toggle_group).visibility = View.GONE } catch (_: Exception) { }
 
         // Create and show podcasts fragment
         val podcastsFragment = PodcastsFragment()

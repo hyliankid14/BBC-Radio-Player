@@ -15,6 +15,59 @@
         app:navigationIconTint="?attr/colorOnSurface"
         app:menu="@menu/top_app_bar_menu" />
 
+    <!-- Favorites toggle group shown under the app bar for quick access -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/favorites_toggle_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        app:singleSelection="true">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_stations"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="40dp"
+            android:text="Stations"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_subscribed"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="40dp"
+            android:text="Subscribed"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_saved"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="40dp"
+            android:text="Saved"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_history"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="40dp"
+            android:text="History"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+    </com.google.android.material.button.MaterialButtonToggleGroup>
+
     <!-- Dynamic Fragment Container (Podcasts) -->
     <FrameLayout
         android:id="@+id/fragment_container"
@@ -64,46 +117,7 @@
 
             </LinearLayout>
 
-            <!-- Favorites: top-level tabbed controls (Material 3 button group) -->
-            <com.google.android.material.button.MaterialButtonToggleGroup
-                android:id="@+id/favorites_toggle_group"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="8dp"
-                app:singleSelection="true">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/fav_tab_stations"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:text="Stations" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/fav_tab_subscribed"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:text="Subscribed" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/fav_tab_saved"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:text="Saved" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/fav_tab_history"
-                    style="@style/Widget.MaterialComponents.Button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:text="History" />
-
-            </com.google.android.material.button.MaterialButtonToggleGroup>
+            <!-- Favorites toggle group moved to top under the app bar -->
 
             <!-- Stations (favourited radio stations) - reuse existing stations list -->
             <!-- (stations_list already exists above and is used as the Stations view) -->
