@@ -273,32 +273,17 @@ class MainActivity : AppCompatActivity() {
             }
 
             val savedEntries = SavedEpisodes.getSavedEntries(this)
-            val savedHeader = findViewById<View>(R.id.saved_episodes_header_container)
-            val savedExpandIcon = findViewById<ImageView>(R.id.saved_episodes_expand_icon)
-            val savedDivider = findViewById<View>(R.id.saved_episodes_divider)
             val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
 
+            // Prepare saved episodes recycler and adapter; visibility is controlled by the "Saved" tab
             if (savedEntries.isNotEmpty()) {
-                savedContainer.visibility = View.VISIBLE
-                val onSurface = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface)
-                savedHeader.isClickable = true
-                savedHeader.isFocusable = true
-                savedExpandIcon?.setColorFilter(onSurface)
-                savedHeader.elevation = 8f
-
                 savedRecycler.layoutManager = LinearLayoutManager(this)
                 savedRecycler.isNestedScrollingEnabled = false
-                var savedExpanded = false
-                savedRecycler.visibility = View.GONE
-                savedDivider.visibility = View.GONE
-                savedExpandIcon.visibility = View.VISIBLE
-
                 val savedAdapter = SavedEpisodesAdapter(this, savedEntries, onPlayEpisode = { episode, podcastTitle, podcastImage ->
                     val intent = android.content.Intent(this, RadioService::class.java).apply {
                         action = RadioService.ACTION_PLAY_PODCAST_EPISODE
                         putExtra(RadioService.EXTRA_EPISODE, episode)
                         putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                        // Provide title and image so the service and mini-player can show correct info immediately
                         putExtra(RadioService.EXTRA_PODCAST_TITLE, podcastTitle)
                         putExtra(RadioService.EXTRA_PODCAST_IMAGE, episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage)
                     }
@@ -315,21 +300,16 @@ class MainActivity : AppCompatActivity() {
                     SavedEpisodes.remove(this, id)
                     val updated = SavedEpisodes.getSavedEntries(this)
                     savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
-                    if (updated.isEmpty()) savedContainer.visibility = View.GONE
                 })
 
                 savedRecycler.adapter = savedAdapter
-
-                savedHeader.setOnClickListener {
-                    savedExpanded = !savedExpanded
-                    val defaultPadding = (8 * resources.displayMetrics.density).toInt()
-                    if (savedExpanded) {
-                        savedRecycler.visibility = View.VISIBLE
-                        savedDivider.visibility = View.VISIBLE
-                        savedExpandIcon.setImageResource(R.drawable.ic_expand_less)
-                        // Ensure list content sits below the header to avoid overlap with header's rounded corner
-                        savedRecycler.setPadding(
-                            savedRecycler.paddingLeft,
+                // Keep the container hidden by default; the Saved tab will reveal it
+                savedRecycler.visibility = View.GONE
+                savedContainer.visibility = View.GONE
+            } else {
+                savedRecycler.adapter = null
+                savedContainer.visibility = View.GONE
+            }
                             savedHeader.height,
                             savedRecycler.paddingRight,
                             savedRecycler.paddingBottom
@@ -407,27 +387,30 @@ class MainActivity : AppCompatActivity() {
         }
         
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
-        val favoritesPodcastsHeaderContainer = findViewById<View>(R.id.favorites_podcasts_header_container)
-        val favoritesPodcastsExpandIcon = findViewById<ImageView>(R.id.favorites_podcasts_expand_icon)
         val favoritesPodcastsRecycler = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
-        
-        // Move podcasts container to top of parent
+        val savedContainer = findViewById<View>(R.id.saved_episodes_container)
+        val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
+        val historyContainer = findViewById<View>(R.id.favorites_history_container)
+        val favoritesToggle = findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group)
+
+        // Ensure the favorites-related containers are near the top of the parent column so they appear
+        // above other content when the Favorites view is selected.
         val parent = favoritesPodcastsContainer.parent as? android.view.ViewGroup
         parent?.let {
-            it.removeView(favoritesPodcastsContainer)
-            it.addView(favoritesPodcastsContainer, 0)
-
-            // Ensure the saved-episodes card is immediately after the subscribed podcasts card
             try {
-                val savedContainer = findViewById<View>(R.id.saved_episodes_container)
-                if (savedContainer != null) {
-                    // Remove and re-insert at index 1 (after the favorites card we just moved)
-                    it.removeView(savedContainer)
-                    it.addView(savedContainer, 1)
-                }
-            } catch (_: Exception) { /* no-op */ }
+                it.removeView(favoritesPodcastsContainer)
+                it.addView(favoritesPodcastsContainer, 1)
+            } catch (_: Exception) { /* best-effort */ }
+            try {
+                it.removeView(savedContainer)
+                it.addView(savedContainer, 2)
+            } catch (_: Exception) { /* best-effort */ }
+            try {
+                it.removeView(historyContainer)
+                it.addView(historyContainer, 3)
+            } catch (_: Exception) { /* best-effort */ }
         }
-        
+
         val stations = FavoritesPreference.getFavorites(this).toMutableList()
         val adapter = FavoritesAdapter(this, stations, { stationId ->
             playStation(stationId)
@@ -438,6 +421,50 @@ class MainActivity : AppCompatActivity() {
             FavoritesPreference.saveFavoritesOrder(this, stations.map { it.id })
         })
         stationsList.adapter = adapter
+
+        // Wire favorites tab group to show/hide the four sub-views
+        fun showFavoritesTab(tab: String) {
+            when (tab) {
+                "stations" -> {
+                    stationsList.visibility = View.VISIBLE
+                    favoritesPodcastsContainer.visibility = View.GONE
+                    savedContainer.visibility = View.GONE
+                    historyContainer.visibility = View.GONE
+                }
+                "subscribed" -> {
+                    stationsList.visibility = View.GONE
+                    favoritesPodcastsContainer.visibility = View.VISIBLE
+                    savedContainer.visibility = View.GONE
+                    historyContainer.visibility = View.GONE
+                }
+                "saved" -> {
+                    stationsList.visibility = View.GONE
+                    favoritesPodcastsContainer.visibility = View.GONE
+                    savedContainer.visibility = View.VISIBLE
+                    historyContainer.visibility = View.GONE
+                }
+                "history" -> {
+                    stationsList.visibility = View.GONE
+                    favoritesPodcastsContainer.visibility = View.GONE
+                    savedContainer.visibility = View.GONE
+                    historyContainer.visibility = View.VISIBLE
+                }
+            }
+        }
+
+        // Default to Stations
+        favoritesToggle.check(R.id.fav_tab_stations)
+        showFavoritesTab("stations")
+
+        favoritesToggle.addOnButtonCheckedListener { group, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            when (checkedId) {
+                R.id.fav_tab_stations -> showFavoritesTab("stations")
+                R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
+                R.id.fav_tab_saved -> showFavoritesTab("saved")
+                R.id.fav_tab_history -> showFavoritesTab("history")
+            }
+        }
         
         // Setup ItemTouchHelper for drag-and-drop. We disable the default long-press start and instead
         // start drags explicitly when the user long-presses the station name or touches the drag handle.
@@ -499,66 +526,18 @@ class MainActivity : AppCompatActivity() {
 
         // Load subscribed podcasts into Favorites section
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
-        // Ensure the subscribed podcasts header is visible when the Favorites view is open
+        // Subscribed podcasts: prepare recycler (visibility controlled by the Favorites tab)
         favoritesPodcastsContainer.visibility = View.VISIBLE
         if (subscribedIds.isNotEmpty()) {
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
 
-            // Use theme surface and text colors so the header matches the current theme
-            val onSurface = androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface)
-            // Ensure header is clickable and focusable so the expand/collapse can be toggled
-            favoritesPodcastsHeaderContainer.isClickable = true
-            favoritesPodcastsHeaderContainer.isFocusable = true
-            favoritesPodcastsExpandIcon?.setColorFilter(onSurface)
-
-            val divider = findViewById<View>(R.id.favorites_podcasts_divider)
-
-            // Start collapsed by default and restore header expand/collapse behaviour
-            var isExpanded = false
+            // Start hidden; tabs control when the subscribed list is visible
             favoritesPodcastsRecycler.visibility = View.GONE
-            divider.visibility = View.GONE
-            favoritesPodcastsExpandIcon.visibility = View.VISIBLE
-
-            // Header tap toggles expand/collapse (original behaviour)
-            favoritesPodcastsHeaderContainer.setOnClickListener {
-                isExpanded = !isExpanded
-                val defaultPadding = (8 * resources.displayMetrics.density).toInt()
-                if (isExpanded) {
-                    favoritesPodcastsRecycler.visibility = View.VISIBLE
-                    divider.visibility = View.VISIBLE
-                    favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_less)
-                    // Ensure content sits below the header to avoid overlap
-                    favoritesPodcastsRecycler.setPadding(
-                        favoritesPodcastsRecycler.paddingLeft,
-                        favoritesPodcastsHeaderContainer.height,
-                        favoritesPodcastsRecycler.paddingRight,
-                        favoritesPodcastsRecycler.paddingBottom
-                    )
-                    // Scroll the card into view so the header remains visible after expansion
-                    try {
-                        val parentScroll = findViewById<androidx.core.widget.NestedScrollView>(R.id.podcasts_scroll)
-                        parentScroll?.post { parentScroll.smoothScrollTo(0, favoritesPodcastsContainer.top) }
-                    } catch (_: Exception) {}
-                } else {
-                    favoritesPodcastsRecycler.visibility = View.GONE
-                    divider.visibility = View.GONE
-                    favoritesPodcastsExpandIcon.setImageResource(R.drawable.ic_expand_more)
-                    // Reset to default padding to keep layout tight when collapsed
-                    favoritesPodcastsRecycler.setPadding(
-                        favoritesPodcastsRecycler.paddingLeft,
-                        defaultPadding,
-                        favoritesPodcastsRecycler.paddingRight,
-                        favoritesPodcastsRecycler.paddingBottom
-                    )
-                }
-            }
-            // Refresh Saved Episodes UI so it appears under Subscribed Podcasts when the Favorites view opens
-            refreshSavedEpisodesSection()
-
-            // Make sure the inner RecyclerView doesn't intercept header clicks by disabling nested scrolling
             favoritesPodcastsRecycler.isNestedScrollingEnabled = false
-            // Ensure clicking the header is always reachable by giving it a higher elevation
-            favoritesPodcastsHeaderContainer.elevation = 8f
+
+            // Refresh Saved Episodes data (visibility itself handled by the Saved tab)
+            refreshSavedEpisodesSection()
+        }
 
             val repo = PodcastRepository(this)
             Thread {

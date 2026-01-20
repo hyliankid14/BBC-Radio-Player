@@ -64,7 +64,51 @@
 
             </LinearLayout>
 
-            <!-- Favorites: Subscribed Podcasts (Material 3 card with larger rounded corners) -->
+            <!-- Favorites: top-level tabbed controls (Material 3 button group) -->
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/favorites_toggle_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/fav_tab_stations"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Stations" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/fav_tab_subscribed"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Subscribed" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/fav_tab_saved"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Saved" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/fav_tab_history"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="History" />
+
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <!-- Stations (favourited radio stations) - reuse existing stations list -->
+            <!-- (stations_list already exists above and is used as the Stations view) -->
+
+            <!-- Subscribed podcasts: keep the card look but remove the old collapsible header -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/favorites_podcasts_container"
                 android:layout_width="match_parent"
@@ -73,53 +117,13 @@
                 android:layout_marginEnd="8dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="0dp"
-                app:cardCornerRadius="24dp"
+                app:cardCornerRadius="16dp"
                 app:cardUseCompatPadding="true"
-                app:cardElevation="4dp"
+                app:cardElevation="2dp"
                 app:strokeColor="?attr/colorOutline"
                 app:strokeWidth="1dp"
                 app:cardBackgroundColor="?attr/colorSurface"
                 android:visibility="gone">
-
-                <!-- Collapsible header button -->
-                <LinearLayout
-                    android:id="@+id/favorites_podcasts_header_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp"
-                    android:background="?attr/colorSurface"
-                    android:elevation="8dp"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <ImageView
-                        android:id="@+id/favorites_podcasts_expand_icon"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_expand_more"
-                        android:layout_marginEnd="12dp"
-                        android:contentDescription="Expand/Collapse" />
-
-                    <TextView
-                        android:id="@+id/favorites_podcasts_header"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Subscribed Podcasts"
-                        android:textStyle="bold"
-                        android:textSize="16sp"
-                        android:textColor="?attr/colorOnSurface" />
-
-                </LinearLayout>
-
-                <!-- Divider -->
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?attr/colorOutline"
-                    android:visibility="gone"
-                    android:id="@+id/favorites_podcasts_divider" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/favorites_podcasts_recycler"
@@ -131,60 +135,22 @@
                     android:scrollbars="vertical" />
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Saved Episodes (under favorites) -->
+            <!-- Saved Episodes: remove collapsible header and show as its own card when selected -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/saved_episodes_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="8dp"
-                android:layout_marginTop="0dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
-                app:cardCornerRadius="24dp"
+                app:cardCornerRadius="16dp"
                 app:cardUseCompatPadding="true"
-                app:cardElevation="4dp"
+                app:cardElevation="2dp"
                 app:strokeColor="?attr/colorOutline"
                 app:strokeWidth="1dp"
                 app:cardBackgroundColor="?attr/colorSurface"
                 android:visibility="gone">
-
-                <LinearLayout
-                    android:id="@+id/saved_episodes_header_container"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp"
-                    android:background="?attr/colorSurface"
-                    android:elevation="8dp"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <ImageView
-                        android:id="@+id/saved_episodes_expand_icon"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_expand_more"
-                        android:layout_marginEnd="12dp"
-                        android:contentDescription="Expand/Collapse" />
-
-                    <TextView
-                        android:id="@+id/saved_episodes_header"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Saved Episodes"
-                        android:textStyle="bold"
-                        android:textSize="16sp"
-                        android:textColor="?attr/colorOnSurface" />
-
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="?attr/colorOutline"
-                    android:visibility="gone"
-                    android:id="@+id/saved_episodes_divider" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/saved_episodes_recycler"
@@ -194,6 +160,33 @@
                     android:paddingTop="8dp"
                     android:clipToPadding="true"
                     android:scrollbars="vertical" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- History: placeholder container (user will populate later) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/favorites_history_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardUseCompatPadding="true"
+                app:cardElevation="2dp"
+                app:strokeColor="?attr/colorOutline"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="?attr/colorSurface"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:text="History"
+                    android:textColor="?attr/colorOnSurface" />
 
             </com.google.android.material.card.MaterialCardView>
 

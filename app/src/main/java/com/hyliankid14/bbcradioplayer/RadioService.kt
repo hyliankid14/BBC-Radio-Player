@@ -434,7 +434,34 @@ class RadioService : MediaBrowserServiceCompat() {
                                                 )
                                                 playPodcastEpisode(savedEp, null)
                                             } else {
-                                                Log.w(TAG, "Episode not found for id: $episodeId")
+                                                // Final fallback: try the local FTS index to map episodeId -> podcastId,
+                                                // then fetch that podcast's episodes (covers episodes played via search/one-off plays)
+                                                try {
+                                                    val ef = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this@RadioService).findEpisodeById(episodeId)
+                                                    if (ef != null) {
+                                                        Log.d(TAG, "Found episode in local index (podcast=${ef.podcastId}), attempting to fetch parent podcast episodes")
+                                                        // Limit remote work to a short timeout to avoid blocking reconnect
+                                                        val allPods = withContext(Dispatchers.IO) {
+                                                            withTimeoutOrNull(5000L) { repo.fetchPodcasts(false) }
+                                                        } ?: emptyList()
+                                                        val parent = allPods.find { it.id == ef.podcastId }
+                                                        if (parent != null) {
+                                                            val eps = try { withContext(Dispatchers.IO) { repo.fetchEpisodes(parent) } } catch (_: Exception) { emptyList() }
+                                                            val ep = eps.find { it.id == episodeId }
+                                                            if (ep != null) {
+                                                                playPodcastEpisode(ep, null)
+                                                            } else {
+                                                                Log.w(TAG, "Indexed episode found but remote fetch didn't return the audio URL for id: $episodeId")
+                                                            }
+                                                        } else {
+                                                            Log.w(TAG, "Indexed episode references unknown podcast id: ${ef.podcastId}")
+                                                        }
+                                                    } else {
+                                                        Log.w(TAG, "Episode not found for id: $episodeId")
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Log.e(TAG, "Error resolving episode via index for id: $episodeId", e)
+                                                }
                                             }
                                         } catch (e: Exception) {
                                             Log.e(TAG, "Error searching saved episodes for id: $episodeId", e)
@@ -1021,6 +1048,8 @@ class RadioService : MediaBrowserServiceCompat() {
                         .setContentTitle(notificationTitle)
                         // For podcasts: use episode title as content text so Android Auto gets subtitle info
                         .setContentText(notificationContentText)
+                        // Some UIs (and Android Auto artwork-update paths) read subText for the subtitle — set it explicitly
+                        .setSubText(notificationContentText)
                         .setSmallIcon(android.R.drawable.ic_media_play)
                         .setLargeIcon(bitmap)
                         .setContentIntent(pendingIntent)
@@ -1176,6 +1205,18 @@ class RadioService : MediaBrowserServiceCompat() {
         
         // Set metadata immediately with station logo URI (lets the system show artwork ASAP)
         updateMediaMetadata(artworkBitmap = null, artworkUri = currentStationLogo)
+
+        // Some OEMs persist a previously-displayed notification progress bar until the
+        // notification is fully replaced. Force-replace the foreground notification here
+        // when switching to a live station so any lingering progress is cleared.
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(NOTIFICATION_ID)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to cancel existing notification: ${e.message}")
+        }
+        // Rebuild & re-post the foreground notification (will not include progress for live streams)
+        startForegroundNotification()
         
         startForegroundNotification()
         

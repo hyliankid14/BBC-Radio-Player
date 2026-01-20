@@ -323,6 +323,34 @@ class IndexStore private constructor(private val context: Context) {
     }
 
     /**
+     * Find an indexed episode by its canonical id. This is a fast on-disk lookup used as a
+     * fallback for features like Android Auto auto-resume where we need to map an episode id
+     * to its parent podcast without fetching every podcast remotely.
+     */
+    fun findEpisodeById(episodeId: String): EpisodeFts? {
+        if (episodeId.isBlank()) return null
+        val db = helper.readableDatabase
+        try {
+            val cursor = db.rawQuery(
+                "SELECT episodeId, podcastId, title, description FROM episode_fts WHERE episodeId = ? LIMIT 1",
+                arrayOf(episodeId)
+            )
+            cursor.use {
+                if (it.moveToFirst()) {
+                    val eid = it.getString(0)
+                    val pid = it.getString(1)
+                    val title = it.getString(2) ?: ""
+                    val desc = it.getString(3) ?: ""
+                    return EpisodeFts(eid, pid, title, desc)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("IndexStore", "findEpisodeById failed for $episodeId: ${e.message}")
+        }
+        return null
+    }
+
+    /**
      * Persist and retrieve last reindex time to help users see when the on-disk index was last rebuilt.
      */
     fun setLastReindexTime(timeMillis: Long) {
