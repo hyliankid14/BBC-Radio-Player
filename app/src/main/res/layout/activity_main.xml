@@ -20,8 +20,10 @@
         android:id="@+id/favorites_toggle_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
+        android:layout_marginStart="0dp"
+        android:layout_marginEnd="0dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
         app:singleSelection="true">
@@ -185,7 +187,7 @@
 
             </FrameLayout>
 
-            <!-- History: placeholder container (user will populate later) -->
+            <!-- History: list of recently-played podcast episodes -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/favorites_history_container"
                 android:layout_width="match_parent"
@@ -202,13 +204,29 @@
                 app:cardBackgroundColor="?attr/colorSurface"
                 android:visibility="gone">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:gravity="center_vertical"
-                    android:paddingStart="16dp"
-                    android:text="History"
-                    android:textColor="?attr/colorOnSurface" />
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="16dp"
+                        android:text="History"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/favorites_history_recycler"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone"
+                        android:paddingTop="8dp"
+                        android:clipToPadding="true"
+                        android:scrollbars="vertical" />
+
+                </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 

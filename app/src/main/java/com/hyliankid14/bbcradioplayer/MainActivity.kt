@@ -317,6 +317,52 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Refresh the History UI card and adapter (most-recent-first)
+    private fun refreshHistorySection() {
+        try {
+            val historyContainer = findViewById<View>(R.id.favorites_history_container)
+            if (currentMode != "favorites") {
+                historyContainer.visibility = View.GONE
+                return
+            }
+
+            val historyEntries = PlayedHistoryPreference.getHistory(this)
+            val historyRecycler = findViewById<RecyclerView>(R.id.favorites_history_recycler)
+
+            if (historyEntries.isNotEmpty()) {
+                historyRecycler.layoutManager = LinearLayoutManager(this)
+                historyRecycler.isNestedScrollingEnabled = false
+                val adapter = PlayedHistoryAdapter(this, historyEntries, onPlayEpisode = { episode, podcastTitle, podcastImage ->
+                    val intent = android.content.Intent(this, RadioService::class.java).apply {
+                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                        putExtra(RadioService.EXTRA_EPISODE, episode)
+                        putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                        putExtra(RadioService.EXTRA_PODCAST_TITLE, podcastTitle)
+                        putExtra(RadioService.EXTRA_PODCAST_IMAGE, podcastImage)
+                    }
+                    startService(intent)
+                }, onOpenEpisode = { episode, podcastTitle, podcastImage ->
+                    val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
+                        putExtra("preview_episode", episode)
+                        putExtra("preview_use_play_ui", true)
+                        putExtra("preview_podcast_title", podcastTitle)
+                        putExtra("preview_podcast_image", podcastImage)
+                    }
+                    startActivity(intent)
+                })
+
+                historyRecycler.adapter = adapter
+                historyRecycler.visibility = View.GONE
+                historyContainer.visibility = View.GONE
+            } else {
+                historyRecycler.adapter = null
+                historyContainer.visibility = View.GONE
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "refreshHistorySection failed: ${e.message}")
+        }
+    }
+
     private fun showAllStations() {
         currentMode = "list"
         fragmentContainer.visibility = View.GONE
@@ -413,6 +459,7 @@ class MainActivity : AppCompatActivity() {
                     favoritesPodcastsContainer.visibility = View.GONE
                     savedContainer.visibility = View.GONE
                     historyContainer.visibility = View.GONE
+                    try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
                 }
                 "subscribed" -> {
                     stationsList.visibility = View.GONE
@@ -474,12 +521,15 @@ class MainActivity : AppCompatActivity() {
                     // Reveal the saved episodes recycler when Saved tab is selected
                     try { savedRecycler.visibility = View.VISIBLE } catch (_: Exception) { }
                     historyContainer.visibility = View.GONE
+                    try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
+                    try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
                 }
                 "history" -> {
                     stationsList.visibility = View.GONE
                     favoritesPodcastsContainer.visibility = View.GONE
                     savedContainer.visibility = View.GONE
                     historyContainer.visibility = View.VISIBLE
+                    try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
                 }
             }
         }
@@ -633,6 +683,7 @@ class MainActivity : AppCompatActivity() {
 
         // Load saved episodes and display underneath Subscribed Podcasts in the Favorites section
         refreshSavedEpisodesSection()
+        refreshHistorySection()
     }
 
     // BroadcastReceiver to respond to played-status changes and update the "new episodes" indicators

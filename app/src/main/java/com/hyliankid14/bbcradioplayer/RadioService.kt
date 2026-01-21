@@ -1665,6 +1665,11 @@ class RadioService : MediaBrowserServiceCompat() {
             // Remember this as the last played media so Android Auto can resume stations or podcasts
             PlaybackPreference.setLastMediaId(this, "podcast_episode_${'$'}{episode.id}")
 
+            // Record this episode in the recent-played history
+            try {
+                PlayedHistoryPreference.addEntry(this, episode, podcastTitle)
+            } catch (_: Exception) { }
+
             // Ensure player and focus
             player?.release()
             player = null
