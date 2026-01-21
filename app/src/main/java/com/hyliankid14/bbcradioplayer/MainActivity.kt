@@ -93,15 +93,22 @@ class MainActivity : AppCompatActivity() {
             // otherwise infer the currentMode from which static container is visible.
             if (fragmentContainer.visibility == View.VISIBLE) {
                 currentMode = "podcasts"
+                // Avoid triggering the nav listener when updating selection due to fragment changes
+                suppressBottomNavSelection = true
                 try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
+                suppressBottomNavSelection = false
             } else {
                 // Static content visible — decide between Favourites and List/Settings
                 val favToggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
                 currentMode = if (stationsView.visibility == View.VISIBLE && favToggle?.visibility == View.VISIBLE) {
+                    suppressBottomNavSelection = true
                     try { bottomNavigation.selectedItemId = R.id.navigation_favorites } catch (_: Exception) { }
+                    suppressBottomNavSelection = false
                     "favorites"
                 } else {
+                    suppressBottomNavSelection = true
                     try { bottomNavigation.selectedItemId = R.id.navigation_list } catch (_: Exception) { }
+                    suppressBottomNavSelection = false
                     if (settingsContainer.visibility == View.VISIBLE) "settings" else "list"
                 }
             }
