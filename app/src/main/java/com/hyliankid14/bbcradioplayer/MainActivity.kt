@@ -365,8 +365,10 @@ class MainActivity : AppCompatActivity() {
                 })
 
                 historyRecycler.adapter = adapter
-                historyRecycler.visibility = View.GONE
-                historyContainer.visibility = View.GONE
+                // Show the recycler and ensure it's scrolled to the top when entries exist
+                historyRecycler.visibility = View.VISIBLE
+                historyContainer.visibility = View.VISIBLE
+                try { historyRecycler.scrollToPosition(0) } catch (_: Exception) { }
             } else {
                 historyRecycler.adapter = null
                 historyContainer.visibility = View.GONE
@@ -778,6 +780,8 @@ class MainActivity : AppCompatActivity() {
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.VISIBLE
                 try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
+                // Always refresh the history contents when the tab becomes active
+                try { refreshHistorySection(); findViewById<RecyclerView>(R.id.favorites_history_recycler).scrollToPosition(0) } catch (_: Exception) { }
             }
         }
     }
@@ -932,10 +936,14 @@ class MainActivity : AppCompatActivity() {
                     try {
                         // Remove extra icon padding so the drawable sits exactly centered when there's no text
                         btn.iconPadding = 0
+                        // Remove asymmetric content padding coming from the style so icon can be centered
+                        btn.setPaddingRelative(0, btn.paddingTop, 0, btn.paddingBottom)
+                        // Allow the button to shrink below the default min width so equal-weight centering works
+                        btn.minWidth = 0
                         // Center content inside the button (icon will be centered when text is empty)
                         btn.gravity = android.view.Gravity.CENTER
-                        // Keep default icon gravity behaviour (start) — gravity ensures centering for icon-only
-                        btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START
+                        // Use text-relative gravity so the icon aligns as if text were present (helps centering)
+                        btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
                     } catch (_: Exception) { }
                 } else {
                     if (selected) {
