@@ -28,7 +28,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_stations"
-            style="@style/Widget.Material3.Button.FilledTonalButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="40dp"
@@ -43,7 +43,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_subscribed"
-            style="@style/Widget.Material3.Button.FilledTonalButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="40dp"
@@ -58,7 +58,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_saved"
-            style="@style/Widget.Material3.Button.FilledTonalButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="40dp"
@@ -73,7 +73,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_history"
-            style="@style/Widget.Material3.Button.FilledTonalButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="40dp"
