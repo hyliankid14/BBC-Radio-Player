@@ -1027,7 +1027,7 @@ class NowPlayingActivity : AppCompatActivity() {
         // If we reach here and previewEpisodeProp exists (defensive), handle it as episode-save
         val preview = previewEpisodeProp
         if (preview != null) {
-            val nowSaved = SavedEpisodes.toggleSaved(this, preview, supportActionBar?.title?.toString())
+            val nowSaved = SavedEpisodes.toggleSaved(this, preview, supportActionBar?.title?.toString().orEmpty())
             val msg = if (nowSaved) "Saved episode: ${preview.title}" else "Removed saved episode: ${preview.title}"
             com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
                 .setAnchorView(findViewById(R.id.playback_controls))

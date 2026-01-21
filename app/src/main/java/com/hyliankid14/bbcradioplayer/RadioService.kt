@@ -1098,29 +1098,6 @@ class RadioService : MediaBrowserServiceCompat() {
                     } else {
                         currentStationTitle.ifEmpty { "BBC Radio Player" }
                     }
-                    val updatedNotification = NotificationCompat.Builder(this, CHANNEL_ID)
-                        .setContentTitle(notificationTitle)
-                        // For podcasts: use episode title as content text so Android Auto gets subtitle info
-                        .setContentText(notificationContentText)
-                        // Some UIs (and Android Auto artwork-update paths) read subText for the subtitle — set it explicitly
-                        .setSubText(notificationContentText)
-                        .setSmallIcon(android.R.drawable.ic_media_play)
-                        .setLargeIcon(bitmap)
-                        .setContentIntent(pendingIntent)
-                        .setOngoing(true)
-                        .setSound(null)
-                        .setVibrate(null)
-                        .addAction(stopAction)
-                        .addAction(previousAction)
-                        .addAction(playPauseAction)
-                        .addAction(nextAction)
-                        .addAction(favoriteAction)
-                        .setStyle(MediaStyle()
-                            .setMediaSession(mediaSession.sessionToken)
-                            // Compact view: show Previous, Play/Pause, Next (indices 1,2,3)
-                            .setShowActionsInCompactView(1, 2, 3)
-                        )
-                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                     // Build the NotificationCompat.Builder first so we can clear any lingering
                     // progress only when necessary (avoids triggering OEM bugs).
                     val nb = NotificationCompat.Builder(this, CHANNEL_ID)
