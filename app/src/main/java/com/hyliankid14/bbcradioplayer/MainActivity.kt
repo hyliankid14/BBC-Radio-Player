@@ -17,6 +17,8 @@ import java.io.IOException
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import android.support.v4.media.MediaDescriptionCompat
+import android.support.v4.media.MediaBrowserCompat.MediaItem
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.ItemTouchHelper
 import android.widget.ImageButton
@@ -921,13 +923,20 @@ class MainActivity : AppCompatActivity() {
 
                 val selected = (id == selectedId)
 
-                // Apply base layout changes (tablet: expand selected, phone: icon-only but full-width)
+                // Apply base layout changes (tablet: expanded selected with label; phone: icon-only but centered)
                 if (!isTablet) {
-                    // keep icon-only on phones but ensure each button stretches to fill the group
+                    // Icon-only on phones: center the icon horizontally/vertically and ensure equal weight
                     btn.text = ""
                     lp?.width = 0
                     lp?.weight = 1f
-                    try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
+                    try {
+                        // Remove extra icon padding so the drawable sits exactly centered when there's no text
+                        btn.iconPadding = 0
+                        // Center content inside the button (icon will be centered when text is empty)
+                        btn.gravity = android.view.Gravity.CENTER
+                        // Keep default icon gravity behaviour (start) — gravity ensures centering for icon-only
+                        btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START
+                    } catch (_: Exception) { }
                 } else {
                     if (selected) {
                         btn.text = labels[id]
