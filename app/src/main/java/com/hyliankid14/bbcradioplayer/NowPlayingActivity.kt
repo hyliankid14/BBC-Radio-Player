@@ -829,8 +829,14 @@ class NowPlayingActivity : AppCompatActivity() {
                         podcastId?.let { pid ->
                             PodcastSubscriptions.toggleSubscription(this, pid)
                             val now = PodcastSubscriptions.isSubscribed(this, pid)
-                            val podcastName = supportActionBar?.title ?: "Podcast"
-                            val msg = if (now) "Subscribed to ${'$'}{podcastName}" else "Unsubscribed from ${'$'}{podcastName}"
+                            // Prefer explicit station/podcast sources for the display name; fall back safely
+                            var podcastName = PlaybackStateHelper.getCurrentStation()?.title
+                                ?: previewEpisodeProp?.podcastTitle
+                                ?: supportActionBar?.title?.toString()
+                            podcastName = podcastName?.takeIf { it.isNotBlank() } ?: "Podcast"
+                            // Guard against accidental template literals appearing in the title
+                            if (podcastName.contains("${'$'}{")) podcastName = "Podcast"
+                            val msg = if (now) "Subscribed to $podcastName" else "Unsubscribed from $podcastName"
                             com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
                                 .setAnchorView(findViewById(R.id.playback_controls))
                                 .show()

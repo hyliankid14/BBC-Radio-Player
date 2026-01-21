@@ -146,7 +146,28 @@ class PodcastsFragment : Fragment() {
         searchEditText.setText(restored ?: "")
         if (!restored.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
         // Ensure the clear (end) icon reflects the restored text immediately (fixes OEMs that only show it after IME events)
-        try { searchInputLayout.isEndIconVisible = !searchEditText.text.isNullOrEmpty() } catch (_: Exception) { }
+        try {
+            // Use a custom end-icon so some OEM/Material implementations don't hide it when the field loses focus.
+            searchInputLayout.isEndIconVisible = !searchEditText.text.isNullOrEmpty()
+
+            // Provide an explicit click handler that always clears the field and hides the IME.
+            searchInputLayout.setEndIconOnClickListener {
+                suppressSearchWatcher = true
+                searchEditText.text?.clear()
+                suppressSearchWatcher = false
+
+                // Keep persisted state consistent
+                viewModel.clearActiveSearch()
+                try { searchInputLayout.isEndIconVisible = false } catch (_: Exception) { }
+
+                val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
+                searchEditText.clearFocus()
+            }
+
+            // Force visibility for non-empty text regardless of focus/IME state
+            if (!searchEditText.text.isNullOrEmpty()) searchInputLayout.isEndIconVisible = true
+        } catch (_: Exception) { }
         suppressSearchWatcher = false
         android.util.Log.d("PodcastsFragment", "onViewCreated: viewModel.activeSearchQuery='${restored}' searchEditText='${searchEditText.text}'")
 
@@ -281,6 +302,9 @@ class PodcastsFragment : Fragment() {
             val current = (v.text?.toString() ?: "").trim()
             // Keep local searchQuery in sync so other code paths rely on the latest value
             searchQuery = current
+
+            // Re-assert end-icon visibility after the IME is dismissed (persistent clear icon behavior)
+            try { searchInputLayout.isEndIconVisible = current.isNotBlank() } catch (_: Exception) { }
 
             // Commit current query as active search and add to history
             if (current.isNotBlank()) {

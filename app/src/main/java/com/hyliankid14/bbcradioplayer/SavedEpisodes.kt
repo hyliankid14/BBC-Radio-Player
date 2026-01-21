@@ -63,12 +63,54 @@ object SavedEpisodes {
             prefs(context).edit().putStringSet(KEY_SAVED_SET, current).apply()
             return false
         } else {
+            // Resolve the best possible audio URL to store. We avoid network calls here — prefer
+            // the episode object, then the active playback URI, then cached feed entries.
+            fun looksLikePreview(url: String?, dur: Int): Boolean {
+                if (url.isNullOrBlank()) return true
+                val low = url.lowercase()
+                if (low.contains("preview") || low.contains("snippet") || low.contains("sample")) return true
+                if (dur <= 0) return true
+                if (url.length < 20) return true
+                return false
+            }
+
+            var resolvedAudio = episode.audioUrl
+            if (looksLikePreview(resolvedAudio, episode.durationMins)) {
+                // 1) Prefer the currently-playing media URI if it's different and looks valid
+                val fromPlayer = PlaybackStateHelper.getCurrentMediaUri()
+                if (!fromPlayer.isNullOrBlank() && !looksLikePreview(fromPlayer, episode.durationMins)) {
+                    resolvedAudio = fromPlayer
+                } else {
+                    // 2) Try to find a cached full-episode entry from PodcastRepository (non-blocking)
+                    try {
+                        val repo = PodcastRepository(context)
+                        val cached = repo.getEpisodesFromCache(episode.podcastId)
+                        val found = cached?.firstOrNull { it.id == episode.id }
+                        if (found != null && !looksLikePreview(found.audioUrl, found.durationMins)) {
+                            resolvedAudio = found.audioUrl
+                        } else {
+                            // 3) Try index lookup to find parent podcast id and then check that cache
+                            try {
+                                val idx = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(context)
+                                val ef = idx.findEpisodeById(episode.id)
+                                if (ef != null) {
+                                    val candidate = repo.getEpisodesFromCache(ef.podcastId)?.firstOrNull { it.id == episode.id }
+                                    if (candidate != null && !looksLikePreview(candidate.audioUrl, candidate.durationMins)) {
+                                        resolvedAudio = candidate.audioUrl
+                                    }
+                                }
+                            } catch (_: Exception) { /* best-effort */ }
+                        }
+                    } catch (_: Exception) { /* best-effort */ }
+                }
+            }
+
             val j = JSONObject()
             j.put("id", episode.id)
             j.put("title", episode.title)
             j.put("description", episode.description)
             j.put("imageUrl", episode.imageUrl)
-            j.put("audioUrl", episode.audioUrl)
+            j.put("audioUrl", resolvedAudio)
             j.put("pubDate", episode.pubDate)
             j.put("durationMins", episode.durationMins)
             j.put("podcastId", episode.podcastId)

@@ -29,7 +29,10 @@
             app:boxCornerRadiusBottomEnd="16dp"
             app:hintEnabled="false"
             app:startIconDrawable="@drawable/ic_search"
-            app:endIconMode="clear_text">
+            <!-- Use a custom end-icon so visibility can be controlled independently of focus/IME -->
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_clear"
+            app:endIconContentDescription="@string/clear_search">
 
             <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/search_podcast_edittext"

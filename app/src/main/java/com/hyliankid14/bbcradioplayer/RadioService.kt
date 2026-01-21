@@ -1751,6 +1751,9 @@ class RadioService : MediaBrowserServiceCompat() {
                 playWhenReady = true
                 setMediaItem(mediaItem)
                 prepare()
+                // Record the actual playback URI so other components (save logic) can prefer it over any preview URL
+                PlaybackStateHelper.setCurrentMediaUri(episode.audioUrl)
+
                 // If we have a saved progress position, resume from there
                 val savedPos = PlayedEpisodesPreference.getProgress(this@RadioService, episode.id)
                 if (savedPos > 0) {

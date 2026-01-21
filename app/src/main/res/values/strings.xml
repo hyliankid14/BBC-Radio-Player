@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BBC Radio Player</string>
+    <string name="clear_search">Clear search</string>
 </resources>

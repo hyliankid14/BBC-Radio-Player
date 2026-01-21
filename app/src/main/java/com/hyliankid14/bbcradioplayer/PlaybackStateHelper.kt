@@ -8,16 +8,31 @@ object PlaybackStateHelper {
     private var isPlaying: Boolean = false
     private var currentShow: CurrentShow = CurrentShow("BBC Radio")
     private var currentEpisodeId: String? = null
+    // Track the actual media/playback URI that the player is currently using (helps saved-episode resolution)
+    private var currentMediaUri: String? = null
     private val showChangeListeners = mutableListOf<(CurrentShow) -> Unit>()
     
     fun setCurrentStation(station: Station?) {
         android.util.Log.d("PlaybackStateHelper", "setCurrentStation called: ${station?.title}")
         currentStation = station
         // Clear episode id when switching away from podcasts/stations
-        if (station == null || !station.id.startsWith("podcast_")) currentEpisodeId = null
+        if (station == null || !station.id.startsWith("podcast_")) {
+            currentEpisodeId = null
+            // Clear any episode-specific playback URI when leaving podcast context
+            currentMediaUri = null
+        }
     }
     
     fun getCurrentStation(): Station? = currentStation
+
+    /** Return the current media/playback URI (may be null). */
+    fun getCurrentMediaUri(): String? = currentMediaUri
+
+    /** Inform the helper of the current media/playback URI. Pass null to clear. */
+    fun setCurrentMediaUri(uri: String?) {
+        currentMediaUri = uri
+        android.util.Log.d("PlaybackStateHelper", "setCurrentMediaUri: ${uri?.takeIf { it.isNotBlank() } ?: "<cleared>"}")
+    }
 
     fun setCurrentEpisodeId(episodeId: String?) {
         currentEpisodeId = episodeId
