@@ -14,6 +14,7 @@
         app:contentInsetStartWithNavigation="0dp"
         android:elevation="2dp">
 
+        <!-- Use a custom end-icon so visibility can be controlled independently of focus/IME -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/search_podcast_text_input"
             style="@style/Widget.Material3.TextInputLayout.FilledBox"
@@ -29,7 +30,6 @@
             app:boxCornerRadiusBottomEnd="16dp"
             app:hintEnabled="false"
             app:startIconDrawable="@drawable/ic_search"
-            <!-- Use a custom end-icon so visibility can be controlled independently of focus/IME -->
             app:endIconMode="custom"
             app:endIconDrawable="@drawable/ic_clear"
             app:endIconContentDescription="@string/clear_search">
