@@ -770,54 +770,73 @@ class MainActivity : AppCompatActivity() {
         )
         val isTablet = try { resources.getBoolean(R.bool.is_tablet) } catch (_: Exception) { false }
 
+        // Colors from theme for selected/unselected states
+        fun getThemeColor(attr: Int): Int {
+            return try {
+                val tv = android.util.TypedValue()
+                theme.resolveAttribute(attr, tv, true)
+                tv.data
+            } catch (_: Exception) { android.graphics.Color.BLACK }
+        }
+
+        val colorPrimaryContainer = try { getThemeColor(R.attr.colorPrimaryContainer) } catch (_: Exception) { getThemeColor(R.attr.colorPrimary) }
+        val colorOnPrimaryContainer = try { getThemeColor(R.attr.colorOnPrimaryContainer) } catch (_: Exception) { getThemeColor(R.attr.colorOnPrimary) }
+        val colorSurface = try { getThemeColor(R.attr.colorSurface) } catch (_: Exception) { android.graphics.Color.WHITE }
+        val colorOnSurface = try { getThemeColor(R.attr.colorOnSurface) } catch (_: Exception) { android.graphics.Color.BLACK }
+
         for (id in ids) {
             try {
                 val btn = findViewById<com.google.android.material.button.MaterialButton>(id)
                 val lp = btn.layoutParams as? android.widget.LinearLayout.LayoutParams
+
+                val selected = (id == selectedId)
+
+                // Apply base layout changes (tablet: expand selected, phone: icon-only)
                 if (!isTablet) {
-                    // Phone: always show icon-only collapsed state
                     btn.text = ""
                     lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                     lp?.weight = 0f
                     try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
-                    btn.contentDescription = labels[id]
-                    // Subtle press feedback for phones
-                    try {
-                        btn.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                        androidx.core.view.ViewCompat.setElevation(btn, 0f)
-                    } catch (_: Exception) { }
                 } else {
-                    // Tablet: expand selected button to show text, collapse others to icon-only
-                    if (id == selectedId) {
-                        // Expanded: occupy remaining space via weight
+                    if (selected) {
                         btn.text = labels[id]
                         lp?.width = 0
                         lp?.weight = 1f
                         try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START } catch (_: Exception) { }
-                        // Fade in text for subtle animation
-                        btn.alpha = 0f
-                        btn.animate().alpha(1f).setDuration(220).start()
-                        btn.contentDescription = labels[id]
-                        // Elevate and slightly scale selected button for emphasis
-                        try {
-                            btn.animate().scaleX(1.02f).scaleY(1.02f).setDuration(200).start()
-                            val d = resources.displayMetrics.density
-                            androidx.core.view.ViewCompat.setElevation(btn, 6f * d)
-                        } catch (_: Exception) { }
                     } else {
-                        // Collapsed icon-only
                         btn.text = ""
                         lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                         lp?.weight = 0f
                         try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
-                        btn.alpha = 1f
-                        btn.contentDescription = labels[id]
-                        try {
-                            btn.animate().scaleX(1f).scaleY(1f).setDuration(180).start()
-                            androidx.core.view.ViewCompat.setElevation(btn, 0f)
-                        } catch (_: Exception) { }
                     }
                 }
+
+                // Apply Material 3 expressive colors/tints
+                try {
+                    if (selected) {
+                        btn.backgroundTintList = android.content.res.ColorStateList.valueOf(colorPrimaryContainer)
+                        btn.iconTint = android.content.res.ColorStateList.valueOf(colorOnPrimaryContainer)
+                        btn.setTextColor(colorOnPrimaryContainer)
+                    } else {
+                        btn.backgroundTintList = android.content.res.ColorStateList.valueOf(colorSurface)
+                        btn.iconTint = android.content.res.ColorStateList.valueOf(colorOnSurface)
+                        btn.setTextColor(colorOnSurface)
+                    }
+                } catch (_: Exception) { }
+
+                // Subtle animations and elevation
+                try {
+                    if (selected) {
+                        btn.animate().scaleX(1.02f).scaleY(1.02f).setDuration(200).start()
+                        val d = resources.displayMetrics.density
+                        androidx.core.view.ViewCompat.setElevation(btn, 6f * d)
+                    } else {
+                        btn.animate().scaleX(1f).scaleY(1f).setDuration(180).start()
+                        androidx.core.view.ViewCompat.setElevation(btn, 0f)
+                    }
+                } catch (_: Exception) { }
+
+                btn.contentDescription = labels[id]
                 btn.layoutParams = lp
             } catch (_: Exception) { }
         }
