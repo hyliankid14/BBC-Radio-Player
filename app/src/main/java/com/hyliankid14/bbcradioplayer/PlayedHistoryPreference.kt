@@ -9,6 +9,7 @@ import org.json.JSONObject
  * Stored as a JSON array of objects in SharedPreferences so ordering is preserved.
  */
 object PlayedHistoryPreference {
+    const val ACTION_HISTORY_CHANGED = "com.hyliankid14.bbcradioplayer.action.HISTORY_CHANGED"
     private const val PREFS_NAME = "played_history_prefs"
     private const val KEY_HISTORY = "history_json"
     private const val MAX_ENTRIES = 20

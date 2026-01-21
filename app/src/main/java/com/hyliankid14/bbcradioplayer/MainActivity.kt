@@ -249,6 +249,8 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun refreshCurrentView() {
+        // Always hide history when refreshing view (unless Favorites will explicitly show it)
+        hideHistoryViews()
         // Clear show cache in the current adapter and refresh the view
         when (currentMode) {
             "list" -> {
@@ -363,7 +365,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Hide history views (centralized) --------------------------------------------------------
+    private fun hideHistoryViews() {
+        try {
+            val rv = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.favorites_history_recycler)
+            val container = findViewById<View>(R.id.favorites_history_container)
+            rv?.visibility = View.GONE
+            container?.visibility = View.GONE
+        } catch (_: Exception) { }
+    }
+
     private fun showAllStations() {
+        // Ensure history UI is hidden when leaving Favorites
+        hideHistoryViews()
         currentMode = "list"
         fragmentContainer.visibility = View.GONE
         staticContentContainer.visibility = View.VISIBLE
@@ -439,6 +453,20 @@ class MainActivity : AppCompatActivity() {
                 it.addView(historyContainer, 3)
             } catch (_: Exception) { /* best-effort */ }
         }
+
+        // Ensure only the last-accessed favorites group is visible immediately (avoid flicker / defaulting)
+        try {
+            val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
+            val LAST_FAV_TAB_KEY = "last_fav_tab_id"
+            val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
+            var initialLastChecked = prefs.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
+            if (!candidateIds.contains(initialLastChecked)) initialLastChecked = R.id.fav_tab_stations
+
+            stationsList.visibility = if (initialLastChecked == R.id.fav_tab_stations) View.VISIBLE else View.GONE
+            favoritesPodcastsContainer.visibility = if (initialLastChecked == R.id.fav_tab_subscribed) View.VISIBLE else View.GONE
+            savedContainer.visibility = if (initialLastChecked == R.id.fav_tab_saved) View.VISIBLE else View.GONE
+            historyContainer.visibility = if (initialLastChecked == R.id.fav_tab_history) View.VISIBLE else View.GONE
+        } catch (_: Exception) { }
 
         val stations = FavoritesPreference.getFavorites(this).toMutableList()
         val adapter = FavoritesAdapter(this, stations, { stationId ->
@@ -628,14 +656,15 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) { }
         }
 
-        // Load subscribed podcasts into Favorites section
+        // Load subscribed podcasts into Favorites section — do not force visibility unless the Subscribed tab was last-selected
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
-        // Subscribed podcasts: prepare recycler (visibility controlled by the Favorites tab)
-        favoritesPodcastsContainer.visibility = View.VISIBLE
+        val prefsLocal = getPreferences(android.content.Context.MODE_PRIVATE)
+        val LAST_FAV_TAB_KEY = "last_fav_tab_id"
+        val lastFav = prefsLocal.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
+
         if (subscribedIds.isNotEmpty()) {
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
-
-            // Start hidden; tabs control when the subscribed list is visible
+            // Start hidden; the toggle/tab will reveal this when appropriate
             favoritesPodcastsRecycler.visibility = View.GONE
             favoritesPodcastsRecycler.isNestedScrollingEnabled = false
 
@@ -656,7 +685,7 @@ class MainActivity : AppCompatActivity() {
                     latest > lastPlayed
                 }.map { it.id }.toSet()
                 runOnUiThread {
-                        val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
+                    val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
                         // Show app bar so podcast title and back button are visible
                         supportActionBar?.show()
                         // Navigate to podcast detail
@@ -671,13 +700,26 @@ class MainActivity : AppCompatActivity() {
                             commit()
                         }
                     }, highlightSubscribed = true, showSubscribedIcon = false)
+
                     favoritesPodcastsRecycler.adapter = podcastAdapter
                     podcastAdapter.updatePodcasts(subs)
                     podcastAdapter.updateNewEpisodes(newSet)
-                    favoritesPodcastsRecycler.visibility = View.VISIBLE
+
+                    // Reveal recycler only if the Subscribed tab is actually selected right now
+                    val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+                    val subscribedTabActive = (currentMode == "favorites" && (toggle?.checkedButtonId == R.id.fav_tab_subscribed || lastFav == R.id.fav_tab_subscribed))
+                    if (subscribedTabActive) {
+                        favoritesPodcastsRecycler.visibility = View.VISIBLE
+                        favoritesPodcastsContainer.visibility = View.VISIBLE
+                    } else {
+                        // keep hidden until the user explicitly selects the Subscribed tab
+                        favoritesPodcastsRecycler.visibility = View.GONE
+                    }
                 }
             }.start()
         } else {
+            // No subscriptions — ensure the container remains hidden
+            favoritesPodcastsRecycler.adapter = null
             favoritesPodcastsContainer.visibility = View.GONE
         }
 
@@ -715,10 +757,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // BroadcastReceiver to refresh History UI when the played-history store changes
+    private val historyChangedReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            try {
+                runOnUiThread { refreshHistorySection() }
+            } catch (_: Exception) { }
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         try {
             registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED))
+        } catch (_: Exception) {}
+        try {
+            registerReceiver(historyChangedReceiver, android.content.IntentFilter(PlayedHistoryPreference.ACTION_HISTORY_CHANGED))
         } catch (_: Exception) {}
     }
 
@@ -727,9 +781,14 @@ class MainActivity : AppCompatActivity() {
         try {
             unregisterReceiver(playedStatusReceiver)
         } catch (_: Exception) {}
+        try {
+            unregisterReceiver(historyChangedReceiver)
+        } catch (_: Exception) {}
     }
 
     private fun showSettings() {
+        // Ensure history UI is hidden when navigating away from Favorites
+        hideHistoryViews()
         currentMode = "settings"
         fragmentContainer.visibility = View.GONE
         staticContentContainer.visibility = View.VISIBLE
@@ -751,6 +810,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPodcasts() {
+        // Ensure history UI is hidden when navigating away from Favorites
+        hideHistoryViews()
         currentMode = "podcasts"
         fragmentContainer.visibility = View.VISIBLE
         staticContentContainer.visibility = View.GONE
@@ -844,11 +905,12 @@ class MainActivity : AppCompatActivity() {
 
                 val selected = (id == selectedId)
 
-                // Apply base layout changes (tablet: expand selected, phone: icon-only)
+                // Apply base layout changes (tablet: expand selected, phone: icon-only but full-width)
                 if (!isTablet) {
+                    // keep icon-only on phones but ensure each button stretches to fill the group
                     btn.text = ""
-                    lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                    lp?.weight = 0f
+                    lp?.width = 0
+                    lp?.weight = 1f
                     try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
                 } else {
                     if (selected) {
@@ -2011,6 +2073,10 @@ class MainActivity : AppCompatActivity() {
             // Notify listeners that played-status/progress may have changed so UI updates
             try {
                 val intent = android.content.Intent(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED)
+                sendBroadcast(intent)
+            } catch (e: Exception) { }
+            try {
+                val intent = android.content.Intent(PlayedHistoryPreference.ACTION_HISTORY_CHANGED)
                 sendBroadcast(intent)
             } catch (e: Exception) { }
             true

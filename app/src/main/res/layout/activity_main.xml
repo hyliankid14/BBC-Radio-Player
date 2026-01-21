@@ -187,8 +187,8 @@
 
             </FrameLayout>
 
-            <!-- History: list of recently-played podcast episodes -->
-            <com.google.android.material.card.MaterialCardView
+            <!-- History: full-width list (no background card) -->
+            <FrameLayout
                 android:id="@+id/favorites_history_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -196,39 +196,18 @@
                 android:layout_marginEnd="8dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
-                app:cardCornerRadius="16dp"
-                app:cardUseCompatPadding="true"
-                app:cardElevation="2dp"
-                app:strokeColor="?attr/colorOutline"
-                app:strokeWidth="1dp"
-                app:cardBackgroundColor="?attr/colorSurface"
                 android:visibility="gone">
 
-                <LinearLayout
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/favorites_history_recycler"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:visibility="gone"
+                    android:paddingTop="8dp"
+                    android:clipToPadding="true"
+                    android:scrollbars="vertical" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:gravity="center_vertical"
-                        android:paddingStart="16dp"
-                        android:text="History"
-                        android:textColor="?attr/colorOnSurface" />
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/favorites_history_recycler"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:visibility="gone"
-                        android:paddingTop="8dp"
-                        android:clipToPadding="true"
-                        android:scrollbars="vertical" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
+            </FrameLayout>
 
 
         </LinearLayout>
