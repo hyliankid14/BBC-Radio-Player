@@ -771,18 +771,20 @@ class MainActivity : AppCompatActivity() {
         val isTablet = try { resources.getBoolean(R.bool.is_tablet) } catch (_: Exception) { false }
 
         // Colors from theme for selected/unselected states
-        fun getThemeColor(attr: Int): Int {
+        fun getThemeColorByName(attrName: String): Int {
             return try {
+                val resId = resources.getIdentifier(attrName, "attr", packageName)
+                if (resId == 0) return android.graphics.Color.BLACK
                 val tv = android.util.TypedValue()
-                theme.resolveAttribute(attr, tv, true)
+                theme.resolveAttribute(resId, tv, true)
                 tv.data
             } catch (_: Exception) { android.graphics.Color.BLACK }
         }
 
-        val colorPrimaryContainer = try { getThemeColor(R.attr.colorPrimaryContainer) } catch (_: Exception) { getThemeColor(R.attr.colorPrimary) }
-        val colorOnPrimaryContainer = try { getThemeColor(R.attr.colorOnPrimaryContainer) } catch (_: Exception) { getThemeColor(R.attr.colorOnPrimary) }
-        val colorSurface = try { getThemeColor(R.attr.colorSurface) } catch (_: Exception) { android.graphics.Color.WHITE }
-        val colorOnSurface = try { getThemeColor(R.attr.colorOnSurface) } catch (_: Exception) { android.graphics.Color.BLACK }
+        val colorPrimaryContainer = try { getThemeColorByName("colorPrimaryContainer") } catch (_: Exception) { getThemeColorByName("colorPrimary") }
+        val colorOnPrimaryContainer = try { getThemeColorByName("colorOnPrimaryContainer") } catch (_: Exception) { getThemeColorByName("colorOnPrimary") }
+        val colorSurface = try { getThemeColorByName("colorSurface") } catch (_: Exception) { android.graphics.Color.WHITE }
+        val colorOnSurface = try { getThemeColorByName("colorOnSurface") } catch (_: Exception) { android.graphics.Color.BLACK }
 
         for (id in ids) {
             try {
