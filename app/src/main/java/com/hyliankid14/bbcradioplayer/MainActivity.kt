@@ -1907,22 +1907,30 @@ class MainActivity : AppCompatActivity() {
             
             // Update favorite button state - for podcasts, show saved-episode state if an episode is playing; otherwise show podcast subscription
             val isPodcast = station.id.startsWith("podcast_")
-            val isFavorited = if (isPodcast) {
-                val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
-                if (!currentEpisodeId.isNullOrEmpty()) {
-                    SavedEpisodes.isSaved(this, currentEpisodeId)
+            val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
+            // If an episode is playing, treat the favorite button as an episode-save (bookmark).
+            if (isPodcast && !currentEpisodeId.isNullOrEmpty()) {
+                val saved = SavedEpisodes.isSaved(this, currentEpisodeId)
+                if (saved) {
+                    miniPlayerFavorite.setImageResource(R.drawable.ic_bookmark)
+                    miniPlayerFavorite.setColorFilter(ContextCompat.getColor(this, R.color.favorite_star_color))
                 } else {
-                    PodcastSubscriptions.isSubscribed(this, station.id.removePrefix("podcast_"))
+                    miniPlayerFavorite.setImageResource(R.drawable.ic_bookmark_outline)
+                    miniPlayerFavorite.clearColorFilter()
                 }
             } else {
-                FavoritesPreference.isFavorite(this, station.id)
-            }
-            if (isFavorited) {
-                miniPlayerFavorite.setImageResource(R.drawable.ic_star_filled)
-                miniPlayerFavorite.setColorFilter(ContextCompat.getColor(this, R.color.favorite_star_color))
-            } else {
-                miniPlayerFavorite.setImageResource(R.drawable.ic_star_outline)
-                miniPlayerFavorite.clearColorFilter()
+                val isFavorited = if (isPodcast) {
+                    PodcastSubscriptions.isSubscribed(this, station.id.removePrefix("podcast_"))
+                } else {
+                    FavoritesPreference.isFavorite(this, station.id)
+                }
+                if (isFavorited) {
+                    miniPlayerFavorite.setImageResource(R.drawable.ic_star_filled)
+                    miniPlayerFavorite.setColorFilter(ContextCompat.getColor(this, R.color.favorite_star_color))
+                } else {
+                    miniPlayerFavorite.setImageResource(R.drawable.ic_star_outline)
+                    miniPlayerFavorite.clearColorFilter()
+                }
             }
         } else {
             // Hide mini player

@@ -59,6 +59,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private var pendingShowInfo: CurrentShow? = null
     private var applyShowInfoRunnable: Runnable? = null
     private var podcastProgressRunnable: Runnable? = null
+    private var notificationHadProgress: Boolean = false
     // Track last-saved progress per episode to avoid excessive writes
     private val lastSavedProgress = mutableMapOf<String, Long>()
     private val serviceScope = CoroutineScope(Dispatchers.Main)
@@ -880,13 +881,23 @@ class RadioService : MediaBrowserServiceCompat() {
             createPendingIntent(ACTION_STOP, "stop_action")
         )
 
-        // Create favorite action
-        val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
-        val favoriteAction = NotificationCompat.Action(
-            if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
-            if (isFavorite) "Remove from Favorites" else "Add to Favorites",
-            createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
-        )
+        // Create favorite action. For podcast *episodes* this represents saved-episode (bookmark).
+        val favoriteAction = if (currentStationId.startsWith("podcast_") && !PlaybackStateHelper.getCurrentEpisodeId().isNullOrEmpty()) {
+            val epId = PlaybackStateHelper.getCurrentEpisodeId() ?: ""
+            val saved = SavedEpisodes.isSaved(this, epId)
+            NotificationCompat.Action(
+                if (saved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline,
+                if (saved) "Remove saved episode" else "Save episode",
+                createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+            )
+        } else {
+            val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
+            NotificationCompat.Action(
+                if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
+                if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+                createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+            )
+        }
 
             val notificationContentText = when {
                 currentStationId.startsWith("podcast_") -> (currentShowInfo.episodeTitle ?: currentShowTitle)
@@ -1038,12 +1049,22 @@ class RadioService : MediaBrowserServiceCompat() {
                         "Stop",
                         createPendingIntent(ACTION_STOP, "stop_action")
                     )
-                    val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
-                    val favoriteAction = NotificationCompat.Action(
-                        if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
-                        if (isFavorite) "Remove from Favorites" else "Add to Favorites",
-                        createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
-                    )
+                    val favoriteAction = if (currentStationId.startsWith("podcast_") && !PlaybackStateHelper.getCurrentEpisodeId().isNullOrEmpty()) {
+                        val epId = PlaybackStateHelper.getCurrentEpisodeId() ?: ""
+                        val saved = SavedEpisodes.isSaved(this, epId)
+                        NotificationCompat.Action(
+                            if (saved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline,
+                            if (saved) "Remove saved episode" else "Save episode",
+                            createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+                        )
+                    } else {
+                        val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
+                        NotificationCompat.Action(
+                            if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
+                            if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+                            createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+                        )
+                    }
 
                     // Create intent to launch app when notification is tapped
                     val intent = Intent(this, MainActivity::class.java).apply {
@@ -1100,7 +1121,35 @@ class RadioService : MediaBrowserServiceCompat() {
                             .setShowActionsInCompactView(1, 2, 3)
                         )
                         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                        .build()
+                    // Build the NotificationCompat.Builder first so we can clear any lingering
+                    // progress only when necessary (avoids triggering OEM bugs).
+                    val nb = NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setContentTitle(notificationTitle)
+                        .setContentText(notificationContentText)
+                        .setSubText(notificationContentText)
+                        .setSmallIcon(android.R.drawable.ic_media_play)
+                        .setLargeIcon(bitmap)
+                        .setContentIntent(pendingIntent)
+                        .setOngoing(true)
+                        .setSound(null)
+                        .setVibrate(null)
+                        .addAction(stopAction)
+                        .addAction(previousAction)
+                        .addAction(playPauseAction)
+                        .addAction(nextAction)
+                        .addAction(favoriteAction)
+                        .setStyle(MediaStyle()
+                            .setMediaSession(mediaSession.sessionToken)
+                            .setShowActionsInCompactView(1, 2, 3)
+                        )
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+                    if (!currentStationId.startsWith("podcast_") && notificationHadProgress) {
+                        nb.setProgress(0, 0, false)
+                        notificationHadProgress = false
+                    }
+
+                    val updatedNotification = nb.build()
 
                     // Ensure updated notification keeps podcast title + episode subtitle (some UIs read subText)
                     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -1578,6 +1627,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private fun stopPlayback() {
         player?.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
+        notificationHadProgress = false
         updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
         
         // Cancel show refresh
@@ -1870,12 +1920,22 @@ class RadioService : MediaBrowserServiceCompat() {
                 createPendingIntent(ACTION_STOP, "stop_action")
             )
 
-            val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
-            val favoriteAction = NotificationCompat.Action(
-                if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
-                if (isFavorite) "Remove from Favorites" else "Add to Favorites",
-                createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
-            )
+            val favoriteAction = if (currentStationId.startsWith("podcast_") && !PlaybackStateHelper.getCurrentEpisodeId().isNullOrEmpty()) {
+                val epId = PlaybackStateHelper.getCurrentEpisodeId() ?: ""
+                val saved = SavedEpisodes.isSaved(this, epId)
+                NotificationCompat.Action(
+                    if (saved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline,
+                    if (saved) "Remove saved episode" else "Save episode",
+                    createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+                )
+            } else {
+                val isFavorite = currentStationId.isNotEmpty() && FavoritesPreference.isFavorite(this, currentStationId)
+                NotificationCompat.Action(
+                    if (isFavorite) R.drawable.ic_star_filled else R.drawable.ic_star_outline,
+                    if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+                    createPendingIntent(ACTION_TOGGLE_FAVORITE, "favorite_action")
+                )
+            }
 
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -1919,10 +1979,16 @@ class RadioService : MediaBrowserServiceCompat() {
 
             // Attach large icon if we have it cached
             currentArtworkBitmap?.let { builder.setLargeIcon(it) }
+            // Clear any lingering progress when switching to a live stream (only if we previously showed one)
+            if (!currentStationId.startsWith("podcast_") && notificationHadProgress) {
+                builder.setProgress(0, 0, false)
+                notificationHadProgress = false
+            }
 
             // If podcast with known duration, display determinate progress.
             // Do NOT call setProgress for live streams — omitting the call prevents an empty progress bar
-            // from appearing on some OEM/Android versions.
+            // from appearing on some OEM/Android versions. When we do set a determinate progress we
+            // remember that so we can clear it if the user switches to a live stream later.
             if (currentStationId.startsWith("podcast_")) {
                 val dur = currentShowInfo.segmentDurationMs ?: player?.duration ?: -1L
                 val pos = currentShowInfo.segmentStartMs ?: player?.currentPosition ?: 0L
@@ -1930,10 +1996,16 @@ class RadioService : MediaBrowserServiceCompat() {
                     val durInt = dur.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                     val posInt = pos.coerceIn(0L, dur).toInt()
                     builder.setProgress(durInt, posInt, false)
+                    notificationHadProgress = true
+                } else {
+                    // No duration -> ensure we don't mistakenly think a progress bar exists
+                    notificationHadProgress = false
                 }
                 // If duration is unknown, do not call setProgress — that keeps the notification clean.
             } else {
-                // Live streams: intentionally do not set or clear progress (no progress bar required)
+                // Live streams: intentionally do not set progress here. If a previous notification
+                // showed a progress bar, clear it explicitly (only when necessary) so it doesn't
+                // persist on some OEMs.
             }
 
             val notification = builder.build()

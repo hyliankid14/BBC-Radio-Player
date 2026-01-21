@@ -132,6 +132,9 @@ class PodcastsFragment : Fragment() {
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.search_podcast_edittext)
+        // TextInputLayout that wraps the EditText — used to control the end-icon visibility reliably
+        val searchInputLayout = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.search_podcast_text_input)
+
         // Setup search history backing and adapter
         val searchHistory = SearchHistory(requireContext())
         val historyAdapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, searchHistory.getRecent())
@@ -142,6 +145,8 @@ class PodcastsFragment : Fragment() {
         val restored = viewModel.activeSearchQuery.value
         searchEditText.setText(restored ?: "")
         if (!restored.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
+        // Ensure the clear (end) icon reflects the restored text immediately (fixes OEMs that only show it after IME events)
+        try { searchInputLayout.isEndIconVisible = !searchEditText.text.isNullOrEmpty() } catch (_: Exception) { }
         suppressSearchWatcher = false
         android.util.Log.d("PodcastsFragment", "onViewCreated: viewModel.activeSearchQuery='${restored}' searchEditText='${searchEditText.text}'")
 
@@ -178,6 +183,8 @@ class PodcastsFragment : Fragment() {
                 suppressSearchWatcher = true
                 searchEditText.setText(q ?: "")
                 if (!q.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
+                // Ensure end-icon visibility updates when we apply text programmatically
+                try { searchInputLayout.isEndIconVisible = !q.isNullOrEmpty() } catch (_: Exception) { }
                 suppressSearchWatcher = false
             }
         }
@@ -195,9 +202,13 @@ class PodcastsFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 if (suppressSearchWatcher) return
+                // Keep the clear icon in sync immediately (fixes case where programmatic setText doesn't show it)
+                try { searchInputLayout.isEndIconVisible = !s.isNullOrEmpty() } catch (_: Exception) { }
                 searchQuery = s?.toString() ?: ""
                 // If the user cleared the search box, clear the active persisted search and update immediately
                 if (searchQuery.isBlank()) {
+                    // Ensure end-icon is hidden when empty
+                    try { searchInputLayout.isEndIconVisible = false } catch (_: Exception) { }
                     android.util.Log.d("PodcastsFragment", "afterTextChanged: search box cleared, clearing active search (was='${viewModel.activeSearchQuery.value}')")
                     viewModel.clearActiveSearch()
                     searchJob?.cancel()
@@ -299,6 +310,8 @@ class PodcastsFragment : Fragment() {
                 historyAdapter.addAll(searchHistory.getRecent())
                 searchEditText.showDropDown()
             }
+            // Keep end-icon visibility consistent when focus changes
+            try { searchInputLayout.isEndIconVisible = !searchEditText.text.isNullOrEmpty() } catch (_: Exception) { }
         }
         // When the user selects a history item, populate search and apply immediately
         searchEditText.setOnItemClickListener { parent, _, position, _ ->
@@ -306,6 +319,8 @@ class PodcastsFragment : Fragment() {
             suppressSearchWatcher = true
             searchEditText.setText(sel)
             searchEditText.setSelection(sel.length)
+            // Ensure clear icon is visible for the selected text
+            try { searchInputLayout.isEndIconVisible = true } catch (_: Exception) { }
             suppressSearchWatcher = false
             // Keep local state in sync and commit immediately so applyFilters uses the selected text
             searchQuery = sel

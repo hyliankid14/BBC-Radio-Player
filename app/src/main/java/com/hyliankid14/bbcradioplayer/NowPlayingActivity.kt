@@ -506,14 +506,23 @@ class NowPlayingActivity : AppCompatActivity() {
             playPauseButton.icon = ContextCompat.getDrawable(this, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
             
             val podcastId = station.id.removePrefix("podcast_")
-            val isFavorited = if (isPodcast) {
-                PodcastSubscriptions.isSubscribed(this, podcastId)
+            // If we're playing a podcast episode, show bookmark (episode save). Otherwise keep existing star semantics
+            val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
+            if (isPodcast && !currentEpisodeId.isNullOrEmpty()) {
+                val saved = SavedEpisodes.isSaved(this, currentEpisodeId)
+                favoriteButton.icon = ContextCompat.getDrawable(this, if (saved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
+                favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
+                favoriteButton.setBackgroundColor(if (saved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
             } else {
-                FavoritesPreference.isFavorite(this, station.id)
+                val isFavorited = if (isPodcast) {
+                    PodcastSubscriptions.isSubscribed(this, podcastId)
+                } else {
+                    FavoritesPreference.isFavorite(this, station.id)
+                }
+                favoriteButton.icon = ContextCompat.getDrawable(this, if (isFavorited) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
+                favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
+                favoriteButton.setBackgroundColor(if (isFavorited) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
             }
-            favoriteButton.icon = ContextCompat.getDrawable(this, if (isFavorited) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
-            favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-            favoriteButton.setBackgroundColor(if (isFavorited) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
         } else {
             progressGroup.visibility = android.view.View.GONE
             seekBar.visibility = android.view.View.GONE
@@ -565,7 +574,7 @@ class NowPlayingActivity : AppCompatActivity() {
         // Update favorite button to reflect saved-episode state for the previewed episode (separate from podcast subscriptions)
         try {
             val saved = SavedEpisodes.isSaved(this, episode.id)
-            favoriteButton.icon = ContextCompat.getDrawable(this, if (saved) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
+            favoriteButton.icon = ContextCompat.getDrawable(this, if (saved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
             favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
             favoriteButton.setBackgroundColor(if (saved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
         } catch (_: Exception) {}
@@ -754,7 +763,110 @@ class NowPlayingActivity : AppCompatActivity() {
         }
 
             updateProgressUi()
-    }
+            // Ensure the app-bar overflow menu reflects current podcast / episode state
+            invalidateOptionsMenu()
+        }
+
+        override fun onCreateOptionsMenu(menu: android.view.Menu): Boolean {
+            menuInflater.inflate(R.menu.now_playing_menu, menu)
+            return true
+        }
+
+        override fun onPrepareOptionsMenu(menu: android.view.Menu): Boolean {
+            try {
+                val station = PlaybackStateHelper.getCurrentStation()
+                val isPodcastStation = station?.id?.startsWith("podcast_") == true
+
+                // Determine podcast id (support preview mode too)
+                val podcastId: String? = when {
+                    isPodcastStation -> station?.id?.removePrefix("podcast_")
+                    previewEpisodeProp != null -> previewEpisodeProp?.podcastId
+                    else -> null
+                }
+
+                // Subscribe / Unsubscribe: only show for podcast context
+                val subscribeItem = menu.findItem(R.id.action_subscribe)
+                if (podcastId != null) {
+                    subscribeItem.isVisible = true
+                    val subscribed = PodcastSubscriptions.isSubscribed(this, podcastId)
+                    subscribeItem.title = if (subscribed) "Unsubscribe" else "Subscribe"
+                } else {
+                    subscribeItem.isVisible = false
+                }
+
+                // Mark as played / unplayed: show only when we have an episode id (preview or playing)
+                val episodeId = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
+                val markItem = menu.findItem(R.id.action_mark_played)
+                if (!episodeId.isNullOrEmpty()) {
+                    markItem.isVisible = true
+                    val played = PlayedEpisodesPreference.isPlayed(this, episodeId)
+                    markItem.title = if (played) "Mark as unplayed" else "Mark as played"
+                } else {
+                    markItem.isVisible = false
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NowPlayingActivity", "onPrepareOptionsMenu failed: ${'$'}{e.message}")
+            }
+            return super.onPrepareOptionsMenu(menu)
+        }
+
+        override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+            try {
+                when (item.itemId) {
+                    android.R.id.home -> {
+                        onSupportNavigateUp()
+                        return true
+                    }
+
+                    R.id.action_subscribe -> {
+                        // Determine podcast id (preview or playing)
+                        val station = PlaybackStateHelper.getCurrentStation()
+                        val podcastId = when {
+                            station != null && station.id.startsWith("podcast_") -> station.id.removePrefix("podcast_")
+                            previewEpisodeProp != null -> previewEpisodeProp?.podcastId
+                            else -> null
+                        }
+                        podcastId?.let { pid ->
+                            PodcastSubscriptions.toggleSubscription(this, pid)
+                            val now = PodcastSubscriptions.isSubscribed(this, pid)
+                            val podcastName = supportActionBar?.title ?: "Podcast"
+                            val msg = if (now) "Subscribed to ${'$'}{podcastName}" else "Unsubscribed from ${'$'}{podcastName}"
+                            com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                                .setAnchorView(findViewById(R.id.playback_controls))
+                                .show()
+                            updateUI()
+                            invalidateOptionsMenu()
+                        }
+                        return true
+                    }
+
+                    R.id.action_mark_played -> {
+                        val episodeId = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
+                        if (!episodeId.isNullOrEmpty()) {
+                            val nowPlayed = PlayedEpisodesPreference.isPlayed(this, episodeId)
+                            if (nowPlayed) {
+                                PlayedEpisodesPreference.markUnplayed(this, episodeId)
+                                com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), "Marked as unplayed", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                                    .setAnchorView(findViewById(R.id.playback_controls))
+                                    .show()
+                            } else {
+                                PlayedEpisodesPreference.markPlayed(this, episodeId)
+                                com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), "Marked as played", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                                    .setAnchorView(findViewById(R.id.playback_controls))
+                                    .show()
+                            }
+                            updateUI()
+                            invalidateOptionsMenu()
+                        }
+                        return true
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NowPlayingActivity", "onOptionsItemSelected error: ${'$'}{e.message}")
+            }
+            return super.onOptionsItemSelected(item)
+        }
+
     
     private fun isPlaceholderImage(bitmap: Bitmap): Boolean {
         val width = bitmap.width
@@ -863,7 +975,38 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     private fun toggleFavorite() {
+        // Prefer episode-save (bookmark) whenever an episode is in context (playing or preview).
         val station = PlaybackStateHelper.getCurrentStation()
+        val episodeIdInPlayback = PlaybackStateHelper.getCurrentEpisodeId()
+        val episodeId = previewEpisodeProp?.id ?: episodeIdInPlayback ?: currentShownEpisodeId
+
+        if (!episodeId.isNullOrEmpty()) {
+            // Construct Episode object when necessary (previewEpisodeProp may already be available)
+            val episode = previewEpisodeProp ?: Episode(
+                id = episodeId,
+                title = PlaybackStateHelper.getCurrentShow().episodeTitle ?: PlaybackStateHelper.getCurrentShow().title ?: "Saved episode",
+                description = PlaybackStateHelper.getCurrentShow().description ?: "",
+                audioUrl = "",
+                imageUrl = PlaybackStateHelper.getCurrentShow().imageUrl ?: "",
+                pubDate = "",
+                durationMins = 0,
+                podcastId = station?.id?.removePrefix("podcast_")
+            )
+            val podcastTitle = PlaybackStateHelper.getCurrentStation()?.title ?: supportActionBar?.title?.toString() ?: "Podcast"
+            val nowSaved = SavedEpisodes.toggleSaved(this, episode, podcastTitle)
+            val msg = if (nowSaved) "Saved episode: ${episode.title}" else "Removed saved episode: ${episode.title}"
+            com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                .setAnchorView(findViewById(R.id.playback_controls))
+                .show()
+            // Immediately reflect saved state in the UI (bookmark icon)
+            favoriteButton.icon = ContextCompat.getDrawable(this, if (nowSaved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
+            favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
+            favoriteButton.setBackgroundColor(if (nowSaved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
+            updateUI()
+            return
+        }
+
+        // No episode in context — fall back to station/podcast favorite/subscription behavior
         if (station != null) {
             if (station.id.startsWith("podcast_")) {
                 val podcastId = station.id.removePrefix("podcast_")
@@ -881,7 +1024,7 @@ class NowPlayingActivity : AppCompatActivity() {
             return
         }
 
-        // If in preview mode, operate on the preview episode: save/unsave the episode (distinct from podcast subscription)
+        // If we reach here and previewEpisodeProp exists (defensive), handle it as episode-save
         val preview = previewEpisodeProp
         if (preview != null) {
             val nowSaved = SavedEpisodes.toggleSaved(this, preview, supportActionBar?.title?.toString())
@@ -889,8 +1032,7 @@ class NowPlayingActivity : AppCompatActivity() {
             com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
                 .setAnchorView(findViewById(R.id.playback_controls))
                 .show()
-            // Update icon/background to reflect saved state
-            favoriteButton.icon = ContextCompat.getDrawable(this, if (nowSaved) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
+            favoriteButton.icon = ContextCompat.getDrawable(this, if (nowSaved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
             favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
             favoriteButton.setBackgroundColor(if (nowSaved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
         }
