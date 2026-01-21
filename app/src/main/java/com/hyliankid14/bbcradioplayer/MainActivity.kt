@@ -484,9 +484,23 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Default to Stations
-        favoritesToggle.check(R.id.fav_tab_stations)
-        showFavoritesTab("stations")
+        // Restore last-selected favorites tab (fall back to Stations)
+        val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
+        val LAST_FAV_TAB_KEY = "last_fav_tab_id"
+        val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
+        var lastChecked = prefs.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
+        if (!candidateIds.contains(lastChecked)) lastChecked = R.id.fav_tab_stations
+        try {
+            favoritesToggle.check(lastChecked)
+        } catch (_: Exception) { /* ignore */ }
+        // Ensure UI and section match restored selection
+        updateFavoritesToggleVisuals(lastChecked)
+        when (lastChecked) {
+            R.id.fav_tab_stations -> showFavoritesTab("stations")
+            R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
+            R.id.fav_tab_saved -> showFavoritesTab("saved")
+            R.id.fav_tab_history -> showFavoritesTab("history")
+        }
 
         // Helper to collapse non-selected buttons to icon-only and expand the selected button to show text
         fun updateFavoritesToggleVisuals(selectedId: Int) {
@@ -497,35 +511,68 @@ class MainActivity : AppCompatActivity() {
                 R.id.fav_tab_saved to "Saved",
                 R.id.fav_tab_history to "History"
             )
+            val isTablet = try { resources.getBoolean(com.hyliankid14.bbcradioplayer.R.bool.is_tablet) } catch (_: Exception) { false }
+
             for (id in ids) {
                 try {
                     val btn = findViewById<com.google.android.material.button.MaterialButton>(id)
                     val lp = btn.layoutParams as? android.widget.LinearLayout.LayoutParams
-                    if (id == selectedId) {
-                        btn.text = labels[id]
-                        lp?.width = 0
-                        lp?.weight = 1f
-                        try {
-                            btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
-                        } catch (_: Exception) { }
-                    } else {
+                    if (!isTablet) {
+                        // Phone: always show icon-only collapsed state
                         btn.text = ""
                         lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                         lp?.weight = 0f
+                        try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
+                        btn.contentDescription = labels[id]
+                        // Subtle press feedback for phones
                         try {
-                            btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START
+                            btn.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                            androidx.core.view.ViewCompat.setElevation(btn, 0f)
                         } catch (_: Exception) { }
+                    } else {
+                        // Tablet: expand selected button to show text, collapse others to icon-only
+                        if (id == selectedId) {
+                            // Expanded: occupy remaining space via weight
+                            btn.text = labels[id]
+                            lp?.width = 0
+                            lp?.weight = 1f
+                            try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START } catch (_: Exception) { }
+                            // Fade in text for subtle animation
+                            btn.alpha = 0f
+                            btn.animate().alpha(1f).setDuration(220).start()
+                            btn.contentDescription = labels[id]
+                            // Elevate and slightly scale selected button for emphasis
+                            try {
+                                btn.animate().scaleX(1.02f).scaleY(1.02f).setDuration(200).start()
+                                val d = resources.displayMetrics.density
+                                androidx.core.view.ViewCompat.setElevation(btn, 6f * d)
+                            } catch (_: Exception) { }
+                        } else {
+                            // Collapsed icon-only
+                            btn.text = ""
+                            lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                            lp?.weight = 0f
+                            try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
+                            btn.alpha = 1f
+                            btn.contentDescription = labels[id]
+                            try {
+                                btn.animate().scaleX(1f).scaleY(1f).setDuration(180).start()
+                                androidx.core.view.ViewCompat.setElevation(btn, 0f)
+                            } catch (_: Exception) { }
+                        }
                     }
                     btn.layoutParams = lp
                 } catch (_: Exception) { }
             }
         }
 
-        // Initial visuals
-        updateFavoritesToggleVisuals(R.id.fav_tab_stations)
+        // Initial visuals (restore last selection)
+        updateFavoritesToggleVisuals(lastChecked)
 
         favoritesToggle.addOnButtonCheckedListener { group, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
+            // Persist user's last selection so returning to Favorites restores it
+            try { prefs.edit().putInt(LAST_FAV_TAB_KEY, checkedId).apply() } catch (_: Exception) { }
             updateFavoritesToggleVisuals(checkedId)
             when (checkedId) {
                 R.id.fav_tab_stations -> showFavoritesTab("stations")
