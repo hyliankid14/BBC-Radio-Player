@@ -831,7 +831,10 @@ class NowPlayingActivity : AppCompatActivity() {
                             val now = PodcastSubscriptions.isSubscribed(this, pid)
                             // Prefer explicit station/podcast sources for the display name; fall back safely
                             var podcastName = PlaybackStateHelper.getCurrentStation()?.title
-                                ?: previewEpisodeProp?.podcastTitle
+                                ?: previewEpisodeProp?.podcastId?.let { pid ->
+                                    // Prefer cached podcast title when preview Episode doesn't carry the series title
+                                    PodcastRepository(this).getCachedPodcasts()?.firstOrNull { p -> p.id == pid }?.title
+                                }
                                 ?: supportActionBar?.title?.toString()
                             podcastName = podcastName?.takeIf { it.isNotBlank() } ?: "Podcast"
                             // Guard against accidental template literals appearing in the title
