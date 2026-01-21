@@ -73,6 +73,8 @@ class MainActivity : AppCompatActivity() {
     private var currentTabIndex = 0
     private var savedItemAnimator: androidx.recyclerview.widget.RecyclerView.ItemAnimator? = null
     private var selectionFromSwipe = false
+    // Reference to the active swipe listener so it can be removed when not in the All Stations view
+    private var stationsSwipeListener: RecyclerView.OnItemTouchListener? = null
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     private var miniPlayerUpdateTimer: Thread? = null
@@ -81,7 +83,33 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread { updateMiniPlayerFromShow(show) }
     }
     private val backStackListener = FragmentManager.OnBackStackChangedListener {
-        updateActionBarTitle()
+        // Keep action bar title and bottom navigation in sync when fragments are pushed/popped.
+        try {
+            updateActionBarTitle()
+
+            // If a fragment is visible in the fragment container assume Podcasts context,
+            // otherwise infer the currentMode from which static container is visible.
+            if (fragmentContainer.visibility == View.VISIBLE) {
+                currentMode = "podcasts"
+                try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
+            } else {
+                // Static content visible — decide between Favourites and List/Settings
+                val favToggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+                currentMode = if (stationsView.visibility == View.VISIBLE && favToggle?.visibility == View.VISIBLE) {
+                    try { bottomNavigation.selectedItemId = R.id.navigation_favorites } catch (_: Exception) { }
+                    "favorites"
+                } else {
+                    try { bottomNavigation.selectedItemId = R.id.navigation_list } catch (_: Exception) { }
+                    if (settingsContainer.visibility == View.VISIBLE) "settings" else "list"
+                }
+            }
+
+            // Ensure the favourites toggle visibility is corrected for the inferred mode
+            updateFavoritesToggleVisibility()
+        } catch (_: Exception) {
+            // Defensive: never crash from backstack bookkeeping
+            updateActionBarTitle()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -400,10 +428,21 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) { }
     }
 
+    // Centralise visibility for the favourites toggle group so it's only visible when
+    // the app is actually showing the Favourites page.
+    private fun updateFavoritesToggleVisibility() {
+        try {
+            val toggle = findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group)
+            toggle?.visibility = if (currentMode == "favorites") View.VISIBLE else View.GONE
+        } catch (_: Exception) { }
+    }
+
     private fun showAllStations() {
         // Ensure history UI is hidden when leaving Favorites
         hideHistoryViews()
         currentMode = "list"
+        // Ensure swipe navigation is enabled for the All Stations view
+        setupSwipeNavigation()
         fragmentContainer.visibility = View.GONE
         staticContentContainer.visibility = View.VISIBLE
         stationsView.visibility = View.VISIBLE
@@ -421,10 +460,8 @@ class MainActivity : AppCompatActivity() {
         // Hide subscribed podcasts section (only show in Favorites)
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
         favoritesPodcastsContainer.visibility = View.GONE
-        // Hide the favourites toggle group when showing all stations
-        try {
-            findViewById<MaterialButtonToggleGroup>(R.id.favorites_toggle_group).visibility = View.GONE
-        } catch (_: Exception) { }
+        // Update favourites toggle visibility for this mode
+        try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
         
         // Default to National category
         showCategoryStations(StationCategory.NATIONAL)
@@ -438,6 +475,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFavorites() {
         currentMode = "favorites"
+        // Disable swipe navigation in Favorites
+        disableSwipeNavigation()
         fragmentContainer.visibility = View.GONE
         staticContentContainer.visibility = View.VISIBLE
         stationsView.visibility = View.VISIBLE
@@ -459,7 +498,7 @@ class MainActivity : AppCompatActivity() {
         val historyContainer = findViewById<View>(R.id.favorites_history_container)
         val favoritesToggle = findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group)
         // Ensure the favourites toggle group is visible when in Favorites
-        try { favoritesToggle.visibility = View.VISIBLE } catch (_: Exception) { }
+        try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
 
         // Key for persisting the last-selected Favorites sub-tab (declare once)
         val LAST_FAV_TAB_KEY = "last_fav_tab_id"
@@ -635,6 +674,14 @@ class MainActivity : AppCompatActivity() {
                         // Navigate to podcast detail
                         fragmentContainer.visibility = View.VISIBLE
                         staticContentContainer.visibility = View.GONE
+                        // Ensure the main navigation reflects the Podcasts context
+                        currentMode = "podcasts"
+                        // Disable swipe navigation when leaving All Stations
+                        disableSwipeNavigation()
+                        bottomNavigation.selectedItemId = R.id.navigation_podcasts
+                        updateActionBarTitle()
+                        // Hide the favourites toggle when showing a fragment/detail view
+                        updateFavoritesToggleVisibility()
                         val detailFragment = PodcastDetailFragment().apply {
                             arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) }
                         }
@@ -763,6 +810,12 @@ class MainActivity : AppCompatActivity() {
                                 supportActionBar?.show()
                                 fragmentContainer.visibility = View.VISIBLE
                                 staticContentContainer.visibility = View.GONE
+                                // Ensure the main navigation reflects the Podcasts context
+                                currentMode = "podcasts"
+                                bottomNavigation.selectedItemId = R.id.navigation_podcasts
+                                updateActionBarTitle()
+                                // Hide the favourites toggle when showing a fragment/detail view
+                                updateFavoritesToggleVisibility()
                                 val detailFragment = PodcastDetailFragment().apply { arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) } }
                                 supportFragmentManager.beginTransaction().apply {
                                     replace(R.id.fragment_container, detailFragment)
@@ -823,6 +876,8 @@ class MainActivity : AppCompatActivity() {
     private fun showSettings() {
         // Ensure history UI is hidden when navigating away from Favorites
         hideHistoryViews()
+        // Disable swipe navigation in Settings
+        disableSwipeNavigation()
         currentMode = "settings"
         fragmentContainer.visibility = View.GONE
         staticContentContainer.visibility = View.VISIBLE
@@ -840,19 +895,21 @@ class MainActivity : AppCompatActivity() {
         // Refresh the settings UI so controls reflect current preferences
         setupSettings()
         // Hide favourites toggle group in settings
-        try { findViewById<MaterialButtonToggleGroup>(R.id.favorites_toggle_group).visibility = View.GONE } catch (_: Exception) { }
+        try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
     }
 
     private fun showPodcasts() {
         // Ensure history UI is hidden when navigating away from Favorites
         hideHistoryViews()
+        // Disable swipe navigation in Podcasts
+        disableSwipeNavigation()
         currentMode = "podcasts"
         fragmentContainer.visibility = View.VISIBLE
         staticContentContainer.visibility = View.GONE
         // Hide the global action bar so the Podcasts fragment can present its own search app bar at the top
         supportActionBar?.hide()
         // Hide favourites toggle group when viewing podcasts
-        try { findViewById<MaterialButtonToggleGroup>(R.id.favorites_toggle_group).visibility = View.GONE } catch (_: Exception) { }
+        try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
 
         // Create and show podcasts fragment
         val podcastsFragment = PodcastsFragment()
@@ -878,6 +935,14 @@ class MainActivity : AppCompatActivity() {
 
                     fragmentContainer.visibility = View.VISIBLE
                     staticContentContainer.visibility = View.GONE
+                    // Ensure the main navigation reflects the Podcasts context
+                    currentMode = "podcasts"
+                    // Disable swipe navigation when leaving All Stations
+                    disableSwipeNavigation()
+                    bottomNavigation.selectedItemId = R.id.navigation_podcasts
+                    updateActionBarTitle()
+                    // Hide the favourites toggle when showing a fragment/detail view
+                    updateFavoritesToggleVisibility()
                     val detailFragment = PodcastDetailFragment().apply {
                         arguments = android.os.Bundle().apply { putParcelable("podcast", match) }
                     }
@@ -1241,11 +1306,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSwipeNavigation() {
+        // Remove any existing listener first (allows safe re-entry). Then only attach the swipe handler
+        // when the All Stations view is active — disable for Favorites/Podcasts/Settings.
+        try {
+            stationsSwipeListener?.let { stationsList.removeOnItemTouchListener(it) }
+        } catch (_: Exception) { }
+        stationsSwipeListener = null
+
+        if (currentMode != "list") {
+            // Ensure UI state is reset when not in 'All Stations'
+            try {
+                stationsContent.translationX = 0f
+                stationsList.isNestedScrollingEnabled = true
+                stationsList.itemAnimator = savedItemAnimator
+                savedItemAnimator = null
+            } catch (_: Exception) { }
+            return
+        }
+
         // Use touch slop and velocity to start a drag and make the list follow the finger
         val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
         val minFlingVelocity = android.view.ViewConfiguration.get(this).scaledMinimumFlingVelocity
 
-        stationsList.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
+        val listener = object : RecyclerView.OnItemTouchListener {
             private var downX = 0f
             private var downY = 0f
             private var activePointerId = MotionEvent.INVALID_POINTER_ID
@@ -1397,7 +1480,25 @@ class MainActivity : AppCompatActivity() {
             override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
                 // No-op
             }
-        })
+        }
+
+        stationsSwipeListener = listener
+        stationsList.addOnItemTouchListener(listener)
+    }
+
+    // Disable and remove swipe navigation listener (used when not in All Stations)
+    private fun disableSwipeNavigation() {
+        try {
+            stationsSwipeListener?.let { stationsList.removeOnItemTouchListener(it) }
+        } catch (_: Exception) { }
+        stationsSwipeListener = null
+        try {
+            stationsContent.animate().cancel()
+            stationsContent.translationX = 0f
+            stationsList.isNestedScrollingEnabled = true
+            stationsList.itemAnimator = savedItemAnimator
+            savedItemAnimator = null
+        } catch (_: Exception) { }
     }
 
     private fun navigateToTab(index: Int) {
@@ -1605,6 +1706,8 @@ class MainActivity : AppCompatActivity() {
         
         // Clear show cache and refresh the current view to prevent stale show names
         refreshCurrentView()
+        // Ensure swipe navigation is active if we're in All Stations (defensive restore)
+        try { if (currentMode == "list") setupSwipeNavigation() } catch (_: Exception) { }
 
         // Ensure the action bar reflects the current section when returning from other activities
         updateActionBarTitle()
@@ -1627,6 +1730,8 @@ class MainActivity : AppCompatActivity() {
                 val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
                 try { toggle?.check(lastChecked) } catch (_: Exception) { }
                 updateFavoritesToggleVisuals(lastChecked)
+                // Ensure the toggle's visibility matches the restored mode
+                updateFavoritesToggleVisibility()
                 when (lastChecked) {
                     R.id.fav_tab_stations -> showFavoritesTab("stations")
                     R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")

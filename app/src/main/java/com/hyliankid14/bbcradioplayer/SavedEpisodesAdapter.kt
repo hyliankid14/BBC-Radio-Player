@@ -6,8 +6,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.ProgressBar
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.text.HtmlCompat
+import androidx.core.content.ContextCompat
 
 class SavedEpisodesAdapter(
     private val context: Context,
@@ -23,6 +25,8 @@ class SavedEpisodesAdapter(
         val podcastTitle: TextView? = view.findViewById(R.id.episode_podcast)
         val date: TextView = view.findViewById(R.id.episode_date)
         val duration: TextView? = view.findViewById(R.id.episode_duration)
+        val progressBar: ProgressBar = view.findViewById(R.id.episode_progress_bar)
+        val playedIcon: TextView? = view.findViewById(R.id.episode_played_icon)
         val play: View? = view.findViewById(R.id.episode_play_icon)
     }
 
@@ -80,6 +84,42 @@ class SavedEpisodesAdapter(
             durationMins = e.durationMins,
             podcastId = e.podcastId
         )
+
+        // Playback progress / played-state indicators
+        try {
+            val progressMs = PlayedEpisodesPreference.getProgress(holder.itemView.context, episode.id)
+            val durMs = (episode.durationMins.takeIf { it > 0 } ?: 0) * 60_000L
+            val isPlayed = PlayedEpisodesPreference.isPlayed(holder.itemView.context, episode.id)
+
+            if (!isPlayed && durMs > 0 && progressMs > 0L) {
+                val ratio = (progressMs.toDouble() / durMs.toDouble()).coerceIn(0.0, 1.0)
+                val percent = kotlin.math.round(ratio * 100).toInt()
+                holder.progressBar.progress = percent
+                holder.progressBar.visibility = View.VISIBLE
+            } else {
+                holder.progressBar.visibility = View.GONE
+            }
+
+            if (isPlayed) {
+                holder.playedIcon?.text = "\u2713"
+                holder.playedIcon?.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.episode_check_green))
+                holder.playedIcon?.visibility = View.VISIBLE
+            } else if (durMs > 0 && progressMs > 0L) {
+                val ratio = progressMs.toDouble() / durMs.toDouble()
+                if (ratio < 0.95) {
+                    holder.playedIcon?.text = "~"
+                    holder.playedIcon?.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.episode_tilde_amber))
+                    holder.playedIcon?.visibility = View.VISIBLE
+                } else {
+                    holder.playedIcon?.visibility = View.GONE
+                }
+            } else {
+                holder.playedIcon?.visibility = View.GONE
+            }
+        } catch (_: Exception) {
+            holder.progressBar.visibility = View.GONE
+            holder.playedIcon?.visibility = View.GONE
+        }
 
         holder.play?.setOnClickListener { onPlayEpisode(episode, e.podcastTitle, e.imageUrl) }
         holder.itemView.setOnClickListener { onOpenEpisode(episode, e.podcastTitle, e.imageUrl) }
