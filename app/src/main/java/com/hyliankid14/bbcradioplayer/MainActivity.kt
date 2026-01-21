@@ -342,6 +342,10 @@ class MainActivity : AppCompatActivity() {
             val historyEntries = PlayedHistoryPreference.getHistory(this)
             val historyRecycler = findViewById<RecyclerView>(R.id.favorites_history_recycler)
 
+            // Only reveal the history RecyclerView when the Favorites *History* sub-tab is active.
+            val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+            val historyTabActive = (toggle?.checkedButtonId == R.id.fav_tab_history)
+
             if (historyEntries.isNotEmpty()) {
                 historyRecycler.layoutManager = LinearLayoutManager(this)
                 historyRecycler.isNestedScrollingEnabled = false
@@ -364,11 +368,17 @@ class MainActivity : AppCompatActivity() {
                     startActivity(intent)
                 })
 
+                // Always keep the adapter up-to-date, but only make the views visible when the History sub-tab is selected.
                 historyRecycler.adapter = adapter
-                // Show the recycler and ensure it's scrolled to the top when entries exist
-                historyRecycler.visibility = View.VISIBLE
-                historyContainer.visibility = View.VISIBLE
-                try { historyRecycler.scrollToPosition(0) } catch (_: Exception) { }
+                if (historyTabActive) {
+                    historyRecycler.visibility = View.VISIBLE
+                    historyContainer.visibility = View.VISIBLE
+                    try { historyRecycler.scrollToPosition(0) } catch (_: Exception) { }
+                } else {
+                    // Keep the UI hidden when another Favorites sub-tab is active
+                    historyRecycler.visibility = View.GONE
+                    historyContainer.visibility = View.GONE
+                }
             } else {
                 historyRecycler.adapter = null
                 historyContainer.visibility = View.GONE
@@ -383,6 +393,8 @@ class MainActivity : AppCompatActivity() {
         try {
             val rv = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.favorites_history_recycler)
             val container = findViewById<View>(R.id.favorites_history_container)
+            // Clear adapter defensively to prevent stale items remaining attached after view reparenting
+            try { rv?.adapter = null } catch (_: Exception) { }
             rv?.visibility = View.GONE
             container?.visibility = View.GONE
         } catch (_: Exception) { }
