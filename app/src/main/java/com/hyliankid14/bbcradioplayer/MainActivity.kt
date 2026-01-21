@@ -436,6 +436,9 @@ class MainActivity : AppCompatActivity() {
         // Ensure the favourites toggle group is visible when in Favorites
         try { favoritesToggle.visibility = View.VISIBLE } catch (_: Exception) { }
 
+        // Key for persisting the last-selected Favorites sub-tab (declare once)
+        val LAST_FAV_TAB_KEY = "last_fav_tab_id"
+
         // Ensure the favorites-related containers are near the top of the parent column so they appear
         // above other content when the Favorites view is selected.
         val parent = favoritesPodcastsContainer.parent as? android.view.ViewGroup
@@ -457,7 +460,6 @@ class MainActivity : AppCompatActivity() {
         // Ensure only the last-accessed favorites group is visible immediately (avoid flicker / defaulting)
         try {
             val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
-            val LAST_FAV_TAB_KEY = "last_fav_tab_id"
             val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
             var initialLastChecked = prefs.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
             if (!candidateIds.contains(initialLastChecked)) initialLastChecked = R.id.fav_tab_stations
@@ -564,7 +566,6 @@ class MainActivity : AppCompatActivity() {
 
         // Restore last-selected favorites tab (fall back to Stations)
         val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
-        val LAST_FAV_TAB_KEY = "last_fav_tab_id"
         val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
         var lastChecked = prefs.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
         if (!candidateIds.contains(lastChecked)) lastChecked = R.id.fav_tab_stations
@@ -659,7 +660,6 @@ class MainActivity : AppCompatActivity() {
         // Load subscribed podcasts into Favorites section — do not force visibility unless the Subscribed tab was last-selected
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
         val prefsLocal = getPreferences(android.content.Context.MODE_PRIVATE)
-        val LAST_FAV_TAB_KEY = "last_fav_tab_id"
         val lastFav = prefsLocal.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
 
         if (subscribedIds.isNotEmpty()) {
