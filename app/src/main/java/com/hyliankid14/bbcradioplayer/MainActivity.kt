@@ -77,6 +77,8 @@ class MainActivity : AppCompatActivity() {
     private var stationsSwipeListener: RecyclerView.OnItemTouchListener? = null
     
     private var currentMode = "list" // "favorites", "list", or "settings"
+    // When true, programmatic bottom-navigation selections should not trigger the usual listener actions
+    private var suppressBottomNavSelection = false
     private var miniPlayerUpdateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
@@ -155,6 +157,10 @@ class MainActivity : AppCompatActivity() {
         
         bottomNavigation = findViewById(R.id.bottom_navigation)
         bottomNavigation.setOnItemSelectedListener { item ->
+            // When programmatically selecting a nav item we sometimes want to suppress the
+            // listener's side-effects (caller will handle navigation). Honor that here.
+            if (suppressBottomNavSelection) return@setOnItemSelectedListener true
+
             when (item.itemId) {
                 R.id.navigation_favorites -> {
                     showFavorites()
@@ -678,7 +684,10 @@ class MainActivity : AppCompatActivity() {
                         currentMode = "podcasts"
                         // Disable swipe navigation when leaving All Stations
                         disableSwipeNavigation()
-                        bottomNavigation.selectedItemId = R.id.navigation_podcasts
+                        // Programmatic selection should not trigger the bottom-nav listener (it would replace our fragment)
+                        suppressBottomNavSelection = true
+                        try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
+                        suppressBottomNavSelection = false
                         updateActionBarTitle()
                         // Hide the favourites toggle when showing a fragment/detail view
                         updateFavoritesToggleVisibility()
@@ -812,7 +821,12 @@ class MainActivity : AppCompatActivity() {
                                 staticContentContainer.visibility = View.GONE
                                 // Ensure the main navigation reflects the Podcasts context
                                 currentMode = "podcasts"
-                                bottomNavigation.selectedItemId = R.id.navigation_podcasts
+                                // Disable swipe navigation when leaving All Stations
+                                disableSwipeNavigation()
+                                // Programmatic selection should not trigger the bottom-nav listener
+                                suppressBottomNavSelection = true
+                                try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
+                                suppressBottomNavSelection = false
                                 updateActionBarTitle()
                                 // Hide the favourites toggle when showing a fragment/detail view
                                 updateFavoritesToggleVisibility()
@@ -939,7 +953,10 @@ class MainActivity : AppCompatActivity() {
                     currentMode = "podcasts"
                     // Disable swipe navigation when leaving All Stations
                     disableSwipeNavigation()
-                    bottomNavigation.selectedItemId = R.id.navigation_podcasts
+                    // Programmatic selection should not trigger the bottom-nav listener
+                    suppressBottomNavSelection = true
+                    try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
+                    suppressBottomNavSelection = false
                     updateActionBarTitle()
                     // Hide the favourites toggle when showing a fragment/detail view
                     updateFavoritesToggleVisibility()
