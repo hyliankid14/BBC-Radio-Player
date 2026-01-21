@@ -502,69 +502,7 @@ class MainActivity : AppCompatActivity() {
             R.id.fav_tab_history -> showFavoritesTab("history")
         }
 
-        // Helper to collapse non-selected buttons to icon-only and expand the selected button to show text
-        fun updateFavoritesToggleVisuals(selectedId: Int) {
-            val ids = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
-            val labels = mapOf(
-                R.id.fav_tab_stations to "Stations",
-                R.id.fav_tab_subscribed to "Subscribed",
-                R.id.fav_tab_saved to "Saved",
-                R.id.fav_tab_history to "History"
-            )
-            val isTablet = try { resources.getBoolean(com.hyliankid14.bbcradioplayer.R.bool.is_tablet) } catch (_: Exception) { false }
 
-            for (id in ids) {
-                try {
-                    val btn = findViewById<com.google.android.material.button.MaterialButton>(id)
-                    val lp = btn.layoutParams as? android.widget.LinearLayout.LayoutParams
-                    if (!isTablet) {
-                        // Phone: always show icon-only collapsed state
-                        btn.text = ""
-                        lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                        lp?.weight = 0f
-                        try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
-                        btn.contentDescription = labels[id]
-                        // Subtle press feedback for phones
-                        try {
-                            btn.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                            androidx.core.view.ViewCompat.setElevation(btn, 0f)
-                        } catch (_: Exception) { }
-                    } else {
-                        // Tablet: expand selected button to show text, collapse others to icon-only
-                        if (id == selectedId) {
-                            // Expanded: occupy remaining space via weight
-                            btn.text = labels[id]
-                            lp?.width = 0
-                            lp?.weight = 1f
-                            try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START } catch (_: Exception) { }
-                            // Fade in text for subtle animation
-                            btn.alpha = 0f
-                            btn.animate().alpha(1f).setDuration(220).start()
-                            btn.contentDescription = labels[id]
-                            // Elevate and slightly scale selected button for emphasis
-                            try {
-                                btn.animate().scaleX(1.02f).scaleY(1.02f).setDuration(200).start()
-                                val d = resources.displayMetrics.density
-                                androidx.core.view.ViewCompat.setElevation(btn, 6f * d)
-                            } catch (_: Exception) { }
-                        } else {
-                            // Collapsed icon-only
-                            btn.text = ""
-                            lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                            lp?.weight = 0f
-                            try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
-                            btn.alpha = 1f
-                            btn.contentDescription = labels[id]
-                            try {
-                                btn.animate().scaleX(1f).scaleY(1f).setDuration(180).start()
-                                androidx.core.view.ViewCompat.setElevation(btn, 0f)
-                            } catch (_: Exception) { }
-                        }
-                    }
-                    btn.layoutParams = lp
-                } catch (_: Exception) { }
-            }
-        }
 
         // Initial visuals (restore last selection)
         updateFavoritesToggleVisuals(lastChecked)
@@ -819,6 +757,70 @@ class MainActivity : AppCompatActivity() {
             else -> "All Stations"
         }
         supportActionBar?.title = title
+    }
+
+    // Update visuals for the favorites button group (tablet shows labels; phone icon-only)
+    private fun updateFavoritesToggleVisuals(selectedId: Int) {
+        val ids = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
+        val labels = mapOf(
+            R.id.fav_tab_stations to "Stations",
+            R.id.fav_tab_subscribed to "Subscribed",
+            R.id.fav_tab_saved to "Saved",
+            R.id.fav_tab_history to "History"
+        )
+        val isTablet = try { resources.getBoolean(R.bool.is_tablet) } catch (_: Exception) { false }
+
+        for (id in ids) {
+            try {
+                val btn = findViewById<com.google.android.material.button.MaterialButton>(id)
+                val lp = btn.layoutParams as? android.widget.LinearLayout.LayoutParams
+                if (!isTablet) {
+                    // Phone: always show icon-only collapsed state
+                    btn.text = ""
+                    lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                    lp?.weight = 0f
+                    try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
+                    btn.contentDescription = labels[id]
+                    // Subtle press feedback for phones
+                    try {
+                        btn.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
+                        androidx.core.view.ViewCompat.setElevation(btn, 0f)
+                    } catch (_: Exception) { }
+                } else {
+                    // Tablet: expand selected button to show text, collapse others to icon-only
+                    if (id == selectedId) {
+                        // Expanded: occupy remaining space via weight
+                        btn.text = labels[id]
+                        lp?.width = 0
+                        lp?.weight = 1f
+                        try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START } catch (_: Exception) { }
+                        // Fade in text for subtle animation
+                        btn.alpha = 0f
+                        btn.animate().alpha(1f).setDuration(220).start()
+                        btn.contentDescription = labels[id]
+                        // Elevate and slightly scale selected button for emphasis
+                        try {
+                            btn.animate().scaleX(1.02f).scaleY(1.02f).setDuration(200).start()
+                            val d = resources.displayMetrics.density
+                            androidx.core.view.ViewCompat.setElevation(btn, 6f * d)
+                        } catch (_: Exception) { }
+                    } else {
+                        // Collapsed icon-only
+                        btn.text = ""
+                        lp?.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                        lp?.weight = 0f
+                        try { btn.iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_START } catch (_: Exception) { }
+                        btn.alpha = 1f
+                        btn.contentDescription = labels[id]
+                        try {
+                            btn.animate().scaleX(1f).scaleY(1f).setDuration(180).start()
+                            androidx.core.view.ViewCompat.setElevation(btn, 0f)
+                        } catch (_: Exception) { }
+                    }
+                }
+                btn.layoutParams = lp
+            } catch (_: Exception) { }
+        }
     }
 
     private var filterButtonsSetupTried = false
