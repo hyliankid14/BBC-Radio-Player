@@ -990,7 +990,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 imageUrl = PlaybackStateHelper.getCurrentShow().imageUrl ?: "",
                 pubDate = "",
                 durationMins = 0,
-                podcastId = station?.id?.removePrefix("podcast_")
+                podcastId = (station?.id?.removePrefix("podcast_") ?: previewEpisodeProp?.podcastId).orEmpty()
             )
             val podcastTitle = PlaybackStateHelper.getCurrentStation()?.title ?: supportActionBar?.title?.toString() ?: "Podcast"
             val nowSaved = SavedEpisodes.toggleSaved(this, episode, podcastTitle)
