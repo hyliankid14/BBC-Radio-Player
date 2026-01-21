@@ -490,88 +490,7 @@ class MainActivity : AppCompatActivity() {
         })
         stationsList.adapter = adapter
 
-        // Wire favorites tab group to show/hide the four sub-views
-        fun showFavoritesTab(tab: String) {
-            when (tab) {
-                "stations" -> {
-                    stationsList.visibility = View.VISIBLE
-                    favoritesPodcastsContainer.visibility = View.GONE
-                    savedContainer.visibility = View.GONE
-                    historyContainer.visibility = View.GONE
-                    try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
-                }
-                "subscribed" -> {
-                    stationsList.visibility = View.GONE
-                    favoritesPodcastsContainer.visibility = View.VISIBLE
-                    savedContainer.visibility = View.GONE
-                    historyContainer.visibility = View.GONE
-
-                    // Hide saved episodes recycler while showing subscribed list
-                    try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
-
-                    // Refresh subscribed podcasts list whenever user selects this tab
-                    Thread {
-                        try {
-                            val ids = PodcastSubscriptions.getSubscribedIds(this@MainActivity)
-                            if (ids.isEmpty()) {
-                                runOnUiThread {
-                                    favoritesPodcastsRecycler.adapter = null
-                                }
-                                return@Thread
-                            }
-
-                            val repo = PodcastRepository(this@MainActivity)
-                            val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
-                            var subs = all.filter { ids.contains(it.id) }
-                            val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
-                            subs = subs.sortedByDescending { updates[it.id] ?: 0L }
-                            val newSet = subs.filter { p ->
-                                val latest = updates[p.id] ?: 0L
-                                val lastPlayed = PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
-                                latest > lastPlayed
-                            }.map { it.id }.toSet()
-
-                            runOnUiThread {
-                                val podcastAdapter = PodcastAdapter(this@MainActivity, onPodcastClick = { podcast ->
-                                    supportActionBar?.show()
-                                    fragmentContainer.visibility = View.VISIBLE
-                                    staticContentContainer.visibility = View.GONE
-                                    val detailFragment = PodcastDetailFragment().apply {
-                                        arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) }
-                                    }
-                                    supportFragmentManager.beginTransaction().apply {
-                                        replace(R.id.fragment_container, detailFragment)
-                                        addToBackStack(null)
-                                        commit()
-                                    }
-                                }, highlightSubscribed = true, showSubscribedIcon = false)
-                                favoritesPodcastsRecycler.adapter = podcastAdapter
-                                podcastAdapter.updatePodcasts(subs)
-                                podcastAdapter.updateNewEpisodes(newSet)
-                                favoritesPodcastsRecycler.visibility = View.VISIBLE
-                            }
-                        } catch (_: Exception) { }
-                    }.start()
-                }
-                "saved" -> {
-                    stationsList.visibility = View.GONE
-                    favoritesPodcastsContainer.visibility = View.GONE
-                    savedContainer.visibility = View.VISIBLE
-                    // Reveal the saved episodes recycler when Saved tab is selected
-                    try { savedRecycler.visibility = View.VISIBLE } catch (_: Exception) { }
-                    historyContainer.visibility = View.GONE
-                    try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
-                    try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
-                }
-                "history" -> {
-                    stationsList.visibility = View.GONE
-                    favoritesPodcastsContainer.visibility = View.GONE
-                    savedContainer.visibility = View.GONE
-                    historyContainer.visibility = View.VISIBLE
-                    try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
-                }
-            }
-        }
+        // Wire favorites tab group to show/hide the four sub-views — implementation moved to class-level `showFavoritesTab` to allow reuse from other lifecycle methods.
 
         // Restore last-selected favorites tab (fall back to Stations)
         val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
@@ -775,6 +694,92 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Show the requested Favorites sub-tab. Extracted to class level so it can be called from
+     * lifecycle methods (onResume) and other places outside the original local scope.
+     */
+    private fun showFavoritesTab(tab: String) {
+        when (tab) {
+            "stations" -> {
+                stationsList.visibility = View.VISIBLE
+                findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
+                findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
+                try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
+            }
+            "subscribed" -> {
+                stationsList.visibility = View.GONE
+                findViewById<View>(R.id.favorites_podcasts_container).visibility = View.VISIBLE
+                findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
+                try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
+
+                // Refresh subscribed podcasts list asynchronously
+                Thread {
+                    try {
+                        val ids = PodcastSubscriptions.getSubscribedIds(this@MainActivity)
+                        if (ids.isEmpty()) {
+                            runOnUiThread { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler).adapter = null }
+                            return@Thread
+                        }
+
+                        val repo = PodcastRepository(this@MainActivity)
+                        val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
+                        val podcasts = all.filter { ids.contains(it.id) }
+                        val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(podcasts) } } catch (e: Exception) { emptyMap<String, Long>() }
+                        val sorted = podcasts.sortedByDescending { updates[it.id] ?: 0L }
+                        val itemsPodcasts = sorted.map { p ->
+                            val subtitle = if ((updates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)) "New" else ""
+                            MediaItem(
+                                MediaDescriptionCompat.Builder()
+                                    .setMediaId("podcast_${'$'}{p.id}")
+                                    .setTitle(p.title)
+                                    .setSubtitle(subtitle)
+                                    .setIconUri(android.net.Uri.parse(p.imageUrl))
+                                    .build(),
+                                MediaItem.FLAG_BROWSABLE
+                            )
+                        }
+                        runOnUiThread {
+                            val rv = try { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler) } catch (_: Exception) { null }
+                            rv?.layoutManager = LinearLayoutManager(this@MainActivity)
+                            val podcastAdapter = PodcastAdapter(this@MainActivity, onPodcastClick = { podcast ->
+                                supportActionBar?.show()
+                                fragmentContainer.visibility = View.VISIBLE
+                                staticContentContainer.visibility = View.GONE
+                                val detailFragment = PodcastDetailFragment().apply { arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) } }
+                                supportFragmentManager.beginTransaction().apply {
+                                    replace(R.id.fragment_container, detailFragment)
+                                    addToBackStack(null)
+                                    commit()
+                                }
+                            }, highlightSubscribed = true, showSubscribedIcon = false)
+                            rv?.adapter = podcastAdapter
+                            podcastAdapter.updatePodcasts(sorted)
+                            podcastAdapter.updateNewEpisodes(sorted.map { it.id }.toSet())
+                            rv?.visibility = View.VISIBLE
+                        }
+                    } catch (_: Exception) { }
+                }.start()
+            }
+            "saved" -> {
+                stationsList.visibility = View.GONE
+                findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
+                findViewById<View>(R.id.saved_episodes_container).visibility = View.VISIBLE
+                try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
+                findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
+                try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
+            }
+            "history" -> {
+                stationsList.visibility = View.GONE
+                findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
+                findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                findViewById<View>(R.id.favorites_history_container).visibility = View.VISIBLE
+                try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
+            }
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         try {
@@ -785,29 +790,7 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
-    override fun onResume() {
-        super.onResume()
-        try {
-            // Defensive: when returning to the activity ensure Favorites sub-section visibility matches
-            if (currentMode == "favorites") {
-                val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
-                val lastChecked = prefs.getInt("last_fav_tab_id", R.id.fav_tab_stations)
-                val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
-                // Apply visual state and ensure the corresponding section is visible
-                try { toggle?.check(lastChecked) } catch (_: Exception) { }
-                updateFavoritesToggleVisuals(lastChecked)
-                when (lastChecked) {
-                    R.id.fav_tab_stations -> showFavoritesTab("stations")
-                    R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
-                    R.id.fav_tab_saved -> showFavoritesTab("saved")
-                    R.id.fav_tab_history -> showFavoritesTab("history")
-                }
-                // Ensure saved/history sections are refreshed if they should be visible
-                refreshSavedEpisodesSection()
-                refreshHistorySection()
-            }
-        } catch (_: Exception) { }
-    }
+
 
     override fun onStop() {
         super.onStop()
@@ -1605,6 +1588,26 @@ class MainActivity : AppCompatActivity() {
                 setDisplayShowHomeEnabled(false)
             }
         }
+
+        // If returning to Favorites ensure the last-selected sub-tab is restored and its
+        // content (Saved / History) is refreshed so it doesn't remain hidden after navigation.
+        try {
+            if (currentMode == "favorites") {
+                val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
+                val lastChecked = prefs.getInt("last_fav_tab_id", R.id.fav_tab_stations)
+                val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+                try { toggle?.check(lastChecked) } catch (_: Exception) { }
+                updateFavoritesToggleVisuals(lastChecked)
+                when (lastChecked) {
+                    R.id.fav_tab_stations -> showFavoritesTab("stations")
+                    R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
+                    R.id.fav_tab_saved -> showFavoritesTab("saved")
+                    R.id.fav_tab_history -> showFavoritesTab("history")
+                }
+                refreshSavedEpisodesSection()
+                refreshHistorySection()
+            }
+        } catch (_: Exception) { }
     }
     
     override fun onPause() {
