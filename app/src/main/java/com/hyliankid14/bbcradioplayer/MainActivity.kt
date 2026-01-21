@@ -306,9 +306,18 @@ class MainActivity : AppCompatActivity() {
                 })
 
                 savedRecycler.adapter = savedAdapter
-                // Keep the container hidden by default; the Saved tab will reveal it
-                savedRecycler.visibility = View.GONE
-                savedContainer.visibility = View.GONE
+
+                // Show the saved episodes immediately if the Favorites view is active AND the Saved tab is selected.
+                val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+                val savedTabActive = (currentMode == "favorites" && (toggle?.checkedButtonId == R.id.fav_tab_saved))
+                if (savedTabActive) {
+                    savedRecycler.visibility = View.VISIBLE
+                    savedContainer.visibility = View.VISIBLE
+                } else {
+                    // Keep the container hidden by default; the Saved tab will reveal it when selected
+                    savedRecycler.visibility = View.GONE
+                    savedContainer.visibility = View.GONE
+                }
             } else {
                 savedRecycler.adapter = null
                 savedContainer.visibility = View.GONE
@@ -774,6 +783,30 @@ class MainActivity : AppCompatActivity() {
         try {
             registerReceiver(historyChangedReceiver, android.content.IntentFilter(PlayedHistoryPreference.ACTION_HISTORY_CHANGED))
         } catch (_: Exception) {}
+    }
+
+    override fun onResume() {
+        super.onResume()
+        try {
+            // Defensive: when returning to the activity ensure Favorites sub-section visibility matches
+            if (currentMode == "favorites") {
+                val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
+                val lastChecked = prefs.getInt("last_fav_tab_id", R.id.fav_tab_stations)
+                val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+                // Apply visual state and ensure the corresponding section is visible
+                try { toggle?.check(lastChecked) } catch (_: Exception) { }
+                updateFavoritesToggleVisuals(lastChecked)
+                when (lastChecked) {
+                    R.id.fav_tab_stations -> showFavoritesTab("stations")
+                    R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
+                    R.id.fav_tab_saved -> showFavoritesTab("saved")
+                    R.id.fav_tab_history -> showFavoritesTab("history")
+                }
+                // Ensure saved/history sections are refreshed if they should be visible
+                refreshSavedEpisodesSection()
+                refreshHistorySection()
+            }
+        } catch (_: Exception) { }
     }
 
     override fun onStop() {
@@ -1968,7 +2001,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "playback_prefs", "scrolling_prefs", "theme_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "theme_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)
