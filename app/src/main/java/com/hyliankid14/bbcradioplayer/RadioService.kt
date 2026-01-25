@@ -1982,7 +1982,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         try {
                             currentShowInfo = currentShowInfo.copy(
                                 // prefer an existing episodeTitle (set at play) but fall back to progress snapshot
-                                episodeTitle = currentShowInfo.episodeTitle.ifEmpty { show.episodeTitle },
+                                episodeTitle = (currentShowInfo.episodeTitle ?: "").ifEmpty { show.episodeTitle },
                                 // keep the original imageUrl (series artwork) if present
                                 imageUrl = currentShowInfo.imageUrl ?: show.imageUrl,
                                 segmentStartMs = show.segmentStartMs,
