@@ -1858,11 +1858,16 @@ class MainActivity : AppCompatActivity() {
             
             // Display compact subtitle as: "Show name - Show description" (or fallback).
             val showName = show.title.ifEmpty { station.title }
+            val hasSongData = !show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()
             val showDesc = PlaybackStateHelper.getCurrentShow().episodeTitle?.takeIf { it.isNotEmpty() }
                 ?: show.secondary?.takeIf { it.isNotEmpty() }
                 ?: show.getFormattedTitle().takeIf { it.isNotEmpty() }
                 ?: ""
-            val newTitle = if (showName.isNotEmpty() && showDesc.isNotEmpty() && showDesc != showName) "$showName - $showDesc" else (showDesc.ifEmpty { showName })
+            val newTitle = when {
+                hasSongData -> show.getFormattedTitle() // Artist - Track only
+                showName.isNotEmpty() && showDesc.isNotEmpty() && showDesc != showName -> "$showName - $showDesc"
+                else -> showDesc.ifEmpty { showName }
+            }
             if (miniPlayerSubtitle.text.toString() != newTitle) {
                 miniPlayerSubtitle.text = newTitle
                 miniPlayerSubtitle.isSelected = true // Trigger marquee/scroll

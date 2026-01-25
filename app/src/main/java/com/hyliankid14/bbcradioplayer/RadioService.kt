@@ -951,11 +951,23 @@ class RadioService : MediaBrowserServiceCompat() {
                 currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
 
+            // For compact notifications show the combined subtitle as the content text and
+            // the descriptive/right-hand piece (showDesc / artist-track) as SubText so OEM UIs
+            // that prefer subText still display the descriptive part.
+            val pbShow = PlaybackStateHelper.getCurrentShow()
+            val showDesc = if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
+                val artist = pbShow.secondary ?: ""
+                val track = pbShow.tertiary ?: ""
+                if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else pbShow.getFormattedTitle()
+            } else {
+                (pbShow.episodeTitle ?: currentShowTitle).orEmpty()
+            }
+
             val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(notificationTitle)
                 .setContentText(notificationContentText)
-                // SubText is used by many UIs (including some head‑units) for the second line — set for podcasts
-                .setSubText(notificationContentText)
+                // Set subText to the descriptive piece (improves OEM rendering)
+                .setSubText(showDesc)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -1116,7 +1128,7 @@ val notificationContentText = computeUiSubtitle()
                     val nb = NotificationCompat.Builder(this, CHANNEL_ID)
                         .setContentTitle(notificationTitle)
                         .setContentText(notificationContentText)
-                        .setSubText(notificationContentText)
+                        .setSubText(showDesc)
                         .setSmallIcon(android.R.drawable.ic_media_play)
                         .setLargeIcon(bitmap)
                         .setContentIntent(pendingIntent)
@@ -1590,9 +1602,11 @@ val notificationContentText = computeUiSubtitle()
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistTrackStr.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistTrackStr.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistTrackStr.orEmpty())
-            // Display title: podcast/station as the main top title; display subtitle chosen above
+            // Display title: podcast/station as the main top title; display subtitle is the
+            // descriptive/right-hand piece (showDesc or artist-track) so full-screen UIs present
+            // show.title + episodeTitle correctly while compact UIs can still show combined text.
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle.orEmpty())
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle)
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, showDesc)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
@@ -1673,13 +1687,23 @@ val notificationContentText = computeUiSubtitle()
         }
 
         // Apply the subtitle into PlaybackStateHelper/currentShowInfo so all UI consumers read the same value.
-        // IMPORTANT: store only the *right-hand* descriptive part (showDesc) in episodeTitle so full-screen
-        // UI (which displays show.title + episodeTitle) doesn't duplicate the show name. The combined
-        // string (rawSubtitle) is returned for compact UIs (notification/Android Auto/MediaSession).
+        // For music segments we must store the full "Artist - Track" in episodeTitle so both
+        // the compact and full-screen UIs present the correct right-hand descriptive text.
+        val storedEpisodeTitle: String? = when {
+            // Prefer explicit artist+track when available
+            hasSongData -> {
+                val artist = currentShowInfo.secondary ?: ""
+                val track = currentShowInfo.tertiary ?: ""
+                if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle().ifEmpty { null }
+            }
+            // Non-music: store only the descriptive right-hand part (episodeTitle or secondary)
+            else -> showDesc.ifEmpty { null }
+        }
+
         try {
             val existing = PlaybackStateHelper.getCurrentShow()
-            if ((existing.episodeTitle ?: "") != showDesc) {
-                val applied = currentShowInfo.copy(episodeTitle = if (showDesc.isEmpty()) null else showDesc)
+            if ((existing.episodeTitle ?: "") != (storedEpisodeTitle ?: "")) {
+                val applied = currentShowInfo.copy(episodeTitle = storedEpisodeTitle)
                 PlaybackStateHelper.setCurrentShow(applied)
                 currentShowInfo = applied
                 // Refresh notification/mini-player asynchronously
@@ -2083,10 +2107,17 @@ val notificationContentText = computeUiSubtitle()
                 currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
             val contentText = computeUiSubtitle()
+            val showDesc = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
+                val artist = currentShowInfo.secondary ?: ""
+                val track = currentShowInfo.tertiary ?: ""
+                if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
+            } else {
+                (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+            }
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(titleText)
                 .setContentText(contentText)
-                .setSubText(contentText)
+                .setSubText(showDesc)
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
