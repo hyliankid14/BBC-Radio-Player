@@ -934,20 +934,11 @@ class RadioService : MediaBrowserServiceCompat() {
             )
         }
 
-            val notificationContentText = when {
-                currentStationId.startsWith("podcast_") -> (currentShowInfo.episodeTitle ?: currentShowTitle)
-                !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> {
-                    // For song metadata, show artist and track in the notification title (Artist - Track)
-                    val artist = currentShowInfo.secondary ?: ""
-                    val track = currentShowInfo.tertiary ?: ""
-                    if (artist.isNotEmpty() && track.isNotEmpty()) "$artist — $track" else currentShowInfo.getFormattedTitle()
-                }
-                else -> {
-                    val showName = currentShowName.ifEmpty { currentShowInfo.title }
-                    val showTitle = currentShowTitle.ifEmpty { currentShowInfo.episodeTitle ?: "" }
-                    if (showName.isNotEmpty() && showTitle.isNotEmpty()) "$showName — $showTitle" else (currentShowInfo.description ?: currentShowTitle)
-                }
+            val notificationContentText = computeUiSubtitle().let { sub ->
+                val showName = currentShowName.ifEmpty { currentShowInfo.title }
+                if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
             }
+
             // Use Artist - Track as notification title when available so it is visible in the shade
             val notificationTitle = if (isPodcast) {
                 // For podcasts show podcast name as the notification title
@@ -1110,23 +1101,14 @@ class RadioService : MediaBrowserServiceCompat() {
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
 
-                    val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
-                    val notificationContentText = when {
-                        currentStationId.startsWith("podcast_") -> (currentShowInfo.episodeTitle ?: currentShowTitle)
-                        hasSongData -> {
-                            val artist = currentShowInfo.secondary ?: ""
-                            val track = currentShowInfo.tertiary ?: ""
-                            if (artist.isNotEmpty() && track.isNotEmpty()) "$artist — $track" else currentShowInfo.getFormattedTitle()
-                        }
-                        else -> {
-                            val showName = currentShowName.ifEmpty { currentShowInfo.title }
-                            val showTitle = currentShowTitle.ifEmpty { currentShowInfo.episodeTitle ?: "" }
-                            if (showName.isNotEmpty() && showTitle.isNotEmpty()) "$showName — $showTitle" else (currentShowInfo.description ?: currentShowTitle)
-                        }
+                    val notificationContentText = computeUiSubtitle().let { sub ->
+                        // For live streams prefer "Show Name — Subtitle" when possible to preserve context
+                        val showName = currentShowName.ifEmpty { currentShowInfo.title }
+                        if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
                     }
 
-                    // Use Artist - Track as notification title when available so it is visible in the shade
-                    val notificationTitle = if (hasSongData) {
+                    // Notification title should be Artist - Track for music, otherwise station name
+                    val notificationTitle = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
                         val artist = currentShowInfo.secondary ?: ""
                         val track = currentShowInfo.tertiary ?: ""
                         if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
@@ -1718,6 +1700,49 @@ class RadioService : MediaBrowserServiceCompat() {
         } catch (e: Exception) {
             Log.w(TAG, "Failed to log metadata: ${e.message}")
         }
+
+    }
+
+    // Centralized UI subtitle selection so notification / mini player / Android Auto remain consistent
+    private fun computeUiSubtitle(): String {
+        val isPodcast = currentStationId?.startsWith("podcast_") == true
+        val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
+        val showMain = currentShowTitle.orEmpty()
+        val showAlt = (currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: "").orEmpty()
+
+        return when {
+            isPodcast -> (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+            hasSongData -> {
+                // Artist - Track
+                val artist = currentShowInfo.secondary ?: ""
+                val track = currentShowInfo.tertiary ?: ""
+                if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
+            }
+            // Live stream without song data — possibly cycle between show name and sub-title
+            showMain.isNotEmpty() && showAlt.isNotEmpty() -> {
+                if (!isSubtitleCycling) {
+                    // start cycler
+                    isSubtitleCycling = true
+                    showSubtitleCycleState = 0
+                    subtitleCycleRunnable = object : Runnable {
+                        override fun run() {
+                            try {
+                                showSubtitleCycleState = (showSubtitleCycleState + 1) % 2
+                                updateMediaMetadata()
+                                handler.postDelayed(this, SUBTITLE_CYCLE_MS)
+                            } catch (t: Throwable) {
+                                Log.w(TAG, "subtitleCycleRunnable failed: ${'$'}{t.message}")
+                            }
+                        }
+                    }
+                    handler.postDelayed(subtitleCycleRunnable!!, SUBTITLE_CYCLE_MS)
+                }
+                if (showSubtitleCycleState % 2 == 0) showMain else showAlt
+            }
+            // Fallbacks
+            showMain.ifEmpty { currentShowInfo.title.ifEmpty { "Live Stream" } }
+        }
+    }
     }
 
     private fun stopPlayback() {
@@ -2110,7 +2135,10 @@ class RadioService : MediaBrowserServiceCompat() {
             } else {
                 currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
-            val contentText = if (currentStationId.startsWith("podcast_")) (currentShowInfo.episodeTitle ?: currentShowTitle) else if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) currentShowInfo.getFormattedTitle() else (currentShowInfo.description ?: currentShowTitle)
+            val contentText = computeUiSubtitle().let { sub ->
+                val showName = currentShowName.ifEmpty { currentShowInfo.title }
+                if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
+            }
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(titleText)
                 .setContentText(contentText)
