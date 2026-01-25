@@ -425,17 +425,27 @@ class NowPlayingActivity : AppCompatActivity() {
                     fullDescriptionHtml = rawDesc
                     // Render a spanned preview in the small area so formatting is preserved
                     val spanned = androidx.core.text.HtmlCompat.fromHtml(rawDesc, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY)
-                    artistTrack.text = spanned
-                    artistTrack.maxLines = 4
-                    artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
-                    artistTrack.visibility = android.view.View.VISIBLE
-                    // Check if description exceeds 4 lines
-                    artistTrack.post {
-                        if (artistTrack.lineCount > 4) {
-                            showMoreLink.visibility = android.view.View.VISIBLE
-                        } else {
-                            showMoreLink.visibility = android.view.View.GONE
+
+                    // Avoid showing the same text twice: hide `artistTrack` when the description
+                    // is effectively identical to the episode heading/title shown above.
+                    val episodeHeading = show.episodeTitle?.takeIf { it.isNotEmpty() } ?: show.title
+                    val descPlain = spanned.toString().trim()
+                    if (descPlain.isNotEmpty() && !episodeHeading.isNullOrEmpty() && !descPlain.equals(episodeHeading.trim(), ignoreCase = true)) {
+                        artistTrack.text = spanned
+                        artistTrack.maxLines = 4
+                        artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
+                        artistTrack.visibility = android.view.View.VISIBLE
+                        // Check if description exceeds 4 lines
+                        artistTrack.post {
+                            if (artistTrack.lineCount > 4) {
+                                showMoreLink.visibility = android.view.View.VISIBLE
+                            } else {
+                                showMoreLink.visibility = android.view.View.GONE
+                            }
                         }
+                    } else {
+                        artistTrack.visibility = android.view.View.GONE
+                        showMoreLink.visibility = android.view.View.GONE
                     }
                 } else {
                     artistTrack.visibility = android.view.View.GONE
@@ -560,16 +570,23 @@ class NowPlayingActivity : AppCompatActivity() {
         if (rawDesc.isNotEmpty()) {
             fullDescriptionHtml = rawDesc
             val spanned = androidx.core.text.HtmlCompat.fromHtml(rawDesc, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY)
-            artistTrack.text = spanned
-            artistTrack.maxLines = 4
-            artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
-            artistTrack.visibility = android.view.View.VISIBLE
-            artistTrack.post {
-                if (artistTrack.lineCount > 4) {
-                    showMoreLink.visibility = android.view.View.VISIBLE
-                } else {
-                    showMoreLink.visibility = android.view.View.GONE
+            // Avoid showing the same text twice when the description is just the episode title
+            val descPlain = spanned.toString().trim()
+            if (!descPlain.equals(episode.title.trim(), ignoreCase = true)) {
+                artistTrack.text = spanned
+                artistTrack.maxLines = 4
+                artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
+                artistTrack.visibility = android.view.View.VISIBLE
+                artistTrack.post {
+                    if (artistTrack.lineCount > 4) {
+                        showMoreLink.visibility = android.view.View.VISIBLE
+                    } else {
+                        showMoreLink.visibility = android.view.View.GONE
+                    }
                 }
+            } else {
+                artistTrack.visibility = android.view.View.GONE
+                showMoreLink.visibility = android.view.View.GONE
             }
         } else {
             artistTrack.visibility = android.view.View.GONE

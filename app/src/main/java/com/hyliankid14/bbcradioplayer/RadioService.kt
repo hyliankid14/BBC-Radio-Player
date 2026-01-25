@@ -934,28 +934,37 @@ class RadioService : MediaBrowserServiceCompat() {
             )
         }
 
-            val notificationContentText = computeUiSubtitle().let { sub ->
-                val showName = currentShowName.ifEmpty { currentShowInfo.title }
-                if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
-            }
-
-            // Use Artist - Track as notification title when available so it is visible in the shade
-            val notificationTitle = if (isPodcast) {
-                // For podcasts show podcast name as the notification title
-                currentStationTitle.ifEmpty { "BBC Radio Player" }
-            } else if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
-                val artist = currentShowInfo.secondary ?: ""
-                val track = currentShowInfo.tertiary ?: ""
-                if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
-            } else {
-                currentStationTitle.ifEmpty { "BBC Radio Player" }
-            }
-
-            // For compact notifications show the combined subtitle as the content text and
-            // the descriptive/right-hand piece (showDesc / artist-track) as SubText so OEM UIs
-            // that prefer subText still display the descriptive part.
+            // For podcasts we want: Notification Title = podcast name, ContentText/SubText = episode title.
+            val isPodcast = currentStationId?.startsWith("podcast_") == true
             val pbShow = PlaybackStateHelper.getCurrentShow()
-            val showDesc = if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
+            val episodeTitle = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
+
+            val notificationContentText = if (isPodcast) {
+                // show episode title (avoid repeating podcast name). Empty if unknown.
+                episodeTitle
+            } else {
+                computeUiSubtitle().let { sub ->
+                    val showName = currentShowName.ifEmpty { currentShowInfo.title }
+                    if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
+                }
+            }
+
+            val notificationTitle = when {
+                // Podcasts: podcast name as title
+                isPodcast -> currentStationTitle.ifEmpty { "BBC Radio Player" }
+                // Music segments: Artist - Track preferred
+                !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> {
+                    val artist = currentShowInfo.secondary ?: ""
+                    val track = currentShowInfo.tertiary ?: ""
+                    if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
+                }
+                else -> currentStationTitle.ifEmpty { "BBC Radio Player" }
+            }
+
+            val showDesc = if (isPodcast) {
+                // Ensure subText contains the episode title for OEMs that surface subText
+                episodeTitle
+            } else if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
                 val artist = pbShow.secondary ?: ""
                 val track = pbShow.tertiary ?: ""
                 if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else pbShow.getFormattedTitle()
@@ -1113,7 +1122,11 @@ class RadioService : MediaBrowserServiceCompat() {
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
 
-val notificationContentText = computeUiSubtitle()
+val pbShow = PlaybackStateHelper.getCurrentShow()
+                    val isPodcast = currentStationId.startsWith("podcast_")
+                    val episodeTitle = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
+
+                    val notificationContentText = if (isPodcast) episodeTitle else computeUiSubtitle()
 
                     // Notification title should be Artist - Track for music, otherwise station name
                     val notificationTitle = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
@@ -1125,8 +1138,7 @@ val notificationContentText = computeUiSubtitle()
                     }
 
                     // Compute descriptive piece from the PlaybackStateHelper (authoritative runtime state)
-                    val pbShow = PlaybackStateHelper.getCurrentShow()
-                    val showDesc = if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
+                    val showDesc = if (isPodcast) episodeTitle else if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
                         val artist = pbShow.secondary ?: ""
                         val track = pbShow.tertiary ?: ""
                         if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else pbShow.getFormattedTitle()
@@ -2128,7 +2140,12 @@ val notificationContentText = computeUiSubtitle()
             } else {
                 currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
-            val contentText = computeUiSubtitle()
+            val contentText = if (currentStationId.startsWith("podcast_")) {
+                // For podcasts prefer showing the episode title in the smaller content line
+                (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
+            } else {
+                computeUiSubtitle()
+            }
             val showDesc = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
                 val artist = currentShowInfo.secondary ?: ""
                 val track = currentShowInfo.tertiary ?: ""

@@ -84,12 +84,23 @@ object IndexWorker {
                     // Enrich each episode's description with the podcast title (helps joint queries)
                     val enriched = eps.map { ep -> ep.copy(description = listOfNotNull(ep.description, p.title).joinToString(" ")) }
 
+                    // If there are no episodes for this podcast, treat the podcast as instantly complete
+                    if (enriched.isEmpty()) {
+                        // Advance the episode-phase progress to include this podcast's slice
+                        val completedPct = computeOverallEpisodePercent(i, podcasts.size, 0, 0)
+                        onProgress("Indexed episodes for: ${p.title}", completedPct, true)
+                        continue
+                    }
+
                     // Insert in bounded-size batches via IndexStore.appendEpisodesBatch
                     try {
                         var inserted = 0
-                        var processedInThisPodcast = 0
                         val batchSize = 500
                         val chunks = enriched.chunked(batchSize)
+
+                        // Indicate we're processing this podcast (keep the episode bar indeterminate)
+                        onProgress("Indexing episodes for: ${p.title}", -1, true)
+
                         for (chunk in chunks) {
                             if (!isActive) break
                             val added = try { store.appendEpisodesBatch(chunk) } catch (oom: OutOfMemoryError) {
@@ -100,17 +111,16 @@ object IndexWorker {
                             }
                             inserted += added
                             processedEpisodes += added
-                            processedInThisPodcast += added
-
-                            // Compute overall percent by giving each podcast an equal share of the
-                            // 40..99% episode-range. This guarantees monotonic progression as we
-                            // advance through podcasts regardless of per-podcast episode counts.
-                            val percent = computeOverallEpisodePercent(i, podcasts.size, processedInThisPodcast, enriched.size)
-                            onProgress("Indexing episodes", percent, true)
 
                             // Give SQLite a chance to service other threads / GC
                             try { Thread.yield() } catch (_: Throwable) {}
                         }
+
+                        // When we've finished inserting *all* episodes for this podcast, advance the
+                        // overall episode progress to the podcast-complete mark (no intermediate
+                        // updates while chunking, per user request).
+                        val completedPct = computeOverallEpisodePercent(i, podcasts.size, enriched.size, enriched.size)
+                        onProgress("Indexed episodes for: ${p.title}", completedPct, true)
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to append episodes for ${p.id}: ${e.message}")
                     }
