@@ -1607,7 +1607,10 @@ class RadioService : MediaBrowserServiceCompat() {
         val shouldCycle = !isPodcast && !hasSongData && showMain.isNotEmpty() && showAlt.isNotEmpty()
 
         if (isPodcast) {
-            displaySubtitle = (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+            // Prefer the PlaybackStateHelper's show (updated from the progress runnable) to avoid
+            // brief local state changes clearing the episode subtitle on Android Auto.
+            val pbShow = PlaybackStateHelper.getCurrentShow()
+            displaySubtitle = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
             // podcasts shouldn't use the subtitle cycler
             if (isSubtitleCycling) {
                 subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
@@ -1682,6 +1685,29 @@ class RadioService : MediaBrowserServiceCompat() {
 
         val metadata = metadataBuilder.build()
         mediaSession.setMetadata(metadata)
+
+        // If we're cycling the subtitle for live streams, push the cycled subtitle into the
+        // PlaybackStateHelper and refresh the notification/mini-player so they reflect the change.
+        try {
+            if (!isPodcast && shouldCycle) {
+                val cycledShow = currentShowInfo.copy(episodeTitle = displaySubtitle, segmentStartMs = currentShowInfo.segmentStartMs, segmentDurationMs = currentShowInfo.segmentDurationMs)
+                PlaybackStateHelper.setCurrentShow(cycledShow)
+                // Keep the service-local copy in sync so other code paths read the cycled subtitle
+                currentShowInfo = cycledShow
+                currentShowTitle = currentShowTitle // no-op but keeps intent explicit
+                Log.d(TAG, "Cycled subtitle for UI: $displaySubtitle")
+
+                // Refresh notification/mini-player on main thread
+                try {
+                    handler.post { startForegroundNotification() }
+                } catch (t: Throwable) {
+                    Log.w(TAG, "Failed to refresh notification during subtitle cycle: ${t.message}")
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Error while applying cycled subtitle to PlaybackStateHelper: ${t.message}")
+        }
+
         // Debug log: ensure artist/track fields are present when song data is available
         try {
             val mTitle = metadata.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE)
@@ -1861,8 +1887,21 @@ class RadioService : MediaBrowserServiceCompat() {
                 val COMPLETION_THRESHOLD_FRACTION = 0.95f
                 val isCompletedByProgress = if (episodeDurationMs > 0) savedPosRaw >= (episodeDurationMs * COMPLETION_THRESHOLD_FRACTION).toLong() else false
 
+                // Policy change: when the user explicitly replays an episode that is already marked as
+                // played, start playback from 0 but KEEP the "played" checkmark. Also reset the
+                // persisted progress to 0 so subsequent partial replays will persist new progress and
+                // resume from where the user stopped.
                 val resumePos = if (isMarkedPlayed || isCompletedByProgress) {
-                    Log.d(TAG, "Episode ${episode.id} considered completed (marked=$isMarkedPlayed, savedPos=${savedPosRaw}ms, dur=${episodeDurationMs}ms) — starting from 0 on replay")
+                    Log.d(TAG, "Episode ${episode.id} considered completed (marked=$isMarkedPlayed, savedPos=${savedPosRaw}ms, dur=${episodeDurationMs}ms) — starting from 0 on replay (played flag kept)")
+
+                    try {
+                        // Reset persisted progress to 0 but do NOT clear the played flag.
+                        PlayedEpisodesPreference.setProgress(this@RadioService, episode.id, 0L)
+                        lastSavedProgress[episode.id] = 0L
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "Failed to reset persisted progress for replayed episode ${episode.id}: ${t.message}")
+                    }
+
                     0L
                 } else {
                     savedPosRaw
@@ -1871,6 +1910,9 @@ class RadioService : MediaBrowserServiceCompat() {
                 if (resumePos > 0) {
                     seekTo(resumePos)
                     Log.d(TAG, "Resuming episode ${episode.id} at position ${resumePos}ms")
+                } else {
+                    // Ensure we seek to start explicitly when resumePos == 0 so playback origin is deterministic
+                    seekTo(0L)
                 }
             }
             // Ensure MediaSession metadata contains the podcast artwork URI immediately so UI/mini-player
@@ -1929,7 +1971,28 @@ class RadioService : MediaBrowserServiceCompat() {
                             segmentStartMs = pos,
                             segmentDurationMs = if (dur > 0) dur else null
                         )
+
+                        // Keep the global PlaybackStateHelper up-to-date (for other components) and
+                        // also keep the service-local `currentShowInfo` in sync so `updateMediaMetadata()`
+                        // continues to surface the episode title reliably to Android Auto.
                         PlaybackStateHelper.setCurrentShow(show)
+
+                        // Sync service-local show state but DO NOT overwrite artwork/title with nulls from the
+                        // progress snapshot — preserve existing artwork/episodeTitle where possible.
+                        try {
+                            currentShowInfo = currentShowInfo.copy(
+                                // prefer an existing episodeTitle (set at play) but fall back to progress snapshot
+                                episodeTitle = currentShowInfo.episodeTitle.ifEmpty { show.episodeTitle },
+                                // keep the original imageUrl (series artwork) if present
+                                imageUrl = currentShowInfo.imageUrl ?: show.imageUrl,
+                                segmentStartMs = show.segmentStartMs,
+                                segmentDurationMs = show.segmentDurationMs
+                            )
+                            currentEpisodeTitle = currentShowInfo.episodeTitle ?: currentEpisodeTitle
+                        } catch (t: Throwable) {
+                            Log.w(TAG, "Failed to sync currentShowInfo from progress runnable: ${'$'}{t.message}")
+                        }
+
                         // Check if we should mark the episode as played (>=95%)
                         checkAndMarkEpisodePlayed(episode, pos, dur)
 
