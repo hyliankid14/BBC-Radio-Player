@@ -59,6 +59,13 @@ class RadioService : MediaBrowserServiceCompat() {
     private var pendingShowInfo: CurrentShow? = null
     private var applyShowInfoRunnable: Runnable? = null
     private var podcastProgressRunnable: Runnable? = null
+
+    // Subtitle cycling for head‑units (slowly alternate show name <> show subtitle when no song metadata)
+    private var subtitleCycleRunnable: Runnable? = null
+    private var showSubtitleCycleState: Int = 0
+    private var isSubtitleCycling: Boolean = false
+    private val SUBTITLE_CYCLE_MS: Long = 6_000L // slow cycle (6s) — adjust if needed
+
     private var notificationHadProgress: Boolean = false
     // Track last-saved progress per episode to avoid excessive writes
     private val lastSavedProgress = mutableMapOf<String, Long>()
