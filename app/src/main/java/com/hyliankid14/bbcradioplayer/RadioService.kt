@@ -1740,9 +1740,8 @@ class RadioService : MediaBrowserServiceCompat() {
                 if (showSubtitleCycleState % 2 == 0) showMain else showAlt
             }
             // Fallbacks
-            showMain.ifEmpty { currentShowInfo.title.ifEmpty { "Live Stream" } }
+            else -> showMain.ifEmpty { currentShowInfo.title.ifEmpty { "Live Stream" } }
         }
-    }
     }
 
     private fun stopPlayback() {
