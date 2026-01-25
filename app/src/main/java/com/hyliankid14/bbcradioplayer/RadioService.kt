@@ -1612,10 +1612,10 @@ class RadioService : MediaBrowserServiceCompat() {
         val metadata = metadataBuilder.build()
         mediaSession.setMetadata(metadata)
 
-        // If we're cycling the subtitle for live streams, push the cycled subtitle into the
-        // PlaybackStateHelper and refresh the notification/mini-player so they reflect the change.
+        // If the subtitle cycler is active, push the cycled subtitle into PlaybackStateHelper
+        // and refresh the notification/mini-player so they reflect the change.
         try {
-            if (!isPodcast && shouldCycle) {
+            if (!isPodcast && isSubtitleCycling) {
                 val cycledShow = currentShowInfo.copy(episodeTitle = displaySubtitle, segmentStartMs = currentShowInfo.segmentStartMs, segmentDurationMs = currentShowInfo.segmentDurationMs)
                 PlaybackStateHelper.setCurrentShow(cycledShow)
                 // Keep the service-local copy in sync so other code paths read the cycled subtitle
