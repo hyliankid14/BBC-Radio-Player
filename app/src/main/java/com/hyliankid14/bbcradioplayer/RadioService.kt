@@ -387,6 +387,34 @@ class RadioService : MediaBrowserServiceCompat() {
         return BrowserRoot("root", extras)
     }
 
+    override fun onUnbind(intent: android.content.Intent?): Boolean {
+        // If the Android Auto client (previously recorded in onGetRoot) unbinds, stop playback.
+        // Use the calling UID + package lookup to reduce false positives.
+        try {
+            val uid = android.os.Binder.getCallingUid()
+            if (uid == lastAndroidAutoClientUid) {
+                val pkgs = packageManager.getPackagesForUid(uid) ?: emptyArray()
+                val isAuto = pkgs.any { it.contains(ANDROID_AUTO_CLIENT_HINT, ignoreCase = true) || it.contains("com.google.android.projection") || it.contains("com.android.car") }
+                if (isAuto) {
+                    Log.d(TAG, "Android Auto client disconnected (uid=$uid, pkgs=${'$'}{pkgs.joinToString()}) — stopping playback")
+                    try {
+                        if (PlaybackStateHelper.getIsPlaying()) stopPlayback()
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "Error stopping playback on Auto disconnect: ${'$'}{t.message}")
+                    }
+                    // Clear cached client state
+                    lastAndroidAutoClientUid = null
+                    lastAndroidAutoRefreshMs = 0L
+                    lastAndroidAutoAutoplayMs = 0L
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "onUnbind error: ${'$'}{e.message}")
+        }
+
+        return super.onUnbind(intent)
+    }
+
     private fun maybeHandleAndroidAutoReconnect(clientName: String, clientUid: Int) {
         val isAndroidAutoClient = clientName.contains(ANDROID_AUTO_CLIENT_HINT, ignoreCase = true)
         if (!isAndroidAutoClient) return
@@ -1239,6 +1267,8 @@ class RadioService : MediaBrowserServiceCompat() {
 
         // If switching from a podcast, stop its progress updates and clear episode id so UI stops showing episode/progress
         podcastProgressRunnable?.let { handler.removeCallbacks(it); podcastProgressRunnable = null }
+        // Stop subtitle cycler (if running) when changing station
+        subtitleCycleRunnable?.let { handler.removeCallbacks(it); subtitleCycleRunnable = null; isSubtitleCycling = false }
         PlaybackStateHelper.setCurrentEpisodeId(null)
 
         // Cancel existing show refresh
@@ -1560,6 +1590,62 @@ class RadioService : MediaBrowserServiceCompat() {
             currentShowName.orEmpty()
         }
 
+        // Decide DISPLAY_SUBTITLE for Android Auto / head-units
+        // - Podcast: subtitle = episode title
+        // - Live + song: subtitle = "Artist - Track"
+        // - Live + no song: subtitle cycles slowly between show name and show subtitle (if both available)
+        val displaySubtitle: String
+        val showMain = currentShowTitle.orEmpty()
+        val showAlt = (currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: "").orEmpty()
+        val shouldCycle = !isPodcast && !hasSongData && showMain.isNotEmpty() && showAlt.isNotEmpty()
+
+        if (isPodcast) {
+            displaySubtitle = (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+            // podcasts shouldn't use the subtitle cycler
+            if (isSubtitleCycling) {
+                subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
+                subtitleCycleRunnable = null
+                isSubtitleCycling = false
+            }
+        } else if (hasSongData) {
+            // Ensure Android Auto shows "Artist - Track" as the subtitle when song metadata exists
+            displaySubtitle = artistTrackStr.orEmpty()
+            if (isSubtitleCycling) {
+                subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
+                subtitleCycleRunnable = null
+                isSubtitleCycling = false
+            }
+        } else {
+            if (!shouldCycle) {
+                // No song metadata and nothing to cycle — show the main show title (or fallback)
+                displaySubtitle = showMain.ifEmpty { "Live Stream" }
+                if (isSubtitleCycling) {
+                    subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
+                    subtitleCycleRunnable = null
+                    isSubtitleCycling = false
+                }
+            } else {
+                // Start the slow cycler if not already running and pick the current value based on state
+                if (!isSubtitleCycling) {
+                    isSubtitleCycling = true
+                    showSubtitleCycleState = 0
+                    subtitleCycleRunnable = object : Runnable {
+                        override fun run() {
+                            try {
+                                showSubtitleCycleState = (showSubtitleCycleState + 1) % 2
+                                updateMediaMetadata()
+                                handler.postDelayed(this, SUBTITLE_CYCLE_MS)
+                            } catch (t: Throwable) {
+                                Log.w(TAG, "subtitleCycleRunnable failed: ${'$'}{t.message}")
+                            }
+                        }
+                    }
+                    handler.postDelayed(subtitleCycleRunnable!!, SUBTITLE_CYCLE_MS)
+                }
+                displaySubtitle = if (showSubtitleCycleState % 2 == 0) showMain else showAlt
+            }
+        }
+
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             // Use metadata keys that make Android Auto show correct fields for podcasts and streams
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_MEDIA_ID, mediaIdVal)
@@ -1572,9 +1658,9 @@ class RadioService : MediaBrowserServiceCompat() {
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistTrackStr.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistTrackStr.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistTrackStr.orEmpty())
-            // Display title: podcast/station as the main top title; display subtitle: episode title
+            // Display title: podcast/station as the main top title; display subtitle chosen above
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle.orEmpty())
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty())
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displaySubtitle)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
@@ -1610,6 +1696,8 @@ class RadioService : MediaBrowserServiceCompat() {
         // Cancel show refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
         podcastProgressRunnable?.let { handler.removeCallbacks(it) }
+        // Stop subtitle cycler
+        subtitleCycleRunnable?.let { handler.removeCallbacks(it); subtitleCycleRunnable = null; isSubtitleCycling = false }
         // Cancel any pending delayed Now Playing update
         applyShowInfoRunnable?.let { handler.removeCallbacks(it); applyShowInfoRunnable = null }
         pendingShowInfo = null
@@ -1754,11 +1842,28 @@ class RadioService : MediaBrowserServiceCompat() {
                 // Record the actual playback URI so other components (save logic) can prefer it over any preview URL
                 PlaybackStateHelper.setCurrentMediaUri(episode.audioUrl)
 
-                // If we have a saved progress position, resume from there
-                val savedPos = PlayedEpisodesPreference.getProgress(this@RadioService, episode.id)
-                if (savedPos > 0) {
-                    seekTo(savedPos)
-                    Log.d(TAG, "Resuming episode ${episode.id} at position ${savedPos}ms")
+                // If we have a saved progress position, decide whether to resume or restart.
+                // Requirement: replaying an episode that was already played to completion should start from 0.
+                val savedPosRaw = PlayedEpisodesPreference.getProgress(this@RadioService, episode.id)
+
+                // Consider an episode "completed" when either:
+                //  - it's explicitly marked as played, or
+                //  - saved progress is within COMPLETION_THRESHOLD of the known duration.
+                val isMarkedPlayed = PlayedEpisodesPreference.isPlayed(this@RadioService, episode.id)
+                val episodeDurationMs = (episode.durationMins.takeIf { it > 0 } ?: 0) * 60_000L
+                val COMPLETION_THRESHOLD_FRACTION = 0.95f
+                val isCompletedByProgress = if (episodeDurationMs > 0) savedPosRaw >= (episodeDurationMs * COMPLETION_THRESHOLD_FRACTION).toLong() else false
+
+                val resumePos = if (isMarkedPlayed || isCompletedByProgress) {
+                    Log.d(TAG, "Episode ${episode.id} considered completed (marked=$isMarkedPlayed, savedPos=${savedPosRaw}ms, dur=${episodeDurationMs}ms) — starting from 0 on replay")
+                    0L
+                } else {
+                    savedPosRaw
+                }
+
+                if (resumePos > 0) {
+                    seekTo(resumePos)
+                    Log.d(TAG, "Resuming episode ${episode.id} at position ${resumePos}ms")
                 }
             }
             // Ensure MediaSession metadata contains the podcast artwork URI immediately so UI/mini-player
