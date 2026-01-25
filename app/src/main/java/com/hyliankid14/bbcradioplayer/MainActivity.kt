@@ -1856,8 +1856,10 @@ class MainActivity : AppCompatActivity() {
             miniPlayer.visibility = android.view.View.VISIBLE
             miniPlayerTitle.text = station.title
             
-            // Display formatted show title (primary - secondary - tertiary)
-            val newTitle = show.getFormattedTitle()
+            // Display formatted show subtitle. Prefer an explicit episodeTitle (used by the
+            // service when cycling) — fall back to the formatted title for music/other cases.
+            val preferred = PlaybackStateHelper.getCurrentShow().episodeTitle?.takeIf { it.isNotEmpty() }
+            val newTitle = preferred ?: show.getFormattedTitle()
             if (miniPlayerSubtitle.text.toString() != newTitle) {
                 miniPlayerSubtitle.text = newTitle
                 miniPlayerSubtitle.isSelected = true // Trigger marquee/scroll
@@ -1948,8 +1950,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Update subtitle with formatted show title
-        val newTitle = show.getFormattedTitle()
+        // Update subtitle with formatted show title — prefer service-provided episodeTitle when present
+        val preferred = PlaybackStateHelper.getCurrentShow().episodeTitle?.takeIf { it.isNotEmpty() }
+        val newTitle = preferred ?: show.getFormattedTitle()
         if (miniPlayerSubtitle.text.toString() != newTitle) {
             miniPlayerSubtitle.text = newTitle
             miniPlayerSubtitle.isSelected = true

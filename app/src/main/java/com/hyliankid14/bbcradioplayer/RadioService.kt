@@ -1579,64 +1579,8 @@ class RadioService : MediaBrowserServiceCompat() {
             currentShowName.orEmpty()
         }
 
-        // Decide DISPLAY_SUBTITLE for Android Auto / head-units
-        // - Podcast: subtitle = episode title
-        // - Live + song: subtitle = "Artist - Track"
-        // - Live + no song: subtitle cycles slowly between show name and show subtitle (if both available)
-        val displaySubtitle: String
-        val showMain = currentShowTitle.orEmpty()
-        val showAlt = (currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: "").orEmpty()
-        val shouldCycle = !isPodcast && !hasSongData && showMain.isNotEmpty() && showAlt.isNotEmpty()
-
-        if (isPodcast) {
-            // Prefer the PlaybackStateHelper's show (updated from the progress runnable) to avoid
-            // brief local state changes clearing the episode subtitle on Android Auto.
-            val pbShow = PlaybackStateHelper.getCurrentShow()
-            displaySubtitle = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
-            // podcasts shouldn't use the subtitle cycler
-            if (isSubtitleCycling) {
-                subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
-                subtitleCycleRunnable = null
-                isSubtitleCycling = false
-            }
-        } else if (hasSongData) {
-            // Ensure Android Auto shows "Artist - Track" as the subtitle when song metadata exists
-            displaySubtitle = artistTrackStr.orEmpty()
-            if (isSubtitleCycling) {
-                subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
-                subtitleCycleRunnable = null
-                isSubtitleCycling = false
-            }
-        } else {
-            if (!shouldCycle) {
-                // No song metadata and nothing to cycle — show the main show title (or fallback)
-                displaySubtitle = showMain.ifEmpty { "Live Stream" }
-                if (isSubtitleCycling) {
-                    subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
-                    subtitleCycleRunnable = null
-                    isSubtitleCycling = false
-                }
-            } else {
-                // Start the slow cycler if not already running and pick the current value based on state
-                if (!isSubtitleCycling) {
-                    isSubtitleCycling = true
-                    showSubtitleCycleState = 0
-                    subtitleCycleRunnable = object : Runnable {
-                        override fun run() {
-                            try {
-                                showSubtitleCycleState = (showSubtitleCycleState + 1) % 2
-                                updateMediaMetadata()
-                                handler.postDelayed(this, SUBTITLE_CYCLE_MS)
-                            } catch (t: Throwable) {
-                                Log.w(TAG, "subtitleCycleRunnable failed: ${'$'}{t.message}")
-                            }
-                        }
-                    }
-                    handler.postDelayed(subtitleCycleRunnable!!, SUBTITLE_CYCLE_MS)
-                }
-                displaySubtitle = if (showSubtitleCycleState % 2 == 0) showMain else showAlt
-            }
-        }
+        // Compute the subtitle (centralized) and let computeUiSubtitle() keep PlaybackStateHelper in sync.
+        val displaySubtitle = computeUiSubtitle()
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             // Use metadata keys that make Android Auto show correct fields for podcasts and streams
@@ -1710,38 +1654,62 @@ class RadioService : MediaBrowserServiceCompat() {
         val showMain = currentShowTitle.orEmpty()
         val showAlt = (currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: "").orEmpty()
 
-        return when {
+        // Determine the raw subtitle value
+        val rawSubtitle = when {
             isPodcast -> (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
             hasSongData -> {
-                // Artist - Track
                 val artist = currentShowInfo.secondary ?: ""
                 val track = currentShowInfo.tertiary ?: ""
                 if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
             }
-            // Live stream without song data — possibly cycle between show name and sub-title
             showMain.isNotEmpty() && showAlt.isNotEmpty() -> {
-                if (!isSubtitleCycling) {
-                    // start cycler
-                    isSubtitleCycling = true
-                    showSubtitleCycleState = 0
-                    subtitleCycleRunnable = object : Runnable {
-                        override fun run() {
-                            try {
-                                showSubtitleCycleState = (showSubtitleCycleState + 1) % 2
-                                updateMediaMetadata()
-                                handler.postDelayed(this, SUBTITLE_CYCLE_MS)
-                            } catch (t: Throwable) {
-                                Log.w(TAG, "subtitleCycleRunnable failed: ${'$'}{t.message}")
-                            }
-                        }
-                    }
-                    handler.postDelayed(subtitleCycleRunnable!!, SUBTITLE_CYCLE_MS)
-                }
+                if (!isSubtitleCycling) startSubtitleCycler()
                 if (showSubtitleCycleState % 2 == 0) showMain else showAlt
             }
-            // Fallbacks
             else -> showMain.ifEmpty { currentShowInfo.title.ifEmpty { "Live Stream" } }
         }
+
+        // If we're not in a cycling scenario, ensure any running cycler is stopped to avoid
+        // stale callbacks updating UI unexpectedly.
+        val isCyclingCase = !isPodcast && !hasSongData && showMain.isNotEmpty() && showAlt.isNotEmpty()
+        if (!isCyclingCase && isSubtitleCycling) {
+            subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
+            subtitleCycleRunnable = null
+            isSubtitleCycling = false
+        }
+
+        // Apply the subtitle into PlaybackStateHelper/currentShowInfo so all UI consumers read the same value.
+        try {
+            val existing = PlaybackStateHelper.getCurrentShow()
+            if ((existing.episodeTitle ?: "") != rawSubtitle) {
+                val applied = currentShowInfo.copy(episodeTitle = if (rawSubtitle.isEmpty()) null else rawSubtitle)
+                PlaybackStateHelper.setCurrentShow(applied)
+                currentShowInfo = applied
+                // Refresh notification/mini-player asynchronously
+                handler.post { startForegroundNotification() }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to apply UI subtitle to PlaybackStateHelper: ${t.message}")
+        }
+
+        return rawSubtitle
+    }
+
+    private fun startSubtitleCycler() {
+        isSubtitleCycling = true
+        showSubtitleCycleState = 0
+        subtitleCycleRunnable = object : Runnable {
+            override fun run() {
+                try {
+                    showSubtitleCycleState = (showSubtitleCycleState + 1) % 2
+                    updateMediaMetadata()
+                    handler.postDelayed(this, SUBTITLE_CYCLE_MS)
+                } catch (t: Throwable) {
+                    Log.w(TAG, "subtitleCycleRunnable failed: ${t.message}")
+                }
+            }
+        }
+        handler.postDelayed(subtitleCycleRunnable!!, SUBTITLE_CYCLE_MS)
     }
 
     private fun stopPlayback() {
