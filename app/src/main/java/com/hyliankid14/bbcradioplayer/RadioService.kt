@@ -1654,7 +1654,8 @@ class RadioService : MediaBrowserServiceCompat() {
         val showMain = currentShowTitle.orEmpty()
         val showAlt = (currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: "").orEmpty()
 
-        // Determine the raw subtitle value
+        // Simplified behaviour requested by UX: do NOT cycle. When no song data is present
+        // display "Show title - Show description" (same format as "Artist - Track").
         val rawSubtitle = when {
             isPodcast -> (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
             hasSongData -> {
@@ -1662,17 +1663,13 @@ class RadioService : MediaBrowserServiceCompat() {
                 val track = currentShowInfo.tertiary ?: ""
                 if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
             }
-            showMain.isNotEmpty() && showAlt.isNotEmpty() -> {
-                if (!isSubtitleCycling) startSubtitleCycler()
-                if (showSubtitleCycleState % 2 == 0) showMain else showAlt
-            }
+            // Live stream without song data: show "Show title - Show description" when both present
+            showMain.isNotEmpty() && showAlt.isNotEmpty() -> "$showMain - $showAlt"
             else -> showMain.ifEmpty { currentShowInfo.title.ifEmpty { "Live Stream" } }
         }
 
-        // If we're not in a cycling scenario, ensure any running cycler is stopped to avoid
-        // stale callbacks updating UI unexpectedly.
-        val isCyclingCase = !isPodcast && !hasSongData && showMain.isNotEmpty() && showAlt.isNotEmpty()
-        if (!isCyclingCase && isSubtitleCycling) {
+        // Ensure any existing cycler is stopped (defensive cleanup after removing cycling behavior)
+        if (isSubtitleCycling) {
             subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
             subtitleCycleRunnable = null
             isSubtitleCycling = false
@@ -1693,23 +1690,6 @@ class RadioService : MediaBrowserServiceCompat() {
         }
 
         return rawSubtitle
-    }
-
-    private fun startSubtitleCycler() {
-        isSubtitleCycling = true
-        showSubtitleCycleState = 0
-        subtitleCycleRunnable = object : Runnable {
-            override fun run() {
-                try {
-                    showSubtitleCycleState = (showSubtitleCycleState + 1) % 2
-                    updateMediaMetadata()
-                    handler.postDelayed(this, SUBTITLE_CYCLE_MS)
-                } catch (t: Throwable) {
-                    Log.w(TAG, "subtitleCycleRunnable failed: ${t.message}")
-                }
-            }
-        }
-        handler.postDelayed(subtitleCycleRunnable!!, SUBTITLE_CYCLE_MS)
     }
 
     private fun stopPlayback() {
