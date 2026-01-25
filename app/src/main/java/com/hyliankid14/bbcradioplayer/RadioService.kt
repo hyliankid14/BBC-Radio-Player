@@ -1123,6 +1123,17 @@ val notificationContentText = computeUiSubtitle()
                     } else {
                         currentStationTitle.ifEmpty { "BBC Radio Player" }
                     }
+
+                    // Compute descriptive piece from the PlaybackStateHelper (authoritative runtime state)
+                    val pbShow = PlaybackStateHelper.getCurrentShow()
+                    val showDesc = if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
+                        val artist = pbShow.secondary ?: ""
+                        val track = pbShow.tertiary ?: ""
+                        if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else pbShow.getFormattedTitle()
+                    } else {
+                        (pbShow.episodeTitle ?: currentShowTitle).orEmpty()
+                    }
+
                     // Build the NotificationCompat.Builder first so we can clear any lingering
                     // progress only when necessary (avoids triggering OEM bugs).
                     val nb = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -1589,6 +1600,17 @@ val notificationContentText = computeUiSubtitle()
 
         // Compute the subtitle (centralized) and let computeUiSubtitle() keep PlaybackStateHelper in sync.
         val displaySubtitle = computeUiSubtitle()
+
+        // Compute the descriptive/right-hand piece (showDesc) from the authoritative PlaybackStateHelper
+        // so both MediaSession metadata and notifications expose the same value.
+        val pbShow = PlaybackStateHelper.getCurrentShow()
+        val showDesc = if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
+            val artist = pbShow.secondary ?: ""
+            val track = pbShow.tertiary ?: ""
+            if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else pbShow.getFormattedTitle()
+        } else {
+            (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+        }
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             // Use metadata keys that make Android Auto show correct fields for podcasts and streams
