@@ -1101,11 +1101,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
 
-                    val notificationContentText = computeUiSubtitle().let { sub ->
-                        // For live streams prefer "Show Name — Subtitle" when possible to preserve context
-                        val showName = currentShowName.ifEmpty { currentShowInfo.title }
-                        if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
-                    }
+val notificationContentText = computeUiSubtitle()
 
                     // Notification title should be Artist - Track for music, otherwise station name
                     val notificationTitle = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
@@ -1651,11 +1647,13 @@ class RadioService : MediaBrowserServiceCompat() {
     private fun computeUiSubtitle(): String {
         val isPodcast = currentStationId?.startsWith("podcast_") == true
         val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
-        val showMain = currentShowTitle.orEmpty()
-        val showAlt = (currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: "").orEmpty()
+        // Use the actual programme/show name (not the formatted title) as the left-hand part
+        val showName = currentShowName.orEmpty()
+        // Prefer episodeTitle/secondary as the descriptive right-hand part, fall back to formatted title
+        val showDesc = (currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: currentShowTitle ?: "").orEmpty()
 
-        // Simplified behaviour requested by UX: do NOT cycle. When no song data is present
-        // display "Show title - Show description" (same format as "Artist - Track").
+        // Simplified behaviour: do NOT cycle. For live streams without song metadata show
+        // "Show name - Show description" when both are available.
         val rawSubtitle = when {
             isPodcast -> (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
             hasSongData -> {
@@ -1663,12 +1661,11 @@ class RadioService : MediaBrowserServiceCompat() {
                 val track = currentShowInfo.tertiary ?: ""
                 if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
             }
-            // Live stream without song data: show "Show title - Show description" when both present
-            showMain.isNotEmpty() && showAlt.isNotEmpty() -> "$showMain - $showAlt"
-            else -> showMain.ifEmpty { currentShowInfo.title.ifEmpty { "Live Stream" } }
+            showName.isNotEmpty() && showDesc.isNotEmpty() -> "$showName - $showDesc"
+            else -> showDesc.ifEmpty { showName.ifEmpty { currentShowInfo.title.ifEmpty { "Live Stream" } } }
         }
 
-        // Ensure any existing cycler is stopped (defensive cleanup after removing cycling behavior)
+        // Defensive: cancel any leftover cycler state
         if (isSubtitleCycling) {
             subtitleCycleRunnable?.let { handler.removeCallbacks(it) }
             subtitleCycleRunnable = null
@@ -2082,10 +2079,7 @@ class RadioService : MediaBrowserServiceCompat() {
             } else {
                 currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
-            val contentText = computeUiSubtitle().let { sub ->
-                val showName = currentShowName.ifEmpty { currentShowInfo.title }
-                if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
-            }
+            val contentText = computeUiSubtitle()
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(titleText)
                 .setContentText(contentText)
