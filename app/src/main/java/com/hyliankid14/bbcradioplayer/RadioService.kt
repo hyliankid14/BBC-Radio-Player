@@ -935,7 +935,6 @@ class RadioService : MediaBrowserServiceCompat() {
         }
 
             // For podcasts we want: Notification Title = podcast name, ContentText/SubText = episode title.
-            val isPodcast = currentStationId?.startsWith("podcast_") == true
             val pbShow = PlaybackStateHelper.getCurrentShow()
             val episodeTitle = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
 
