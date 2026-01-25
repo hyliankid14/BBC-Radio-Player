@@ -1856,10 +1856,13 @@ class MainActivity : AppCompatActivity() {
             miniPlayer.visibility = android.view.View.VISIBLE
             miniPlayerTitle.text = station.title
             
-            // Display formatted show subtitle. Prefer an explicit episodeTitle (used by the
-            // service when cycling) — fall back to the formatted title for music/other cases.
-            val preferred = PlaybackStateHelper.getCurrentShow().episodeTitle?.takeIf { it.isNotEmpty() }
-            val newTitle = preferred ?: show.getFormattedTitle()
+            // Display compact subtitle as: "Show name - Show description" (or fallback).
+            val showName = show.title.ifEmpty { station.title }
+            val showDesc = PlaybackStateHelper.getCurrentShow().episodeTitle?.takeIf { it.isNotEmpty() }
+                ?: show.secondary?.takeIf { it.isNotEmpty() }
+                ?: show.getFormattedTitle().takeIf { it.isNotEmpty() }
+                ?: ""
+            val newTitle = if (showName.isNotEmpty() && showDesc.isNotEmpty() && showDesc != showName) "$showName - $showDesc" else (showDesc.ifEmpty { showName })
             if (miniPlayerSubtitle.text.toString() != newTitle) {
                 miniPlayerSubtitle.text = newTitle
                 miniPlayerSubtitle.isSelected = true // Trigger marquee/scroll
@@ -1950,9 +1953,13 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Update subtitle with formatted show title — prefer service-provided episodeTitle when present
-        val preferred = PlaybackStateHelper.getCurrentShow().episodeTitle?.takeIf { it.isNotEmpty() }
-        val newTitle = preferred ?: show.getFormattedTitle()
+        // Update subtitle with compact "Show name - Show description" (consistent with notification)
+        val showName = show.title.ifEmpty { PlaybackStateHelper.getCurrentStation()?.title ?: "" }
+        val showDesc = PlaybackStateHelper.getCurrentShow().episodeTitle?.takeIf { it.isNotEmpty() }
+            ?: show.secondary?.takeIf { it.isNotEmpty() }
+            ?: show.getFormattedTitle().takeIf { it.isNotEmpty() }
+            ?: ""
+        val newTitle = if (showName.isNotEmpty() && showDesc.isNotEmpty() && showDesc != showName) "$showName - $showDesc" else (showDesc.ifEmpty { showName })
         if (miniPlayerSubtitle.text.toString() != newTitle) {
             miniPlayerSubtitle.text = newTitle
             miniPlayerSubtitle.isSelected = true

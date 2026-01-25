@@ -1673,10 +1673,13 @@ val notificationContentText = computeUiSubtitle()
         }
 
         // Apply the subtitle into PlaybackStateHelper/currentShowInfo so all UI consumers read the same value.
+        // IMPORTANT: store only the *right-hand* descriptive part (showDesc) in episodeTitle so full-screen
+        // UI (which displays show.title + episodeTitle) doesn't duplicate the show name. The combined
+        // string (rawSubtitle) is returned for compact UIs (notification/Android Auto/MediaSession).
         try {
             val existing = PlaybackStateHelper.getCurrentShow()
-            if ((existing.episodeTitle ?: "") != rawSubtitle) {
-                val applied = currentShowInfo.copy(episodeTitle = if (rawSubtitle.isEmpty()) null else rawSubtitle)
+            if ((existing.episodeTitle ?: "") != showDesc) {
+                val applied = currentShowInfo.copy(episodeTitle = if (showDesc.isEmpty()) null else showDesc)
                 PlaybackStateHelper.setCurrentShow(applied)
                 currentShowInfo = applied
                 // Refresh notification/mini-player asynchronously
