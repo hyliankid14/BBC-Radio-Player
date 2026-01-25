@@ -1683,7 +1683,18 @@ class MainActivity : AppCompatActivity() {
                                 } else {
                                     indexEpisodesProgress.isIndeterminate = false
                                     indexEpisodesProgress.max = 100
-                                    indexEpisodesProgress.progress = percent.coerceIn(0, 100)
+                                    val target = percent.coerceIn(0, 100)
+                                    val current = indexEpisodesProgress.progress
+                                    // Animate forward progress for a smoother visual experience; fall
+                                    // back to immediate set if target is not greater than current.
+                                    if (target > current) {
+                                        android.animation.ObjectAnimator.ofInt(indexEpisodesProgress, "progress", current, target).apply {
+                                            duration = 300
+                                            interpolator = android.view.animation.DecelerateInterpolator()
+                                        }.start()
+                                    } else {
+                                        indexEpisodesProgress.progress = target
+                                    }
                                 }
                             } else {
                                 indexEpisodesProgress.visibility = android.view.View.GONE

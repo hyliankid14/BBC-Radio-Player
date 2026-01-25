@@ -495,7 +495,7 @@ class PodcastsFragment : Fragment() {
                 // (prefetching all podcasts was too expensive and caused slowdown).
                 viewLifecycleOwner.lifecycleScope.launch {
                     try {
-                        val prefetchCount = Math.min(20, allPodcasts.size)
+                        val prefetchCount = Math.min(100, allPodcasts.size)
                         withContext(Dispatchers.IO) { repository.prefetchEpisodesForPodcasts(allPodcasts.take(prefetchCount), limit = prefetchCount) }
                         android.util.Log.d("PodcastsFragment", "Prefetched episode metadata for top $prefetchCount podcasts")
                     } catch (e: Exception) {
@@ -859,7 +859,7 @@ class PodcastsFragment : Fragment() {
                     val sortedList = when (currentSort) {
                         "Most popular" -> filtered.sortedWith(
                             compareBy<Podcast> { getPopularRank(it) }
-                                .thenByDescending { if (getPopularRank(it) > 20) cachedUpdates[it.id] ?: 0L else 0L }
+                                .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: 0L else 0L }
                         )
                         "Most recent" -> filtered.sortedByDescending { cachedUpdates[it.id] ?: 0L }
                         "Alphabetical (A-Z)" -> filtered.sortedBy { it.title }
@@ -1122,31 +1122,111 @@ class PodcastsFragment : Fragment() {
         for ((key, rank) in POPULAR_RANKING) {
             if (podcast.title.equals(key, ignoreCase = true)) return rank
         }
-        return 21
+        return 101
     }
 
     companion object {
         private val POPULAR_RANKING = mapOf(
             "Global News Podcast" to 1,
-            "6 Minute English" to 2,
-            "The Documentary Podcast" to 3,
-            "Newscast" to 4,
-            "In Our Time" to 5,
-            "Newshour" to 6,
-            "Desert Island Discs" to 7,
-            "Learning English Conversations" to 8,
-            "The Archers" to 9,
-            "You're Dead to Me" to 10,
-            "Football Daily" to 11,
-            "Americast" to 12,
-            "Elis James and John Robins" to 13,
-            "The Infinite Monkey Cage" to 14,
-            "Learning Easy English" to 15,
-            "Test Match Special" to 16,
-            "Friday Night Comedy from BBC Radio 4" to 17,
-            "Rugby Union Weekly" to 18,
-            "World Business Report" to 19,
-            "Woman's Hour" to 20
+            "Football Daily" to 2,
+            "Newshour" to 3,
+            "Radio 1's All Day Breakfast with Greg James" to 4,
+            "Test Match Special" to 5,
+            "Best of Nolan" to 6,
+            "Rugby Union Weekly" to 7,
+            "Wake Up To Money" to 8,
+            "Ten To The Top" to 9,
+            "Witness History" to 10,
+            "Focus on Africa" to 11,
+            "BBC Music Introducing Mixtape" to 12,
+            "F1: Chequered Flag" to 13,
+            "BBC Introducing in Oxfordshire & Berkshire" to 14,
+            "Business Daily" to 15,
+            "Americast" to 16,
+            "CrowdScience" to 17,
+            "The Interview" to 18,
+            "Six O'Clock News" to 19,
+            "Science In Action" to 20,
+            "Today in Parliament" to 21,
+            "Talkback" to 22,
+            "Access All: Disability News and Mental Health" to 23,
+            "Fighting Talk" to 24,
+            "World Business Report" to 25,
+            "Business Matters" to 26,
+            "Tailenders" to 27,
+            "Moral Maze" to 28,
+            "Any Questions? and Any Answers?" to 29,
+            "Health Check" to 30,
+            "Friday Night Comedy from BBC Radio 4" to 31,
+            "BBC Inside Science" to 32,
+            "People Fixing the World" to 33,
+            "Add to Playlist" to 34,
+            "In Touch" to 35,
+            "Limelight" to 36,
+            "Evil Genius with Russell Kane" to 37,
+            "Africa Daily" to 38,
+            "Broadcasting House" to 39,
+            "From Our Own Correspondent" to 40,
+            "Newscast" to 41,
+            "Derby County" to 42,
+            "Learning English Stories" to 43,
+            "Tech Life" to 44,
+            "World Football" to 45,
+            "Private Passions" to 46,
+            "Sunday Supplement" to 47,
+            "Drama of the Week" to 48,
+            "Sporting Witness" to 49,
+            "File on 4 Investigates" to 50,
+            "Nottingham Forest: Shut Up and Show More Football" to 51,
+            "Soul Music" to 52,
+            "Westminster Hour" to 53,
+            "Inside Health" to 54,
+            "5 Live's World Football Phone-in" to 55,
+            "Over to You" to 56,
+            "Political Thinking with Nick Robinson" to 57,
+            "Sport's Strangest Crimes" to 58,
+            "Inheritance Tracks" to 59,
+            "The Archers" to 60,
+            "Profile" to 61,
+            "Sacked in the Morning" to 62,
+            "The World Tonight" to 63,
+            "Record Review Podcast" to 64,
+            "Composer of the Week" to 65,
+            "Short Cuts" to 66,
+            "The History Hour" to 67,
+            "The Archers Omnibus" to 68,
+            "The Lazarus Heist" to 69,
+            "Bad People" to 70,
+            "Jill Scott's Coffee Club" to 71,
+            "5 Live Boxing with Steve Bunce" to 72,
+            "Unexpected Elements" to 73,
+            "The Inquiry" to 74,
+            "Not by the Playbook" to 75,
+            "The Bottom Line" to 76,
+            "Stumped" to 77,
+            "Sliced Bread" to 78,
+            "Sound of Cinema" to 79,
+            "5 Live News Specials" to 80,
+            "Comedy of the Week" to 81,
+            "Curious Cases" to 82,
+            "Breaking the News" to 83,
+            "The Skewer" to 84,
+            "5 Live Sport: All About..." to 85,
+            "The Briefing Room" to 86,
+            "The Early Music Show" to 87,
+            "The Life Scientific" to 88,
+            "5 Live Rugby League" to 89,
+            "Learning English from the News" to 90,
+            "The GAA Social" to 91,
+            "Sportsworld" to 92,
+            "Assume Nothing" to 93,
+            "The LGBT Sport Podcast" to 94,
+            "Fairy Meadow" to 95,
+            "Kermode and Mayo's Film Review" to 96,
+            "In Our Time: History" to 97,
+            "Digital Planet" to 98,
+            "Just One Thing - with Michael Mosley" to 99,
+            "Scientifically..." to 100
         )
     }
 }

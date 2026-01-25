@@ -16,6 +16,26 @@ import kotlinx.coroutines.isActive
 object IndexWorker {
     private const val TAG = "IndexWorker"
 
+    /**
+     * Compute a monotonic overall percent for episode-indexing by giving each podcast an
+     * equal slice of the 40..99% range. Designed to be lightweight (no extra network I/O)
+     * and predictable so the UI never moves backwards when later podcasts add more
+     * episodes than earlier ones.
+     *
+     * Parameters are 0-based podcastIndex, total podcastsCount, number processed in the
+     * current podcast and the current podcast's episode count. Returns an int in [40,99].
+     */
+    internal fun computeOverallEpisodePercent(podcastIndex: Int, podcastsCount: Int, processedInPodcast: Int, podcastEpisodeCount: Int): Int {
+        if (podcastsCount <= 0) return 100
+        val base = 40.0
+        val totalRange = 59.0 // map episodes to 40..99
+        val weightPerPodcast = totalRange / podcastsCount.toDouble()
+        val idx = podcastIndex.coerceIn(0, podcastsCount - 1)
+        val perPodcastProgress = if (podcastEpisodeCount <= 0) 1.0 else (processedInPodcast.toDouble() / podcastEpisodeCount.toDouble()).coerceIn(0.0, 1.0)
+        val pct = base + (idx * weightPerPodcast) + (perPodcastProgress * weightPerPodcast)
+        return pct.toInt().coerceIn(40, 99)
+    }
+
     suspend fun reindexAll(context: Context, onProgress: (String, Int, Boolean) -> Unit = { _, _, _ -> }) {
         withContext(Dispatchers.IO) {
             try {
@@ -56,6 +76,9 @@ object IndexWorker {
                     if (eps.isEmpty()) continue
 
                     // Count discovered episodes so progress can be reported (we don't retain them beyond this loop)
+                    // (Keep total for diagnostics but do NOT use it for progress calculation — using a
+                    // growing denominator causes the UI percent to jump backwards when a later
+                    // podcast has many episodes.)
                     totalEpisodesDiscovered += eps.size
 
                     // Enrich each episode's description with the podcast title (helps joint queries)
@@ -64,6 +87,7 @@ object IndexWorker {
                     // Insert in bounded-size batches via IndexStore.appendEpisodesBatch
                     try {
                         var inserted = 0
+                        var processedInThisPodcast = 0
                         val batchSize = 500
                         val chunks = enriched.chunked(batchSize)
                         for (chunk in chunks) {
@@ -76,10 +100,13 @@ object IndexWorker {
                             }
                             inserted += added
                             processedEpisodes += added
+                            processedInThisPodcast += added
 
-                            // Map progress to 40..99% (totalEpisodesDiscovered grows as we discover podcasts)
-                            val percent = if (totalEpisodesDiscovered <= 0) 40 else 40 + (processedEpisodes * 59 / totalEpisodesDiscovered)
-                            onProgress("Indexing episodes", percent.coerceIn(40, 99), true)
+                            // Compute overall percent by giving each podcast an equal share of the
+                            // 40..99% episode-range. This guarantees monotonic progression as we
+                            // advance through podcasts regardless of per-podcast episode counts.
+                            val percent = computeOverallEpisodePercent(i, podcasts.size, processedInThisPodcast, enriched.size)
+                            onProgress("Indexing episodes", percent, true)
 
                             // Give SQLite a chance to service other threads / GC
                             try { Thread.yield() } catch (_: Throwable) {}

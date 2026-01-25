@@ -69,14 +69,16 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Episode Title -->
+    <!-- Episode Title / show subtitle (reduced size so it's smaller than show name but larger than artist/song) -->
     <TextView
         android:id="@+id/now_playing_episode_title"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
         android:textColor="?attr/colorOnSurface"
         android:gravity="center"
+        android:textSize="20sp"
+        android:lineHeight="28sp"
         android:maxLines="2"
         android:ellipsize="end"
         android:layout_marginTop="8dp"
@@ -85,6 +87,22 @@
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/now_playing_show_name"
         app:layout_constraintBottom_toTopOf="@id/now_playing_artist_track"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Episode release date (podcasts only) -->
+    <TextView
+        android:id="@+id/now_playing_release_date"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:gravity="center"
+        android:layout_marginTop="4dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/now_playing_episode_title"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

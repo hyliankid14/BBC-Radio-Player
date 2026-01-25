@@ -31,6 +31,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var showName: TextView
     private lateinit var episodeTitle: TextView
     private lateinit var artistTrack: TextView
+    private lateinit var releaseDateView: TextView
     private lateinit var showMoreLink: TextView
     private lateinit var stopButton: MaterialButton
     private lateinit var previousButton: MaterialButton
@@ -117,6 +118,7 @@ class NowPlayingActivity : AppCompatActivity() {
         showName = findViewById(R.id.now_playing_show_name)
         episodeTitle = findViewById(R.id.now_playing_episode_title)
         artistTrack = findViewById(R.id.now_playing_artist_track)
+        releaseDateView = findViewById(R.id.now_playing_release_date)
         showMoreLink = findViewById(R.id.now_playing_show_more)
         stopButton = findViewById(R.id.now_playing_stop)
         previousButton = findViewById(R.id.now_playing_previous)
@@ -127,7 +129,7 @@ class NowPlayingActivity : AppCompatActivity() {
         seekBar = findViewById(R.id.playback_seekbar)
         elapsedView = findViewById(R.id.playback_elapsed)
         remainingView = findViewById(R.id.playback_remaining)
-        markPlayedButton = findViewById(R.id.now_playing_mark_played)
+        markPlayedButton = findViewById(R.id.now_playing_mark_played) 
 
         // Setup control button listeners
         stopButton.setOnClickListener { stopPlayback() }
@@ -440,26 +442,33 @@ class NowPlayingActivity : AppCompatActivity() {
                     showMoreLink.visibility = android.view.View.GONE
                 }
             } else {
-                // Radio: show name plus artist/track metadata
+                // Radio: show name plus subtitle/song metadata
                 showName.visibility = android.view.View.VISIBLE
                 showName.text = show.title.ifEmpty { "BBC Radio" }
                 // Ensure the action bar shows the radio station name
                 supportActionBar?.title = station.title
-                
-                if (!show.episodeTitle.isNullOrEmpty()) {
-                    episodeTitle.text = show.episodeTitle
+
+                // Prefer showing the show's "subtitle" (secondary/tertiary) in the large headline
+                val subtitle = listOfNotNull(show.secondary?.takeIf { it.isNotBlank() }, show.tertiary?.takeIf { it.isNotBlank() }).joinToString(" - ").takeIf { it.isNotBlank() }
+                val songTitle = show.episodeTitle?.takeIf { it.isNotBlank() }
+
+                if (!subtitle.isNullOrEmpty()) {
+                    episodeTitle.text = subtitle
+                    episodeTitle.visibility = android.view.View.VISIBLE
+                } else if (!songTitle.isNullOrEmpty()) {
+                    // Fallback: use the episode title if no subtitle is available
+                    episodeTitle.text = songTitle
                     episodeTitle.visibility = android.view.View.VISIBLE
                 } else {
                     episodeTitle.visibility = android.view.View.GONE
                 }
-                
-                if (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) {
-                    val parts = mutableListOf<String>()
-                    if (!show.secondary.isNullOrEmpty()) parts.add(show.secondary)
-                    if (!show.tertiary.isNullOrEmpty()) parts.add(show.tertiary)
-                    artistTrack.text = parts.joinToString(" - ")
+
+                // Show the song/episode title in the smaller line when it provides distinct info
+                if (!songTitle.isNullOrEmpty() && songTitle != subtitle) {
+                    artistTrack.text = songTitle
                     artistTrack.visibility = android.view.View.VISIBLE
                 } else {
+                    // Avoid repeating the same text twice
                     artistTrack.visibility = android.view.View.GONE
                 }
             }
@@ -508,6 +517,14 @@ class NowPlayingActivity : AppCompatActivity() {
             val podcastId = station.id.removePrefix("podcast_")
             // If we're playing a podcast episode, show bookmark (episode save). Otherwise keep existing star semantics
             val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
+
+            // Show release date for podcast episodes (cache-first, background fetch if necessary)
+            if (isPodcast) {
+                fetchAndShowEpisodePubDate(podcastId, currentEpisodeId)
+            } else {
+                releaseDateView.visibility = View.GONE
+            }
+
             if (isPodcast && !currentEpisodeId.isNullOrEmpty()) {
                 val saved = SavedEpisodes.isSaved(this, currentEpisodeId)
                 favoriteButton.icon = ContextCompat.getDrawable(this, if (saved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
@@ -569,6 +586,15 @@ class NowPlayingActivity : AppCompatActivity() {
         // Store preview episode so play button can start it
         previewEpisodeProp = episode
         currentShownEpisodeId = episode.id
+
+        // Show release date when available (preview contains full Episode)
+        if (!episode.pubDate.isNullOrEmpty()) {
+            releaseDateView.text = formatEpisodeDate(episode.pubDate)
+            releaseDateView.visibility = View.VISIBLE
+        } else {
+            releaseDateView.visibility = View.GONE
+        }
+
         updateMarkPlayedButtonState()
 
         // Update favorite button to reflect saved-episode state for the previewed episode (separate from podcast subscriptions)
@@ -653,6 +679,72 @@ class NowPlayingActivity : AppCompatActivity() {
         val seconds = totalSeconds % 60
         return String.format("%d:%02d", minutes, seconds)
     }
+
+    // Cache-first helper: try in-memory episodes, otherwise perform a short background fetch
+    private fun fetchAndShowEpisodePubDate(podcastId: String, episodeId: String?) {
+        if (episodeId.isNullOrEmpty()) {
+            releaseDateView.visibility = View.GONE
+            return
+        }
+
+        val repo = PodcastRepository(this)
+        // Try fast in-memory cache first
+        try {
+            val cached = repo.getEpisodesFromCache(podcastId)
+            val found = cached?.firstOrNull { it.id == episodeId }
+            if (found != null && !found.pubDate.isNullOrEmpty()) {
+                releaseDateView.text = formatEpisodeDate(found.pubDate)
+                releaseDateView.visibility = View.VISIBLE
+                return
+            }
+        } catch (_: Exception) {
+            // ignore and fall back to lightweight fetch
+        }
+
+        // Background fetch (best-effort, short timeout) — do not block the UI
+        lifecycleScope.launch {
+            try {
+                val pods = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                val pod = pods.firstOrNull { it.id == podcastId }
+                if (pod == null) {
+                    releaseDateView.visibility = View.GONE
+                    return@launch
+                }
+
+                val eps = try { withContext(Dispatchers.IO) { repo.fetchEpisodesIfNeeded(pod) } } catch (_: Exception) { emptyList<Episode>() }
+                val found = eps.firstOrNull { it.id == episodeId }
+                if (found != null && !found.pubDate.isNullOrEmpty()) {
+                    runOnUiThread {
+                        releaseDateView.text = formatEpisodeDate(found.pubDate)
+                        releaseDateView.visibility = View.VISIBLE
+                    }
+                    return@launch
+                }
+            } catch (_: Exception) {
+                // best-effort only
+            }
+            runOnUiThread { releaseDateView.visibility = View.GONE }
+        }
+    }
+
+    // Duplicate of PodcastAdapter.formatEpisodeDate — keep local to avoid touching adapter visibility
+    private fun formatEpisodeDate(raw: String): String {
+        val patterns = listOf(
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy"
+        )
+        val parsed: java.util.Date? = patterns.firstNotNullOfOrNull { pattern ->
+            try {
+                java.text.SimpleDateFormat(pattern, java.util.Locale.US).parse(raw)
+            } catch (e: java.text.ParseException) {
+                null
+            }
+        }
+        return parsed?.let {
+            java.text.SimpleDateFormat("EEE, dd MMM yyyy", java.util.Locale.US).format(it)
+        } ?: (if (raw.contains(":")) raw.substringBefore(":").substringBeforeLast(" ").trim() else raw.trim())
+    }
     
     private fun updateFromShow(show: CurrentShow) {
         if (isFinishing || isDestroyed) return
@@ -681,6 +773,15 @@ class NowPlayingActivity : AppCompatActivity() {
                 episodeTitle.visibility = android.view.View.GONE
             }
 
+            // Try to surface episode release date when available
+            val podcastId = PlaybackStateHelper.getCurrentStation()?.id?.removePrefix("podcast_")
+            val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
+            if (!podcastId.isNullOrEmpty()) {
+                fetchAndShowEpisodePubDate(podcastId, currentEpisodeId)
+            } else {
+                releaseDateView.visibility = View.GONE
+            }
+
             val rawDesc = show.description ?: ""
             if (rawDesc.isNotEmpty()) {
                 fullDescriptionHtml = rawDesc
@@ -704,22 +805,27 @@ class NowPlayingActivity : AppCompatActivity() {
         } else {
             showName.visibility = android.view.View.VISIBLE
             // Update show name
-            showName.text = show.title.ifEmpty { "BBC Radio" }            // Ensure the action bar shows the radio station name when not a podcast
-            supportActionBar?.title = station?.title ?: "BBC Radio"            
-            // Update episode title if available
-            if (!show.episodeTitle.isNullOrEmpty()) {
-                episodeTitle.text = show.episodeTitle
+            showName.text = show.title.ifEmpty { "BBC Radio" }
+            // Ensure the action bar shows the radio station name when not a podcast
+            supportActionBar?.title = station?.title ?: "BBC Radio"
+
+            // Prefer subtitle (secondary/tertiary) in the large headline and show the
+            // song/episode title in the smaller line — avoid duplicates.
+            val subtitle = listOfNotNull(show.secondary?.takeIf { it.isNotBlank() }, show.tertiary?.takeIf { it.isNotBlank() }).joinToString(" - ").takeIf { it.isNotBlank() }
+            val songTitle = show.episodeTitle?.takeIf { it.isNotBlank() }
+
+            if (!subtitle.isNullOrEmpty()) {
+                episodeTitle.text = subtitle
+                episodeTitle.visibility = android.view.View.VISIBLE
+            } else if (!songTitle.isNullOrEmpty()) {
+                episodeTitle.text = songTitle
                 episodeTitle.visibility = android.view.View.VISIBLE
             } else {
                 episodeTitle.visibility = android.view.View.GONE
             }
-            
-            // Update artist/track info if available
-            if (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) {
-                val parts = mutableListOf<String>()
-                if (!show.secondary.isNullOrEmpty()) parts.add(show.secondary)
-                if (!show.tertiary.isNullOrEmpty()) parts.add(show.tertiary)
-                artistTrack.text = parts.joinToString(" - ")
+
+            if (!songTitle.isNullOrEmpty() && songTitle != subtitle) {
+                artistTrack.text = songTitle
                 artistTrack.visibility = android.view.View.VISIBLE
             } else {
                 artistTrack.visibility = android.view.View.GONE
