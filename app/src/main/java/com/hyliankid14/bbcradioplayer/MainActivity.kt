@@ -1673,27 +1673,35 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent, isEpisodePhase ->
                         runOnUiThread {
-                            indexStatus.text = status
+                            // Reduce status flicker: during any indexing-related phase show a
+                            // single, stable label to the user.
+                            val displayStatus = when {
+                                status.contains("Index", ignoreCase = true) || isEpisodePhase || status.contains("Fetch", ignoreCase = true) -> "Indexing..."
+                                else -> status
+                            }
+                            indexStatus.text = displayStatus
 
                             // Only use the episode-specific progress bar (under the status text)
                             if (isEpisodePhase) {
                                 indexEpisodesProgress.visibility = android.view.View.VISIBLE
                                 if (percent < 0) {
+                                    // While a podcast is being processed, keep the bar indeterminate
                                     indexEpisodesProgress.isIndeterminate = true
                                 } else {
+                                    // We receive percent only when a podcast completes — animate
+                                    // the bar forward to the new podcast-complete mark.
                                     indexEpisodesProgress.isIndeterminate = false
                                     indexEpisodesProgress.max = 100
                                     val target = percent.coerceIn(0, 100)
                                     val current = indexEpisodesProgress.progress
-                                    // Animate forward progress for a smoother visual experience; fall
-                                    // back to immediate set if target is not greater than current.
                                     if (target > current) {
                                         android.animation.ObjectAnimator.ofInt(indexEpisodesProgress, "progress", current, target).apply {
-                                            duration = 300
+                                            duration = 450
                                             interpolator = android.view.animation.DecelerateInterpolator()
                                         }.start()
                                     } else {
-                                        indexEpisodesProgress.progress = target
+                                        // Never animate backwards — clamp to current value
+                                        indexEpisodesProgress.progress = current
                                     }
                                 }
                             } else {

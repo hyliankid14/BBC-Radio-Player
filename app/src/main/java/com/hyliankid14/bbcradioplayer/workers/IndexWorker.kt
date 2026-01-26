@@ -36,6 +36,20 @@ object IndexWorker {
         return pct.toInt().coerceIn(40, 99)
     }
 
+    /**
+     * Compute a simple, monotonic per-podcast completion percent mapped into 40..99.
+     * This advances only when a podcast is fully indexed so the UI progress moves
+     * steadily from left->right as podcasts complete.
+     */
+    internal fun computePodcastCompletePercent(podcastIndexZeroBased: Int, podcastsCount: Int): Int {
+        if (podcastsCount <= 0) return 100
+        val base = 40
+        val end = 99
+        val idx = (podcastIndexZeroBased + 1).coerceIn(1, podcastsCount) // 1..N
+        val pct = base + ((idx * (end - base)) / podcastsCount)
+        return pct.coerceIn(base, end)
+    }
+
     suspend fun reindexAll(context: Context, onProgress: (String, Int, Boolean) -> Unit = { _, _, _ -> }) {
         withContext(Dispatchers.IO) {
             try {
@@ -118,8 +132,9 @@ object IndexWorker {
 
                         // When we've finished inserting *all* episodes for this podcast, advance the
                         // overall episode progress to the podcast-complete mark (no intermediate
-                        // updates while chunking, per user request).
-                        val completedPct = computeOverallEpisodePercent(i, podcasts.size, enriched.size, enriched.size)
+                        // updates while chunking, per user request). Use a simple per-podcast
+                        // linear mapping so the progress bar advances steadily as podcasts finish.
+                        val completedPct = computePodcastCompletePercent(i, podcasts.size)
                         onProgress("Indexed episodes for: ${p.title}", completedPct, true)
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to append episodes for ${p.id}: ${e.message}")

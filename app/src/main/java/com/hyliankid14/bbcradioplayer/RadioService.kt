@@ -938,16 +938,6 @@ class RadioService : MediaBrowserServiceCompat() {
             val pbShow = PlaybackStateHelper.getCurrentShow()
             val episodeTitle = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
 
-            val notificationContentText = if (isPodcast) {
-                // show episode title (avoid repeating podcast name). Empty if unknown.
-                episodeTitle
-            } else {
-                computeUiSubtitle().let { sub ->
-                    val showName = currentShowName.ifEmpty { currentShowInfo.title }
-                    if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
-                }
-            }
-
             val notificationTitle = when {
                 // Podcasts: podcast name as title
                 isPodcast -> currentStationTitle.ifEmpty { "BBC Radio Player" }
@@ -960,9 +950,21 @@ class RadioService : MediaBrowserServiceCompat() {
                 else -> currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
 
+            // Prefer episode title for podcasts only when it is present and distinct from the
+            // podcast/station title; otherwise leave the content/subText empty to avoid
+            // duplicate strings in OEM notification UIs.
+            val candidateEpisode = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
+            val notificationContentText = if (isPodcast) {
+                candidateEpisode.takeIf { it.isNotBlank() && !it.equals(notificationTitle, ignoreCase = true) } ?: ""
+            } else {
+                computeUiSubtitle().let { sub ->
+                    val showName = currentShowName.ifEmpty { currentShowInfo.title }
+                    if (!showName.isNullOrEmpty() && sub.isNotEmpty() && sub != showName) "$showName — $sub" else sub
+                }
+            }
+
             val showDesc = if (isPodcast) {
-                // Ensure subText contains the episode title for OEMs that surface subText
-                episodeTitle
+                candidateEpisode.takeIf { it.isNotBlank() && !it.equals(notificationTitle, ignoreCase = true) } ?: ""
             } else if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
                 val artist = pbShow.secondary ?: ""
                 val track = pbShow.tertiary ?: ""
@@ -1702,7 +1704,15 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         // Simplified behaviour: do NOT cycle. For live streams without song metadata show
         // "Show name - Show description" when both are available.
         val rawSubtitle = when {
-            isPodcast -> (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+            isPodcast -> {
+                // Prefer episode title for podcasts but DO NOT return the podcast/station
+                // name as the subtitle (some sources populate episodeTitle with the
+                // same string). If the episode title is missing or equals the station
+                // title, return empty so callers won't display a duplicated subtitle.
+                val ep = (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
+                val station = currentStationTitle.orEmpty()
+                if (ep.isNotBlank() && !ep.equals(station, ignoreCase = true)) ep else ""
+            }
             hasSongData -> {
                 val artist = currentShowInfo.secondary ?: ""
                 val track = currentShowInfo.tertiary ?: ""

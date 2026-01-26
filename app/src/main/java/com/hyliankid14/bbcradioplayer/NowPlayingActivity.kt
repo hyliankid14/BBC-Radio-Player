@@ -803,16 +803,26 @@ class NowPlayingActivity : AppCompatActivity() {
             if (rawDesc.isNotEmpty()) {
                 fullDescriptionHtml = rawDesc
                 val spanned = androidx.core.text.HtmlCompat.fromHtml(rawDesc, androidx.core.text.HtmlCompat.FROM_HTML_MODE_LEGACY)
-                artistTrack.text = spanned
-                artistTrack.maxLines = 4
-                artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
-                artistTrack.visibility = android.view.View.VISIBLE
-                // Check if description exceeds 4 lines
-                artistTrack.post {
-                    if (artistTrack.lineCount > 4) {
-                        showMoreLink.visibility = android.view.View.VISIBLE
-                    } else {
-                        showMoreLink.visibility = android.view.View.GONE
+
+                // Hide the small-line if it merely repeats the large episode heading (case-insensitive,
+                // trimmed). This prevents the duplicated subtitle seen in the screenshot.
+                val smallText = spanned.toString().trim()
+                val largeText = (episodeHeading ?: "").trim()
+                if (smallText.isNotEmpty() && smallText.equals(largeText, ignoreCase = true)) {
+                    artistTrack.visibility = android.view.View.GONE
+                    showMoreLink.visibility = android.view.View.GONE
+                } else {
+                    artistTrack.text = spanned
+                    artistTrack.maxLines = 4
+                    artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
+                    artistTrack.visibility = android.view.View.VISIBLE
+                    // Check if description exceeds 4 lines
+                    artistTrack.post {
+                        if (artistTrack.lineCount > 4) {
+                            showMoreLink.visibility = android.view.View.VISIBLE
+                        } else {
+                            showMoreLink.visibility = android.view.View.GONE
+                        }
                     }
                 }
             } else {
