@@ -1677,7 +1677,7 @@ class MainActivity : AppCompatActivity() {
                             // display a stable "Indexing: <podcast>" message so the user sees
                             // which podcast is being processed without flicker between
                             // "Fetching" and "Indexing".
-                            val podcastForMatch = Regex("(?:Indexing|Fetching|Indexed) (?:episodes )?for:\s*(.+)", RegexOption.IGNORE_CASE).find(status)
+                            val podcastForMatch = Regex("""(?:Indexing|Fetching|Indexed) (?:episodes )?for:\s*(.+)""", RegexOption.IGNORE_CASE).find(status)
                             val displayStatus = podcastForMatch?.groups?.get(1)?.value?.let { "Indexing: ${it.trim()}" }
                                 ?: when {
                                     status.contains("Index", ignoreCase = true) || isEpisodePhase || status.contains("Fetch", ignoreCase = true) -> "Indexing..."
