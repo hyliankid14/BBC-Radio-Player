@@ -1125,9 +1125,7 @@ class RadioService : MediaBrowserServiceCompat() {
 
 val pbShow = PlaybackStateHelper.getCurrentShow()
                     val isPodcast = currentStationId.startsWith("podcast_")
-                    val episodeTitle = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
-
-                    val notificationContentText = if (isPodcast) episodeTitle else computeUiSubtitle()
+                    val candidateEpisode = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
 
                     // Notification title should be Artist - Track for music, otherwise station name
                     val notificationTitle = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
@@ -1138,8 +1136,18 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                         currentStationTitle.ifEmpty { "BBC Radio Player" }
                     }
 
+                    // Show episode title for podcasts only when present and distinct from the podcast title;
+                    // otherwise leave the small lines empty to avoid OEM duplication.
+                    val notificationContentText = if (isPodcast) {
+                        candidateEpisode.takeIf { it.isNotBlank() && !it.equals(notificationTitle, ignoreCase = true) } ?: ""
+                    } else {
+                        computeUiSubtitle()
+                    }
+
                     // Compute descriptive piece from the PlaybackStateHelper (authoritative runtime state)
-                    val showDesc = if (isPodcast) episodeTitle else if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
+                    val showDesc = if (isPodcast) {
+                        candidateEpisode.takeIf { it.isNotBlank() && !it.equals(notificationTitle, ignoreCase = true) } ?: ""
+                    } else if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
                         val artist = pbShow.secondary ?: ""
                         val track = pbShow.tertiary ?: ""
                         if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else pbShow.getFormattedTitle()

@@ -81,6 +81,11 @@ class MainActivity : AppCompatActivity() {
     private var suppressBottomNavSelection = false
     private var miniPlayerUpdateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
+
+    // Track the last visible percent for the episode/index progress bar so we can
+    // defensively ignore any stray regressions emitted by background components.
+    private var lastSeenIndexPercent: Int = 0
+
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateMiniPlayerFromShow(show) }
     }
@@ -1680,31 +1685,47 @@ class MainActivity : AppCompatActivity() {
                             val podcastForMatch = Regex("""(?:Indexing|Fetching|Indexed) (?:episodes )?for:\s*(.+)""", RegexOption.IGNORE_CASE).find(status)
                             val displayStatus = podcastForMatch?.groups?.get(1)?.value?.let { "Indexing: ${it.trim()}" }
                                 ?: when {
+                                    // Prefer an explicit completion message when percent==100 or a
+                                    // completion-status string is received.
+                                    percent == 100 || status.contains("Index complete", ignoreCase = true) || status.contains("Index finished", ignoreCase = true) -> "Indexing complete"
                                     status.contains("Index", ignoreCase = true) || isEpisodePhase || status.contains("Fetch", ignoreCase = true) -> "Indexing..."
                                     else -> status
                                 }
                             indexStatus.text = displayStatus
 
                             // Only use the episode-specific progress bar (under the status text)
+                            // Log every incoming progress update so we can diagnose stray emitters.
                             if (isEpisodePhase) {
+                                Log.d("MainActivity", "Index progress update: status='${'$'}status' percent=${'$'}percent isEpisodePhase=${'$'}isEpisodePhase lastSeen=${'$'}lastSeenIndexPercent")
                                 indexEpisodesProgress.visibility = android.view.View.VISIBLE
+
+                                // Indeterminate while a podcast is being processed
                                 if (percent < 0) {
-                                    // While a podcast is being processed, keep the bar indeterminate
                                     indexEpisodesProgress.isIndeterminate = true
                                 } else {
-                                    // We should only receive percent when a podcast completes.
-                                    // Animate forward-only; never move backwards.
+                                    // Defensive monotonicity: ignore any percent that would move the
+                                    // bar backwards (this prevents UI jitter if another component
+                                    // emits intermediate episode-level percents).
+                                    val target = percent.coerceIn(0, 100)
+                                    if (target != 100 && target <= lastSeenIndexPercent) {
+                                        Log.d("MainActivity", "Ignoring non-monotonic index percent: ${'$'}target <= ${'$'}lastSeenIndexPercent")
+                                        // Keep indeterminate if we're between podcasts
+                                        indexEpisodesProgress.isIndeterminate = false
+                                        indexEpisodesProgress.progress = lastSeenIndexPercent
+                                        return@runOnUiThread
+                                    }
+
                                     indexEpisodesProgress.isIndeterminate = false
                                     indexEpisodesProgress.max = 100
-                                    val target = percent.coerceIn(0, 100)
                                     val current = indexEpisodesProgress.progress
                                     if (target > current) {
                                         android.animation.ObjectAnimator.ofInt(indexEpisodesProgress, "progress", current, target).apply {
                                             duration = 450
                                             interpolator = android.view.animation.DecelerateInterpolator()
                                         }.start()
+                                        lastSeenIndexPercent = target
                                     } else {
-                                        // Ignore requests to decrease progress — keep current value
+                                        // Never animate backwards — keep current value
                                         indexEpisodesProgress.progress = current
                                     }
                                 }
@@ -1712,6 +1733,7 @@ class MainActivity : AppCompatActivity() {
                                 indexEpisodesProgress.visibility = android.view.View.GONE
                                 indexEpisodesProgress.isIndeterminate = false
                                 indexEpisodesProgress.progress = 0
+                                lastSeenIndexPercent = 0
                             }
 
                             // When index completes, update the last rebuilt timestamp immediately
@@ -1721,9 +1743,11 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                     }
-                    indexStatus.text = "Index finished"
+                    indexStatus.text = "Indexing complete"
                     // Ensure episode bar hidden once done
                     indexEpisodesProgress.visibility = android.view.View.GONE
+                    // Mark final progress observed
+                    lastSeenIndexPercent = 100
                     // Also refresh persisted value (in case it was updated by the worker)
                     updateLastRebuilt(com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this@MainActivity).getLastReindexTime())
                 }

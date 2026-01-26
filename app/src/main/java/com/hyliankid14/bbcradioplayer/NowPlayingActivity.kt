@@ -473,14 +473,11 @@ class NowPlayingActivity : AppCompatActivity() {
                     episodeTitle.visibility = android.view.View.GONE
                 }
 
-                // Show the song/episode title in the smaller line when it provides distinct info
-                if (!songTitle.isNullOrEmpty() && songTitle != subtitle) {
-                    artistTrack.text = songTitle
-                    artistTrack.visibility = android.view.View.VISIBLE
-                } else {
-                    // Avoid repeating the same text twice
-                    artistTrack.visibility = android.view.View.GONE
-                }
+                // Per product request: never show the smaller subtitle line for live radio —
+                // keep the full-screen surface clean. (Music segments will still surface
+                // Artist - Track in the large headline when available.)
+                artistTrack.visibility = android.view.View.GONE
+                showMoreLink.visibility = android.view.View.GONE
             }
             
             // Load artwork: Use image_url from API if available and valid, otherwise station logo
