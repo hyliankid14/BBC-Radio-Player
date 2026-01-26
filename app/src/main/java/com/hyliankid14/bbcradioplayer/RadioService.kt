@@ -1641,7 +1641,10 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             // descriptive/right-hand piece (showDesc or artist-track) so full-screen UIs present
             // show.title + episodeTitle correctly while compact UIs can still show combined text.
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle.orEmpty())
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, showDesc)
+            // Avoid setting a DISPLAY_SUBTITLE that repeats the station title — prefer
+            // the episode title only when distinct.
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE,
+                showDesc.takeIf { it.isNotBlank() && !it.equals(currentStationTitle, ignoreCase = true) } ?: "")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
@@ -2149,19 +2152,26 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             } else {
                 currentStationTitle.ifEmpty { "BBC Radio Player" }
             }
+            // Show episode title for podcasts only when it is present and distinct from
+            // the podcast/station title; otherwise leave the small line empty to avoid
+            // OEMs repeating the podcast name.
+            val candidateEpisode = (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
             val contentText = if (currentStationId.startsWith("podcast_")) {
-                // For podcasts prefer showing the episode title in the smaller content line
-                (PlaybackStateHelper.getCurrentShow().episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
+                candidateEpisode.takeIf { it.isNotBlank() && !it.equals(titleText, ignoreCase = true) } ?: ""
             } else {
                 computeUiSubtitle()
             }
-            val showDesc = if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
+
+            val showDesc = if (currentStationId.startsWith("podcast_")) {
+                candidateEpisode.takeIf { it.isNotBlank() && !it.equals(titleText, ignoreCase = true) } ?: ""
+            } else if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
                 val artist = currentShowInfo.secondary ?: ""
                 val track = currentShowInfo.tertiary ?: ""
                 if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
             } else {
                 (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
             }
+
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(titleText)
                 .setContentText(contentText)

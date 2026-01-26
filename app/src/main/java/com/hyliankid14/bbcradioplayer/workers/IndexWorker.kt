@@ -83,28 +83,24 @@ object IndexWorker {
 
                 for ((i, p) in podcasts.withIndex()) {
                     if (!isActive) break
-                    val fetchPct = 5 + ((i + 1) * 35 / podcasts.size)
-                    onProgress("Fetching episodes for: ${p.title}", fetchPct, true)
+                    // Show which podcast we're working on but keep the overall episode
+                    // progress indeterminate while fetching/processing to avoid jitter.
+                    onProgress("Indexing episodes for: ${p.title}", -1, true)
 
                     val eps = try { repo.fetchEpisodesIfNeeded(p) } catch (e: Exception) { emptyList() }
-                    if (eps.isEmpty()) continue
+                    if (eps.isEmpty()) {
+                        // No episodes discovered — treat this podcast as complete and emit the
+                        // per-podcast completion percent (monotonic mapping).
+                        val completedPct = computePodcastCompletePercent(i, podcasts.size)
+                        onProgress("Indexed episodes for: ${p.title}", completedPct, true)
+                        continue
+                    }
 
-                    // Count discovered episodes so progress can be reported (we don't retain them beyond this loop)
-                    // (Keep total for diagnostics but do NOT use it for progress calculation — using a
-                    // growing denominator causes the UI percent to jump backwards when a later
-                    // podcast has many episodes.)
+                    // Count discovered episodes for diagnostics only (do NOT use for UI percent)
                     totalEpisodesDiscovered += eps.size
 
                     // Enrich each episode's description with the podcast title (helps joint queries)
                     val enriched = eps.map { ep -> ep.copy(description = listOfNotNull(ep.description, p.title).joinToString(" ")) }
-
-                    // If there are no episodes for this podcast, treat the podcast as instantly complete
-                    if (enriched.isEmpty()) {
-                        // Advance the episode-phase progress to include this podcast's slice
-                        val completedPct = computeOverallEpisodePercent(i, podcasts.size, 0, 0)
-                        onProgress("Indexed episodes for: ${p.title}", completedPct, true)
-                        continue
-                    }
 
                     // Insert in bounded-size batches via IndexStore.appendEpisodesBatch
                     try {

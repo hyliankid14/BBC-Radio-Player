@@ -1673,12 +1673,16 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch {
                     com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent, isEpisodePhase ->
                         runOnUiThread {
-                            // Reduce status flicker: during any indexing-related phase show a
-                            // single, stable label to the user.
-                            val displayStatus = when {
-                                status.contains("Index", ignoreCase = true) || isEpisodePhase || status.contains("Fetch", ignoreCase = true) -> "Indexing..."
-                                else -> status
-                            }
+                            // If the status contains a podcast name (emitted by the indexer),
+                            // display a stable "Indexing: <podcast>" message so the user sees
+                            // which podcast is being processed without flicker between
+                            // "Fetching" and "Indexing".
+                            val podcastForMatch = Regex("(?:Indexing|Fetching|Indexed) (?:episodes )?for:\s*(.+)", RegexOption.IGNORE_CASE).find(status)
+                            val displayStatus = podcastForMatch?.groups?.get(1)?.value?.let { "Indexing: ${it.trim()}" }
+                                ?: when {
+                                    status.contains("Index", ignoreCase = true) || isEpisodePhase || status.contains("Fetch", ignoreCase = true) -> "Indexing..."
+                                    else -> status
+                                }
                             indexStatus.text = displayStatus
 
                             // Only use the episode-specific progress bar (under the status text)
@@ -1688,8 +1692,8 @@ class MainActivity : AppCompatActivity() {
                                     // While a podcast is being processed, keep the bar indeterminate
                                     indexEpisodesProgress.isIndeterminate = true
                                 } else {
-                                    // We receive percent only when a podcast completes — animate
-                                    // the bar forward to the new podcast-complete mark.
+                                    // We should only receive percent when a podcast completes.
+                                    // Animate forward-only; never move backwards.
                                     indexEpisodesProgress.isIndeterminate = false
                                     indexEpisodesProgress.max = 100
                                     val target = percent.coerceIn(0, 100)
@@ -1700,7 +1704,7 @@ class MainActivity : AppCompatActivity() {
                                             interpolator = android.view.animation.DecelerateInterpolator()
                                         }.start()
                                     } else {
-                                        // Never animate backwards — clamp to current value
+                                        // Ignore requests to decrease progress — keep current value
                                         indexEpisodesProgress.progress = current
                                     }
                                 }

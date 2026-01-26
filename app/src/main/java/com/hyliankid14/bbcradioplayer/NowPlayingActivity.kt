@@ -851,12 +851,11 @@ class NowPlayingActivity : AppCompatActivity() {
                 episodeTitle.visibility = android.view.View.GONE
             }
 
-            if (!songTitle.isNullOrEmpty() && songTitle != subtitle) {
-                artistTrack.text = songTitle
-                artistTrack.visibility = android.view.View.VISIBLE
-            } else {
-                artistTrack.visibility = android.view.View.GONE
-            }
+            // Per product request: do not show the smaller subtitle line for live radio
+            // (keep full-screen surface clean). Always hide the small `artistTrack` and
+            // the 'show more' affordance for non-podcast/live playback.
+            artistTrack.visibility = android.view.View.GONE
+            showMoreLink.visibility = android.view.View.GONE
         }
         
         // Load new artwork - use image_url if available and valid, otherwise station logo
