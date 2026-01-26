@@ -1649,10 +1649,11 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             // descriptive/right-hand piece (showDesc or artist-track) so full-screen UIs present
             // show.title + episodeTitle correctly while compact UIs can still show combined text.
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle.orEmpty())
-            // Avoid setting a DISPLAY_SUBTITLE that repeats the station title — prefer
-            // the episode title only when distinct.
+            // For head-units (Android Auto / OEM UIs) expose the combined compact subtitle
+            // (e.g. "Show Name - Show Description" or "Artist - Track") so the subtitle
+            // shown on the head-unit matches the mini/notification UI.
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE,
-                showDesc.takeIf { it.isNotBlank() && !it.equals(currentStationTitle, ignoreCase = true) } ?: "")
+                displaySubtitle.takeIf { it.isNotBlank() && !it.equals(currentStationTitle, ignoreCase = true) } ?: "")
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, displayUri)
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART_URI, displayUri)
