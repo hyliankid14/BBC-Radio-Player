@@ -451,6 +451,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                     val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                                     val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
                                     var foundEp: Episode? = null
+                                    var parentPodcast: Podcast? = null
                                     for (p in all) {
                                         if (!subscribed.contains(p.id)) continue
                                         try {
@@ -458,13 +459,17 @@ class RadioService : MediaBrowserServiceCompat() {
                                             val ep = eps.find { it.id == episodeId }
                                             if (ep != null) {
                                                 foundEp = ep
+                                                parentPodcast = p
                                                 break
                                             }
                                         } catch (_: Exception) { /* ignore */ }
                                     }
 
                                     if (foundEp != null) {
-                                        playPodcastEpisode(foundEp, null)
+                                        val playIntent = Intent().apply {
+                                            parentPodcast?.let { putExtra(EXTRA_PODCAST_TITLE, it.title); putExtra(EXTRA_PODCAST_IMAGE, it.imageUrl) }
+                                        }
+                                        playPodcastEpisode(foundEp, playIntent)
                                     } else {
                                         // Fallback: try saved episodes (user may have saved an episode without subscribing)
                                         try {
@@ -481,7 +486,11 @@ class RadioService : MediaBrowserServiceCompat() {
                                                     durationMins = s.durationMins,
                                                     podcastId = s.podcastId
                                                 )
-                                                playPodcastEpisode(savedEp, null)
+                                                val playIntent = Intent().apply {
+                                                    putExtra(EXTRA_PODCAST_TITLE, s.podcastTitle)
+                                                    putExtra(EXTRA_PODCAST_IMAGE, s.imageUrl)
+                                                }
+                                                playPodcastEpisode(savedEp, playIntent)
                                             } else {
                                                 // Final fallback: try the local FTS index to map episodeId -> podcastId,
                                                 // then fetch that podcast's episodes (covers episodes played via search/one-off plays)
@@ -498,7 +507,11 @@ class RadioService : MediaBrowserServiceCompat() {
                                                             val eps = try { withContext(Dispatchers.IO) { repo.fetchEpisodes(parent) } } catch (_: Exception) { emptyList() }
                                                             val ep = eps.find { it.id == episodeId }
                                                             if (ep != null) {
-                                                                playPodcastEpisode(ep, null)
+                                                                val playIntent = Intent().apply {
+                                                                    putExtra(EXTRA_PODCAST_TITLE, parent.title)
+                                                                    putExtra(EXTRA_PODCAST_IMAGE, parent.imageUrl)
+                                                                }
+                                                                playPodcastEpisode(ep, playIntent)
                                                             } else {
                                                                 Log.w(TAG, "Indexed episode found but remote fetch didn't return the audio URL for id: $episodeId")
                                                             }
@@ -818,7 +831,11 @@ class RadioService : MediaBrowserServiceCompat() {
                                                 val next = candidates.minByOrNull { it.second }?.first
                                                 if (next != null) {
                                                     Log.d(TAG, "Autoplaying next episode chronologically: ${next.title} (id=${next.id})")
-                                                    playPodcastEpisode(next, null)
+                                                    val playIntent = Intent().apply {
+                                                        putExtra(EXTRA_PODCAST_TITLE, podcast.title)
+                                                        putExtra(EXTRA_PODCAST_IMAGE, podcast.imageUrl)
+                                                    }
+                                                    playPodcastEpisode(next, playIntent)
                                                 } else {
                                                     Log.d(TAG, "No newer episode found to autoplay for podcast: $podcastId")
                                                 }
@@ -1970,30 +1987,37 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             // can show the image before the progress runnable (which clears show.imageUrl) runs.
             updateMediaMetadata(artworkBitmap = null, artworkUri = syntheticStation.logoUrl)
 
-            // If we don't have a proper podcast image yet (saved episodes often lack it), attempt to
-            // resolve the podcast's series artwork in the background and update metadata/notification
-            // once we have it. We avoid overwriting an explicit image passed in the intent.
-            if (syntheticStation.logoUrl.isEmpty() || syntheticStation.logoUrl.endsWith("icon-apple-podcast.png")) {
+            // If we don't have a proper podcast image yet (saved episodes often lack it), or we only
+            // have an unlabeled "Podcast" title, attempt to resolve the podcast's series metadata
+            // (title/image) in the background and update metadata/notification once we have it.
+            if (syntheticStation.logoUrl.isEmpty() || syntheticStation.logoUrl.endsWith("icon-apple-podcast.png") || syntheticStation.title == "Podcast") {
                 serviceScope.launch {
                     try {
                         val repo = PodcastRepository(this@RadioService)
                         val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                         val found = all.firstOrNull { it.id == episode.podcastId }
                         val seriesImage = found?.imageUrl
-                        if (!seriesImage.isNullOrEmpty() && seriesImage != syntheticStation.logoUrl) {
-                            Log.d(TAG, "Resolved podcast series image for ${episode.podcastId}: $seriesImage")
-                            // Update cached station and metadata so UI/mini-player reflect it immediately
+                        if (found != null) {
+                            // Prefer the resolved podcast title when available (fixes cases where we defaulted to "Podcast")
+                            val resolvedTitle = if (!found.title.isNullOrEmpty()) found.title else syntheticStation.title
                             val updatedStation = Station(
                                 id = syntheticStation.id,
-                                title = syntheticStation.title,
+                                title = resolvedTitle,
                                 serviceId = syntheticStation.serviceId,
-                                logoUrl = seriesImage,
+                                logoUrl = if (!seriesImage.isNullOrEmpty()) seriesImage else syntheticStation.logoUrl,
                                 category = syntheticStation.category
                             )
-                            currentStationLogo = seriesImage
-                            currentArtworkUri = seriesImage
+
+                            Log.d(TAG, "Resolved podcast series metadata for ${episode.podcastId}: title=${resolvedTitle}, image=${seriesImage}")
+
+                            // Update cached station/title/artwork and notify UI
+                            currentStationTitle = updatedStation.title
+                            if (!seriesImage.isNullOrEmpty()) {
+                                currentStationLogo = seriesImage
+                                currentArtworkUri = seriesImage
+                            }
                             PlaybackStateHelper.setCurrentStation(updatedStation)
-                            updateMediaMetadata(artworkBitmap = null, artworkUri = seriesImage)
+                            updateMediaMetadata(artworkBitmap = null, artworkUri = updatedStation.logoUrl)
                             // Update notification on main thread
                             handler.post { startForegroundNotification() }
                         }

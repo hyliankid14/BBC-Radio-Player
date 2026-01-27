@@ -44,7 +44,14 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
 - **Album Artwork**: Dynamic artwork loading from BBC Sounds with caching
 - **Auto-Scrolling Text**: Long show names and track titles automatically scroll in the mini player
 - **Smart Polling**: Efficient 30-second refresh interval aligned with BBC's cache strategy
-
+### 🎙 Podcast Support ✅
+- **Full podcast playback**: Subscribe to shows, play individual episodes, and save episodes to your saved list for quick access.
+- **Accurate metadata**: Episode title, series (podcast) title, description and episode artwork are shown in-app, in the notification shade, and on Android Auto.
+- **Notification & Android Auto fixes**: Podcast series name is now always shown as the notification and Android Auto title (fixes cases that previously displayed a generic "Podcast"). The service passes series metadata through all resume/autoplay fallbacks and resolves missing metadata in the background when needed.
+- **Playback resume & smart replay**: Episode progress is persisted; replaying an episode marked as completed starts from 0 but preserves the played flag; progress is periodically saved to minimize writes.
+- **Autoplay next episode**: When an episode ends, the service will try to autoplay the next chronologically newer episode in the same podcast.
+- **Save & subscription management**: Save/bookmark episodes and manage podcast subscriptions; saved episodes and podcast subscriptions are accessible from the Favorites section and exposed to Android Auto browsers.
+- **Robust fallbacks**: Episodes are resolved via subscriptions, saved entries, or the local index when auto-resuming (Android Auto) so the correct series/title is displayed even in edge cases.
 ### 🎨 Material Design 3 Interface
 - **Modern Purple Theme**: Professional purple color scheme (#6200EE primary)
 - **Light & Dark Modes**: Full support for both light and dark themes with proper contrast ratios
@@ -254,4 +261,5 @@ See commit history for detailed changes. Major milestones:
 - **v1.3**: Adaptive quality streaming
 - **v1.4**: Drag-and-drop favorites reordering
 - **v1.5**: Auto-resume on Android Auto connection
+- **v1.6**: Podcast integration — subscribe/play/save episodes, persistent progress and smart replay, autoplay next episode, improved Android Auto and notification metadata (ensures podcast series name is always shown)
 

@@ -60,7 +60,7 @@ object StationRepository {
         station("radiogaidheal", "BBC Radio nan Gaidheal", "bbc_radio_nan_gaidheal", category = StationCategory.REGIONS),
         station("radioorkney", "BBC Radio Orkney", "bbc_radio_orkney", category = StationCategory.REGIONS),
         station("radioscotland", "BBC Radio Scotland", "bbc_radio_scotland_fm", category = StationCategory.REGIONS),
-        station("radioscotlandmw", "BBC Radio Scotland MW", "bbc_radio_scotland_mw", category = StationCategory.REGIONS),
+        station("radioscotlandextra", "BBC Radio Scotland Extra", "bbc_radio_scotland_mw", category = StationCategory.REGIONS),
         station("radioshetland", "BBC Radio Shetland", "bbc_radio_shetland", category = StationCategory.REGIONS),
         station("radioulster", "BBC Radio Ulster", "bbc_radio_ulster", category = StationCategory.REGIONS),
         station("radiowales", "BBC Radio Wales", "bbc_radio_wales_fm", category = StationCategory.REGIONS),
