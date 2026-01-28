@@ -1456,29 +1456,40 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 val isPodcast = currentStationId.startsWith("podcast_")
 
                 if (isPodcast) {
-                    // For podcasts, apply immediately (no delay)
-                    currentShowInfo = finalShow
-                    currentShowName = finalShow.title // Store the actual show name
-                    currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
-                    currentEpisodeTitle = finalShow.episodeTitle ?: ""
+                    // For podcasts, apply updates but *only* refresh the UI/notification when
+                    // the authoritative shown metadata actually changes (avoids unnecessary
+                    // Android Auto / OEM UI refreshes on periodic polling).
+                    val titleChanged = (finalShow.title ?: "") != (currentShowInfo.title ?: "")
+                    val episodeChanged = (finalShow.episodeTitle ?: "") != (currentShowInfo.episodeTitle ?: "")
+                    val imageChanged = (finalShow.imageUrl ?: "") != (currentShowInfo.imageUrl ?: "")
+                    val songDataChanged = (finalShow.secondary ?: "") != (currentShowInfo.secondary ?: "") || (finalShow.tertiary ?: "") != (currentShowInfo.tertiary ?: "")
+
+                    // Always keep the PlaybackStateHelper up-to-date for other consumers
                     PlaybackStateHelper.setCurrentShow(finalShow)
-                    Log.d(TAG, "Set currentShowName to: $currentShowName, currentShowTitle to: $currentShowTitle, episodeTitle: $currentEpisodeTitle, imageUrl: ${finalShow.imageUrl}")
 
-                    // Debug: log whether RMS provided song data
-                    val hasSongData = !finalShow.secondary.isNullOrEmpty() || !finalShow.tertiary.isNullOrEmpty()
-                    Log.d(TAG, "Song data present=$hasSongData (artist=${finalShow.secondary}, track=${finalShow.tertiary})")
+                    if (titleChanged || episodeChanged || imageChanged || songDataChanged) {
+                        // Commit authoritative changes locally
+                        currentShowInfo = finalShow
+                        currentShowName = finalShow.title // Store the actual show name
+                        currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
+                        currentEpisodeTitle = finalShow.episodeTitle ?: ""
 
-                    // Switch to main thread to update UI immediately for podcasts
-                    handler.post {
-                        Log.d(TAG, "Updating UI with show title: $currentShowTitle (podcast immediate)")
-                        val nowPlayingImageUrl = finalShow.imageUrl
-                        if (nowPlayingImageUrl?.startsWith("http") == true) {
-                            currentArtworkUri = nowPlayingImageUrl
-                        } else {
-                            currentArtworkUri = null
+                        Log.d(TAG, "Podcast metadata changed (titleChanged=$titleChanged, episodeChanged=$episodeChanged, imageChanged=$imageChanged, songDataChanged=$songDataChanged) — updating UI")
+
+                        // Switch to main thread to update UI immediately for podcasts
+                        handler.post {
+                            Log.d(TAG, "Updating UI with show title: $currentShowTitle (podcast immediate)")
+                            val nowPlayingImageUrl = finalShow.imageUrl
+                            if (nowPlayingImageUrl?.startsWith("http") == true) {
+                                currentArtworkUri = nowPlayingImageUrl
+                            } else {
+                                currentArtworkUri = null
+                            }
+                            updateMediaMetadata()
+                            startForegroundNotification()
                         }
-                        updateMediaMetadata()
-                        startForegroundNotification()
+                    } else {
+                        Log.d(TAG, "No podcast metadata change detected; skipping UI refresh")
                     }
                 } else {
                     // For live streams, apply immediately if this is the first fetch after switching stations.
