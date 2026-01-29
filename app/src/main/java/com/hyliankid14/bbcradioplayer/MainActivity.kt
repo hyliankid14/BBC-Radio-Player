@@ -1801,6 +1801,19 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
             }
+
+            // Initialize 'exclude non-English' checkbox and bind preference
+            try {
+                val excludeCb: android.widget.CheckBox = findViewById(R.id.exclude_non_english_checkbox)
+                val excluded = PodcastFilterPreference.excludeNonEnglish(this)
+                excludeCb.isChecked = excluded
+                excludeCb.setOnCheckedChangeListener { _, isChecked ->
+                    PodcastFilterPreference.setExcludeNonEnglish(this, isChecked)
+                    android.widget.Toast.makeText(this, if (isChecked) "Non-English podcasts will be hidden and not indexed" else "All podcasts will be shown and indexed", android.widget.Toast.LENGTH_SHORT).show()
+                    // Refresh current view so the UI updates immediately
+                    try { refreshCurrentView() } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
         } catch (_: Exception) {}
 
 
@@ -2279,7 +2292,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "theme_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "podcast_filter_prefs", "theme_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)
@@ -2305,6 +2318,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (name == "index_prefs") {
                     if (!obj.has("index_interval_days")) obj.put("index_interval_days", IndexPreference.getIntervalDays(this))
+                }
+                if (name == "podcast_filter_prefs") {
+                    if (!obj.has("exclude_non_english")) obj.put("exclude_non_english", PodcastFilterPreference.excludeNonEnglish(this))
                 }
                 root.put(name, obj)
             }
@@ -2405,6 +2421,24 @@ class MainActivity : AppCompatActivity() {
                                 }
                                 spinner?.setSelection(pos)
                             } catch (_: Exception) {}
+                        }
+                    }
+                }
+            } catch (e: Exception) { /* Ignore */ }
+
+            try {
+                if (root.has("podcast_filter_prefs")) {
+                    val pf = root.getJSONObject("podcast_filter_prefs")
+                    if (pf.has("exclude_non_english")) {
+                        val exclude = pf.optBoolean("exclude_non_english", false)
+                        PodcastFilterPreference.setExcludeNonEnglish(this, exclude)
+                        // Apply immediately: update UI and refresh view
+                        runOnUiThread {
+                            try {
+                                val cb: android.widget.CheckBox? = findViewById(R.id.exclude_non_english_checkbox)
+                                cb?.isChecked = exclude
+                            } catch (_: Exception) {}
+                            try { refreshCurrentView() } catch (_: Exception) {}
                         }
                     }
                 }

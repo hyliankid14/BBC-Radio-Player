@@ -140,8 +140,10 @@ class PodcastRepository(private val context: Context) {
             )
 
             if (podcasts.isNotEmpty()) {
-                cachePodcasts(podcasts)
-                podcasts
+                // Optionally filter out non-English podcasts per user preference
+                val filtered = if (PodcastFilterPreference.excludeNonEnglish(context)) podcasts.filter { LanguageDetector.isPodcastEnglish(it) } else podcasts
+                cachePodcasts(filtered)
+                filtered
             } else {
                 // Try cache as fallback
                 getCachedPodcasts() ?: emptyList()

@@ -7,6 +7,7 @@
     <string name="index_schedule_1">Every day</string>
     <string name="index_schedule_3">Every 3 days</string>
     <string name="index_schedule_7">Every 7 days</string>
+    <string name="exclude_non_english_label">Exclude non-English podcasts</string>
 
     <string-array name="index_schedule_options">
         <item>@string/index_schedule_never</item>
