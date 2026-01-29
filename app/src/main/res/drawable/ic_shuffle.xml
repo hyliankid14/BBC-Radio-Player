@@ -5,30 +5,25 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
 
-    <!-- Two crossing stroked paths forming the shuffle rails -->
     <path
-        android:pathData="M3,7 L10,14 L14,10 L20,4"
+        android:pathData="M14.83,13.41 L19.17,17.75 M4,20 L8,20 C9.06,20 10.08,19.58 10.83,18.83 L13.17,16.5 M14.83,10.59 L19.17,6.25 M4,4 L8,4 C9.06,4 10.08,4.42 10.83,5.17 L13.17,7.5"
         android:strokeColor="?attr/colorOnSurface"
-        android:strokeWidth="2.2"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="@android:color/transparent" />
+        android:strokeLineJoin="round" />
 
     <path
-        android:pathData="M3,17 L10,10 L14,14 L20,20"
+        android:pathData="M14.5,4 L20,4 L20,9.5"
         android:strokeColor="?attr/colorOnSurface"
-        android:strokeWidth="2.2"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="@android:color/transparent" />
-
-    <!-- Arrowheads (filled) at the right ends -->
-    <path
-        android:pathData="M17.2,1.8 L20,4 L16.4,4 L17.2,1.8 Z"
-        android:fillColor="?attr/colorOnSurface" />
+        android:strokeLineJoin="round" />
 
     <path
-        android:pathData="M17.2,22.2 L20,20 L16.4,20 L17.2,22.2 Z"
-        android:fillColor="?attr/colorOnSurface" />
+        android:pathData="M14.5,20 L20,20 L20,14.5"
+        android:strokeColor="?attr/colorOnSurface"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 
 </vector>
