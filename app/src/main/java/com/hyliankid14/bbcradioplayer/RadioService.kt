@@ -1676,10 +1676,14 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, artistTrackStr.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_AUTHOR, artistTrackStr.orEmpty())
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_WRITER, artistTrackStr.orEmpty())
-            // Display title: podcast/station as the main top title; display subtitle is the
-            // descriptive/right-hand piece (showDesc or artist-track) so full-screen UIs present
-            // show.title + episodeTitle correctly while compact UIs can still show combined text.
-            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, currentStationTitle.orEmpty())
+            // Display title: prefer to expose the podcast/station title only when there is
+            // a distinct episode title available. When the episode title is missing or
+            // identical to the station title we intentionally leave DISPLAY_TITLE empty to
+            // avoid duplicate lines in OEM notification UIs that render both notification
+            // contentTitle and displayTitle.
+            .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE,
+                // Show station title only when we have an episode title distinct from it
+                ((currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty().takeIf { it.isNotBlank() && !it.equals(currentStationTitle, ignoreCase = true) }?.let { currentStationTitle } ?: ""))
             // For head-units (Android Auto / OEM UIs) expose the combined compact subtitle
             // (e.g. "Show Name - Show Description" or "Artist - Track") so the subtitle
             // shown on the head-unit matches the mini/notification UI.

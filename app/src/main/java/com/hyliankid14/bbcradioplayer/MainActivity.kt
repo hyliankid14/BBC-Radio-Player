@@ -79,6 +79,7 @@ class MainActivity : AppCompatActivity() {
     private var currentMode = "list" // "favorites", "list", or "settings"
     // When true, programmatic bottom-navigation selections should not trigger the usual listener actions
     private var suppressBottomNavSelection = false
+    private var suppressIndexSpinnerSelection = false
     private var miniPlayerUpdateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
 
@@ -1774,6 +1775,8 @@ class MainActivity : AppCompatActivity() {
                 7 -> 3
                 else -> 0
             }
+            // Suppress the first onItemSelected callback that some OEMs/fire sequences may emit
+            suppressIndexSpinnerSelection = true
             indexScheduleSpinner.setSelection(pos)
 
             // Ensure any previously-configured schedule is (re)activated at startup
@@ -1783,19 +1786,30 @@ class MainActivity : AppCompatActivity() {
 
             indexScheduleSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
+                    // If we're programmatically setting selection, ignore this callback once
+                    if (suppressIndexSpinnerSelection) {
+                        suppressIndexSpinnerSelection = false
+                        return
+                    }
+
                     val days = when (position) {
                         1 -> 1
                         2 -> 3
                         3 -> 7
                         else -> 0
                     }
-                    IndexPreference.setIntervalDays(this@MainActivity, days)
-                    if (days > 0) {
-                        IndexScheduler.scheduleIndexing(this@MainActivity)
-                        android.widget.Toast.makeText(this@MainActivity, "Scheduled indexing every ${days} day(s)", android.widget.Toast.LENGTH_SHORT).show()
-                    } else {
-                        IndexScheduler.cancel(this@MainActivity)
-                        android.widget.Toast.makeText(this@MainActivity, "Periodic indexing disabled", android.widget.Toast.LENGTH_SHORT).show()
+
+                    val previous = IndexPreference.getIntervalDays(this@MainActivity)
+                    // Only apply and show a toast when the user truly changed the value
+                    if (days != previous) {
+                        IndexPreference.setIntervalDays(this@MainActivity, days)
+                        if (days > 0) {
+                            IndexScheduler.scheduleIndexing(this@MainActivity)
+                            android.widget.Toast.makeText(this@MainActivity, "Scheduled indexing every ${days} day(s)", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            IndexScheduler.cancel(this@MainActivity)
+                            android.widget.Toast.makeText(this@MainActivity, "Periodic indexing disabled", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
 
@@ -2419,6 +2433,8 @@ class MainActivity : AppCompatActivity() {
                                     7 -> 3
                                     else -> 0
                                 }
+                                // Prevent the selection change from triggering a toast/callback
+                                suppressIndexSpinnerSelection = true
                                 spinner?.setSelection(pos)
                             } catch (_: Exception) {}
                         }
