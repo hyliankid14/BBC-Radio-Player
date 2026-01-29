@@ -48,9 +48,7 @@
                 android:background="@null"
                 android:maxLines="1"
                 android:singleLine="true"
-                android:hint="Search podcasts..."
-                android:imeOptions="actionSearch"
-                android:inputType="text" />
+                android:hint="Search podcasts..." />
         </com.google.android.material.textfield.TextInputLayout>
 
         <ImageButton
