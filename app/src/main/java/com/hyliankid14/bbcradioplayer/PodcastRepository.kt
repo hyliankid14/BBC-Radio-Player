@@ -4,6 +4,9 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -148,8 +151,8 @@ class PodcastRepository(private val context: Context) {
                     val chunks = podcasts.chunked(concurrency)
                     for (chunk in chunks) {
                         val resolved = kotlinx.coroutines.coroutineScope {
-                            val deferred = chunk.map { p -> kotlinx.coroutines.async { p to LanguageDetector.isPodcastEnglish(context, p) } }
-                            deferred.map { it.await() }
+                            val deferred = chunk.map { p -> async { p to LanguageDetector.isPodcastEnglish(context, p) } }
+                            deferred.awaitAll()
                         }
                         results.addAll(resolved.filter { it.second }.map { it.first })
                     }
