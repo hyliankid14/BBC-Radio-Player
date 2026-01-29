@@ -1682,8 +1682,9 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             // avoid duplicate lines in OEM notification UIs that render both notification
             // contentTitle and displayTitle.
             .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE,
-                // Show station title only when we have an episode title distinct from it
-                ((currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty().takeIf { it.isNotBlank() && !it.equals(currentStationTitle, ignoreCase = true) }?.let { currentStationTitle } ?: ""))
+                // For podcasts leave the display title empty to avoid duplication in OEM
+                // notification UIs that also display the notification content title.
+                if (isPodcast) "" else currentStationTitle.orEmpty())
             // For head-units (Android Auto / OEM UIs) expose the combined compact subtitle
             // (e.g. "Show Name - Show Description" or "Artist - Track") so the subtitle
             // shown on the head-unit matches the mini/notification UI.
