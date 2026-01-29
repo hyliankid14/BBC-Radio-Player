@@ -63,6 +63,9 @@ dependencies {
     implementation 'com.github.bumptech.glide:glide:4.15.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
 
+    // ML Kit Language ID (on-device language identification)
+    implementation 'com.google.mlkit:language-id:17.1.0'
+
     // (Room + WorkManager temporarily disabled due to Gradle/Kapt compatibility; will re-enable after resolving plugin issue)
     // implementation 'androidx.room:room-runtime:2.6.1'
     // implementation 'androidx.room:room-ktx:2.6.1'

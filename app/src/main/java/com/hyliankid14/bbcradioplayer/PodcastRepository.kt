@@ -140,8 +140,21 @@ class PodcastRepository(private val context: Context) {
             )
 
             if (podcasts.isNotEmpty()) {
-                // Optionally filter out non-English podcasts per user preference
-                val filtered = if (PodcastFilterPreference.excludeNonEnglish(context)) podcasts.filter { LanguageDetector.isPodcastEnglish(it) } else podcasts
+                // Optionally filter out non-English podcasts per user preference.
+                // Language checks may involve fetching RSS metadata; run in limited parallel batches so we don't serially block on many feeds.
+                val filtered = if (PodcastFilterPreference.excludeNonEnglish(context)) {
+                    val results = mutableListOf<Podcast>()
+                    val concurrency = 12
+                    val chunks = podcasts.chunked(concurrency)
+                    for (chunk in chunks) {
+                        val resolved = kotlinx.coroutines.coroutineScope {
+                            val deferred = chunk.map { p -> kotlinx.coroutines.async { p to LanguageDetector.isPodcastEnglish(context, p) } }
+                            deferred.map { it.await() }
+                        }
+                        results.addAll(resolved.filter { it.second }.map { it.first })
+                    }
+                    results
+                } else podcasts
                 cachePodcasts(filtered)
                 filtered
             } else {
