@@ -2,4 +2,16 @@
 <resources>
     <string name="app_name">BBC Radio Player</string>
     <string name="clear_search">Clear search</string>
+    <string name="index_schedule_label">Index schedule</string>
+    <string name="index_schedule_never">Never</string>
+    <string name="index_schedule_1">Every day</string>
+    <string name="index_schedule_3">Every 3 days</string>
+    <string name="index_schedule_7">Every 7 days</string>
+
+    <string-array name="index_schedule_options">
+        <item>@string/index_schedule_never</item>
+        <item>@string/index_schedule_1</item>
+        <item>@string/index_schedule_3</item>
+        <item>@string/index_schedule_7</item>
+    </string-array>
 </resources>

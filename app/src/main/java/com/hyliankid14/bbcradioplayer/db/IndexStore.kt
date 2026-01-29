@@ -362,4 +362,52 @@ class IndexStore private constructor(private val context: Context) {
         val prefs = context.getSharedPreferences("index_prefs", android.content.Context.MODE_PRIVATE)
         return if (prefs.contains("last_reindex_time")) prefs.getLong("last_reindex_time", 0L) else null
     }
+
+    // Check whether a podcast is present in the podcast FTS table
+    fun hasPodcast(podcastId: String): Boolean {
+        if (podcastId.isBlank()) return false
+        val db = helper.readableDatabase
+        try {
+            val cursor = db.rawQuery("SELECT podcastId FROM podcast_fts WHERE podcastId = ? LIMIT 1", arrayOf(podcastId))
+            cursor.use { return it.count > 0 }
+        } catch (e: Exception) {
+            Log.w("IndexStore", "hasPodcast failed for $podcastId: ${e.message}")
+        }
+        return false
+    }
+
+    // Upsert a podcast row into the podcast_fts table
+    fun upsertPodcast(p: Podcast) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            try { db.execSQL("DELETE FROM podcast_fts WHERE podcastId = ?", arrayOf(p.id)) } catch (_: Exception) {}
+            val stmt = db.compileStatement("INSERT INTO podcast_fts(podcastId, title, description) VALUES (?, ?, ?)")
+            stmt.clearBindings()
+            stmt.bindString(1, p.id)
+            stmt.bindString(2, p.title)
+            stmt.bindString(3, p.description)
+            stmt.executeInsert()
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    // Return all episode ids currently indexed for the given podcast
+    fun getEpisodeIdsForPodcast(podcastId: String): Set<String> {
+        val db = helper.readableDatabase
+        val set = mutableSetOf<String>()
+        try {
+            val cursor = db.rawQuery("SELECT episodeId FROM episode_fts WHERE podcastId = ?", arrayOf(podcastId))
+            cursor.use {
+                while (it.moveToNext()) {
+                    set.add(it.getString(0))
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("IndexStore", "getEpisodeIdsForPodcast failed for $podcastId: ${e.message}")
+        }
+        return set
+    }
 }

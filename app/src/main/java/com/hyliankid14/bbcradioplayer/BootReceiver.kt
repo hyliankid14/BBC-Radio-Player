@@ -1,0 +1,22 @@
+package com.hyliankid14.bbcradioplayer
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        // Reschedule any configured periodic indexing after device reboot
+        CoroutineScope(Dispatchers.Default).launch {
+            val days = IndexPreference.getIntervalDays(context)
+            if (days > 0) {
+                IndexScheduler.scheduleIndexing(context)
+            } else {
+                IndexScheduler.cancel(context)
+            }
+        }
+    }
+}

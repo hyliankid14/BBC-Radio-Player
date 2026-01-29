@@ -1759,6 +1759,51 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Initialize and wire up index schedule dropdown
+        try {
+            val indexScheduleSpinner: android.widget.Spinner = findViewById(R.id.index_schedule_spinner)
+            val adapter = android.widget.ArrayAdapter.createFromResource(this, R.array.index_schedule_options, android.R.layout.simple_spinner_item)
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            indexScheduleSpinner.adapter = adapter
+
+            // Map saved days to spinner position
+            val savedDays = IndexPreference.getIntervalDays(this)
+            val pos = when (savedDays) {
+                1 -> 1
+                3 -> 2
+                7 -> 3
+                else -> 0
+            }
+            indexScheduleSpinner.setSelection(pos)
+
+            // Ensure any previously-configured schedule is (re)activated at startup
+            if (savedDays > 0) {
+                IndexScheduler.scheduleIndexing(this)
+            }
+
+            indexScheduleSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
+                    val days = when (position) {
+                        1 -> 1
+                        2 -> 3
+                        3 -> 7
+                        else -> 0
+                    }
+                    IndexPreference.setIntervalDays(this@MainActivity, days)
+                    if (days > 0) {
+                        IndexScheduler.scheduleIndexing(this@MainActivity)
+                        android.widget.Toast.makeText(this@MainActivity, "Scheduled indexing every ${days} day(s)", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        IndexScheduler.cancel(this@MainActivity)
+                        android.widget.Toast.makeText(this@MainActivity, "Periodic indexing disabled", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
+            }
+        } catch (_: Exception) {}
+
+
         // Periodic background indexing may be scheduled by the app in future; manual trigger available above.
         android.util.Log.d("MainActivity", "Indexing controls wired up")
     }
@@ -2234,7 +2279,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "theme_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "theme_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)
@@ -2257,6 +2302,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (name == "playback_prefs") {
                     if (!obj.has("auto_resume_android_auto")) obj.put("auto_resume_android_auto", PlaybackPreference.isAutoResumeAndroidAutoEnabled(this))
+                }
+                if (name == "index_prefs") {
+                    if (!obj.has("index_interval_days")) obj.put("index_interval_days", IndexPreference.getIntervalDays(this))
                 }
                 root.put(name, obj)
             }
@@ -2332,6 +2380,32 @@ class MainActivity : AppCompatActivity() {
                     if (pp.has("auto_resume_android_auto")) {
                         val enabled = pp.optBoolean("auto_resume_android_auto", false)
                         PlaybackPreference.setAutoResumeAndroidAuto(this, enabled)
+                    }
+                }
+            } catch (e: Exception) { /* Ignore */ }
+
+            try {
+                if (root.has("index_prefs")) {
+                    val ip = root.getJSONObject("index_prefs")
+                    if (ip.has("index_interval_days")) {
+                        val days = ip.optInt("index_interval_days", 0)
+                        IndexPreference.setIntervalDays(this, days)
+                        // Apply scheduling immediately to match imported state
+                        if (days > 0) IndexScheduler.scheduleIndexing(this) else IndexScheduler.cancel(this)
+
+                        // Update UI spinner selection if present
+                        runOnUiThread {
+                            try {
+                                val spinner: android.widget.Spinner? = findViewById(R.id.index_schedule_spinner)
+                                val pos = when (days) {
+                                    1 -> 1
+                                    3 -> 2
+                                    7 -> 3
+                                    else -> 0
+                                }
+                                spinner?.setSelection(pos)
+                            } catch (_: Exception) {}
+                        }
                     }
                 }
             } catch (e: Exception) { /* Ignore */ }
