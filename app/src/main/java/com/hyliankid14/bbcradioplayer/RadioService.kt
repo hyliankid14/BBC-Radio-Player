@@ -1629,9 +1629,12 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         // For podcasts we want the canonical mapping most head-units (including Android Auto)
         // expect: METADATA_KEY_TITLE = episode title, METADATA_KEY_ALBUM = podcast title.
         // Keep DISPLAY_* keys so modern UIs show podcast (top) + episode (subtitle).
+        // For podcasts ensure METADATA_KEY_TITLE contains the episode title only when it is
+        // present and distinct from the station/podcast title; otherwise leave it empty to
+        // avoid OEMs showing the same string twice in notifications.
+        val titleCandidate = (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
         val titleVal: String = if (isPodcast) {
-            // episode title is the primary "title" for podcast playback
-            (currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
+            if (titleCandidate.isNotBlank() && !titleCandidate.equals(currentStationTitle, ignoreCase = true)) titleCandidate else ""
         } else if (hasSongData) {
             currentShowInfo.getFormattedTitle().ifEmpty { currentStationTitle.orEmpty() }
         } else {

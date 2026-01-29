@@ -15,4 +15,7 @@
         <item>@string/index_schedule_3</item>
         <item>@string/index_schedule_7</item>
     </string-array>
+
+    <string name="shuffle_podcast_desc">Play a random podcast</string>
+    <string name="no_podcasts_shuffle">No podcasts available to shuffle</string>
 </resources>
