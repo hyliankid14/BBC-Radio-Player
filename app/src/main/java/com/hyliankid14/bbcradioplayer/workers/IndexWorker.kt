@@ -83,10 +83,7 @@ object IndexWorker {
 
                 for ((i, p) in podcasts.withIndex()) {
                     if (!isActive) break
-                    // Show which podcast we're working on but keep the overall episode
-                    // progress indeterminate while fetching/processing to avoid jitter.
-                    onProgress("Indexing episodes for: ${p.title}", -1, true)
-
+                    // Fetch episodes for this podcast and report monotonic overall-percent updates
                     val eps = try { repo.fetchEpisodesIfNeeded(p) } catch (e: Exception) { emptyList() }
                     if (eps.isEmpty()) {
                         // No episodes discovered — treat this podcast as complete and emit the
@@ -108,9 +105,6 @@ object IndexWorker {
                         val batchSize = 500
                         val chunks = enriched.chunked(batchSize)
 
-                        // Indicate we're processing this podcast (keep the episode bar indeterminate)
-                        onProgress("Indexing episodes for: ${p.title}", -1, true)
-
                         for (chunk in chunks) {
                             if (!isActive) break
                             val added = try { store.appendEpisodesBatch(chunk) } catch (oom: OutOfMemoryError) {
@@ -122,14 +116,17 @@ object IndexWorker {
                             inserted += added
                             processedEpisodes += added
 
+                            // Report monotonic overall episode percent based on processedInPodcast
+                            val overallPct = computeOverallEpisodePercent(i, podcasts.size, inserted, eps.size)
+                            onProgress("Indexing episodes for: ${p.title}", overallPct, true)
+
                             // Give SQLite a chance to service other threads / GC
                             try { Thread.yield() } catch (_: Throwable) {}
                         }
 
                         // When we've finished inserting *all* episodes for this podcast, advance the
-                        // overall episode progress to the podcast-complete mark (no intermediate
-                        // updates while chunking, per user request). Use a simple per-podcast
-                        // linear mapping so the progress bar advances steadily as podcasts finish.
+                        // overall episode progress to the podcast-complete mark so the UI progress
+                        // bar reaches the per-podcast completion point.
                         val completedPct = computePodcastCompletePercent(i, podcasts.size)
                         onProgress("Indexed episodes for: ${p.title}", completedPct, true)
                     } catch (e: Exception) {

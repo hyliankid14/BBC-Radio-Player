@@ -1673,7 +1673,9 @@ class MainActivity : AppCompatActivity() {
         indexNowBtn.setOnClickListener {
             try {
                 indexStatus.text = "Starting index..."
-                indexEpisodesProgress.isIndeterminate = true
+                // Start at zero and allow worker emitted percents to drive the bar so it moves
+                // monotonically from left->right rather than performing an indeterminate pan.
+                indexEpisodesProgress.isIndeterminate = false
                 indexEpisodesProgress.progress = 0
                 lifecycleScope.launch {
                     com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent, isEpisodePhase ->
