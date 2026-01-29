@@ -745,6 +745,11 @@ class PodcastsFragment : Fragment() {
                     cachedRv.adapter = searchAdapter
                     view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
                         if (filteredTitle.isEmpty() && filteredDesc.isEmpty() && filteredEpisodes.isEmpty()) {
+                            // If this came from a persisted active search, inform the user explicitly
+                            val active = viewModel.activeSearchQuery.value
+                            if (!active.isNullOrBlank()) {
+                                empty.text = getString(R.string.no_podcasts_found)
+                            }
                             empty.visibility = View.VISIBLE
                             cachedRv.visibility = View.GONE
                         } else {
@@ -1172,7 +1177,12 @@ class PodcastsFragment : Fragment() {
                 displayedEpisodeCount = episodeMatches.size
                 persistCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
 
-                showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty(), emptyState)
+                val hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty()
+                if (!hasContent && q.isNotEmpty()) {
+                    emptyState.text = getString(R.string.no_podcasts_found)
+                }
+
+                showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = hasContent, emptyState)
                 loadingView?.visibility = View.GONE
             } finally {
                 showSpinnerJob.cancel()

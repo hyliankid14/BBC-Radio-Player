@@ -18,4 +18,5 @@
 
     <string name="shuffle_podcast_desc">Play a random podcast</string>
     <string name="no_podcasts_shuffle">No podcasts available to shuffle</string>
+    <string name="no_podcasts_found">No podcasts found</string>
 </resources>
