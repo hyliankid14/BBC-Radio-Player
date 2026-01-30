@@ -486,10 +486,10 @@ class PodcastsFragment : Fragment() {
     fun refreshPodcastsDueToPreferenceChange() {
         try {
             val view = view ?: return
-            val loadingIndicator: ProgressBar = view.findViewById(R.id.podcasts_loading_indicator)
-            val emptyState: TextView = view.findViewById(R.id.podcasts_empty_state)
-            val recyclerView: RecyclerView = view.findViewById(R.id.podcast_recycler)
-            val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_spinner)
+            val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
+            val emptyState: TextView = view.findViewById(R.id.empty_state_text)
+            val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
+            val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_filter_spinner)
             val sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.sort_spinner)
             loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
         } catch (e: Exception) {
