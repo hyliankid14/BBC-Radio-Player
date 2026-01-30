@@ -984,23 +984,6 @@ class MainActivity : AppCompatActivity() {
                                             } catch (_: Exception) { }
                                         }
                                         itemView.setTag(R.id.swipe_haptic_trigger, true)
-                                   
-                                        itemView.isHapticFeedbackEnabled = true
-                                        val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-                                        if (!performed) {
-                                            try {
-                                                val vib = itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-                                                if (vib != null) {
-                                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                                        vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
-                                                    } else {
-                                                        @Suppress("DEPRECATION")
-                                                        vib.vibrate(20)
-                                                    }
-                                                }
-                                            } catch (_: Exception) { }
-                                        }
-                                        itemView.setTag(R.id.swipe_haptic_trigger, true)
                                     } catch (_: Exception) { }
                                 }
 
