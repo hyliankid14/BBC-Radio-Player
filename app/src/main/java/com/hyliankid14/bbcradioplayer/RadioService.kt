@@ -565,11 +565,11 @@ class RadioService : MediaBrowserServiceCompat() {
 
             when (parentId) {
                 MEDIA_ID_ROOT -> {
-                    // Add "Favorites" folder
+                    // Add "Favourites" folder (display text uses British spelling)
                     items.add(MediaItem(
                         MediaDescriptionCompat.Builder()
                             .setMediaId(MEDIA_ID_FAVORITES)
-                            .setTitle("Favorites")
+                            .setTitle("Favourites")
                             .build(),
                         MediaItem.FLAG_BROWSABLE
                     ))

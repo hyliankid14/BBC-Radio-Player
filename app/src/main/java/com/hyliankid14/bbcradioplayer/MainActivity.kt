@@ -2643,6 +2643,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (name == "index_prefs") {
                     if (!obj.has("index_interval_days")) obj.put("index_interval_days", IndexPreference.getIntervalDays(this))
+                    // Do not export the persisted last reindex timestamp because the on-disk
+                    // index is machine-local and is cleared on uninstall. Exporting it can
+                    // lead to misleading "Last rebuilt" values on import.
+                    if (obj.has("last_reindex_time")) obj.remove("last_reindex_time")
                 }
                 if (name == "podcast_filter_prefs") {
                     if (!obj.has("exclude_non_english")) obj.put("exclude_non_english", PodcastFilterPreference.excludeNonEnglish(this))
@@ -2675,6 +2679,10 @@ class MainActivity : AppCompatActivity() {
                 val kIt = prefsObj.keys()
                 while (kIt.hasNext()) {
                     val key = kIt.next()
+                    // Do not import the persisted last reindex timestamp because the on-disk
+                    // index and its stored timestamp are cleared when the app is uninstalled.
+                    // Restoring this value would show a misleading "Last rebuilt" time.
+                    if (prefsName == "index_prefs" && key == "last_reindex_time") continue
                     val value = prefsObj.get(key)
                     when (value) {
                         is JSONArray -> {
