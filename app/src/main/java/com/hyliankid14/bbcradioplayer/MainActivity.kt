@@ -420,7 +420,23 @@ class MainActivity : AppCompatActivity() {
                             val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
                             if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
                                 try {
-                                    itemView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                                    // Ensure haptic feedback is enabled on this view
+                                    itemView.isHapticFeedbackEnabled = true
+                                    val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                    if (!performed) {
+                                        // Fallback to Vibrator API for more reliable feedback on some devices
+                                        try {
+                                            val vib = itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                            if (vib != null) {
+                                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                                    vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                                                } else {
+                                                    @Suppress("DEPRECATION")
+                                                    vib.vibrate(20)
+                                                }
+                                            }
+                                        } catch (_: Exception) { }
+                                    }
                                     itemView.setTag(R.id.swipe_haptic_trigger, true)
                                 } catch (_: Exception) { }
                             }
@@ -951,7 +967,41 @@ class MainActivity : AppCompatActivity() {
                                 val triggerThreshold = itemView.width * 0.25f
                                 val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
                                 if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
-                                    try { itemView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY); itemView.setTag(R.id.swipe_haptic_trigger, true) } catch (_: Exception) { }
+                                    try {
+                                        itemView.isHapticFeedbackEnabled = true
+                                        val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                        if (!performed) {
+                                            try {
+                                                val vib = itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                                if (vib != null) {
+                                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                                        vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                                                    } else {
+                                                        @Suppress("DEPRECATION")
+                                                        vib.vibrate(20)
+                                                    }
+                                                }
+                                            } catch (_: Exception) { }
+                                        }
+                                        itemView.setTag(R.id.swipe_haptic_trigger, true)
+                                   
+                                        itemView.isHapticFeedbackEnabled = true
+                                        val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                        if (!performed) {
+                                            try {
+                                                val vib = itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                                if (vib != null) {
+                                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                                        vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                                                    } else {
+                                                        @Suppress("DEPRECATION")
+                                                        vib.vibrate(20)
+                                                    }
+                                                }
+                                            } catch (_: Exception) { }
+                                        }
+                                        itemView.setTag(R.id.swipe_haptic_trigger, true)
+                                    } catch (_: Exception) { }
                                 }
 
                                 val paint = android.graphics.Paint()

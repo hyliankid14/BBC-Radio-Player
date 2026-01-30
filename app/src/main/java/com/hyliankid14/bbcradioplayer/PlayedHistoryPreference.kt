@@ -95,7 +95,9 @@ object PlayedHistoryPreference {
                 j.put("playedAtMs", e.playedAtMs)
                 arr.put(j)
             }
-            prefs(context).edit().putString(KEY_HISTORY, arr.toString()).apply()
+            prefs(context).edit().putString(KEY_HISTORY, arr.toString()).commit()
+            // Notify listeners that history has changed so UI can refresh consistently
+            try { context.sendBroadcast(android.content.Intent(ACTION_HISTORY_CHANGED)) } catch (_: Exception) {}
         } catch (_: Exception) { }
     }
 
@@ -120,6 +122,8 @@ object PlayedHistoryPreference {
                 arr.put(j)
             }
             prefs(context).edit().putString(KEY_HISTORY, arr.toString()).apply()
+            // Notify listeners that history has changed so UI can refresh consistently
+            try { context.sendBroadcast(android.content.Intent(ACTION_HISTORY_CHANGED)) } catch (_: Exception) {}
         } catch (_: Exception) {}
     }
 
@@ -146,7 +150,9 @@ object PlayedHistoryPreference {
                 j.put("playedAtMs", e.playedAtMs)
                 arr.put(j)
             }
-            prefs(context).edit().putString(KEY_HISTORY, arr.toString()).apply()
+            prefs(context).edit().putString(KEY_HISTORY, arr.toString()).commit()
+            // Notify listeners that history has changed so UI can refresh consistently
+            try { context.sendBroadcast(android.content.Intent(ACTION_HISTORY_CHANGED)) } catch (_: Exception) {}
         } catch (_: Exception) {}
     }
 
