@@ -44,6 +44,31 @@ class PodcastAdapter(
         notifyDataSetChanged()
     }
 
+    /**
+     * Remove podcast at adapter position and return it, or null if invalid position.
+     */
+    fun removePodcastAt(pos: Int): Podcast? {
+        return if (pos in podcasts.indices) {
+            val removed = podcasts[pos]
+            val mutable = podcasts.toMutableList()
+            mutable.removeAt(pos)
+            podcasts = mutable
+            notifyItemRemoved(pos)
+            removed
+        } else null
+    }
+
+    /**
+     * Insert a podcast at the specified adapter position (clamped) and notify.
+     */
+    fun insertPodcastAt(pos: Int, podcast: Podcast) {
+        val mutable = podcasts.toMutableList()
+        val insertPos = pos.coerceIn(0, mutable.size)
+        mutable.add(insertPos, podcast)
+        podcasts = mutable
+        notifyItemInserted(insertPos)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PodcastViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.item_podcast, parent, false)
         return PodcastViewHolder(view, onPodcastClick)

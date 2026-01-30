@@ -99,6 +99,57 @@ object PlayedHistoryPreference {
         } catch (_: Exception) { }
     }
 
+    fun removeEntry(context: Context, episodeId: String) {
+        try {
+            val current = getHistory(context).toMutableList()
+            val removed = current.firstOrNull { it.id == episodeId } ?: return
+            current.removeAll { it.id == episodeId }
+            val arr = JSONArray()
+            for (e in current) {
+                val j = JSONObject()
+                j.put("id", e.id)
+                j.put("title", e.title)
+                j.put("description", e.description)
+                j.put("imageUrl", e.imageUrl)
+                j.put("audioUrl", e.audioUrl)
+                j.put("pubDate", e.pubDate)
+                j.put("durationMins", e.durationMins)
+                j.put("podcastId", e.podcastId)
+                j.put("podcastTitle", e.podcastTitle)
+                j.put("playedAtMs", e.playedAtMs)
+                arr.put(j)
+            }
+            prefs(context).edit().putString(KEY_HISTORY, arr.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
+    fun saveEntry(context: Context, entry: Entry) {
+        try {
+            val current = getHistory(context).toMutableList()
+            // Remove any existing with same id to avoid duplicates
+            current.removeAll { it.id == entry.id }
+            // Prepend so it's most-recent-first
+            current.add(0, entry)
+            val trimmed = current.take(MAX_ENTRIES)
+            val arr = JSONArray()
+            for (e in trimmed) {
+                val j = JSONObject()
+                j.put("id", e.id)
+                j.put("title", e.title)
+                j.put("description", e.description)
+                j.put("imageUrl", e.imageUrl)
+                j.put("audioUrl", e.audioUrl)
+                j.put("pubDate", e.pubDate)
+                j.put("durationMins", e.durationMins)
+                j.put("podcastId", e.podcastId)
+                j.put("podcastTitle", e.podcastTitle)
+                j.put("playedAtMs", e.playedAtMs)
+                arr.put(j)
+            }
+            prefs(context).edit().putString(KEY_HISTORY, arr.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
     fun clearAll(context: Context) {
         prefs(context).edit().remove(KEY_HISTORY).apply()
     }

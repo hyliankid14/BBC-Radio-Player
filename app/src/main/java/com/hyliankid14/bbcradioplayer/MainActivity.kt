@@ -78,6 +78,10 @@ class MainActivity : AppCompatActivity() {
 
     // Track whether a swipe-to-delete ItemTouchHelper has been attached to the Saved Episodes recycler
     private var savedItemTouchHelper: ItemTouchHelper? = null
+
+    // ItemTouchHelpers to manage swipe-to-delete for History and Subscribed Podcasts
+    private var historyItemTouchHelper: ItemTouchHelper? = null
+    private var podcastsItemTouchHelper: ItemTouchHelper? = null
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     // When true, programmatic bottom-navigation selections should not trigger the usual listener actions
@@ -388,12 +392,38 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
 
+                        override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                            super.clearView(recyclerView, viewHolder)
+                            // Force a redraw of the item so any temporary canvas drawing is cleared
+                            viewHolder.itemView.invalidate()
+                            // Reset the haptic trigger tag so subsequent swipes can trigger again
+                            try { viewHolder.itemView.setTag(R.id.swipe_haptic_trigger, false) } catch (_: Exception) { }
+                        }
+
                         override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
+                            // If there's no displacement and the user isn't actively swiping, let the
+                            // default implementation handle drawing — this avoids leaving the icon
+                            // drawn after a partially-completed swipe is released.
+                            if (kotlin.math.abs(dX) < 0.5f && !isCurrentlyActive) {
+                                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                                return
+                            }
+
                             val itemView = viewHolder.itemView
                             val paint = android.graphics.Paint()
                             val icon = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.ic_menu_delete)
                             val backgroundColor = android.graphics.Color.parseColor("#f44336") // material red 500
                             paint.color = backgroundColor
+
+                            // Trigger a short haptic feedback once when swipe passes threshold
+                            val triggerThreshold = itemView.width * 0.25f
+                            val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
+                            if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
+                                try {
+                                    itemView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                                    itemView.setTag(R.id.swipe_haptic_trigger, true)
+                                } catch (_: Exception) { }
+                            }
 
                             if (dX > 0) {
                                 // Swiping to the right — draw background from left edge to dX
@@ -490,6 +520,90 @@ class MainActivity : AppCompatActivity() {
 
                 // Always keep the adapter up-to-date, but only make the views visible when the History sub-tab is selected.
                 historyRecycler.adapter = adapter
+
+                // Attach swipe-to-delete for History (only once)
+                if (historyItemTouchHelper == null) {
+                    val swipeCallbackHistory = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+                        override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
+
+                        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                            val pos = viewHolder.bindingAdapterPosition
+                            if (pos != RecyclerView.NO_POSITION) {
+                                val removedEntry = historyEntries[pos]
+                                // Remove entry from store and refresh adapter
+                                PlayedHistoryPreference.removeEntry(this@MainActivity, removedEntry.id)
+                                val updated = PlayedHistoryPreference.getHistory(this@MainActivity)
+                                historyRecycler.adapter?.let { (it as? PlayedHistoryAdapter)?.updateEntries(updated) }
+
+                                // Show Undo Snackbar
+                                com.google.android.material.snackbar.Snackbar
+                                    .make(findViewById(android.R.id.content), "History entry removed", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                                    .setAction("Undo") {
+                                        PlayedHistoryPreference.saveEntry(this@MainActivity, removedEntry)
+                                        val refreshed = PlayedHistoryPreference.getHistory(this@MainActivity)
+                                        historyRecycler.adapter?.let { (it as? PlayedHistoryAdapter)?.updateEntries(refreshed) }
+                                    }
+                                    .setAnchorView(findViewById(R.id.favorites_history_container))
+                                    .show()
+                            }
+                        }
+
+                        override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                            super.clearView(recyclerView, viewHolder)
+                            viewHolder.itemView.invalidate()
+                            try { viewHolder.itemView.setTag(R.id.swipe_haptic_trigger, false) } catch (_: Exception) { }
+                        }
+
+                        override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
+                            if (kotlin.math.abs(dX) < 0.5f && !isCurrentlyActive) {
+                                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                                return
+                            }
+
+                            val itemView = viewHolder.itemView
+                            val triggerThreshold = itemView.width * 0.25f
+                            val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
+                            if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
+                                try { itemView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY); itemView.setTag(R.id.swipe_haptic_trigger, true) } catch (_: Exception) { }
+                            }
+
+                            val paint = android.graphics.Paint()
+                            val icon = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.ic_menu_delete)
+                            val backgroundColor = android.graphics.Color.parseColor("#f44336") // material red 500
+                            paint.color = backgroundColor
+
+                            if (dX > 0) {
+                                val rect = android.graphics.RectF(itemView.left.toFloat(), itemView.top.toFloat(), itemView.left + dX, itemView.bottom.toFloat())
+                                c.drawRect(rect, paint)
+                                icon?.let {
+                                    val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                    val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                    val iconLeft = itemView.left + iconMargin
+                                    val iconRight = iconLeft + it.intrinsicWidth
+                                    val iconBottom = iconTop + it.intrinsicHeight
+                                    it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                    it.draw(c)
+                                }
+                            } else {
+                                val rect = android.graphics.RectF(itemView.right + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
+                                c.drawRect(rect, paint)
+                                icon?.let {
+                                    val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                    val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                    val iconRight = itemView.right - iconMargin
+                                    val iconLeft = iconRight - it.intrinsicWidth
+                                    val iconBottom = iconTop + it.intrinsicHeight
+                                    it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                    it.draw(c)
+                                }
+                            }
+
+                            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                        }
+                    }
+                    historyItemTouchHelper = ItemTouchHelper(swipeCallbackHistory).also { it.attachToRecyclerView(historyRecycler) }
+                }
+
                 if (historyTabActive) {
                     historyRecycler.visibility = View.VISIBLE
                     historyContainer.visibility = View.VISIBLE
@@ -790,6 +904,92 @@ class MainActivity : AppCompatActivity() {
                     favoritesPodcastsRecycler.adapter = podcastAdapter
                     podcastAdapter.updatePodcasts(subs)
                     podcastAdapter.updateNewEpisodes(newSet)
+
+                    // Attach swipe-to-unsubscribe (only once)
+                    if (podcastsItemTouchHelper == null) {
+                        val swipeCallbackPodcasts = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+                            override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
+
+                            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                                val pos = viewHolder.bindingAdapterPosition
+                                if (pos != RecyclerView.NO_POSITION) {
+                                    val adapter = favoritesPodcastsRecycler.adapter as? PodcastAdapter
+                                    val removedPodcast = adapter?.removePodcastAt(pos)
+                                    removedPodcast?.let { p ->
+                                        // Toggle subscription (unsub)
+                                        PodcastSubscriptions.toggleSubscription(this@MainActivity, p.id)
+                                    }
+
+                                    // Show Undo Snackbar
+                                    com.google.android.material.snackbar.Snackbar
+                                        .make(findViewById(android.R.id.content), "Unsubscribed", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                                        .setAction("Undo") {
+                                            removedPodcast?.let { p ->
+                                                PodcastSubscriptions.toggleSubscription(this@MainActivity, p.id)
+                                                // Re-insert into adapter at the original position
+                                                favoritesPodcastsRecycler.adapter?.let { (it as? PodcastAdapter)?.insertPodcastAt(pos, p) }
+                                            }
+                                        }
+                                        .setAnchorView(findViewById(R.id.favorites_podcasts_container))
+                                        .show()
+                                }
+                            }
+
+                            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                                super.clearView(recyclerView, viewHolder)
+                                viewHolder.itemView.invalidate()
+                                try { viewHolder.itemView.setTag(R.id.swipe_haptic_trigger, false) } catch (_: Exception) { }
+                            }
+
+                            override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
+                                if (kotlin.math.abs(dX) < 0.5f && !isCurrentlyActive) {
+                                    super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                                    return
+                                }
+
+                                val itemView = viewHolder.itemView
+                                val triggerThreshold = itemView.width * 0.25f
+                                val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
+                                if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
+                                    try { itemView.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY); itemView.setTag(R.id.swipe_haptic_trigger, true) } catch (_: Exception) { }
+                                }
+
+                                val paint = android.graphics.Paint()
+                                val icon = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.ic_menu_delete)
+                                val backgroundColor = android.graphics.Color.parseColor("#f44336") // material red 500
+                                paint.color = backgroundColor
+
+                                if (dX > 0) {
+                                    val rect = android.graphics.RectF(itemView.left.toFloat(), itemView.top.toFloat(), itemView.left + dX, itemView.bottom.toFloat())
+                                    c.drawRect(rect, paint)
+                                    icon?.let {
+                                        val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                        val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                        val iconLeft = itemView.left + iconMargin
+                                        val iconRight = iconLeft + it.intrinsicWidth
+                                        val iconBottom = iconTop + it.intrinsicHeight
+                                        it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                        it.draw(c)
+                                    }
+                                } else {
+                                    val rect = android.graphics.RectF(itemView.right + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
+                                    c.drawRect(rect, paint)
+                                    icon?.let {
+                                        val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                        val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                        val iconRight = itemView.right - iconMargin
+                                        val iconLeft = iconRight - it.intrinsicWidth
+                                        val iconBottom = iconTop + it.intrinsicHeight
+                                        it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                        it.draw(c)
+                                    }
+                                }
+
+                                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                            }
+                        }
+                        podcastsItemTouchHelper = ItemTouchHelper(swipeCallbackPodcasts).also { it.attachToRecyclerView(favoritesPodcastsRecycler) }
+                    }
 
                     // Reveal recycler only if the Subscribed tab is actually selected right now
                     val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
