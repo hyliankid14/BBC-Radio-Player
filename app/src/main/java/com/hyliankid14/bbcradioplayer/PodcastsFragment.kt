@@ -479,6 +479,24 @@ class PodcastsFragment : Fragment() {
         loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
     }
 
+    /**
+     * Called by host activity after podcast-related preferences change (eg. exclude non-English)
+     * to refresh the list immediately if this fragment is visible.
+     */
+    fun refreshPodcastsDueToPreferenceChange() {
+        try {
+            val view = view ?: return
+            val loadingIndicator: ProgressBar = view.findViewById(R.id.podcasts_loading_indicator)
+            val emptyState: TextView = view.findViewById(R.id.podcasts_empty_state)
+            val recyclerView: RecyclerView = view.findViewById(R.id.podcast_recycler)
+            val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_spinner)
+            val sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.sort_spinner)
+            loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
+        } catch (e: Exception) {
+            android.util.Log.w("PodcastsFragment", "refreshPodcastsDueToPreferenceChange failed: ${e.message}")
+        }
+    }
+
     private fun loadPodcasts(
         loadingIndicator: ProgressBar,
         emptyState: TextView,

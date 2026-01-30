@@ -160,15 +160,16 @@ class PodcastRepository(private val context: Context) {
                 val concurrency = 12
                 val chunks = unknowns.chunked(concurrency)
                 for (chunk in chunks) {
-                    val resolved = kotlinx.coroutines.coroutineScope {
-                        val deferred = chunk.map { p -> kotlinx.coroutines.async { p to LanguageDetector.isPodcastEnglish(context, p) } }
+                    val resolved = coroutineScope {
+                        val deferred = chunk.map { p -> async { p to LanguageDetector.isPodcastEnglish(context, p) } }
                         deferred.awaitAll()
                     }
                     batchResults.addAll(resolved.filter { it.second }.map { it.first })
                 }
 
                 val finalFiltered = knownIncluded + batchResults
-                Log.d("PodcastRepository", "Returning filtered cached podcasts: kept=${finalFiltered.size} excluded=${cachedData.size - finalFiltered.size}")
+                val excluded = cachedData.filter { it.id !in finalFiltered.map { p -> p.id } }
+                Log.d("PodcastRepository", "Returning filtered cached podcasts: kept=${finalFiltered.size} excluded=${excluded.size} excludedSample=${excluded.take(6).map { it.title }}")
                 return@withContext finalFiltered
             }
 
@@ -185,11 +186,13 @@ class PodcastRepository(private val context: Context) {
                     val concurrency = 12
                     val chunks = podcasts.chunked(concurrency)
                     for (chunk in chunks) {
-                        val resolved = kotlinx.coroutines.coroutineScope {
+                        val resolved = coroutineScope {
                             val deferred = chunk.map { p -> async { p to LanguageDetector.isPodcastEnglish(context, p) } }
                             deferred.awaitAll()
                         }
-                        results.addAll(resolved.filter { it.second }.map { it.first })
+                        val kept = resolved.filter { it.second }.map { it.first }
+                    results.addAll(kept)
+                    android.util.Log.d("PodcastRepository", "Batch filter kept=${kept.size} sample=${kept.take(6).map { it.title }}")
                     }
                     results
                 } else podcasts

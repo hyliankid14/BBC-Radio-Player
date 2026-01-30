@@ -2132,6 +2132,11 @@ class MainActivity : AppCompatActivity() {
                     android.widget.Toast.makeText(this, if (isChecked) "Non-English podcasts will be hidden and not indexed" else "All podcasts will be shown and indexed", android.widget.Toast.LENGTH_SHORT).show()
                     // Refresh current view so the UI updates immediately
                     try { refreshCurrentView() } catch (_: Exception) {}
+                    // If the PodcastsFragment is visible, ask it to refresh immediately so the UI reflects the new preference
+                    try {
+                        val currentFrag = supportFragmentManager.findFragmentById(R.id.fragment_container)
+                        if (currentFrag is PodcastsFragment) currentFrag.refreshPodcastsDueToPreferenceChange()
+                    } catch (_: Exception) {}
                 }
             } catch (_: Exception) {}
         } catch (_: Exception) {}

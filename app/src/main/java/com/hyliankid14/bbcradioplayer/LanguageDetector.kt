@@ -74,7 +74,9 @@ object LanguageDetector {
             try {
                 val ml = detectLanguageWithMlKit(heading)
                 if (ml != null) {
-                    val result = ml.trim().lowercase().startsWith("en")
+                    val lang = ml.trim().lowercase()
+                    val result = lang.startsWith("en")
+                    Log.d("LanguageDetector", "ML Kit detected '$lang' for podcast key=$key -> english=$result")
                     putCachedResult(context, key, result)
                     return result
                 }
@@ -87,7 +89,9 @@ object LanguageDetector {
         try {
             val (rssLang, samples) = fetchRssLanguageAndSamples(podcast.rssUrl)
             if (rssLang != null) {
-                val result = rssLang.trim().lowercase().startsWith("en")
+                val lang = rssLang.trim().lowercase()
+                val result = lang.startsWith("en")
+                Log.d("LanguageDetector", "RSS <language>='$lang' for podcast key=$key -> english=$result")
                 putCachedResult(context, key, result)
                 return result
             }
@@ -114,6 +118,7 @@ object LanguageDetector {
                 val yes = votes.count { it }
                 val ratio = yes.toDouble() / votes.size.toDouble()
                 val result = ratio >= 0.6
+                Log.d("LanguageDetector", "ML Kit sample vote for key=$key -> yes=$yes total=${detected.size} ratio=$ratio english=$result")
                 putCachedResult(context, key, result)
                 return result
             }
@@ -208,14 +213,21 @@ object LanguageDetector {
     }
 
     private fun getCachedResult(context: Context, key: String): Pair<Boolean, Long>? {
-        memoryCache[key]?.let { return it }
+        memoryCache[key]?.let {
+            Log.d("LanguageDetector", "getCachedResult: memory hit key=${key} -> ${it.first}")
+            return it
+        }
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val sub = "ld_${'$'}{key.hashCode()}"
-        if (!prefs.contains("${'$'}{sub}_ts")) return null
-        val res = prefs.getBoolean("${'$'}{sub}_res", false)
-        val ts = prefs.getLong("${'$'}{sub}_ts", 0L)
+        val sub = "ld_${key.hashCode()}"
+        if (!prefs.contains("${sub}_ts")) {
+            Log.d("LanguageDetector", "getCachedResult: no persisted value for key=${key}")
+            return null
+        }
+        val res = prefs.getBoolean("${sub}_res", false)
+        val ts = prefs.getLong("${sub}_ts", 0L)
         val pair = res to ts
         memoryCache[key] = pair
+        Log.d("LanguageDetector", "getCachedResult: persisted key=${key} -> $res (ts=$ts)")
         return pair
     }
 
@@ -223,8 +235,9 @@ object LanguageDetector {
         val ts = System.currentTimeMillis()
         memoryCache[key] = result to ts
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val sub = "ld_${'$'}{key.hashCode()}"
-        prefs.edit().putBoolean("${'$'}{sub}_res", result).putLong("${'$'}{sub}_ts", ts).apply()
+        val sub = "ld_${key.hashCode()}"
+        prefs.edit().putBoolean("${sub}_res", result).putLong("${sub}_ts", ts).apply()
+        Log.d("LanguageDetector", "putCachedResult: persisted key=${key} -> $result (ts=$ts)")
     }
 
     // Optionally clear cache (useful for tests)
