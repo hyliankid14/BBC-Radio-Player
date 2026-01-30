@@ -75,6 +75,9 @@ class MainActivity : AppCompatActivity() {
     private var selectionFromSwipe = false
     // Reference to the active swipe listener so it can be removed when not in the All Stations view
     private var stationsSwipeListener: RecyclerView.OnItemTouchListener? = null
+
+    // Track whether a swipe-to-delete ItemTouchHelper has been attached to the Saved Episodes recycler
+    private var savedItemTouchHelper: ItemTouchHelper? = null
     
     private var currentMode = "list" // "favorites", "list", or "settings"
     // When true, programmatic bottom-navigation selections should not trigger the usual listener actions
@@ -355,6 +358,76 @@ class MainActivity : AppCompatActivity() {
                 })
 
                 savedRecycler.adapter = savedAdapter
+
+                // Attach swipe-to-delete (only once) so users can swipe an item to reveal a delete background + icon
+                if (savedItemTouchHelper == null) {
+                    val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+                        override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
+
+                        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                            val pos = viewHolder.bindingAdapterPosition
+                            if (pos != RecyclerView.NO_POSITION) {
+                                // Capture the removed entry so it can be restored if the user taps Undo
+                                val removedEntry = savedEntries[pos]
+
+                                // Remove saved entry and refresh adapter immediately
+                                SavedEpisodes.remove(this@MainActivity, removedEntry.id)
+                                val updated = SavedEpisodes.getSavedEntries(this@MainActivity)
+                                savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
+
+                                // Show an Undo Snackbar — clicking Undo will restore the exact entry
+                                com.google.android.material.snackbar.Snackbar
+                                    .make(findViewById(android.R.id.content), "Saved episode removed", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                                    .setAction("Undo") {
+                                        SavedEpisodes.saveEntry(this@MainActivity, removedEntry)
+                                        val refreshed = SavedEpisodes.getSavedEntries(this@MainActivity)
+                                        savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(refreshed) }
+                                    }
+                                    .setAnchorView(findViewById(R.id.saved_episodes_container))
+                                    .show()
+                            }
+                        }
+
+                        override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
+                            val itemView = viewHolder.itemView
+                            val paint = android.graphics.Paint()
+                            val icon = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.ic_menu_delete)
+                            val backgroundColor = android.graphics.Color.parseColor("#f44336") // material red 500
+                            paint.color = backgroundColor
+
+                            if (dX > 0) {
+                                // Swiping to the right — draw background from left edge to dX
+                                val rect = android.graphics.RectF(itemView.left.toFloat(), itemView.top.toFloat(), itemView.left + dX, itemView.bottom.toFloat())
+                                c.drawRect(rect, paint)
+                                icon?.let {
+                                    val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                    val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                    val iconLeft = itemView.left + iconMargin
+                                    val iconRight = iconLeft + it.intrinsicWidth
+                                    val iconBottom = iconTop + it.intrinsicHeight
+                                    it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                    it.draw(c)
+                                }
+                            } else {
+                                // Swiping to the left — draw background from right edge to dX
+                                val rect = android.graphics.RectF(itemView.right + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
+                                c.drawRect(rect, paint)
+                                icon?.let {
+                                    val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                    val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                    val iconRight = itemView.right - iconMargin
+                                    val iconLeft = iconRight - it.intrinsicWidth
+                                    val iconBottom = iconTop + it.intrinsicHeight
+                                    it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                    it.draw(c)
+                                }
+                            }
+
+                            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                        }
+                    }
+                    savedItemTouchHelper = ItemTouchHelper(swipeCallback).also { it.attachToRecyclerView(savedRecycler) }
+                }
 
                 // Show the saved episodes immediately if the Favorites view is active AND the Saved tab is selected.
                 val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }

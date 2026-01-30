@@ -131,6 +131,33 @@ object SavedEpisodes {
         }
     }
 
+    /**
+     * Persist an existing Entry object back into the saved-set. Removes any existing entry with
+     * the same id first to avoid duplicates and preserves the original savedAtMs value so order
+     * is retained in the UI.
+     */
+    fun saveEntry(context: Context, entry: Entry) {
+        val current = prefs(context).getStringSet(KEY_SAVED_SET, emptySet())?.toMutableSet() ?: mutableSetOf()
+        // Remove any existing entry with same id
+        val existing = current.firstOrNull { try { JSONObject(it).getString("id") == entry.id } catch (_: Exception) { false } }
+        if (existing != null) current.remove(existing)
+
+        val j = JSONObject()
+        j.put("id", entry.id)
+        j.put("title", entry.title)
+        j.put("description", entry.description)
+        j.put("imageUrl", entry.imageUrl)
+        j.put("audioUrl", entry.audioUrl)
+        j.put("pubDate", entry.pubDate)
+        j.put("durationMins", entry.durationMins)
+        j.put("podcastId", entry.podcastId)
+        j.put("podcastTitle", entry.podcastTitle)
+        j.put("savedAtMs", entry.savedAtMs)
+
+        current.add(j.toString())
+        prefs(context).edit().putStringSet(KEY_SAVED_SET, current).apply()
+    }
+
     fun clearAll(context: Context) {
         prefs(context).edit().remove(KEY_SAVED_SET).apply()
     }

@@ -123,11 +123,7 @@ class SavedEpisodesAdapter(
 
         holder.play?.setOnClickListener { onPlayEpisode(episode, e.podcastTitle, e.imageUrl) }
         holder.itemView.setOnClickListener { onOpenEpisode(episode, e.podcastTitle, e.imageUrl) }
-        holder.itemView.setOnLongClickListener {
-            // Remove saved episode on long press
-            onRemoveSaved(e.id)
-            true
-        }
+        // Long-press no longer removes episodes. Use swipe-to-delete in the Saved Episodes list instead.
     }
 
     override fun getItemCount(): Int = entries.size
