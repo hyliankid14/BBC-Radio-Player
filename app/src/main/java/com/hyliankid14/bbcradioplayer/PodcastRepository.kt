@@ -134,7 +134,42 @@ class PodcastRepository(private val context: Context) {
             val cachedData = if (!forceRefresh) getCachedPodcasts() else null
             if (cachedData != null && cachedData.isNotEmpty()) {
                 Log.d("PodcastRepository", "Returning cached podcasts")
-                return@withContext cachedData
+                // If the user does NOT want to exclude non-English shows, just return cache immediately.
+                if (!PodcastFilterPreference.excludeNonEnglish(context)) return@withContext cachedData
+
+                // Otherwise, apply language filtering to the cached results. Use persisted detector results
+                // where available and run ML checks (batched) for unknowns to avoid blocking too long.
+                val knownIncluded = mutableListOf<Podcast>()
+                val unknowns = mutableListOf<Podcast>()
+                for (p in cachedData) {
+                    val persisted = LanguageDetector.persistedIsPodcastEnglish(context, p)
+                    when (persisted) {
+                        true -> knownIncluded.add(p)
+                        false -> {} // explicitly exclude
+                        null -> unknowns.add(p)
+                    }
+                }
+
+                if (unknowns.isEmpty()) {
+                    Log.d("PodcastRepository", "Returning filtered cached podcasts (no unknowns) size=${knownIncluded.size}")
+                    return@withContext knownIncluded
+                }
+
+                // Check unknowns in limited parallel batches
+                val batchResults = mutableListOf<Podcast>()
+                val concurrency = 12
+                val chunks = unknowns.chunked(concurrency)
+                for (chunk in chunks) {
+                    val resolved = kotlinx.coroutines.coroutineScope {
+                        val deferred = chunk.map { p -> kotlinx.coroutines.async { p to LanguageDetector.isPodcastEnglish(context, p) } }
+                        deferred.awaitAll()
+                    }
+                    batchResults.addAll(resolved.filter { it.second }.map { it.first })
+                }
+
+                val finalFiltered = knownIncluded + batchResults
+                Log.d("PodcastRepository", "Returning filtered cached podcasts: kept=${finalFiltered.size} excluded=${cachedData.size - finalFiltered.size}")
+                return@withContext finalFiltered
             }
 
             Log.d("PodcastRepository", "Fetching podcasts from BBC OPML feed")

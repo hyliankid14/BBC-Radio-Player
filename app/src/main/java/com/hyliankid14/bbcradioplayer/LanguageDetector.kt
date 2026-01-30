@@ -233,4 +233,18 @@ object LanguageDetector {
         memoryCache.clear()
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
     }
+
+    /**
+     * Synchronous helper to check persisted cache for a podcast language result. Returns
+     * true/false iff a recent persisted result exists, otherwise null.
+     */
+    fun persistedIsPodcastEnglish(context: Context, podcast: Podcast): Boolean? {
+        val key = podcast.rssUrl.ifEmpty { podcast.htmlUrl }
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val sub = "ld_${key.hashCode()}"
+        if (!prefs.contains("${sub}_ts")) return null
+        val ts = prefs.getLong("${sub}_ts", 0L)
+        if (System.currentTimeMillis() - ts > CACHE_TTL_MS) return null
+        return prefs.getBoolean("${sub}_res", false)
+    }
 }

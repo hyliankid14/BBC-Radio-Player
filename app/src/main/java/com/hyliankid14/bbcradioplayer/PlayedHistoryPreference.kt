@@ -14,6 +14,10 @@ object PlayedHistoryPreference {
     private const val KEY_HISTORY = "history_json"
     private const val MAX_ENTRIES = 20
 
+    // Suppress re-adding entries that were just removed by the user to avoid races
+    private const val REMOVAL_SUPPRESSION_MS = 5_000L
+    private val recentRemovals = mutableMapOf<String, Long>()
+
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     data class Entry(
@@ -62,6 +66,17 @@ object PlayedHistoryPreference {
     fun addEntry(context: Context, episode: Episode, podcastTitle: String? = null) {
         try {
             val now = System.currentTimeMillis()
+
+            // Clean out stale suppression entries
+            val cutoff = now - REMOVAL_SUPPRESSION_MS
+            recentRemovals.entries.removeIf { it.value < cutoff }
+
+            // If this episode was recently removed by the user, suppress re-adding it for a short window
+            val removedAt = recentRemovals[episode.id]
+            if (removedAt != null && now - removedAt <= REMOVAL_SUPPRESSION_MS) {
+                return
+            }
+
             val current = getHistory(context).toMutableList()
             // Remove any existing with same id
             current.removeAll { it.id == episode.id }
@@ -121,7 +136,11 @@ object PlayedHistoryPreference {
                 j.put("playedAtMs", e.playedAtMs)
                 arr.put(j)
             }
-            prefs(context).edit().putString(KEY_HISTORY, arr.toString()).apply()
+            prefs(context).edit().putString(KEY_HISTORY, arr.toString()).commit()
+
+            // Record removal time to suppress accidental re-adds from other components
+            try { recentRemovals[episodeId] = System.currentTimeMillis() } catch (_: Exception) { }
+
             // Notify listeners that history has changed so UI can refresh consistently
             try { context.sendBroadcast(android.content.Intent(ACTION_HISTORY_CHANGED)) } catch (_: Exception) {}
         } catch (_: Exception) {}
