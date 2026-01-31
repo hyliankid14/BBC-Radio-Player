@@ -55,7 +55,7 @@
 
     <!-- Playback scrubber colors (light mode) -->
     <color name="playback_track">#E0E0E0</color>
-    <color name="playback_progress">#9E9E9E</color>
+    <color name="playback_progress">@color/md_theme_primary</color>
 
     <!-- Episode status colors -->
     <color name="episode_check_green">#4CAF50</color>

@@ -55,5 +55,5 @@
 
     <!-- Playback scrubber colors (dark mode) -->
     <color name="playback_track">#2B2B2B</color>
-    <color name="playback_progress">#8A8A8A</color>
+    <color name="playback_progress">@color/md_theme_primary</color>
 </resources>
