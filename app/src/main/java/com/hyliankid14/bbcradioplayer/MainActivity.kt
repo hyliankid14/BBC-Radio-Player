@@ -2068,13 +2068,13 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize and wire up index schedule dropdown
         try {
-            val indexScheduleSpinner: android.widget.Spinner = findViewById(R.id.index_schedule_spinner)
-            // Use custom spinner layouts so the selected text and dropdown items use the theme's `colorOnSurface` (fixes white text in light mode)
-            val adapter = android.widget.ArrayAdapter.createFromResource(this, R.array.index_schedule_options, R.layout.spinner_item)
+            val indexScheduleSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = findViewById(R.id.index_schedule_spinner)
+            // Use custom spinner layouts so the selected text and dropdown items use the theme's `colorOnSurface` and show a themed dropdown icon
+            val adapter = android.widget.ArrayAdapter.createFromResource(this, R.array.index_schedule_options, R.layout.spinner_dropdown_item)
             adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
-            indexScheduleSpinner.adapter = adapter
+            indexScheduleSpinner.setAdapter(adapter)
 
-            // Map saved days to spinner position
+            // Map saved days to spinner position and set initial text
             val savedDays = IndexPreference.getIntervalDays(this)
             val pos = when (savedDays) {
                 1 -> 1
@@ -2082,45 +2082,42 @@ class MainActivity : AppCompatActivity() {
                 7 -> 3
                 else -> 0
             }
-            // Suppress the first onItemSelected callback that some OEMs/fire sequences may emit
+            val options = resources.getStringArray(R.array.index_schedule_options)
+            // Suppress the first selection callback that may be emitted due to programmatic setText
             suppressIndexSpinnerSelection = true
-            indexScheduleSpinner.setSelection(pos)
+            indexScheduleSpinner.setText(options[pos], false)
 
             // Ensure any previously-configured schedule is (re)activated at startup
             if (savedDays > 0) {
                 IndexScheduler.scheduleIndexing(this)
             }
 
-            indexScheduleSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
-                    // If we're programmatically setting selection, ignore this callback once
-                    if (suppressIndexSpinnerSelection) {
-                        suppressIndexSpinnerSelection = false
-                        return
-                    }
-
-                    val days = when (position) {
-                        1 -> 1
-                        2 -> 3
-                        3 -> 7
-                        else -> 0
-                    }
-
-                    val previous = IndexPreference.getIntervalDays(this@MainActivity)
-                    // Only apply and show a toast when the user truly changed the value
-                    if (days != previous) {
-                        IndexPreference.setIntervalDays(this@MainActivity, days)
-                        if (days > 0) {
-                            IndexScheduler.scheduleIndexing(this@MainActivity)
-                            android.widget.Toast.makeText(this@MainActivity, "Scheduled indexing every ${days} day(s)", android.widget.Toast.LENGTH_SHORT).show()
-                        } else {
-                            IndexScheduler.cancel(this@MainActivity)
-                            android.widget.Toast.makeText(this@MainActivity, "Periodic indexing disabled", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    }
+            indexScheduleSpinner.setOnItemClickListener { parent, view, position, id ->
+                // If we're programmatically setting selection, ignore this callback once
+                if (suppressIndexSpinnerSelection) {
+                    suppressIndexSpinnerSelection = false
+                    return@setOnItemClickListener
                 }
 
-                override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
+                val days = when (position) {
+                    1 -> 1
+                    2 -> 3
+                    3 -> 7
+                    else -> 0
+                }
+
+                val previous = IndexPreference.getIntervalDays(this@MainActivity)
+                // Only apply and show a toast when the user truly changed the value
+                if (days != previous) {
+                    IndexPreference.setIntervalDays(this@MainActivity, days)
+                    if (days > 0) {
+                        IndexScheduler.scheduleIndexing(this@MainActivity)
+                        android.widget.Toast.makeText(this@MainActivity, "Scheduled indexing every ${days} day(s)", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        IndexScheduler.cancel(this@MainActivity)
+                        android.widget.Toast.makeText(this@MainActivity, "Periodic indexing disabled", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
 
             // Initialize 'exclude non-English' checkbox and bind preference
@@ -2746,16 +2743,17 @@ class MainActivity : AppCompatActivity() {
                         // Update UI spinner selection if present
                         runOnUiThread {
                             try {
-                                val spinner: android.widget.Spinner? = findViewById(R.id.index_schedule_spinner)
+                                val spinner: com.google.android.material.textfield.MaterialAutoCompleteTextView? = findViewById(R.id.index_schedule_spinner)
                                 val pos = when (days) {
                                     1 -> 1
                                     3 -> 2
                                     7 -> 3
                                     else -> 0
                                 }
+                                val options = resources.getStringArray(R.array.index_schedule_options)
                                 // Prevent the selection change from triggering a toast/callback
                                 suppressIndexSpinnerSelection = true
-                                spinner?.setSelection(pos)
+                                spinner?.setText(options[pos], false)
                             } catch (_: Exception) {}
                         }
                     }
