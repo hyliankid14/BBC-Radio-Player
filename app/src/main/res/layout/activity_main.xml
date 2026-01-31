@@ -15,6 +15,12 @@
         app:navigationIconTint="?attr/colorOnSurface"
         app:menu="@menu/top_app_bar_menu" />
 
+    <!-- Fill the small gap under the app bar with the same surface container colour -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:background="?attr/colorSurfaceContainer" />
+
     <!-- Favorites toggle group shown under the app bar for quick access -->
     <com.google.android.material.button.MaterialButtonToggleGroup
         android:id="@+id/favorites_toggle_group"
@@ -110,7 +116,8 @@
             android:id="@+id/stations_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:background="?attr/colorSurfaceContainer">
 
             <!-- Filter Buttons (static; won't move during swipes) -->
             <include
