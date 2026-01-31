@@ -2069,8 +2069,9 @@ class MainActivity : AppCompatActivity() {
         // Initialize and wire up index schedule dropdown
         try {
             val indexScheduleSpinner: android.widget.Spinner = findViewById(R.id.index_schedule_spinner)
-            val adapter = android.widget.ArrayAdapter.createFromResource(this, R.array.index_schedule_options, android.R.layout.simple_spinner_item)
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            // Use custom spinner layouts so the selected text and dropdown items use the theme's `colorOnSurface` (fixes white text in light mode)
+            val adapter = android.widget.ArrayAdapter.createFromResource(this, R.array.index_schedule_options, R.layout.spinner_item)
+            adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
             indexScheduleSpinner.adapter = adapter
 
             // Map saved days to spinner position
