@@ -144,7 +144,8 @@
                     android:paddingStart="0dp"
                     android:paddingEnd="0dp"
                     android:clipToPadding="false"
-                    android:scrollbars="vertical" />
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
 
             </LinearLayout>
 
@@ -158,20 +159,22 @@
                 android:id="@+id/favorites_podcasts_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="0dp"
-                android:visibility="gone">
+                android:visibility="gone"
+                android:background="?attr/colorSurface"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/favorites_podcasts_recycler"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:visibility="gone"
-                    android:paddingTop="8dp"
+                    android:paddingTop="0dp"
                     android:clipToPadding="true"
-                    android:scrollbars="vertical" />
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
             </FrameLayout>
 
             <!-- Saved Episodes: remove collapsible header and show as its own card when selected -->
@@ -179,20 +182,22 @@
                 android:id="@+id/saved_episodes_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
-                android:visibility="gone">
+                android:visibility="gone"
+                android:background="?attr/colorSurface"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/saved_episodes_recycler"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:visibility="gone"
-                    android:paddingTop="8dp"
+                    android:paddingTop="0dp"
                     android:clipToPadding="true"
-                    android:scrollbars="vertical" />
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
 
             </FrameLayout>
 
@@ -201,20 +206,22 @@
                 android:id="@+id/favorites_history_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
-                android:visibility="gone">
+                android:visibility="gone"
+                android:background="?attr/colorSurface"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/favorites_history_recycler"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:visibility="gone"
-                    android:paddingTop="8dp"
+                    android:paddingTop="0dp"
                     android:clipToPadding="true"
-                    android:scrollbars="vertical" />
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
 
             </FrameLayout>
 
@@ -226,13 +233,15 @@
             android:id="@+id/settings_container"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:background="?attr/colorSurface">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="16dp"
+                android:background="?attr/colorSurface">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -457,10 +466,8 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/index_schedule_label" />
-
-                    <Spinner
-                        android:id="@+id/index_schedule_spinner"
+                    android:text="@string/index_schedule_label"
+                    android:textColor="?attr/colorOnSurface" />
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp" />

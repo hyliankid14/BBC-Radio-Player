@@ -95,7 +95,8 @@
                 android:nestedScrollingEnabled="false"
                 android:scrollbars="vertical"
                 android:paddingBottom="96dp"
-                android:clipToPadding="false" />
+                android:clipToPadding="false"
+                android:background="?attr/colorSurface" />
 
             <!-- Loading Indicator -->
             <ProgressBar

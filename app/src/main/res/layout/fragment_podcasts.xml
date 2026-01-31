@@ -84,7 +84,7 @@
         android:layout_height="match_parent"
         android:layout_marginTop="?attr/actionBarSize"
         android:fillViewport="true"
-        android:background="?attr/colorSurfaceContainer">
+        android:background="?attr/colorSurface">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -115,7 +115,8 @@
                     app:boxStrokeColor="?attr/colorOutline"
                     app:endIconMode="dropdown_menu"
                     app:hintEnabled="true"
-                    android:hint="Genre">
+                    android:hint="Genre"
+                    app:boxBackgroundColor="?attr/colorSurface">
 
                     <com.google.android.material.textfield.MaterialAutoCompleteTextView
                         android:id="@+id/genre_filter_spinner"
@@ -137,7 +138,8 @@
                     app:boxStrokeColor="?attr/colorOutline"
                     app:endIconMode="dropdown_menu"
                     app:hintEnabled="true"
-                    android:hint="Sort">
+                    android:hint="Sort"
+                    app:boxBackgroundColor="?attr/colorSurface">
 
                     <com.google.android.material.textfield.MaterialAutoCompleteTextView
                         android:id="@+id/sort_spinner"
@@ -164,7 +166,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                android:scrollbars="vertical" />
+                android:scrollbars="vertical"
+                android:background="?attr/colorSurface" />
             </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
