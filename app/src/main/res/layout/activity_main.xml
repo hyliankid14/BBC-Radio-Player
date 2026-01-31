@@ -466,8 +466,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                    android:text="@string/index_schedule_label"
-                    android:textColor="?attr/colorOnSurface" />
+                        android:text="@string/index_schedule_label"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <Spinner
+                        android:id="@+id/index_schedule_spinner"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp" />
