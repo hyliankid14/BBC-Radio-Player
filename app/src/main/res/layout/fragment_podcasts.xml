@@ -9,7 +9,7 @@
         android:id="@+id/podcasts_search_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurface"
+        android:background="?attr/colorSurfaceContainer"
         android:fitsSystemWindows="true"
         app:contentInsetStartWithNavigation="0dp"
         android:elevation="2dp">
@@ -98,7 +98,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="visible"
-                android:background="?attr/colorSurface"
+                android:background="?attr/colorSurfaceContainer"
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp"
                 android:layout_marginTop="2dp">

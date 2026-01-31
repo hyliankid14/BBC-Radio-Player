@@ -1456,30 +1456,42 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 val isPodcast = currentStationId.startsWith("podcast_")
 
                 if (isPodcast) {
-                    // For podcasts, apply updates but *only* refresh the UI/notification when
-                    // the authoritative shown metadata actually changes (avoids unnecessary
-                    // Android Auto / OEM UI refreshes on periodic polling).
-                    val titleChanged = (finalShow.title ?: "") != (currentShowInfo.title ?: "")
-                    val episodeChanged = (finalShow.episodeTitle ?: "") != (currentShowInfo.episodeTitle ?: "")
-                    val imageChanged = (finalShow.imageUrl ?: "") != (currentShowInfo.imageUrl ?: "")
-                    val songDataChanged = (finalShow.secondary ?: "") != (currentShowInfo.secondary ?: "") || (finalShow.tertiary ?: "") != (currentShowInfo.tertiary ?: "")
+                    // For podcasts, guard against overwriting authoritative podcast series metadata
+                    // with ShowInfoFetcher defaults (e.g. "BBC Radio"). Treat placeholder/empty
+                    // responses as non-authoritative and do not replace the series title.
+                    val titleIsPlaceholder = (finalShow.title ?: "") == "BBC Radio"
 
-                    // Always keep the PlaybackStateHelper up-to-date for other consumers
-                    PlaybackStateHelper.setCurrentShow(finalShow)
+                    // Detect meaningful changes (ignore placeholder/empty fields from fetcher)
+                    val titleChanged = !titleIsPlaceholder && (finalShow.title ?: "") != (currentShowInfo.title ?: "")
+                    val episodeChanged = !finalShow.episodeTitle.isNullOrEmpty() && (finalShow.episodeTitle ?: "") != (currentShowInfo.episodeTitle ?: "")
+                    val imageChanged = !finalShow.imageUrl.isNullOrEmpty() && (finalShow.imageUrl ?: "") != (currentShowInfo.imageUrl ?: "")
+                    val songDataChanged = (!finalShow.secondary.isNullOrEmpty() && finalShow.secondary != currentShowInfo.secondary) || (!finalShow.tertiary.isNullOrEmpty() && finalShow.tertiary != currentShowInfo.tertiary)
+
+                    // Merge fetched data into current show state but preserve an existing, non-placeholder
+                    // series title when the fetcher returns the generic "BBC Radio" placeholder.
+                    val mergedTitle = if (titleIsPlaceholder && !currentShowInfo.title.isNullOrEmpty() && currentShowInfo.title != "BBC Radio") currentShowInfo.title else finalShow.title
+                    val mergedImage = finalShow.imageUrl ?: currentShowInfo.imageUrl
+                    val mergedEpisode = finalShow.episodeTitle ?: currentShowInfo.episodeTitle
+
+                    val mergedShow = finalShow.copy(title = mergedTitle ?: "", imageUrl = mergedImage, episodeTitle = mergedEpisode)
+
+                    // Update PlaybackStateHelper with the merged, authoritative show so other consumers
+                    // never see the placeholder value unexpectedly.
+                    PlaybackStateHelper.setCurrentShow(mergedShow)
 
                     if (titleChanged || episodeChanged || imageChanged || songDataChanged) {
                         // Commit authoritative changes locally
-                        currentShowInfo = finalShow
-                        currentShowName = finalShow.title // Store the actual show name
+                        currentShowInfo = mergedShow
+                        currentShowName = mergedShow.title // Store the actual show name
                         currentShowTitle = if (formattedTitle == "BBC Radio") "" else formattedTitle
-                        currentEpisodeTitle = finalShow.episodeTitle ?: ""
+                        currentEpisodeTitle = mergedShow.episodeTitle ?: ""
 
                         Log.d(TAG, "Podcast metadata changed (titleChanged=$titleChanged, episodeChanged=$episodeChanged, imageChanged=$imageChanged, songDataChanged=$songDataChanged) — updating UI")
 
                         // Switch to main thread to update UI immediately for podcasts
                         handler.post {
                             Log.d(TAG, "Updating UI with show title: $currentShowTitle (podcast immediate)")
-                            val nowPlayingImageUrl = finalShow.imageUrl
+                            val nowPlayingImageUrl = mergedShow.imageUrl
                             if (nowPlayingImageUrl?.startsWith("http") == true) {
                                 currentArtworkUri = nowPlayingImageUrl
                             } else {
@@ -1928,6 +1940,12 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             PlaybackStateHelper.setCurrentEpisodeId(episode.id)
             PlaybackStateHelper.setIsPlaying(true)
             PlaybackStateHelper.setCurrentShow(currentShowInfo)
+
+            // Cancel any scheduled station show-info refreshes — they are station-centric and return
+            // a "BBC Radio" placeholder for podcasts which can incorrectly overwrite series metadata.
+            showInfoRefreshRunnable?.let { handler.removeCallbacks(it); showInfoRefreshRunnable = null }
+            applyShowInfoRunnable?.let { handler.removeCallbacks(it); applyShowInfoRunnable = null }
+            pendingShowInfo = null
 
             // Remember this as the last played media so Android Auto can resume stations or podcasts
             PlaybackPreference.setLastMediaId(this, "podcast_episode_${'$'}{episode.id}")

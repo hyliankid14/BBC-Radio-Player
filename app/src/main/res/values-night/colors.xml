@@ -52,4 +52,8 @@
     <color name="search_field_bg">#49454E</color>
     <color name="search_field_text">#E6E1E5</color>
     <color name="search_field_hint">#CAC7D0</color>
+
+    <!-- Playback scrubber colors (dark mode) -->
+    <color name="playback_track">#2B2B2B</color>
+    <color name="playback_progress">#8A8A8A</color>
 </resources>

@@ -53,6 +53,10 @@
     <color name="search_field_text">#1C1B1F</color>
     <color name="search_field_hint">#49454E</color>
 
+    <!-- Playback scrubber colors (light mode) -->
+    <color name="playback_track">#E0E0E0</color>
+    <color name="playback_progress">#9E9E9E</color>
+
     <!-- Episode status colors -->
     <color name="episode_check_green">#4CAF50</color>
     <color name="episode_tilde_amber">#FFC107</color>
