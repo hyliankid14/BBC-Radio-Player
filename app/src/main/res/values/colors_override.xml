@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Use themed surface colors so subscribed podcasts header matches light/dark themes -->
-    <color name="subscribed_podcasts_bg">@color/md_theme_surfaceContainer</color>
+    <!-- In light mode use a white surface so subscribed podcast rows appear white; dark mode stays themed in values-night -->
+    <color name="subscribed_podcasts_bg">@color/md_theme_surface</color>
     <color name="subscribed_podcasts_text">@color/md_theme_onSurface</color>
     <!-- Subscribe button colors (light theme): light purple bg with dark text -->
     <color name="subscribe_button_bg">#EADDFF</color>

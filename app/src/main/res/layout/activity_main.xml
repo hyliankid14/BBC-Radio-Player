@@ -10,7 +10,7 @@
         android:id="@+id/top_app_bar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorSurface"
+        android:background="?attr/colorSurfaceContainer"
         app:titleTextColor="?attr/colorOnSurface"
         app:navigationIconTint="?attr/colorOnSurface"
         app:menu="@menu/top_app_bar_menu" />
