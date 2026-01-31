@@ -9,7 +9,8 @@
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
         android:gravity="center_vertical"
-        android:background="?attr/selectableItemBackground">
+        android:background="?attr/colorSurface"
+        android:foreground="?attr/selectableItemBackground">
 
         <ImageView
             android:id="@+id/station_artwork"
