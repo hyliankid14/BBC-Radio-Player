@@ -934,10 +934,13 @@ class PodcastsFragment : Fragment() {
 
             val loadingView = view?.findViewById<ProgressBar>(R.id.loading_progress)
             val searchStatusCard = view?.findViewById<View>(R.id.search_status_card)
+            val nameProgressBar = view?.findViewById<ProgressBar>(R.id.search_status_name_progress)
             val nameStatusIcon = view?.findViewById<ImageView>(R.id.search_status_name_icon)
+            val descProgressBar = view?.findViewById<ProgressBar>(R.id.search_status_description_progress)
             val descStatusIcon = view?.findViewById<ImageView>(R.id.search_status_description_icon)
             val episodesProgressBar = view?.findViewById<ProgressBar>(R.id.search_status_episodes_progress)
             val episodesCheckIcon = view?.findViewById<ImageView>(R.id.search_status_episodes_icon)
+            val episodesMessage = view?.findViewById<TextView>(R.id.search_status_episodes_message)
             
             var spinnerShown = false
             // Delay showing the spinner slightly to avoid a flicker on very-fast searches
@@ -984,14 +987,26 @@ class PodcastsFragment : Fragment() {
                     return@launch
                 }
 
-                // Show search status card with initial state
+                // Show search status card with initial state - all spinners showing
                 searchStatusCard?.visibility = View.VISIBLE
+                nameProgressBar?.visibility = View.VISIBLE
                 nameStatusIcon?.visibility = View.GONE
+                descProgressBar?.visibility = View.VISIBLE
                 descStatusIcon?.visibility = View.GONE
                 episodesProgressBar?.visibility = View.VISIBLE
                 episodesCheckIcon?.visibility = View.GONE
+                episodesMessage?.visibility = View.GONE
 
                 val qLower = q.lowercase(Locale.getDefault())
+                
+                // Check if episodes have been indexed
+                val hasIndexedEpisodes = withContext(Dispatchers.IO) {
+                    try {
+                        com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext()).hasAnyEpisodes()
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
 
                 // PHASE 1: Quick podcast title/description matches - show immediately
                 val titleMatches = withContext(Dispatchers.Default) {
@@ -999,17 +1014,30 @@ class PodcastsFragment : Fragment() {
                     repository.filterPodcasts(raw, currentFilter)
                 }
 
+                // Update name status: search complete, show checkmark
+                nameProgressBar?.visibility = View.GONE
+                nameStatusIcon?.visibility = View.VISIBLE
+
                 val descMatches = withContext(Dispatchers.Default) {
                     val raw = allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
                     repository.filterPodcasts(raw, currentFilter)
                 }
                 
-                // Update status based on actual results
-                if (titleMatches.isNotEmpty()) {
-                    nameStatusIcon?.visibility = View.VISIBLE
-                }
-                if (descMatches.isNotEmpty()) {
-                    descStatusIcon?.visibility = View.VISIBLE
+                // Update description status: search complete, show checkmark
+                descProgressBar?.visibility = View.GONE
+                descStatusIcon?.visibility = View.VISIBLE
+                
+                // Set up episode search status
+                if (hasIndexedEpisodes) {
+                    // Episodes are indexed, show progress spinner
+                    episodesMessage?.visibility = View.GONE
+                    episodesProgressBar?.visibility = View.VISIBLE
+                    episodesStatusIcon?.visibility = View.GONE
+                } else {
+                    // No episodes indexed, show guidance message
+                    episodesMessage?.visibility = View.VISIBLE
+                    episodesProgressBar?.visibility = View.GONE
+                    episodesStatusIcon?.visibility = View.GONE
                 }
                 
                 // Show podcast matches immediately (before episode indexing)
@@ -1050,6 +1078,16 @@ class PodcastsFragment : Fragment() {
                 val episodeMatches = async(Dispatchers.IO) {
                     // Check if cancelled before starting expensive work
                     if (!kotlin.coroutines.coroutineContext.isActive) return@async emptyList<Pair<Episode, Podcast>>()
+                    
+                    // If no episodes are indexed, show message and skip search
+                    if (!hasIndexedEpisodes) {
+                        withContext(Dispatchers.Main) {
+                            episodesProgressBar?.visibility = View.GONE
+                            episodesStatusIcon?.visibility = View.GONE
+                            episodesMessage?.visibility = View.VISIBLE
+                        }
+                        return@async emptyList<Pair<Episode, Podcast>>()
+                    }
                     
                     val eps = mutableListOf<Pair<Episode, Podcast>>()
 
@@ -1181,47 +1219,63 @@ class PodcastsFragment : Fragment() {
                 // Wait for episode search to complete, then update UI
                 val episodes = episodeMatches.await()
                 
-                // Enrich incomplete episodes (missing audioUrl, pubDate, or duration)
-                val enrichedEpisodes = if (episodes.isNotEmpty()) {
+                // Enrich ALL episodes to ensure they have playable audio URLs
+                val enrichedEpisodes = if (episodes.isNotEmpty() && isActive) {
                     val incomplete = episodes.filter { (ep, _) -> 
                         ep.audioUrl.isBlank() || ep.pubDate.isBlank() || ep.durationMins <= 0 
                     }
                     
-                    if (incomplete.isNotEmpty() && isActive) {
-                        // Group by podcast and fetch full episode details
-                        val podcastsToEnrich = incomplete.map { it.second }.distinctBy { it.id }.take(10)
+                    if (incomplete.isNotEmpty()) {
+                        android.util.Log.d("PodcastsFragment", "Enriching ${incomplete.size} incomplete episodes from ${incomplete.map { it.second }.distinctBy { it.id }.size} podcasts")
+                        
+                        // Group by podcast and fetch full episode details for ALL incomplete episodes
+                        val podcastsToEnrich = incomplete.map { it.second }.distinctBy { it.id }
                         val enriched = episodes.toMutableList()
+                        var enrichedCount = 0
                         
                         try {
-                            for (pod in podcastsToEnrich) {
-                                if (!isActive) break
-                                
-                                // Fetch episodes with timeout to avoid hanging
-                                val fullEpisodes = withTimeoutOrNull(3000L) {
-                                    try {
-                                        repository.fetchEpisodesIfNeeded(pod)
-                                    } catch (e: Exception) {
-                                        android.util.Log.w("PodcastsFragment", "Failed to fetch episodes for ${pod.title}: ${e.message}")
-                                        null
-                                    }
-                                } ?: continue
-                                
-                                // Replace incomplete episodes with full versions
-                                for (i in enriched.indices) {
-                                    val (ep, p) = enriched[i]
-                                    if (p.id == pod.id) {
-                                        val fullEp = fullEpisodes.find { it.id == ep.id }
-                                        if (fullEp != null && fullEp.audioUrl.isNotBlank()) {
-                                            enriched[i] = fullEp to p
+                            // Process podcasts in parallel for faster enrichment
+                            val enrichmentJobs = podcastsToEnrich.map { pod ->
+                                async(Dispatchers.IO) {
+                                    if (!isActive) return@async null
+                                    
+                                    // Fetch episodes with longer timeout for reliability
+                                    val fullEpisodes = withTimeoutOrNull(5000L) {
+                                        try {
+                                            repository.fetchEpisodesIfNeeded(pod)
+                                        } catch (e: Exception) {
+                                            android.util.Log.w("PodcastsFragment", "Failed to fetch episodes for ${pod.title}: ${e.message}")
+                                            null
                                         }
+                                    }
+                                    
+                                    if (fullEpisodes != null) pod.id to fullEpisodes else null
+                                }
+                            }
+                            
+                            // Wait for all enrichment jobs
+                            val enrichmentResults = enrichmentJobs.mapNotNull { it.await() }.toMap()
+                            
+                            // Replace incomplete episodes with full versions
+                            for (i in enriched.indices) {
+                                val (ep, p) = enriched[i]
+                                val fullEpisodes = enrichmentResults[p.id]
+                                if (fullEpisodes != null) {
+                                    val fullEp = fullEpisodes.find { it.id == ep.id }
+                                    if (fullEp != null && fullEp.audioUrl.isNotBlank()) {
+                                        enriched[i] = fullEp to p
+                                        enrichedCount++
                                     }
                                 }
                             }
+                            
+                            android.util.Log.d("PodcastsFragment", "Successfully enriched $enrichedCount episodes")
                         } catch (e: Exception) {
                             android.util.Log.w("PodcastsFragment", "Episode enrichment failed: ${e.message}")
                         }
                         
-                        enriched
+                        // Filter out any episodes that still don't have audio URLs
+                        enriched.filter { (ep, _) -> ep.audioUrl.isNotBlank() }
                     } else {
                         episodes
                     }

@@ -334,6 +334,22 @@ class IndexStore private constructor(private val context: Context) {
         return false
     }
 
+    // Check if any episodes have been indexed
+    fun hasAnyEpisodes(): Boolean {
+        val db = helper.readableDatabase
+        try {
+            val cursor = db.rawQuery("SELECT COUNT(*) FROM episode_fts LIMIT 1", emptyArray())
+            cursor.use {
+                if (it.moveToFirst()) {
+                    return it.getInt(0) > 0
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("IndexStore", "hasAnyEpisodes failed: ${e.message}")
+        }
+        return false
+    }
+
     // Upsert a podcast row into the podcast_fts table
     fun upsertPodcast(p: Podcast) {
         val db = helper.writableDatabase
