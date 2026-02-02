@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
                 suppressBottomNavSelection = false
             } else {
                 // Static content visible — decide between Favourites and List/Settings
-                val favToggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+                val favToggle = try { findViewById<LinearLayout>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
                 currentMode = if (stationsView.visibility == View.VISIBLE && favToggle?.visibility == View.VISIBLE) {
                     suppressBottomNavSelection = true
                     try { bottomNavigation.selectedItemId = R.id.navigation_favorites } catch (_: Exception) { }
@@ -476,8 +476,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 // Show the saved episodes immediately if the Favorites view is active AND the Saved tab is selected.
-                val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
-                val savedTabActive = (currentMode == "favorites" && (toggle?.checkedButtonId == R.id.fav_tab_saved))
+                val toggle = try { findViewById<LinearLayout>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+                val savedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved))
                 if (savedTabActive) {
                     savedRecycler.visibility = View.VISIBLE
                     savedContainer.visibility = View.VISIBLE
@@ -509,8 +509,8 @@ class MainActivity : AppCompatActivity() {
             val historyRecycler = findViewById<RecyclerView>(R.id.favorites_history_recycler)
 
             // Only reveal the history RecyclerView when the Favorites *History* sub-tab is active.
-            val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
-            val historyTabActive = (toggle?.checkedButtonId == R.id.fav_tab_history)
+            val toggle = try { findViewById<LinearLayout>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+            val historyTabActive = isButtonChecked(R.id.fav_tab_history)
 
             if (historyEntries.isNotEmpty()) {
                 historyRecycler.layoutManager = LinearLayoutManager(this)
@@ -654,7 +654,7 @@ class MainActivity : AppCompatActivity() {
     // the app is actually showing the Favourites page.
     private fun updateFavoritesToggleVisibility() {
         try {
-            val toggle = findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group)
+            val toggle = findViewById<LinearLayout>(R.id.favorites_toggle_group)
             toggle?.visibility = if (currentMode == "favorites") View.VISIBLE else View.GONE
         } catch (_: Exception) { }
     }
@@ -718,7 +718,7 @@ class MainActivity : AppCompatActivity() {
         val savedContainer = findViewById<View>(R.id.saved_episodes_container)
         val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
         val historyContainer = findViewById<View>(R.id.favorites_history_container)
-        val favoritesToggle = findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group)
+        val favoritesToggle = findViewById<LinearLayout>(R.id.favorites_toggle_group)
         // Ensure the favourites toggle group is visible when in Favorites
         try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
 
@@ -774,9 +774,6 @@ class MainActivity : AppCompatActivity() {
         val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
         var lastChecked = prefs.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
         if (!candidateIds.contains(lastChecked)) lastChecked = R.id.fav_tab_stations
-        try {
-            favoritesToggle.check(lastChecked)
-        } catch (_: Exception) { /* ignore */ }
         // Ensure UI and section match restored selection
         updateFavoritesToggleVisuals(lastChecked)
         when (lastChecked) {
@@ -791,17 +788,26 @@ class MainActivity : AppCompatActivity() {
         // Initial visuals (restore last selection)
         updateFavoritesToggleVisuals(lastChecked)
 
-        favoritesToggle.addOnButtonCheckedListener { group, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
-            // Persist user's last selection so returning to Favorites restores it
-            try { prefs.edit().putInt(LAST_FAV_TAB_KEY, checkedId).apply() } catch (_: Exception) { }
-            updateFavoritesToggleVisuals(checkedId)
-            when (checkedId) {
-                R.id.fav_tab_stations -> showFavoritesTab("stations")
-                R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
-                R.id.fav_tab_saved -> showFavoritesTab("saved")
-                R.id.fav_tab_history -> showFavoritesTab("history")
-            }
+        // Set up click listeners for each button (since we're not using MaterialButtonToggleGroup anymore)
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.fav_tab_stations).setOnClickListener {
+            try { prefs.edit().putInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations).apply() } catch (_: Exception) { }
+            updateFavoritesToggleVisuals(R.id.fav_tab_stations)
+            showFavoritesTab("stations")
+        }
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.fav_tab_subscribed).setOnClickListener {
+            try { prefs.edit().putInt(LAST_FAV_TAB_KEY, R.id.fav_tab_subscribed).apply() } catch (_: Exception) { }
+            updateFavoritesToggleVisuals(R.id.fav_tab_subscribed)
+            showFavoritesTab("subscribed")
+        }
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.fav_tab_saved).setOnClickListener {
+            try { prefs.edit().putInt(LAST_FAV_TAB_KEY, R.id.fav_tab_saved).apply() } catch (_: Exception) { }
+            updateFavoritesToggleVisuals(R.id.fav_tab_saved)
+            showFavoritesTab("saved")
+        }
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.fav_tab_history).setOnClickListener {
+            try { prefs.edit().putInt(LAST_FAV_TAB_KEY, R.id.fav_tab_history).apply() } catch (_: Exception) { }
+            updateFavoritesToggleVisuals(R.id.fav_tab_history)
+            showFavoritesTab("history")
         }
         
         // Setup ItemTouchHelper for drag-and-drop. We disable the default long-press start and instead
@@ -1025,8 +1031,8 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     // Reveal recycler only if the Subscribed tab is actually selected right now
-                    val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
-                    val subscribedTabActive = (currentMode == "favorites" && (toggle?.checkedButtonId == R.id.fav_tab_subscribed || lastFav == R.id.fav_tab_subscribed))
+                    val toggle = try { findViewById<LinearLayout>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
+                    val subscribedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_subscribed))
                     if (subscribedTabActive) {
                         favoritesPodcastsRecycler.visibility = View.VISIBLE
                         favoritesPodcastsContainer.visibility = View.VISIBLE
@@ -1307,6 +1313,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Update visuals for the favorites button group (tablet shows labels; phone icon-only)
+    private fun isButtonChecked(buttonId: Int): Boolean {
+        return try {
+            val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
+            val currentChecked = prefs.getInt("last_fav_tab_id", R.id.fav_tab_stations)
+            currentChecked == buttonId
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun updateFavoritesToggleVisuals(selectedId: Int) {
         val ids = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
         val labels = mapOf(
@@ -2184,8 +2200,6 @@ class MainActivity : AppCompatActivity() {
             if (currentMode == "favorites") {
                 val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
                 val lastChecked = prefs.getInt("last_fav_tab_id", R.id.fav_tab_stations)
-                val toggle = try { findViewById<com.google.android.material.button.MaterialButtonToggleGroup>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
-                try { toggle?.check(lastChecked) } catch (_: Exception) { }
                 updateFavoritesToggleVisuals(lastChecked)
                 // Ensure the toggle's visibility matches the restored mode
                 updateFavoritesToggleVisibility()

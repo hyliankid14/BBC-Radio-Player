@@ -23,20 +23,17 @@
         android:background="?attr/colorSurfaceContainer" />
 
     <!-- Favorites toggle group shown under the app bar for quick access -->
-    <com.google.android.material.button.MaterialButtonToggleGroup
+    <LinearLayout
         android:id="@+id/favorites_toggle_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:background="@android:color/transparent"
-        android:layout_marginStart="0dp"
-        android:layout_marginEnd="0dp"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        app:singleSelection="true"
-        app:selectionRequired="true"
-        app:checkedButton="@id/fav_tab_stations">
+        android:gravity="center">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_stations"
@@ -45,7 +42,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:minWidth="0dp"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="0dp"
             android:layout_marginEnd="4dp"
             android:text="Stations"
             app:icon="@drawable/ic_star"
@@ -97,7 +94,7 @@
             android:layout_height="wrap_content"
             android:minWidth="0dp"
             android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp"
+            android:layout_marginEnd="0dp"
             android:text="History"
             app:icon="@drawable/ic_history"
             app:iconGravity="textStart"
@@ -106,7 +103,7 @@
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
-    </com.google.android.material.button.MaterialButtonToggleGroup>
+    </LinearLayout>
 
     <!-- Dynamic Fragment Container (Podcasts) -->
     <FrameLayout
