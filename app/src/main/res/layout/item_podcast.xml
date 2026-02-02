@@ -55,20 +55,18 @@
             android:layout_marginTop="8dp" />
     </LinearLayout>
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp">
 
         <TextView
             android:id="@+id/podcast_new_dot"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
             android:text="•"
             android:textSize="18sp"
-            android:layout_marginBottom="2dp"
             android:visibility="gone"
             android:textColor="@color/episode_tilde_amber"
             android:contentDescription="New episodes" />
@@ -77,11 +75,12 @@
             android:id="@+id/podcast_notification_bell"
             android:layout_width="24dp"
             android:layout_height="24dp"
+            android:layout_gravity="bottom|center_horizontal"
             android:contentDescription="Toggle notifications"
             android:visibility="gone"
             android:tint="?attr/colorOnSurface"
             android:background="?attr/selectableItemBackgroundBorderless" />
-    </LinearLayout>
+    </FrameLayout>
 
     <ImageView
         android:id="@+id/podcast_subscribed_icon"
