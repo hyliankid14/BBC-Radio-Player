@@ -1330,7 +1330,7 @@ class MainActivity : AppCompatActivity() {
     private fun applyConnectedButtonShape(
         btn: com.google.android.material.button.MaterialButton,
         index: Int,
-        count: Int,
+2        count: Int,
         selected: Boolean,
         smallCornerPx: Float,
         selectedCornerPx: Float

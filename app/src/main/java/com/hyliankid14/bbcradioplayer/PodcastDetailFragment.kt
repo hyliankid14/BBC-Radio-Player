@@ -123,6 +123,13 @@ class PodcastDetailFragment : Fragment() {
                     .into(imageView)
             }
 
+            // Helper function to update notification bell icon
+            fun updateNotificationBell() {
+                val enabled = PodcastSubscriptions.isNotificationsEnabled(requireContext(), podcast.id)
+                val iconRes = if (enabled) R.drawable.ic_notifications else R.drawable.ic_notifications_off
+                notificationBell.setImageResource(iconRes)
+            }
+
             // Initialize subscribe button state and colors (use high-contrast text colors)
             fun updateSubscribeButton(subscribed: Boolean) {
                 subscribeButton.text = if (subscribed) "Subscribed" else "Subscribe"
@@ -138,12 +145,6 @@ class PodcastDetailFragment : Fragment() {
                 if (subscribed) {
                     updateNotificationBell()
                 }
-            }
-            
-            fun updateNotificationBell() {
-                val enabled = PodcastSubscriptions.isNotificationsEnabled(requireContext(), podcast.id)
-                val iconRes = if (enabled) R.drawable.ic_notifications else R.drawable.ic_notifications_off
-                notificationBell.setImageResource(iconRes)
             }
 
             val isSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
