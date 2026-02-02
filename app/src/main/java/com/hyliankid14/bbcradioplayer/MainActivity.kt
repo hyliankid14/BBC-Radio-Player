@@ -1396,8 +1396,8 @@ class MainActivity : AppCompatActivity() {
                 // Unselected items are rounded on sides that touch the selected item or are at the ends.
                 try {
                     val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
-                    val fullCorner = com.google.android.material.shape.PercentCornerSize(0.5f) // 50% = Stadium
-                    val noCorner = com.google.android.material.shape.AbsoluteCornerSize(0f)
+                    val fullCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.RelativeCornerSize(0.5f) // 50% = Stadium
+                    val noCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.AbsoluteCornerSize(0f)
 
                     val isPrevSelected = (index - 1 == selectedIndex)
                     val isNextSelected = (index + 1 == selectedIndex)
