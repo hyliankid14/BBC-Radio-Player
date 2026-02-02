@@ -191,25 +191,31 @@ class IndexStore private constructor(private val context: Context) {
         if (tokens.size == 1) {
             // For single-token queries try a few prioritized variants: prefix, exact token, and field-scoped exact
             val t = tokens[0]
-            return listOf("${t}*", "($t)", "(title:$t) OR (description:$t)")
+            return listOf("${t}*", "$t", "title:${t}*", "description:${t}*")
         }
 
         val phrase = '"' + tokens.joinToString(" ") + '"'
-        val near = tokens.joinToString(" NEAR/3 ") { it }
-        val tokenAnd = tokens.joinToString(" AND ") { "${it}*" }
-        // Individual token OR (broadest match)
-        val tokenOr = tokens.joinToString(" OR ") { "${it}*" }
-
+        // For multi-token queries, FTS4 requires specific syntax
+        // Build individual prefix tokens that we'll combine
+        val prefixTokens = tokens.map { "${it}*" }
+        
         val variants = mutableListOf<String>()
-        // Start with looser queries that are more likely to match
-        // 1. Token AND with prefix matching (e.g., "neil* AND armstrong*")
-        variants.add(tokenAnd)
-        // 2. NEAR proximity (e.g., "neil NEAR/3 armstrong")
-        variants.add(near)
-        // 3. Exact phrase (e.g., ""neil armstrong"")
+        
+        // 1. Try exact phrase first (most specific)
         variants.add(phrase)
-        // 4. Individual tokens OR (broadest, e.g., "neil* OR armstrong*")
-        variants.add(tokenOr)
+        
+        // 2. Try each token as prefix (broadest - will match if ANY word appears)
+        // This is critical for catching cases where FTS operators fail
+        for (token in prefixTokens) {
+            variants.add(token)
+        }
+        
+        // 3. Try simple space-separated tokens (FTS interprets as implicit AND in some modes)
+        variants.add(tokens.joinToString(" "))
+        
+        // 4. Try prefix versions separated by space
+        variants.add(prefixTokens.joinToString(" "))
+        
         return variants
     }
 
@@ -221,13 +227,13 @@ class IndexStore private constructor(private val context: Context) {
         Log.d("IndexStore", "searchEpisodes called with query='$query' limit=$limit")
 
         // Try prioritized MATCH variants and return first non-empty result set
-        // Use first 4 variants to balance speed and recall
         val variants = buildFtsVariants(query)
-        Log.d("IndexStore", "Generated ${variants.size} FTS variants: ${variants.take(4)}")
+        Log.d("IndexStore", "Generated ${variants.size} FTS variants for query='$query'")
         
-        for ((idx, v) in variants.take(4).withIndex()) {
+        // Try all variants (don't limit to 4) since we need to test individual tokens
+        for ((idx, v) in variants.withIndex()) {
             try {
-                Log.d("IndexStore", "FTS variant ${idx + 1}/4: '$v'")
+                Log.d("IndexStore", "FTS variant ${idx + 1}/${variants.size}: '$v'")
                 val cursor = db.rawQuery("SELECT episodeId, podcastId, title, description FROM episode_fts WHERE episode_fts MATCH ? LIMIT ?", arrayOf(v, limit.toString()))
                 val results = mutableListOf<EpisodeFts>()
                 cursor.use {
