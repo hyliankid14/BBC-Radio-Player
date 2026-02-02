@@ -277,8 +277,11 @@ class PodcastsFragment : Fragment() {
                 if (searchQuery.isBlank()) {
                     android.util.Log.d("PodcastsFragment", "afterTextChanged: search box cleared, clearing active search (was='${viewModel.activeSearchQuery.value}')")
                     viewModel.clearActiveSearch()
+                    // Cancel any ongoing searches immediately
                     searchJob?.cancel()
+                    searchJob = null
                     filterDebounceJob?.cancel()
+                    filterDebounceJob = null
                     // Update end icon to shuffle now that the box is empty
                     try {
                         searchInputLayout.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM
@@ -470,6 +473,11 @@ class PodcastsFragment : Fragment() {
             override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: androidx.lifecycle.Lifecycle.Event) {
                 if (event == androidx.lifecycle.Lifecycle.Event.ON_DESTROY) {
                     requireActivity().window.setSoftInputMode(previousSoftInputMode)
+                    // Cancel any ongoing search jobs to prevent crashes and memory leaks
+                    searchJob?.cancel()
+                    searchJob = null
+                    filterDebounceJob?.cancel()
+                    filterDebounceJob = null
                 }
             }
         })
@@ -936,6 +944,9 @@ class PodcastsFragment : Fragment() {
             try {
                 val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
                 searchQuery = q
+                
+                // Check if job was cancelled early
+                if (!isActive) return@launch
 
                 // Empty -> show main list (preserve sorting/pagination)
                 if (q.isEmpty()) {
@@ -976,6 +987,9 @@ class PodcastsFragment : Fragment() {
                 }
 
                 val episodeMatches = withContext(Dispatchers.IO) {
+                    // Check if cancelled before starting expensive work
+                    if (!kotlin.coroutines.coroutineContext.isActive) return@withContext emptyList<Pair<Episode, Podcast>>()
+                    
                     // Prefer on-disk FTS index when available — it's fast and returns global
                     // episode hits across podcasts. Fall back to per-podcast cached search
                     // if the index is unavailable or returns nothing.
@@ -984,14 +998,24 @@ class PodcastsFragment : Fragment() {
                     if (q.length >= 3) {
                         try {
                             val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
-                            val ftsResults = try {
-                                // request a much larger result set from the on-disk index so we can
-                                // surface all available matches (subject to the index size)
-                                index.searchEpisodes(q, 1000)
-                            } catch (e: Exception) {
-                                android.util.Log.w("PodcastsFragment", "FTS episode search failed: ${e.message}")
-                                emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
-                            }
+                            
+                            // Add timeout to FTS query to prevent hanging
+                            val ftsResults = withTimeoutOrNull(2000) {
+                                try {
+                                    // request a much larger result set from the on-disk index so we can
+                                    // surface all available matches (subject to the index size)
+                                    index.searchEpisodes(q, 1000)
+                                } catch (e: Exception) {
+                                    android.util.Log.w("PodcastsFragment", "FTS episode search failed: ${e.message}")
+                                    emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
+                                }
+                            } ?: emptyList()
+                            
+                            // Check if cancelled after FTS query
+                            if (!kotlin.coroutines.coroutineContext.isActive) return@withContext emptyList<Pair<Episode, Podcast>>()
+                            
+                            // Check if cancelled after FTS query
+                            if (!kotlin.coroutines.coroutineContext.isActive) return@withContext emptyList<Pair<Episode, Podcast>>()
 
                             if (ftsResults.isNotEmpty()) {
                                 // Group hits by podcast and prefer title matches when ordering
@@ -1025,6 +1049,7 @@ class PodcastsFragment : Fragment() {
 
                                     for (ef in (titleHits + descHits)) {
                                         if (perPodcastAdded.size >= 200) break
+                                        if (!coroutineContext.isActive) break
                                         perPodcastAdded.add(resolveHit(ef) to p)
                                         total += 1
                                         if (total >= 1000) break
@@ -1037,14 +1062,23 @@ class PodcastsFragment : Fragment() {
                         } catch (e: Exception) {
                             android.util.Log.w("PodcastsFragment", "IndexStore unavailable, falling back to cached-per-podcast search: ${e.message}")
                         }
+                        
+                        // Check if cancelled before fallback search
+                        if (!kotlin.coroutines.coroutineContext.isActive) return@withContext emptyList<Pair<Episode, Podcast>>()
+                        
+                        // Check if cancelled before fallback search
+                        if (!kotlin.coroutines.coroutineContext.isActive) return@withContext emptyList<Pair<Episode, Podcast>>()
 
                         // Fallback: if index returned nothing or wasn't available, search cached episodes per-podcast
+                        // Limit this fallback to prevent slow searches
                         if (eps.isEmpty()) {
-                            val perPodcastLimit = 200
-                            for (p in allPodcasts) {
+                            val perPodcastLimit = 50  // Reduced from 200 for faster response
+                            val podcastsToSearch = allPodcasts.take(20)  // Limit number of podcasts searched
+                            for (p in podcastsToSearch) {
                                 if (!kotlin.coroutines.coroutineContext.isActive) break
                                 val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
                                 for (ep in hits) {
+                                    if (!kotlin.coroutines.coroutineContext.isActive) break
                                     eps.add(ep to p)
                                     if (eps.size >= 50) break
                                 }
@@ -1052,6 +1086,9 @@ class PodcastsFragment : Fragment() {
                             }
                         }
                     }
+                    
+                    // Check if cancelled before filtering
+                    if (!kotlin.coroutines.coroutineContext.isActive) return@withContext emptyList<Pair<Episode, Podcast>>()
 
                     // Apply podcast-level filter and episode duration filter so the UI filters apply to episode hits
                     val epsFiltered = eps.filter { (ep, pod) ->
