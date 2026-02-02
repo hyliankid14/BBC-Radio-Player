@@ -1032,12 +1032,12 @@ class PodcastsFragment : Fragment() {
                     // Episodes are indexed, show progress spinner
                     episodesMessage?.visibility = View.GONE
                     episodesProgressBar?.visibility = View.VISIBLE
-                    episodesStatusIcon?.visibility = View.GONE
+                    search_status_episodes_icon?.visibility = View.GONE
                 } else {
                     // No episodes indexed, show guidance message
                     episodesMessage?.visibility = View.VISIBLE
                     episodesProgressBar?.visibility = View.GONE
-                    episodesStatusIcon?.visibility = View.GONE
+                    search_status_episodes_icon?.visibility = View.GONE
                 }
                 
                 // Show podcast matches immediately (before episode indexing)
@@ -1083,7 +1083,7 @@ class PodcastsFragment : Fragment() {
                     if (!hasIndexedEpisodes) {
                         withContext(Dispatchers.Main) {
                             episodesProgressBar?.visibility = View.GONE
-                            episodesStatusIcon?.visibility = View.GONE
+                            search_status_episodes_icon?.visibility = View.GONE
                             episodesMessage?.visibility = View.VISIBLE
                         }
                         return@async emptyList<Pair<Episode, Podcast>>()
