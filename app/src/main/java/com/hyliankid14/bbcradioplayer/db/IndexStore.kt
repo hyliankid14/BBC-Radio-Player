@@ -221,8 +221,8 @@ class IndexStore private constructor(private val context: Context) {
         val db = helper.readableDatabase
 
         // Try prioritized MATCH variants and return first non-empty result set
-        // Limit to first 2 variants to avoid slow searches
-        val variants = buildFtsVariants(query).take(2)
+        // Use first 4 variants to balance speed and recall (was 2, which missed many multi-word queries)
+        val variants = buildFtsVariants(query).take(4)
         for (v in variants) {
             try {
                 Log.d("IndexStore", "FTS episode try: variant='$v' originalQuery='$query' limit=$limit")
@@ -244,7 +244,7 @@ class IndexStore private constructor(private val context: Context) {
             }
         }
 
-        // Simplified fallback: only try LIKE for single-token queries to avoid slow multi-token searches
+        // Enhanced fallback: support both single and multi-token LIKE searches
         try {
             val qnorm = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
                 .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
@@ -254,12 +254,12 @@ class IndexStore private constructor(private val context: Context) {
                 .lowercase(Locale.getDefault())
             val tokens = qnorm.split(Regex("\\s+")).filter { it.isNotEmpty() }
             
-            // Only do LIKE fallback for single tokens to keep it fast
             if (tokens.size == 1) {
+                // Single token: search title and description
                 val t = "%${tokens[0]}%"
-                val sql = "SELECT episodeId, podcastId, title, description FROM episode_fts WHERE LOWER(title) LIKE ? LIMIT ?"
+                val sql = "SELECT episodeId, podcastId, title, description FROM episode_fts WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ? LIMIT ?"
                 Log.d("IndexStore", "FTS single-token fallback SQL token='${tokens[0]}'")
-                val cursor = db.rawQuery(sql, arrayOf(t, limit.toString()))
+                val cursor = db.rawQuery(sql, arrayOf(t, t, limit.toString()))
                 val fbResults = mutableListOf<EpisodeFts>()
                 cursor.use {
                     while (it.moveToNext()) {
@@ -271,6 +271,24 @@ class IndexStore private constructor(private val context: Context) {
                     }
                 }
                 Log.d("IndexStore", "FTS single-token fallback returned ${fbResults.size} hits")
+                if (fbResults.isNotEmpty()) return fbResults
+            } else if (tokens.size in 2..4) {
+                // Multi-token phrase fallback (limit to 2-4 tokens to prevent slow queries)
+                val phraseParam = "%${tokens.joinToString(" ")}%"
+                val sql = "SELECT episodeId, podcastId, title, description FROM episode_fts WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ? LIMIT ?"
+                Log.d("IndexStore", "FTS multi-token phrase fallback: '${tokens.joinToString(" ")}'")
+                val cursor = db.rawQuery(sql, arrayOf(phraseParam, phraseParam, limit.toString()))
+                val fbResults = mutableListOf<EpisodeFts>()
+                cursor.use {
+                    while (it.moveToNext()) {
+                        val eid = it.getString(0)
+                        val pid = it.getString(1)
+                        val title = it.getString(2) ?: ""
+                        val desc = it.getString(3) ?: ""
+                        fbResults.add(EpisodeFts(eid, pid, title, desc))
+                    }
+                }
+                Log.d("IndexStore", "FTS multi-token fallback returned ${fbResults.size} hits")
                 if (fbResults.isNotEmpty()) return fbResults
             }
         } catch (e: Exception) {
