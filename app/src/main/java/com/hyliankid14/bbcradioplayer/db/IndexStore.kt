@@ -226,6 +226,26 @@ class IndexStore private constructor(private val context: Context) {
 
         Log.d("IndexStore", "searchEpisodes called with query='$query' limit=$limit")
 
+        val normQuery = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(Regex("[^\\p{L}0-9\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .lowercase(Locale.getDefault())
+        val queryTokens = normQuery.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val requiresAllTokens = queryTokens.size >= 2
+
+        fun matchesAllTokens(text: String): Boolean {
+            if (!requiresAllTokens) return true
+            val normText = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
+                .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+                .replace(Regex("[^\\p{L}0-9\\s]"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+                .lowercase(Locale.getDefault())
+            return queryTokens.all { token -> normText.contains(token) }
+        }
+
         // Try prioritized MATCH variants and return first non-empty result set
         val variants = buildFtsVariants(query)
         Log.d("IndexStore", "Generated ${variants.size} FTS variants for query='$query'")
@@ -247,8 +267,15 @@ class IndexStore private constructor(private val context: Context) {
                 }
                 Log.d("IndexStore", "FTS variant ${idx + 1} returned ${results.size} hits")
                 if (results.isNotEmpty()) {
-                    Log.d("IndexStore", "Returning ${results.size} results from FTS variant ${idx + 1}")
-                    return results
+                    val filtered = if (requiresAllTokens) {
+                        results.filter { matchesAllTokens(it.title + " " + (it.description ?: "")) }
+                    } else {
+                        results
+                    }
+                    if (filtered.isNotEmpty()) {
+                        Log.d("IndexStore", "Returning ${filtered.size} results from FTS variant ${idx + 1} after token filter")
+                        return filtered
+                    }
                 }
             } catch (e: Exception) {
                 Log.w("IndexStore", "FTS variant ${idx + 1} failed: ${e.message}")
