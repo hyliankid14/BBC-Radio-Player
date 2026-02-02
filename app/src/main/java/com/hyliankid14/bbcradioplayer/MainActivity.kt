@@ -1397,7 +1397,7 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
                     val fullCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.RelativeCornerSize(0.5f) // 50% = Stadium
-                    val noCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.AbsoluteCornerSize(0f)
+                    val smallCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.AbsoluteCornerSize(8f) // Small rounding for unselected/gaps
 
                     val isPrevSelected = (index - 1 == selectedIndex)
                     val isNextSelected = (index + 1 == selectedIndex)
@@ -1410,8 +1410,8 @@ class MainActivity : AppCompatActivity() {
                         shapeBuilder.setTopLeftCornerSize(fullCorner)
                         shapeBuilder.setBottomLeftCornerSize(fullCorner)
                     } else {
-                        shapeBuilder.setTopLeftCornerSize(noCorner)
-                        shapeBuilder.setBottomLeftCornerSize(noCorner)
+                        shapeBuilder.setTopLeftCornerSize(smallCorner)
+                        shapeBuilder.setBottomLeftCornerSize(smallCorner)
                     }
 
                     // Top/Bottom Right:
@@ -1420,14 +1420,16 @@ class MainActivity : AppCompatActivity() {
                         shapeBuilder.setTopRightCornerSize(fullCorner)
                         shapeBuilder.setBottomRightCornerSize(fullCorner)
                     } else {
-                        shapeBuilder.setTopRightCornerSize(noCorner)
-                        shapeBuilder.setBottomRightCornerSize(noCorner)
+                        shapeBuilder.setTopRightCornerSize(smallCorner)
+                        shapeBuilder.setBottomRightCornerSize(smallCorner)
                     }
 
                     btn.shapeAppearanceModel = shapeBuilder.build()
                 } catch (_: Exception) { }
 
                 btn.contentDescription = labels[id]
+                // Force margins to create visual gap (MaterialButtonToggleGroup tries to remove them)
+                lp?.setMargins(4, 0, 4, 0)
                 btn.layoutParams = lp
             } catch (_: Exception) { }
         }

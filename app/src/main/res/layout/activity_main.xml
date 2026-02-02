@@ -27,7 +27,7 @@
         android:id="@+id/favorites_toggle_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurfaceContainer"
+        android:background="@android:color/transparent"
         android:layout_marginStart="0dp"
         android:layout_marginEnd="0dp"
         android:paddingStart="16dp"
@@ -39,7 +39,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_stations"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Material3.Button.UnelevatedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
@@ -48,12 +48,13 @@
             app:icon="@drawable/ic_star"
             app:iconGravity="textStart"
             app:iconPadding="8dp"
+            app:strokeWidth="0dp"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_subscribed"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Material3.Button.UnelevatedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
@@ -62,12 +63,13 @@
             app:icon="@drawable/ic_podcast"
             app:iconGravity="textStart"
             app:iconPadding="8dp"
+            app:strokeWidth="0dp"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_saved"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Material3.Button.UnelevatedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
@@ -76,12 +78,13 @@
             app:icon="@drawable/ic_bookmark"
             app:iconGravity="textStart"
             app:iconPadding="8dp"
+            app:strokeWidth="0dp"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_history"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.Material3.Button.UnelevatedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
@@ -90,6 +93,7 @@
             app:icon="@drawable/ic_history"
             app:iconGravity="textStart"
             app:iconPadding="8dp"
+            app:strokeWidth="0dp"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
