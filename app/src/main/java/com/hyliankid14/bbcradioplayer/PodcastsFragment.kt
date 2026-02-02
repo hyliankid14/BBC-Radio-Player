@@ -934,6 +934,8 @@ class PodcastsFragment : Fragment() {
 
             val loadingView = view?.findViewById<ProgressBar>(R.id.loading_progress)
             val searchStatusCard = view?.findViewById<View>(R.id.search_status_card)
+            val nameStatusIcon = view?.findViewById<ImageView>(R.id.search_status_name_icon)
+            val descStatusIcon = view?.findViewById<ImageView>(R.id.search_status_description_icon)
             val episodesProgressBar = view?.findViewById<ProgressBar>(R.id.search_status_episodes_progress)
             val episodesCheckIcon = view?.findViewById<ImageView>(R.id.search_status_episodes_icon)
             
@@ -984,6 +986,8 @@ class PodcastsFragment : Fragment() {
 
                 // Show search status card with initial state
                 searchStatusCard?.visibility = View.VISIBLE
+                nameStatusIcon?.visibility = View.GONE
+                descStatusIcon?.visibility = View.GONE
                 episodesProgressBar?.visibility = View.VISIBLE
                 episodesCheckIcon?.visibility = View.GONE
 
@@ -998,6 +1002,14 @@ class PodcastsFragment : Fragment() {
                 val descMatches = withContext(Dispatchers.Default) {
                     val raw = allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
                     repository.filterPodcasts(raw, currentFilter)
+                }
+                
+                // Update status based on actual results
+                if (titleMatches.isNotEmpty()) {
+                    nameStatusIcon?.visibility = View.VISIBLE
+                }
+                if (descMatches.isNotEmpty()) {
+                    descStatusIcon?.visibility = View.VISIBLE
                 }
                 
                 // Show podcast matches immediately (before episode indexing)
@@ -1169,23 +1181,71 @@ class PodcastsFragment : Fragment() {
                 // Wait for episode search to complete, then update UI
                 val episodes = episodeMatches.await()
                 
+                // Enrich incomplete episodes (missing audioUrl, pubDate, or duration)
+                val enrichedEpisodes = if (episodes.isNotEmpty()) {
+                    val incomplete = episodes.filter { (ep, _) -> 
+                        ep.audioUrl.isBlank() || ep.pubDate.isBlank() || ep.durationMins <= 0 
+                    }
+                    
+                    if (incomplete.isNotEmpty() && isActive) {
+                        // Group by podcast and fetch full episode details
+                        val podcastsToEnrich = incomplete.map { it.second }.distinctBy { it.id }.take(10)
+                        val enriched = episodes.toMutableList()
+                        
+                        try {
+                            for (pod in podcastsToEnrich) {
+                                if (!isActive) break
+                                
+                                // Fetch episodes with timeout to avoid hanging
+                                val fullEpisodes = withTimeoutOrNull(3000L) {
+                                    try {
+                                        repository.fetchEpisodesIfNeeded(pod)
+                                    } catch (e: Exception) {
+                                        android.util.Log.w("PodcastsFragment", "Failed to fetch episodes for ${pod.title}: ${e.message}")
+                                        null
+                                    }
+                                } ?: continue
+                                
+                                // Replace incomplete episodes with full versions
+                                for (i in enriched.indices) {
+                                    val (ep, p) = enriched[i]
+                                    if (p.id == pod.id) {
+                                        val fullEp = fullEpisodes.find { it.id == ep.id }
+                                        if (fullEp != null && fullEp.audioUrl.isNotBlank()) {
+                                            enriched[i] = fullEp to p
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("PodcastsFragment", "Episode enrichment failed: ${e.message}")
+                        }
+                        
+                        enriched
+                    } else {
+                        episodes
+                    }
+                } else {
+                    episodes
+                }
+                
                 if (isActive) {
                     // Update status: episodes complete
                     episodesProgressBar?.visibility = View.GONE
                     episodesCheckIcon?.visibility = View.VISIBLE
                     
-                    // Create new adapter with full results including episodes
+                    // Create new adapter with full results including enriched episodes
                     searchAdapter = SearchResultsAdapter(
                         context = requireContext(),
                         titleMatches = titleMatches,
                         descMatches = descMatches,
-                        episodeMatches = episodes,
+                        episodeMatches = enrichedEpisodes,
                         onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                         onPlayEpisode = { ep -> playEpisode(ep) },
                         onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
                     )
                     
-                    val hasContent = podcastMatches.isNotEmpty() || episodes.isNotEmpty()
+                    val hasContent = podcastMatches.isNotEmpty() || enrichedEpisodes.isNotEmpty()
                     if (!hasContent && q.isNotEmpty()) {
                         emptyState.text = getString(R.string.no_podcasts_found)
                         searchStatusCard?.visibility = View.GONE
