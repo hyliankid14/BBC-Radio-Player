@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.Spinner
@@ -1020,9 +1021,16 @@ class PodcastsFragment : Fragment() {
                     
                     // Initialize search adapter with podcast-only results
                     if (searchAdapter == null) {
-                        searchAdapter = SearchResultsAdapter(requireContext(), onEpisodeClick = { ep, pod -> onEpisodeClicked(ep, pod) })
+                        searchAdapter = SearchResultsAdapter(
+                            context = requireContext(),
+                            titleMatches = titleMatches,
+                            descMatches = descMatches,
+                            episodeMatches = emptyList(),
+                            onPodcastClick = { podcast -> onPodcastClicked(podcast) },
+                            onPlayEpisode = { ep -> playEpisode(ep) },
+                            onOpenEpisode = { ep, pod -> onEpisodeClicked(ep, pod) }
+                        )
                     }
-                    searchAdapter?.updateResults(sorted, emptyList())
                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = true, emptyState)
                 }
                 
@@ -1166,24 +1174,16 @@ class PodcastsFragment : Fragment() {
                     episodesProgressBar?.visibility = View.GONE
                     episodesCheckIcon?.visibility = View.VISIBLE
                     
-                    // Update results with both podcasts and episodes
-                    val sorted = when (currentSort) {
-                        "Most popular" -> podcastMatches.sortedWith(
-                            compareBy<Podcast> { if (titleMatches.contains(it)) 0 else 1 }
-                                .thenBy { getPopularRank(it) }
-                        )
-                        "Most recent" -> podcastMatches.sortedWith(
-                            compareBy<Podcast> { if (titleMatches.contains(it)) 0 else 1 }
-                                .thenByDescending { cachedUpdates[it.id] ?: 0L }
-                        )
-                        "Alphabetical (A-Z)" -> podcastMatches.sortedWith(
-                            compareBy<Podcast> { if (titleMatches.contains(it)) 0 else 1 }
-                                .thenBy { it.title }
-                        )
-                        else -> podcastMatches
-                    }
-                    
-                    searchAdapter?.updateResults(sorted, episodes)
+                    // Create new adapter with full results including episodes
+                    searchAdapter = SearchResultsAdapter(
+                        context = requireContext(),
+                        titleMatches = titleMatches,
+                        descMatches = descMatches,
+                        episodeMatches = episodes,
+                        onPodcastClick = { podcast -> onPodcastClicked(podcast) },
+                        onPlayEpisode = { ep -> playEpisode(ep) },
+                        onOpenEpisode = { ep, pod -> onEpisodeClicked(ep, pod) }
+                    )
                     
                     val hasContent = podcastMatches.isNotEmpty() || episodes.isNotEmpty()
                     if (!hasContent && q.isNotEmpty()) {
@@ -1194,6 +1194,13 @@ class PodcastsFragment : Fragment() {
                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = hasContent, emptyState)
                 }
 
+                loadingView?.visibility = View.GONE
+            } finally {
+                showSpinnerJob.cancel()
+                loadingView?.visibility = View.GONE
+            }
+        }
+    }
 
     private fun getPopularRank(podcast: Podcast): Int {
         for ((key, rank) in POPULAR_RANKING) {
