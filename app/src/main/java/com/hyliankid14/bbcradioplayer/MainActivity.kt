@@ -1344,19 +1344,8 @@ class MainActivity : AppCompatActivity() {
             if (selected) {
                 shapeBuilder.setAllCornerSizes(selectedCorner)
             } else {
-                if (index == 0) {
-                    shapeBuilder.setTopLeftCornerSize(smallCorner)
-                    shapeBuilder.setBottomLeftCornerSize(smallCorner)
-                    shapeBuilder.setTopRightCornerSize(noCorner)
-                    shapeBuilder.setBottomRightCornerSize(noCorner)
-                } else if (index == count - 1) {
-                    shapeBuilder.setTopLeftCornerSize(noCorner)
-                    shapeBuilder.setBottomLeftCornerSize(noCorner)
-                    shapeBuilder.setTopRightCornerSize(smallCorner)
-                    shapeBuilder.setBottomRightCornerSize(smallCorner)
-                } else {
-                    shapeBuilder.setAllCornerSizes(noCorner)
-                }
+                // All unselected buttons have equal rounding on inner and outer corners
+                shapeBuilder.setAllCornerSizes(smallCorner)
             }
 
             btn.shapeAppearanceModel = shapeBuilder.build()
@@ -1383,7 +1372,8 @@ class MainActivity : AppCompatActivity() {
         btn.setTag(tagKey, targetUniformCorner)
 
         val animator = android.animation.ValueAnimator.ofFloat(startCorner, targetUniformCorner)
-        animator.duration = 220
+        animator.duration = 260
+        animator.interpolator = androidx.interpolator.view.animation.FastOutSlowInInterpolator()
         animator.addUpdateListener { valueAnimator ->
             val animatedCorner = valueAnimator.animatedValue as Float
             try {
@@ -1404,6 +1394,52 @@ class MainActivity : AppCompatActivity() {
             override fun onAnimationRepeat(animation: android.animation.Animator) {}
         })
         animator.start()
+    }
+
+    private fun animateButtonColors(
+        btn: com.google.android.material.button.MaterialButton,
+        targetBackground: Int,
+        targetIcon: Int,
+        targetText: Int
+    ) {
+        val currentBg = btn.backgroundTintList?.defaultColor ?: targetBackground
+        val currentIcon = btn.iconTint?.defaultColor ?: targetIcon
+        val currentText = btn.currentTextColor
+
+        if (currentBg == targetBackground && currentIcon == targetIcon && currentText == targetText) {
+            return
+        }
+
+        val bgAnimator = android.animation.ValueAnimator.ofArgb(currentBg, targetBackground).apply {
+            duration = 240
+            interpolator = androidx.interpolator.view.animation.FastOutSlowInInterpolator()
+            addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                btn.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+            }
+        }
+
+        val iconAnimator = android.animation.ValueAnimator.ofArgb(currentIcon, targetIcon).apply {
+            duration = 240
+            interpolator = androidx.interpolator.view.animation.FastOutSlowInInterpolator()
+            addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                btn.iconTint = android.content.res.ColorStateList.valueOf(color)
+            }
+        }
+
+        val textAnimator = android.animation.ValueAnimator.ofArgb(currentText, targetText).apply {
+            duration = 240
+            interpolator = androidx.interpolator.view.animation.FastOutSlowInInterpolator()
+            addUpdateListener { animator ->
+                val color = animator.animatedValue as Int
+                btn.setTextColor(color)
+            }
+        }
+
+        bgAnimator.start()
+        iconAnimator.start()
+        textAnimator.start()
     }
 
     private fun updateFavoritesToggleVisuals(selectedId: Int) {
@@ -1477,17 +1513,12 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                // Apply Material 3 Connected Button Group colors
-                // All buttons are stadium-shaped pills; selected gets primary container fill
+                // Apply Material 3 Connected Button Group colors with smooth transitions
                 try {
                     if (selected) {
-                        btn.backgroundTintList = android.content.res.ColorStateList.valueOf(colorPrimaryContainer)
-                        btn.iconTint = android.content.res.ColorStateList.valueOf(colorOnPrimaryContainer)
-                        btn.setTextColor(colorOnPrimaryContainer)
+                        animateButtonColors(btn, colorPrimaryContainer, colorOnPrimaryContainer, colorOnPrimaryContainer)
                     } else {
-                        btn.backgroundTintList = android.content.res.ColorStateList.valueOf(colorSurfaceUnselected)
-                        btn.iconTint = android.content.res.ColorStateList.valueOf(colorOnSurface)
-                        btn.setTextColor(colorOnSurface)
+                        animateButtonColors(btn, colorSurfaceUnselected, colorOnSurface, colorOnSurface)
                     }
                 } catch (_: Exception) { }
 
