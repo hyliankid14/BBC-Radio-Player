@@ -1323,6 +1323,89 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun dpToPx(value: Float): Float {
+        return value * resources.displayMetrics.density
+    }
+
+    private fun applyConnectedButtonShape(
+        btn: com.google.android.material.button.MaterialButton,
+        index: Int,
+        count: Int,
+        selected: Boolean,
+        smallCornerPx: Float,
+        selectedCornerPx: Float
+    ) {
+        try {
+            val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
+            val smallCorner = com.google.android.material.shape.AbsoluteCornerSize(smallCornerPx)
+            val noCorner = com.google.android.material.shape.AbsoluteCornerSize(0f)
+            val selectedCorner = com.google.android.material.shape.AbsoluteCornerSize(selectedCornerPx)
+
+            if (selected) {
+                shapeBuilder.setAllCornerSizes(selectedCorner)
+            } else {
+                if (index == 0) {
+                    shapeBuilder.setTopLeftCornerSize(smallCorner)
+                    shapeBuilder.setBottomLeftCornerSize(smallCorner)
+                    shapeBuilder.setTopRightCornerSize(noCorner)
+                    shapeBuilder.setBottomRightCornerSize(noCorner)
+                } else if (index == count - 1) {
+                    shapeBuilder.setTopLeftCornerSize(noCorner)
+                    shapeBuilder.setBottomLeftCornerSize(noCorner)
+                    shapeBuilder.setTopRightCornerSize(smallCorner)
+                    shapeBuilder.setBottomRightCornerSize(smallCorner)
+                } else {
+                    shapeBuilder.setAllCornerSizes(noCorner)
+                }
+            }
+
+            btn.shapeAppearanceModel = shapeBuilder.build()
+        } catch (_: Exception) { }
+    }
+
+    private fun animateCornerMorph(
+        btn: com.google.android.material.button.MaterialButton,
+        index: Int,
+        count: Int,
+        selected: Boolean,
+        smallCornerPx: Float,
+        selectedCornerPx: Float
+    ) {
+        val targetUniformCorner = if (selected) selectedCornerPx else smallCornerPx
+        val tagKey = R.id.connected_button_corner_px
+        val startCorner = (btn.getTag(tagKey) as? Float) ?: smallCornerPx
+
+        if (startCorner == targetUniformCorner) {
+            applyConnectedButtonShape(btn, index, count, selected, smallCornerPx, selectedCornerPx)
+            return
+        }
+
+        btn.setTag(tagKey, targetUniformCorner)
+
+        val animator = android.animation.ValueAnimator.ofFloat(startCorner, targetUniformCorner)
+        animator.duration = 220
+        animator.addUpdateListener { valueAnimator ->
+            val animatedCorner = valueAnimator.animatedValue as Float
+            try {
+                val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
+                val animatedCornerSize = com.google.android.material.shape.AbsoluteCornerSize(animatedCorner)
+                shapeBuilder.setAllCornerSizes(animatedCornerSize)
+                btn.shapeAppearanceModel = shapeBuilder.build()
+            } catch (_: Exception) { }
+        }
+        animator.addListener(object : android.animation.Animator.AnimatorListener {
+            override fun onAnimationStart(animation: android.animation.Animator) {}
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                applyConnectedButtonShape(btn, index, count, selected, smallCornerPx, selectedCornerPx)
+            }
+            override fun onAnimationCancel(animation: android.animation.Animator) {
+                applyConnectedButtonShape(btn, index, count, selected, smallCornerPx, selectedCornerPx)
+            }
+            override fun onAnimationRepeat(animation: android.animation.Animator) {}
+        })
+        animator.start()
+    }
+
     private fun updateFavoritesToggleVisuals(selectedId: Int) {
         val ids = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
         val labels = mapOf(
@@ -1410,38 +1493,10 @@ class MainActivity : AppCompatActivity() {
 
                 // M3 Connected Button Group: Shape morphing based on selection
                 // Selected: full stadium shape (pill)
-                // Unselected: flat inner sides (sharp corners where buttons touch), rounded outer edges
-                try {
-                    val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
-                    val fullCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.RelativeCornerSize(0.5f) // Stadium
-                    val smallCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.AbsoluteCornerSize(12f) // Slightly rounded outer
-                    val noCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.AbsoluteCornerSize(0f) // Sharp inner
-
-                    if (selected) {
-                        // Selected: all corners fully rounded (pill shape)
-                        shapeBuilder.setAllCornerSizes(fullCorner)
-                    } else {
-                        // Unselected: apply corner rounding strategically
-                        if (index == 0) {
-                            // First button: rounded left, sharp right (inner)
-                            shapeBuilder.setTopLeftCornerSize(smallCorner)
-                            shapeBuilder.setBottomLeftCornerSize(smallCorner)
-                            shapeBuilder.setTopRightCornerSize(noCorner)
-                            shapeBuilder.setBottomRightCornerSize(noCorner)
-                        } else if (index == count - 1) {
-                            // Last button: sharp left (inner), rounded right
-                            shapeBuilder.setTopLeftCornerSize(noCorner)
-                            shapeBuilder.setBottomLeftCornerSize(noCorner)
-                            shapeBuilder.setTopRightCornerSize(smallCorner)
-                            shapeBuilder.setBottomRightCornerSize(smallCorner)
-                        } else {
-                            // Middle buttons: sharp on both sides (inner)
-                            shapeBuilder.setAllCornerSizes(noCorner)
-                        }
-                    }
-
-                    btn.shapeAppearanceModel = shapeBuilder.build()
-                } catch (_: Exception) { }
+                // Unselected: flat inner sides, slightly rounded outer edges
+                val smallCornerPx = dpToPx(8f)
+                val selectedCornerPx = dpToPx(1000f)
+                animateCornerMorph(btn, index, count, selected, smallCornerPx, selectedCornerPx)
 
                 btn.contentDescription = labels[id]
                 btn.layoutParams = lp

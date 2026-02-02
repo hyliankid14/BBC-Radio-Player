@@ -2,4 +2,5 @@
 <resources>
     <!-- IDs used as view tags to track transient states -->
     <item name="swipe_haptic_trigger" type="id" />
+    <item name="connected_button_corner_px" type="id" />
 </resources>
