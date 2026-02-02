@@ -44,6 +44,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentStationTitle: String = ""
     private var currentStationId: String = ""
     private var currentPodcastId: String? = null
+    private var matchedPodcast: Podcast? = null  // Podcast matching currently playing radio show for Android Auto
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var currentStationLogo: String = ""
     private var currentShowName: String = "" // Actual show name (not artist-track)
@@ -103,6 +104,7 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val CHANNEL_ID = "radio_playback"
         private const val NOTIFICATION_ID = 1
         private const val CUSTOM_ACTION_TOGGLE_FAVORITE = "TOGGLE_FAVORITE"
+        private const val CUSTOM_ACTION_SUBSCRIBE = "SUBSCRIBE_PODCAST"
         private const val CUSTOM_ACTION_SPACER = "SPACER"
         private const val CUSTOM_ACTION_STOP = "STOP"
         private const val CUSTOM_ACTION_SEEK_FORWARD = "SEEK_FORWARD_30"
@@ -262,6 +264,15 @@ class RadioService : MediaBrowserServiceCompat() {
                             toggleFavoriteAndNotify(currentStationId)
                         }
                     }
+                    CUSTOM_ACTION_SUBSCRIBE -> {
+                        matchedPodcast?.let { podcast ->
+                            PodcastSubscriptions.toggleSubscription(this@RadioService, podcast.id)
+                            val nowSubscribed = PodcastSubscriptions.isSubscribed(this@RadioService, podcast.id)
+                            Log.d(TAG, "Podcast subscription toggled via Android Auto: ${podcast.title} (subscribed=$nowSubscribed)")
+                            // Refresh playback state to update button label
+                            updatePlaybackState(mediaSession.controller.playbackState?.state ?: PlaybackStateCompat.STATE_PLAYING)
+                        }
+                    }
                     CUSTOM_ACTION_SEEK_FORWARD -> {
                         seekBy(30_000L)
                     }
@@ -368,6 +379,19 @@ class RadioService : MediaBrowserServiceCompat() {
                 "Stop",
                 R.drawable.ic_stop
             )
+
+        // For live radio stations with matching podcasts, show subscribe action in Android Auto
+        if (!isPodcast && matchedPodcast != null) {
+            val podcast = matchedPodcast!!
+            val isSubscribed = PodcastSubscriptions.isSubscribed(this, podcast.id)
+            val subscribeLabel = if (isSubscribed) "Unsubscribe" else "Subscribe to podcast"
+            val subscribeIcon = if (isSubscribed) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline
+            pbBuilder.addCustomAction(
+                CUSTOM_ACTION_SUBSCRIBE,
+                subscribeLabel,
+                subscribeIcon
+            )
+        }
 
         // For podcasts we advertise standard skip prev/next via setActions above (mapped to seek in callbacks)
 
@@ -1326,6 +1350,9 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         // Fetch current show information
         fetchAndUpdateShowInfo(station.id)
         
+        // Find matching podcast for this station (for Android Auto subscribe feature)
+        findMatchingPodcast(station.id)
+        
         // Update global playback state - SET STATION FIRST before notifying listeners
         PlaybackStateHelper.setCurrentStation(station)
         PlaybackStateHelper.setCurrentShow(currentShowInfo) // Clear show info in helper to prevent flashing old metadata
@@ -1839,6 +1866,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         PlaybackStateHelper.setCurrentEpisodeId(null)
         PlaybackStateHelper.setIsPlaying(false)
         currentPodcastId = null
+        matchedPodcast = null
         
         Log.d(TAG, "Playback stopped")
     }
@@ -2384,6 +2412,35 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     override fun onBind(intent: Intent?): android.os.IBinder? {
         Log.d(TAG, "onBind - action: ${intent?.action}")
         return super.onBind(intent)
+    }
+
+    private fun findMatchingPodcast(stationId: String) {
+        // Search for a podcast that matches the currently playing station
+        // This runs asynchronously so Android Auto gets the button shortly after station change
+        serviceScope.launch {
+            try {
+                val repo = PodcastRepository(this@RadioService)
+                val podcasts = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                
+                // Try to find podcast whose title exactly matches the station title
+                val station = StationRepository.getStationById(stationId) ?: return@launch
+                val found = podcasts.firstOrNull { it.title.equals(station.title, ignoreCase = true) }
+                
+                // Update matched podcast (safely, ensuring we haven't switched stations)
+                if (currentStationId == stationId) {
+                    matchedPodcast = found
+                    if (found != null) {
+                        Log.d(TAG, "Found matching podcast for station '${station.title}': '${found.title}'")
+                    }
+                    // Refresh playback state to update the subscribe button visibility
+                    updatePlaybackState(mediaSession.controller.playbackState?.state ?: PlaybackStateCompat.STATE_PLAYING)
+                } else {
+                    Log.d(TAG, "Station changed before podcast match completed, discarding result")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error finding matching podcast: ${e.message}")
+            }
+        }
     }
 
     override fun onDestroy() {
