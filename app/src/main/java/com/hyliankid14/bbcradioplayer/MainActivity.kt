@@ -1408,11 +1408,38 @@ class MainActivity : AppCompatActivity() {
                     }
                 } catch (_: Exception) { }
 
-                // M3 Connected Button Group: ALL buttons are stadium-shaped (100% rounded)
+                // M3 Connected Button Group: Shape morphing based on selection
+                // Selected: full stadium shape (pill)
+                // Unselected: flat inner sides (sharp corners where buttons touch), rounded outer edges
                 try {
                     val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
-                    val stadiumCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.RelativeCornerSize(0.5f)
-                    shapeBuilder.setAllCornerSizes(stadiumCorner)
+                    val fullCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.RelativeCornerSize(0.5f) // Stadium
+                    val smallCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.AbsoluteCornerSize(12f) // Slightly rounded outer
+                    val noCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.AbsoluteCornerSize(0f) // Sharp inner
+
+                    if (selected) {
+                        // Selected: all corners fully rounded (pill shape)
+                        shapeBuilder.setAllCornerSizes(fullCorner)
+                    } else {
+                        // Unselected: apply corner rounding strategically
+                        if (index == 0) {
+                            // First button: rounded left, sharp right (inner)
+                            shapeBuilder.setTopLeftCornerSize(smallCorner)
+                            shapeBuilder.setBottomLeftCornerSize(smallCorner)
+                            shapeBuilder.setTopRightCornerSize(noCorner)
+                            shapeBuilder.setBottomRightCornerSize(noCorner)
+                        } else if (index == count - 1) {
+                            // Last button: sharp left (inner), rounded right
+                            shapeBuilder.setTopLeftCornerSize(noCorner)
+                            shapeBuilder.setBottomLeftCornerSize(noCorner)
+                            shapeBuilder.setTopRightCornerSize(smallCorner)
+                            shapeBuilder.setBottomRightCornerSize(smallCorner)
+                        } else {
+                            // Middle buttons: sharp on both sides (inner)
+                            shapeBuilder.setAllCornerSizes(noCorner)
+                        }
+                    }
+
                     btn.shapeAppearanceModel = shapeBuilder.build()
                 } catch (_: Exception) { }
 
