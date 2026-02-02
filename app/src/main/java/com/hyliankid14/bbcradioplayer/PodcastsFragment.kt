@@ -976,7 +976,6 @@ class PodcastsFragment : Fragment() {
 
                 val qLower = q.lowercase(Locale.getDefault())
 
-                // Fast path: Show podcast title/description matches immediately
                 val titleMatches = withContext(Dispatchers.Default) {
                     val raw = allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "title" }
                     repository.filterPodcasts(raw, currentFilter)
@@ -986,23 +985,7 @@ class PodcastsFragment : Fragment() {
                     val raw = allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
                     repository.filterPodcasts(raw, currentFilter)
                 }
-                
-                // Show podcast matches immediately before running expensive episode search
-                if (!isActive) return@launch
-                
-                // Create adapter with podcast results only (no episodes yet)
-                searchAdapter = createSearchAdapter(titleMatches, descMatches, emptyList())
-                val hasPodcastMatches = titleMatches.isNotEmpty() || descMatches.isNotEmpty()
-                
-                showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = hasPodcastMatches, emptyState)
-                
-                // If we have podcast matches, cancel the spinner immediately for snappy feel
-                if (hasPodcastMatches) {
-                    showSpinnerJob.cancel()
-                    loadingView?.visibility = View.GONE
-                }
-                
-                // Now run the slower episode search in the background
+
                 val episodeMatches = withContext(Dispatchers.IO) {
                     // Check if cancelled before starting expensive work
                     if (!kotlin.coroutines.coroutineContext.isActive) return@withContext emptyList<Pair<Episode, Podcast>>()
@@ -1015,16 +998,9 @@ class PodcastsFragment : Fragment() {
                     if (q.length >= 3) {
                         try {
                             val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
-
-                            val indexEmpty = try { index.getEpisodeCount() == 0 } catch (_: Exception) { false }
-                            if (indexEmpty) {
-                                android.util.Log.w("PodcastsFragment", "Episode index is empty; falling back to cached search")
-                            }
                             
-                            // Add timeout to FTS query to prevent hanging (increased to allow fallback attempts)
-                            val ftsResults = if (indexEmpty) {
-                                emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
-                            } else withTimeoutOrNull(5000) {
+                            // Add timeout to FTS query to prevent hanging
+                            val ftsResults = withTimeoutOrNull(2000) {
                                 try {
                                     // request a much larger result set from the on-disk index so we can
                                     // surface all available matches (subject to the index size)
@@ -1096,24 +1072,17 @@ class PodcastsFragment : Fragment() {
                         // Fallback: if index returned nothing or wasn't available, search cached episodes per-podcast
                         // Limit this fallback to prevent slow searches
                         if (eps.isEmpty()) {
-                            // Expand cached search if index is empty or returned nothing for multi-word queries
-                            val tokenCount = qLower.trim().split(Regex("\\s+")).count { it.isNotBlank() }
-                            val expandedSearch = tokenCount >= 2
-                            val perPodcastLimit = if (expandedSearch) 120 else 50
-                            val maxResults = if (expandedSearch) 200 else 50
-
-                            withTimeoutOrNull(2000) {
-                                val podcastsToSearch = if (expandedSearch) allPodcasts else allPodcasts.take(30)
-                                for (p in podcastsToSearch) {
+                            val perPodcastLimit = 50  // Reduced from 200 for faster response
+                            val podcastsToSearch = allPodcasts.take(20)  // Limit number of podcasts searched
+                            for (p in podcastsToSearch) {
+                                if (!kotlin.coroutines.coroutineContext.isActive) break
+                                val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
+                                for (ep in hits) {
                                     if (!kotlin.coroutines.coroutineContext.isActive) break
-                                    val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
-                                    for (ep in hits) {
-                                        if (!kotlin.coroutines.coroutineContext.isActive) break
-                                        eps.add(ep to p)
-                                        if (eps.size >= maxResults) break
-                                    }
-                                    if (eps.size >= maxResults) break
+                                    eps.add(ep to p)
+                                    if (eps.size >= 50) break
                                 }
+                                if (eps.size >= 50) break
                             }
                         }
                     }
@@ -1258,18 +1227,13 @@ class PodcastsFragment : Fragment() {
                     resultList
                 }
 
-                // Update the search adapter with episode results (appending to podcast results already shown)
-                if (!isActive) return@launch
-                
-                searchAdapter?.updateEpisodeMatches(episodeMatches)
+                searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
                 // record how many episode items are shown so pagination can append more later
                 displayedEpisodeCount = episodeMatches.size
                 persistCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
 
                 val hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty()
-                
-                // Update empty state if no podcast matches were found earlier
-                if (!hasPodcastMatches && !hasContent && q.isNotEmpty()) {
+                if (!hasContent && q.isNotEmpty()) {
                     emptyState.text = getString(R.string.no_podcasts_found)
                 }
 

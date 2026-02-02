@@ -191,31 +191,27 @@ class IndexStore private constructor(private val context: Context) {
         if (tokens.size == 1) {
             // For single-token queries try a few prioritized variants: prefix, exact token, and field-scoped exact
             val t = tokens[0]
-            return listOf("${t}*", "$t", "title:${t}*", "description:${t}*")
+            return listOf("${t}*", "($t)", "(title:$t) OR (description:$t)")
         }
 
         val phrase = '"' + tokens.joinToString(" ") + '"'
-        // For multi-token queries, FTS4 requires specific syntax
-        // Build individual prefix tokens that we'll combine
-        val prefixTokens = tokens.map { "${it}*" }
-        
+        val near = tokens.joinToString(" NEAR/3 ") { it }
+        // bigram phrase variants: "t1 t2" OR "t2 t3" ... (helps match adjacent-word queries)
+        val bigramList = tokens.windowed(2).map { '"' + it.joinToString(" ") + '"' }
+        val bigramClause = if (bigramList.isNotEmpty()) bigramList.joinToString(" OR ") else ""
+        val tokenAnd = tokens.joinToString(" AND ") { "${it}*" }
+
         val variants = mutableListOf<String>()
-        
-        // 1. Try exact phrase first (most specific)
-        variants.add(phrase)
-        
-        // 2. Try each token as prefix (broadest - will match if ANY word appears)
-        // This is critical for catching cases where FTS operators fail
-        for (token in prefixTokens) {
-            variants.add(token)
-        }
-        
-        // 3. Try simple space-separated tokens (FTS interprets as implicit AND in some modes)
-        variants.add(tokens.joinToString(" "))
-        
-        // 4. Try prefix versions separated by space
-        variants.add(prefixTokens.joinToString(" "))
-        
+        // Exact phrase across all fields
+        variants.add("($phrase)")
+        // Phrase in title or description specifically
+        variants.add("(title:$phrase) OR (description:$phrase)")
+        // NEAR proximity (looser but adjacency-preserving)
+        variants.add("($near)")
+        // Bigram adjacency fallback (helps where only partial phrase exists)
+        if (bigramClause.isNotBlank()) variants.add("($bigramClause)")
+        // Prefix-AND fallback
+        variants.add("($tokenAnd)")
         return variants
     }
 
@@ -224,36 +220,12 @@ class IndexStore private constructor(private val context: Context) {
         if (query.isBlank()) return emptyList()
         val db = helper.readableDatabase
 
-        Log.d("IndexStore", "searchEpisodes called with query='$query' limit=$limit")
-
-        val normQuery = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-            .replace(Regex("[^\\p{L}0-9\\s]"), " ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-            .lowercase(Locale.getDefault())
-        val queryTokens = normQuery.split(Regex("\\s+")).filter { it.isNotEmpty() }
-        val requiresAllTokens = queryTokens.size >= 2
-
-        fun matchesAllTokens(text: String): Boolean {
-            if (!requiresAllTokens) return true
-            val normText = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
-                .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-                .replace(Regex("[^\\p{L}0-9\\s]"), " ")
-                .replace(Regex("\\s+"), " ")
-                .trim()
-                .lowercase(Locale.getDefault())
-            return queryTokens.all { token -> normText.contains(token) }
-        }
-
         // Try prioritized MATCH variants and return first non-empty result set
-        val variants = buildFtsVariants(query)
-        Log.d("IndexStore", "Generated ${variants.size} FTS variants for query='$query'")
-        
-        // Try all variants (don't limit to 4) since we need to test individual tokens
-        for ((idx, v) in variants.withIndex()) {
+        // Limit to first 2 variants to avoid slow searches
+        val variants = buildFtsVariants(query).take(2)
+        for (v in variants) {
             try {
-                Log.d("IndexStore", "FTS variant ${idx + 1}/${variants.size}: '$v'")
+                Log.d("IndexStore", "FTS episode try: variant='$v' originalQuery='$query' limit=$limit")
                 val cursor = db.rawQuery("SELECT episodeId, podcastId, title, description FROM episode_fts WHERE episode_fts MATCH ? LIMIT ?", arrayOf(v, limit.toString()))
                 val results = mutableListOf<EpisodeFts>()
                 cursor.use {
@@ -265,26 +237,14 @@ class IndexStore private constructor(private val context: Context) {
                         results.add(EpisodeFts(eid, pid, title, desc))
                     }
                 }
-                Log.d("IndexStore", "FTS variant ${idx + 1} returned ${results.size} hits")
-                if (results.isNotEmpty()) {
-                    val filtered = if (requiresAllTokens) {
-                        results.filter { matchesAllTokens(it.title + " " + (it.description ?: "")) }
-                    } else {
-                        results
-                    }
-                    if (filtered.isNotEmpty()) {
-                        Log.d("IndexStore", "Returning ${filtered.size} results from FTS variant ${idx + 1} after token filter")
-                        return filtered
-                    }
-                }
+                Log.d("IndexStore", "FTS episode variant returned ${results.size} hits for variant='$v' query='$query'")
+                if (results.isNotEmpty()) return results
             } catch (e: Exception) {
-                Log.w("IndexStore", "FTS variant ${idx + 1} failed: ${e.message}")
+                Log.w("IndexStore", "FTS episode variant failed '$v': ${e.message}")
             }
         }
 
-        Log.d("IndexStore", "All FTS variants failed, trying LIKE fallback")
-
-        // Enhanced fallback: support both single and multi-token LIKE searches
+        // Simplified fallback: only try LIKE for single-token queries to avoid slow multi-token searches
         try {
             val qnorm = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
                 .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
@@ -294,14 +254,12 @@ class IndexStore private constructor(private val context: Context) {
                 .lowercase(Locale.getDefault())
             val tokens = qnorm.split(Regex("\\s+")).filter { it.isNotEmpty() }
             
-            Log.d("IndexStore", "LIKE fallback with ${tokens.size} tokens: $tokens")
-            
+            // Only do LIKE fallback for single tokens to keep it fast
             if (tokens.size == 1) {
-                // Single token: search title and description
                 val t = "%${tokens[0]}%"
-                val sql = "SELECT episodeId, podcastId, title, description FROM episode_fts WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ? LIMIT ?"
+                val sql = "SELECT episodeId, podcastId, title, description FROM episode_fts WHERE LOWER(title) LIKE ? LIMIT ?"
                 Log.d("IndexStore", "FTS single-token fallback SQL token='${tokens[0]}'")
-                val cursor = db.rawQuery(sql, arrayOf(t, t, limit.toString()))
+                val cursor = db.rawQuery(sql, arrayOf(t, limit.toString()))
                 val fbResults = mutableListOf<EpisodeFts>()
                 cursor.use {
                     while (it.moveToNext()) {
@@ -314,44 +272,12 @@ class IndexStore private constructor(private val context: Context) {
                 }
                 Log.d("IndexStore", "FTS single-token fallback returned ${fbResults.size} hits")
                 if (fbResults.isNotEmpty()) return fbResults
-            } else if (tokens.size in 2..4) {
-                // Multi-token phrase fallback (limit to 2-4 tokens to prevent slow queries)
-                val phraseParam = "%${tokens.joinToString(" ")}%"
-                val sql = "SELECT episodeId, podcastId, title, description FROM episode_fts WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ? LIMIT ?"
-                Log.d("IndexStore", "FTS multi-token phrase fallback: '${tokens.joinToString(" ")}'")
-                val cursor = db.rawQuery(sql, arrayOf(phraseParam, phraseParam, limit.toString()))
-                val fbResults = mutableListOf<EpisodeFts>()
-                cursor.use {
-                    while (it.moveToNext()) {
-                        val eid = it.getString(0)
-                        val pid = it.getString(1)
-                        val title = it.getString(2) ?: ""
-                        val desc = it.getString(3) ?: ""
-                        fbResults.add(EpisodeFts(eid, pid, title, desc))
-                    }
-                }
-                Log.d("IndexStore", "FTS multi-token fallback returned ${fbResults.size} hits")
-                if (fbResults.isNotEmpty()) return fbResults
             }
         } catch (e: Exception) {
             Log.w("IndexStore", "FTS fallback failed: ${e.message}")
         }
 
         return emptyList()
-    }
-
-    @Synchronized
-    fun getEpisodeCount(): Int {
-        val db = helper.readableDatabase
-        try {
-            val cursor = db.rawQuery("SELECT COUNT(*) FROM episode_fts", null)
-            cursor.use {
-                if (it.moveToFirst()) return it.getInt(0)
-            }
-        } catch (e: Exception) {
-            Log.w("IndexStore", "getEpisodeCount failed: ${e.message}")
-        }
-        return 0
     }
 
     /**
