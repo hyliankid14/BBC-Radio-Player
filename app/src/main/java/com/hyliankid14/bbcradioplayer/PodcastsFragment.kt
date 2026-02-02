@@ -976,6 +976,7 @@ class PodcastsFragment : Fragment() {
 
                 val qLower = q.lowercase(Locale.getDefault())
 
+                // Fast path: Show podcast title/description matches immediately
                 val titleMatches = withContext(Dispatchers.Default) {
                     val raw = allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "title" }
                     repository.filterPodcasts(raw, currentFilter)
@@ -985,7 +986,23 @@ class PodcastsFragment : Fragment() {
                     val raw = allPodcasts.filter { repository.podcastMatchKind(it, qLower) == "description" }
                     repository.filterPodcasts(raw, currentFilter)
                 }
-
+                
+                // Show podcast matches immediately before running expensive episode search
+                if (!isActive) return@launch
+                
+                // Create adapter with podcast results only (no episodes yet)
+                searchAdapter = createSearchAdapter(titleMatches, descMatches, emptyList())
+                val hasPodcastMatches = titleMatches.isNotEmpty() || descMatches.isNotEmpty()
+                
+                showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = hasPodcastMatches, emptyState)
+                
+                // If we have podcast matches, cancel the spinner immediately for snappy feel
+                if (hasPodcastMatches) {
+                    showSpinnerJob.cancel()
+                    loadingView?.visibility = View.GONE
+                }
+                
+                // Now run the slower episode search in the background
                 val episodeMatches = withContext(Dispatchers.IO) {
                     // Check if cancelled before starting expensive work
                     if (!kotlin.coroutines.coroutineContext.isActive) return@withContext emptyList<Pair<Episode, Podcast>>()
@@ -1227,13 +1244,18 @@ class PodcastsFragment : Fragment() {
                     resultList
                 }
 
-                searchAdapter = createSearchAdapter(titleMatches, descMatches, episodeMatches)
+                // Update the search adapter with episode results (appending to podcast results already shown)
+                if (!isActive) return@launch
+                
+                searchAdapter?.updateEpisodeMatches(episodeMatches)
                 // record how many episode items are shown so pagination can append more later
                 displayedEpisodeCount = episodeMatches.size
                 persistCachedSearch(PodcastsViewModel.SearchCache(q, titleMatches.toList(), descMatches.toList(), episodeMatches.toList(), isComplete = true))
 
                 val hasContent = titleMatches.isNotEmpty() || descMatches.isNotEmpty() || episodeMatches.isNotEmpty()
-                if (!hasContent && q.isNotEmpty()) {
+                
+                // Update empty state if no podcast matches were found earlier
+                if (!hasPodcastMatches && !hasContent && q.isNotEmpty()) {
                     emptyState.text = getString(R.string.no_podcasts_found)
                 }
 
