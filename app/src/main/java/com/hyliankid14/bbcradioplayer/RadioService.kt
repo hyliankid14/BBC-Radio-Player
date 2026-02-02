@@ -1948,7 +1948,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             pendingShowInfo = null
 
             // Remember this as the last played media so Android Auto can resume stations or podcasts
-            PlaybackPreference.setLastMediaId(this, "podcast_episode_${'$'}{episode.id}")
+            PlaybackPreference.setLastMediaId(this, "podcast_episode_${episode.id}")
 
             // Record this episode in the recent-played history and notify UI
             try {

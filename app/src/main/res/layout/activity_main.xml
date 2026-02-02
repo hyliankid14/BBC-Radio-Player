@@ -34,20 +34,20 @@
         android:paddingEnd="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        app:singleSelection="true">
+        app:singleSelection="true"
+        app:selectionRequired="true">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_stations"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:minWidth="0dp"
             android:text="Stations"
             app:icon="@drawable/ic_star"
             app:iconGravity="textStart"
             app:iconPadding="8dp"
-            app:iconTint="?attr/colorOnSurface"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
@@ -56,13 +56,12 @@
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:minWidth="0dp"
             android:text="Subscribed"
             app:icon="@drawable/ic_podcast"
             app:iconGravity="textStart"
             app:iconPadding="8dp"
-            app:iconTint="?attr/colorOnSurface"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
@@ -71,13 +70,12 @@
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:minWidth="0dp"
             android:text="Saved"
             app:icon="@drawable/ic_bookmark"
             app:iconGravity="textStart"
             app:iconPadding="8dp"
-            app:iconTint="?attr/colorOnSurface"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
@@ -86,13 +84,12 @@
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:minWidth="0dp"
             android:text="History"
             app:icon="@drawable/ic_history"
             app:iconGravity="textStart"
             app:iconPadding="8dp"
-            app:iconTint="?attr/colorOnSurface"
             android:importantForAccessibility="yes"
             android:focusable="true" />
 
