@@ -60,6 +60,7 @@ class PodcastDetailFragment : Fragment() {
             val descriptionView: TextView = view.findViewById(R.id.podcast_detail_description)
             val showMoreView: TextView = view.findViewById(R.id.podcast_detail_show_more)
             val subscribeButton: Button = view.findViewById(R.id.subscribe_button)
+            val notificationBell: ImageView = view.findViewById(R.id.notification_bell_button)
             val episodesRecycler: RecyclerView = view.findViewById(R.id.episodes_recycler)
             val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
@@ -131,16 +132,42 @@ class PodcastDetailFragment : Fragment() {
                                 else androidx.core.content.ContextCompat.getColor(requireContext(), R.color.subscribe_button_text)
                 subscribeButton.backgroundTintList = android.content.res.ColorStateList.valueOf(bg)
                 subscribeButton.setTextColor(textColor)
+                
+                // Show/hide notification bell based on subscription status
+                notificationBell.visibility = if (subscribed) View.VISIBLE else View.GONE
+                if (subscribed) {
+                    updateNotificationBell()
+                }
+            }
+            
+            fun updateNotificationBell() {
+                val enabled = PodcastSubscriptions.isNotificationsEnabled(requireContext(), podcast.id)
+                val iconRes = if (enabled) R.drawable.ic_notifications else R.drawable.ic_notifications_off
+                notificationBell.setImageResource(iconRes)
             }
 
             val isSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
             updateSubscribeButton(isSubscribed)
+            
             subscribeButton.setOnClickListener {
                 PodcastSubscriptions.toggleSubscription(requireContext(), podcast.id)
                 val nowSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
                 updateSubscribeButton(nowSubscribed)
                 // Show snackbar feedback anchored above system UI
                 val msg = if (nowSubscribed) "Subscribed to ${podcast.title}" else "Unsubscribed from ${podcast.title}"
+                com.google.android.material.snackbar.Snackbar.make(requireView(), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                    .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
+                    .show()
+            }
+            
+            notificationBell.setOnClickListener {
+                PodcastSubscriptions.toggleNotifications(requireContext(), podcast.id)
+                updateNotificationBell()
+                
+                // Show feedback
+                val enabled = PodcastSubscriptions.isNotificationsEnabled(requireContext(), podcast.id)
+                val msg = if (enabled) "Notifications enabled for ${podcast.title}" 
+                         else "Notifications disabled for ${podcast.title}"
                 com.google.android.material.snackbar.Snackbar.make(requireView(), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
                     .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
                     .show()

@@ -76,4 +76,15 @@
         android:contentDescription="Subscribed"
         android:visibility="gone"
         android:tint="?attr/colorOnSurface" />
+
+    <ImageView
+        android:id="@+id/podcast_notification_bell"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="8dp"
+        android:layout_gravity="center_vertical"
+        android:contentDescription="Toggle notifications"
+        android:visibility="gone"
+        android:tint="?attr/colorOnSurface"
+        android:background="?attr/selectableItemBackgroundBorderless" />
 </LinearLayout>

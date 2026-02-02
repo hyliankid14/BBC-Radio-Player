@@ -77,14 +77,33 @@
             android:gravity="end"
             android:paddingEnd="8dp" />
 
-        <Button
-            android:id="@+id/subscribe_button"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Subscribe"
+            android:orientation="horizontal"
             android:layout_marginTop="12dp"
-            android:backgroundTint="@android:color/transparent"
-            android:textColor="?attr/colorPrimary" />
+            android:gravity="center_vertical">
+
+            <Button
+                android:id="@+id/subscribe_button"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Subscribe"
+                android:backgroundTint="@android:color/transparent"
+                android:textColor="?attr/colorPrimary" />
+
+            <ImageView
+                android:id="@+id/notification_bell_button"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_notifications"
+                android:contentDescription="Toggle notifications"
+                android:visibility="gone"
+                android:tint="?attr/colorOnSurface"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
     </LinearLayout>
 
             <!-- Episodes RecyclerView -->

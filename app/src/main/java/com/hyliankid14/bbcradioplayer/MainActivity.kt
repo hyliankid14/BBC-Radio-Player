@@ -2779,6 +2779,17 @@ class MainActivity : AppCompatActivity() {
                 if (name == "podcast_filter_prefs") {
                     if (!obj.has("exclude_non_english")) obj.put("exclude_non_english", PodcastFilterPreference.excludeNonEnglish(this))
                 }
+                // Ensure notification preferences are explicitly included for podcast subscriptions
+                if (name == "podcast_subscriptions") {
+                    if (!obj.has("notifications_enabled")) {
+                        val enabledIds = PodcastSubscriptions.getSubscribedIds(this).filter { 
+                            PodcastSubscriptions.isNotificationsEnabled(this, it) 
+                        }.toSet()
+                        val arr = JSONArray()
+                        enabledIds.forEach { arr.put(it) }
+                        obj.put("notifications_enabled", arr)
+                    }
+                }
                 root.put(name, obj)
             }
 
@@ -2857,6 +2868,27 @@ class MainActivity : AppCompatActivity() {
                     if (pp.has("auto_resume_android_auto")) {
                         val enabled = pp.optBoolean("auto_resume_android_auto", false)
                         PlaybackPreference.setAutoResumeAndroidAuto(this, enabled)
+                    }
+                }
+            } catch (e: Exception) { /* Ignore */ }
+
+            try {
+                if (root.has("podcast_subscriptions")) {
+                    val ps = root.getJSONObject("podcast_subscriptions")
+                    // Ensure notification preferences are restored for subscribed podcasts
+                    if (ps.has("notifications_enabled")) {
+                        val notifArray = ps.getJSONArray("notifications_enabled")
+                        val enabledSet = mutableSetOf<String>()
+                        for (i in 0 until notifArray.length()) {
+                            enabledSet.add(notifArray.getString(i))
+                        }
+                        // Only restore notification preferences for podcasts that are actually subscribed
+                        val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
+                        enabledSet.forEach { podcastId ->
+                            if (subscribedIds.contains(podcastId)) {
+                                PodcastSubscriptions.setNotificationsEnabled(this, podcastId, true)
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) { /* Ignore */ }

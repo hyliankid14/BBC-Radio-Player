@@ -89,6 +89,7 @@ class PodcastAdapter(
         private val titleView: TextView = itemView.findViewById(R.id.podcast_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.podcast_description)
         private val genresView: TextView = itemView.findViewById(R.id.podcast_genres)
+        private val notificationBell: ImageView = itemView.findViewById(R.id.podcast_notification_bell)
 
         init {
             // Use adapter position to safely resolve the podcast at the time of the click
@@ -124,6 +125,28 @@ class PodcastAdapter(
                     onPodcastClick(podcast)
                 }
             }
+            
+            // Bell icon click handler - toggle notifications
+            notificationBell.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION && pos < this@PodcastAdapter.podcasts.size) {
+                    val podcast = this@PodcastAdapter.podcasts[pos]
+                    PodcastSubscriptions.toggleNotifications(itemView.context, podcast.id)
+                    updateBellIcon(podcast.id)
+                    
+                    // Show feedback
+                    val enabled = PodcastSubscriptions.isNotificationsEnabled(itemView.context, podcast.id)
+                    val msg = if (enabled) "Notifications enabled for ${podcast.title}" 
+                             else "Notifications disabled for ${podcast.title}"
+                    android.widget.Toast.makeText(itemView.context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        
+        private fun updateBellIcon(podcastId: String) {
+            val enabled = PodcastSubscriptions.isNotificationsEnabled(itemView.context, podcastId)
+            val iconRes = if (enabled) R.drawable.ic_notifications else R.drawable.ic_notifications_off
+            notificationBell.setImageResource(iconRes)
         }
 
         fun bind(podcast: Podcast) {
@@ -145,6 +168,14 @@ class PodcastAdapter(
                 subscribedIcon?.visibility = View.VISIBLE
             } else {
                 subscribedIcon?.visibility = View.GONE
+            }
+
+            // Show notification bell only for subscribed podcasts
+            if (PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
+                notificationBell.visibility = View.VISIBLE
+                updateBellIcon(podcast.id)
+            } else {
+                notificationBell.visibility = View.GONE
             }
 
             // New-episode indicator dot (shown when this podcast has unseen episodes)
