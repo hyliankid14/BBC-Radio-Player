@@ -196,22 +196,20 @@ class IndexStore private constructor(private val context: Context) {
 
         val phrase = '"' + tokens.joinToString(" ") + '"'
         val near = tokens.joinToString(" NEAR/3 ") { it }
-        // bigram phrase variants: "t1 t2" OR "t2 t3" ... (helps match adjacent-word queries)
-        val bigramList = tokens.windowed(2).map { '"' + it.joinToString(" ") + '"' }
-        val bigramClause = if (bigramList.isNotEmpty()) bigramList.joinToString(" OR ") else ""
         val tokenAnd = tokens.joinToString(" AND ") { "${it}*" }
+        // Individual token OR (broadest match)
+        val tokenOr = tokens.joinToString(" OR ") { "${it}*" }
 
         val variants = mutableListOf<String>()
-        // Exact phrase across all fields
-        variants.add("($phrase)")
-        // Phrase in title or description specifically
-        variants.add("(title:$phrase) OR (description:$phrase)")
-        // NEAR proximity (looser but adjacency-preserving)
-        variants.add("($near)")
-        // Bigram adjacency fallback (helps where only partial phrase exists)
-        if (bigramClause.isNotBlank()) variants.add("($bigramClause)")
-        // Prefix-AND fallback
-        variants.add("($tokenAnd)")
+        // Start with looser queries that are more likely to match
+        // 1. Token AND with prefix matching (e.g., "neil* AND armstrong*")
+        variants.add(tokenAnd)
+        // 2. NEAR proximity (e.g., "neil NEAR/3 armstrong")
+        variants.add(near)
+        // 3. Exact phrase (e.g., ""neil armstrong"")
+        variants.add(phrase)
+        // 4. Individual tokens OR (broadest, e.g., "neil* OR armstrong*")
+        variants.add(tokenOr)
         return variants
     }
 
@@ -220,12 +218,16 @@ class IndexStore private constructor(private val context: Context) {
         if (query.isBlank()) return emptyList()
         val db = helper.readableDatabase
 
+        Log.d("IndexStore", "searchEpisodes called with query='$query' limit=$limit")
+
         // Try prioritized MATCH variants and return first non-empty result set
-        // Use first 4 variants to balance speed and recall (was 2, which missed many multi-word queries)
-        val variants = buildFtsVariants(query).take(4)
-        for (v in variants) {
+        // Use first 4 variants to balance speed and recall
+        val variants = buildFtsVariants(query)
+        Log.d("IndexStore", "Generated ${variants.size} FTS variants: ${variants.take(4)}")
+        
+        for ((idx, v) in variants.take(4).withIndex()) {
             try {
-                Log.d("IndexStore", "FTS episode try: variant='$v' originalQuery='$query' limit=$limit")
+                Log.d("IndexStore", "FTS variant ${idx + 1}/4: '$v'")
                 val cursor = db.rawQuery("SELECT episodeId, podcastId, title, description FROM episode_fts WHERE episode_fts MATCH ? LIMIT ?", arrayOf(v, limit.toString()))
                 val results = mutableListOf<EpisodeFts>()
                 cursor.use {
@@ -237,12 +239,17 @@ class IndexStore private constructor(private val context: Context) {
                         results.add(EpisodeFts(eid, pid, title, desc))
                     }
                 }
-                Log.d("IndexStore", "FTS episode variant returned ${results.size} hits for variant='$v' query='$query'")
-                if (results.isNotEmpty()) return results
+                Log.d("IndexStore", "FTS variant ${idx + 1} returned ${results.size} hits")
+                if (results.isNotEmpty()) {
+                    Log.d("IndexStore", "Returning ${results.size} results from FTS variant ${idx + 1}")
+                    return results
+                }
             } catch (e: Exception) {
-                Log.w("IndexStore", "FTS episode variant failed '$v': ${e.message}")
+                Log.w("IndexStore", "FTS variant ${idx + 1} failed: ${e.message}")
             }
         }
+
+        Log.d("IndexStore", "All FTS variants failed, trying LIKE fallback")
 
         // Enhanced fallback: support both single and multi-token LIKE searches
         try {
@@ -253,6 +260,8 @@ class IndexStore private constructor(private val context: Context) {
                 .trim()
                 .lowercase(Locale.getDefault())
             val tokens = qnorm.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            
+            Log.d("IndexStore", "LIKE fallback with ${tokens.size} tokens: $tokens")
             
             if (tokens.size == 1) {
                 // Single token: search title and description

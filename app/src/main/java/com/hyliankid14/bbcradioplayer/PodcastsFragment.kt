@@ -1016,8 +1016,8 @@ class PodcastsFragment : Fragment() {
                         try {
                             val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
                             
-                            // Add timeout to FTS query to prevent hanging
-                            val ftsResults = withTimeoutOrNull(2000) {
+                            // Add timeout to FTS query to prevent hanging (increased to allow fallback attempts)
+                            val ftsResults = withTimeoutOrNull(5000) {
                                 try {
                                     // request a much larger result set from the on-disk index so we can
                                     // surface all available matches (subject to the index size)
