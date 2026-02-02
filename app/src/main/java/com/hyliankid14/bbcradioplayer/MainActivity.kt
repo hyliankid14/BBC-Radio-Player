@@ -1330,10 +1330,16 @@ class MainActivity : AppCompatActivity() {
 
         val colorPrimaryContainer = try { getThemeColorByName("colorPrimaryContainer") } catch (_: Exception) { getThemeColorByName("colorPrimary") }
         val colorOnPrimaryContainer = try { getThemeColorByName("colorOnPrimaryContainer") } catch (_: Exception) { getThemeColorByName("colorOnPrimary") }
-        val colorSurface = try { getThemeColorByName("colorSurface") } catch (_: Exception) { android.graphics.Color.WHITE }
+        // Use Surface Container High for unselected background to match M3 Expressive (light purple/gray tone)
+        val colorSurfaceUnselected = try { getThemeColorByName("colorSurfaceContainerHigh") } catch (_: Exception) {
+            try { getThemeColorByName("colorSurfaceVariant") } catch (_: Exception) { getThemeColorByName("colorSurface") }
+        }
         val colorOnSurface = try { getThemeColorByName("colorOnSurface") } catch (_: Exception) { android.graphics.Color.BLACK }
 
-        for (id in ids) {
+        val selectedIndex = ids.indexOf(selectedId)
+        val count = ids.size
+
+        for ((index, id) in ids.withIndex()) {
             try {
                 val btn = findViewById<com.google.android.material.button.MaterialButton>(id)
                 val lp = btn.layoutParams as? android.widget.LinearLayout.LayoutParams
@@ -1379,22 +1385,46 @@ class MainActivity : AppCompatActivity() {
                         btn.iconTint = android.content.res.ColorStateList.valueOf(colorOnPrimaryContainer)
                         btn.setTextColor(colorOnPrimaryContainer)
                     } else {
-                        btn.backgroundTintList = android.content.res.ColorStateList.valueOf(colorSurface)
+                        btn.backgroundTintList = android.content.res.ColorStateList.valueOf(colorSurfaceUnselected)
                         btn.iconTint = android.content.res.ColorStateList.valueOf(colorOnSurface)
                         btn.setTextColor(colorOnSurface)
                     }
                 } catch (_: Exception) { }
 
-                // Subtle animations and elevation
+                // Apply Shape Morphing for M3 Connected Button Group
+                // Selected item is fully rounded (Stadium).
+                // Unselected items are rounded on sides that touch the selected item or are at the ends.
                 try {
-                    if (selected) {
-                        btn.animate().scaleX(1.02f).scaleY(1.02f).setDuration(200).start()
-                        val d = resources.displayMetrics.density
-                        androidx.core.view.ViewCompat.setElevation(btn, 6f * d)
+                    val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
+                    val fullCorner = com.google.android.material.shape.PercentCornerSize(0.5f) // 50% = Stadium
+                    val noCorner = com.google.android.material.shape.AbsoluteCornerSize(0f)
+
+                    val isPrevSelected = (index - 1 == selectedIndex)
+                    val isNextSelected = (index + 1 == selectedIndex)
+                    val isFirst = (index == 0)
+                    val isLast = (index == count - 1)
+
+                    // Top/Bottom Left:
+                    // Rounded if this item is selected OR is first OR previous is selected (creating a gap/start)
+                    if (selected || isFirst || isPrevSelected) {
+                        shapeBuilder.setTopLeftCornerSize(fullCorner)
+                        shapeBuilder.setBottomLeftCornerSize(fullCorner)
                     } else {
-                        btn.animate().scaleX(1f).scaleY(1f).setDuration(180).start()
-                        androidx.core.view.ViewCompat.setElevation(btn, 0f)
+                        shapeBuilder.setTopLeftCornerSize(noCorner)
+                        shapeBuilder.setBottomLeftCornerSize(noCorner)
                     }
+
+                    // Top/Bottom Right:
+                    // Rounded if this item is selected OR is last OR next is selected (creating a gap/end)
+                    if (selected || isLast || isNextSelected) {
+                        shapeBuilder.setTopRightCornerSize(fullCorner)
+                        shapeBuilder.setBottomRightCornerSize(fullCorner)
+                    } else {
+                        shapeBuilder.setTopRightCornerSize(noCorner)
+                        shapeBuilder.setBottomRightCornerSize(noCorner)
+                    }
+
+                    btn.shapeAppearanceModel = shapeBuilder.build()
                 } catch (_: Exception) { }
 
                 btn.contentDescription = labels[id]
