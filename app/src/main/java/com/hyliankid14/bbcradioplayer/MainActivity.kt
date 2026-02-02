@@ -1,7 +1,10 @@
 package com.hyliankid14.bbcradioplayer
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Build
 import android.util.Log
 import android.view.KeyEvent
 import android.content.res.ColorStateList
@@ -66,6 +69,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var miniPlayerFavorite: ImageButton
     private lateinit var createDocumentLauncher: ActivityResultLauncher<String>
     private lateinit var openDocumentLauncher: ActivityResultLauncher<Array<String>>
+    private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
     // May be absent in some builds; make nullable and handle safely
     private var filterButtonsContainer: View? = null
     private lateinit var tabLayout: TabLayout
@@ -233,6 +237,20 @@ class MainActivity : AppCompatActivity() {
                         recreate()
                     }
                 }.start()
+            }
+        }
+
+        // Request notification permission on Android 13+ (first run)
+        requestNotificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
+            // No-op; UI can reflect permission state later if needed
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val prefs = getSharedPreferences("ui_prefs", MODE_PRIVATE)
+            val asked = prefs.getBoolean("asked_notification_permission", false)
+            val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            if (!granted && !asked) {
+                prefs.edit().putBoolean("asked_notification_permission", true).apply()
+                requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
