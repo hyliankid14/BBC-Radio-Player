@@ -1015,9 +1015,16 @@ class PodcastsFragment : Fragment() {
                     if (q.length >= 3) {
                         try {
                             val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext())
+
+                            val indexEmpty = try { index.getEpisodeCount() == 0 } catch (_: Exception) { false }
+                            if (indexEmpty) {
+                                android.util.Log.w("PodcastsFragment", "Episode index is empty; falling back to cached search")
+                            }
                             
                             // Add timeout to FTS query to prevent hanging (increased to allow fallback attempts)
-                            val ftsResults = withTimeoutOrNull(5000) {
+                            val ftsResults = if (indexEmpty) {
+                                emptyList<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
+                            } else withTimeoutOrNull(5000) {
                                 try {
                                     // request a much larger result set from the on-disk index so we can
                                     // surface all available matches (subject to the index size)
@@ -1089,17 +1096,24 @@ class PodcastsFragment : Fragment() {
                         // Fallback: if index returned nothing or wasn't available, search cached episodes per-podcast
                         // Limit this fallback to prevent slow searches
                         if (eps.isEmpty()) {
-                            val perPodcastLimit = 50  // Reduced from 200 for faster response
-                            val podcastsToSearch = allPodcasts.take(20)  // Limit number of podcasts searched
-                            for (p in podcastsToSearch) {
-                                if (!kotlin.coroutines.coroutineContext.isActive) break
-                                val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
-                                for (ep in hits) {
+                            // Expand cached search if index is empty or returned nothing for multi-word queries
+                            val tokenCount = qLower.trim().split(Regex("\\s+")).count { it.isNotBlank() }
+                            val expandedSearch = tokenCount >= 2
+                            val perPodcastLimit = if (expandedSearch) 120 else 50
+                            val maxResults = if (expandedSearch) 200 else 50
+
+                            withTimeoutOrNull(2000) {
+                                val podcastsToSearch = if (expandedSearch) allPodcasts else allPodcasts.take(30)
+                                for (p in podcastsToSearch) {
                                     if (!kotlin.coroutines.coroutineContext.isActive) break
-                                    eps.add(ep to p)
-                                    if (eps.size >= 50) break
+                                    val hits = repository.searchCachedEpisodes(p.id, qLower, perPodcastLimit)
+                                    for (ep in hits) {
+                                        if (!kotlin.coroutines.coroutineContext.isActive) break
+                                        eps.add(ep to p)
+                                        if (eps.size >= maxResults) break
+                                    }
+                                    if (eps.size >= maxResults) break
                                 }
-                                if (eps.size >= 50) break
                             }
                         }
                     }

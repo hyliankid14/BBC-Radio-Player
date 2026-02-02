@@ -313,6 +313,20 @@ class IndexStore private constructor(private val context: Context) {
         return emptyList()
     }
 
+    @Synchronized
+    fun getEpisodeCount(): Int {
+        val db = helper.readableDatabase
+        try {
+            val cursor = db.rawQuery("SELECT COUNT(*) FROM episode_fts", null)
+            cursor.use {
+                if (it.moveToFirst()) return it.getInt(0)
+            }
+        } catch (e: Exception) {
+            Log.w("IndexStore", "getEpisodeCount failed: ${e.message}")
+        }
+        return 0
+    }
+
     /**
      * Find an indexed episode by its canonical id. This is a fast on-disk lookup used as a
      * fallback for features like Android Auto auto-resume where we need to map an episode id
