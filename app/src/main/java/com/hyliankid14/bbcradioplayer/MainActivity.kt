@@ -1378,7 +1378,8 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                // Apply Material 3 expressive colors/tints
+                // Apply Material 3 Connected Button Group colors
+                // All buttons are stadium-shaped pills; selected gets primary container fill
                 try {
                     if (selected) {
                         btn.backgroundTintList = android.content.res.ColorStateList.valueOf(colorPrimaryContainer)
@@ -1391,45 +1392,15 @@ class MainActivity : AppCompatActivity() {
                     }
                 } catch (_: Exception) { }
 
-                // Apply Shape Morphing for M3 Connected Button Group
-                // Selected item is fully rounded (Stadium).
-                // Unselected items are rounded on sides that touch the selected item or are at the ends.
+                // M3 Connected Button Group: ALL buttons are stadium-shaped (100% rounded)
                 try {
                     val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
-                    val fullCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.RelativeCornerSize(0.5f) // 50% = Stadium
-                    val smallCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.AbsoluteCornerSize(8f) // Small rounding for unselected/gaps
-
-                    val isPrevSelected = (index - 1 == selectedIndex)
-                    val isNextSelected = (index + 1 == selectedIndex)
-                    val isFirst = (index == 0)
-                    val isLast = (index == count - 1)
-
-                    // Top/Bottom Left:
-                    // Rounded if this item is selected OR is first OR previous is selected (creating a gap/start)
-                    if (selected || isFirst || isPrevSelected) {
-                        shapeBuilder.setTopLeftCornerSize(fullCorner)
-                        shapeBuilder.setBottomLeftCornerSize(fullCorner)
-                    } else {
-                        shapeBuilder.setTopLeftCornerSize(smallCorner)
-                        shapeBuilder.setBottomLeftCornerSize(smallCorner)
-                    }
-
-                    // Top/Bottom Right:
-                    // Rounded if this item is selected OR is last OR next is selected (creating a gap/end)
-                    if (selected || isLast || isNextSelected) {
-                        shapeBuilder.setTopRightCornerSize(fullCorner)
-                        shapeBuilder.setBottomRightCornerSize(fullCorner)
-                    } else {
-                        shapeBuilder.setTopRightCornerSize(smallCorner)
-                        shapeBuilder.setBottomRightCornerSize(smallCorner)
-                    }
-
+                    val stadiumCorner: com.google.android.material.shape.CornerSize = com.google.android.material.shape.RelativeCornerSize(0.5f)
+                    shapeBuilder.setAllCornerSizes(stadiumCorner)
                     btn.shapeAppearanceModel = shapeBuilder.build()
                 } catch (_: Exception) { }
 
                 btn.contentDescription = labels[id]
-                // Force margins to create visual gap (MaterialButtonToggleGroup tries to remove them)
-                lp?.setMargins(4, 0, 4, 0)
                 btn.layoutParams = lp
             } catch (_: Exception) { }
         }
