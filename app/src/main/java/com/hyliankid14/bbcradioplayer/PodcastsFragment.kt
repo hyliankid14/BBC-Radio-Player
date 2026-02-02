@@ -1028,7 +1028,7 @@ class PodcastsFragment : Fragment() {
                             episodeMatches = emptyList(),
                             onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                             onPlayEpisode = { ep -> playEpisode(ep) },
-                            onOpenEpisode = { ep, pod -> onEpisodeClicked(ep, pod) }
+                            onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
                         )
                     }
                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = true, emptyState)
@@ -1182,7 +1182,7 @@ class PodcastsFragment : Fragment() {
                         episodeMatches = episodes,
                         onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                         onPlayEpisode = { ep -> playEpisode(ep) },
-                        onOpenEpisode = { ep, pod -> onEpisodeClicked(ep, pod) }
+                        onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
                     )
                     
                     val hasContent = podcastMatches.isNotEmpty() || episodes.isNotEmpty()
