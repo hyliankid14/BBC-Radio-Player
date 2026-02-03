@@ -45,6 +45,9 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentStationId: String = ""
     private var currentPodcastId: String? = null
     private var matchedPodcast: Podcast? = null  // Podcast matching currently playing radio show for Android Auto
+    private var matchPodcastJob: kotlinx.coroutines.Job? = null
+    private var matchPodcastGeneration: Int = 0
+    private var lastMatchKey: String? = null
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var currentStationLogo: String = ""
     private var currentShowName: String = "" // Actual show name (not artist-track)
@@ -385,7 +388,7 @@ class RadioService : MediaBrowserServiceCompat() {
             val podcast = matchedPodcast!!
             val isSubscribed = PodcastSubscriptions.isSubscribed(this, podcast.id)
             val subscribeLabel = if (isSubscribed) "Unsubscribe" else "Subscribe to podcast"
-            val subscribeIcon = if (isSubscribed) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline
+            val subscribeIcon = R.drawable.ic_podcast
             pbBuilder.addCustomAction(
                 CUSTOM_ACTION_SUBSCRIBE,
                 subscribeLabel,
@@ -395,6 +398,8 @@ class RadioService : MediaBrowserServiceCompat() {
 
         // For podcasts we advertise standard skip prev/next via setActions above (mapped to seek in callbacks)
 
+        // If a matching podcast is available, keep Favorite as a secondary custom action so
+        // Android Auto can move it into the overflow alongside Subscribe.
         pbBuilder.addCustomAction(
                 CUSTOM_ACTION_TOGGLE_FAVORITE,
                 favoriteLabel,
@@ -1326,6 +1331,10 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         currentStationTitle = station.title
         currentStationId = station.id
         currentPodcastId = null
+        matchedPodcast = null
+        matchPodcastJob?.cancel()
+        matchPodcastJob = null
+        lastMatchKey = null
         currentStationLogo = station.logoUrl
         currentShowInfo = CurrentShow("") // Reset to empty to avoid "BBC Radio" flash
         currentShowName = ""
@@ -1350,8 +1359,8 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         // Fetch current show information
         fetchAndUpdateShowInfo(station.id)
         
-        // Find matching podcast for this station (for Android Auto subscribe feature)
-        findMatchingPodcast(station.id)
+        // Attempt initial matching using the station title (show title will update later)
+        updateMatchingPodcastForShow(station, currentShowInfo)
         
         // Update global playback state - SET STATION FIRST before notifying listeners
         PlaybackStateHelper.setCurrentStation(station)
@@ -1542,6 +1551,9 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                         PlaybackStateHelper.setCurrentShow(finalShow)
                         Log.d(TAG, "Applying initial show info immediately for station: $stationId")
 
+                        // Update matching podcast based on the current show title
+                        updateMatchingPodcastForShow(StationRepository.getStationById(stationId), currentShowInfo)
+
                         // Update UI right away
                         handler.post {
                             Log.d(TAG, "Updating UI with show title: $currentShowTitle (initial immediate)")
@@ -1569,6 +1581,9 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                                 currentEpisodeTitle = currentShowInfo.episodeTitle ?: ""
                                 PlaybackStateHelper.setCurrentShow(currentShowInfo)
                                 Log.d(TAG, "Applying delayed show info after ${'$'}{NOW_PLAYING_UPDATE_DELAY_MS}ms for station: ${'$'}stationId")
+
+                                // Update matching podcast based on the current show title
+                                updateMatchingPodcastForShow(StationRepository.getStationById(stationId), currentShowInfo)
 
                                 // Update UI on main thread
                                 handler.post {
@@ -1867,6 +1882,10 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         PlaybackStateHelper.setIsPlaying(false)
         currentPodcastId = null
         matchedPodcast = null
+        matchPodcastJob?.cancel()
+        matchPodcastJob = null
+        lastMatchKey = null
+        matchedPodcast = null
         
         Log.d(TAG, "Playback stopped")
     }
@@ -1948,6 +1967,10 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             // Update playback helper & state
             currentStationId = syntheticStation.id
             currentPodcastId = episode.podcastId
+            matchedPodcast = null
+            matchPodcastJob?.cancel()
+            matchPodcastJob = null
+            lastMatchKey = null
             // Ensure UI/metadata show podcast title, episode title and artwork
             currentStationTitle = syntheticStation.title
             currentStationLogo = syntheticStation.logoUrl
@@ -2414,28 +2437,49 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         return super.onBind(intent)
     }
 
-    private fun findMatchingPodcast(stationId: String) {
-        // Search for a podcast that matches the currently playing station
-        // This runs asynchronously so Android Auto gets the button shortly after station change
-        serviceScope.launch {
+    private fun updateMatchingPodcastForShow(station: Station?, show: CurrentShow) {
+        // Search for a podcast that matches the currently playing show/station title
+        if (station == null || station.id.startsWith("podcast_")) return
+
+        val queries = listOfNotNull(
+            show.title.takeIf { it.isNotBlank() },
+            show.episodeTitle?.takeIf { it.isNotBlank() },
+            station.title.takeIf { it.isNotBlank() }
+        )
+
+        if (queries.isEmpty()) {
+            if (currentStationId == station.id) {
+                matchedPodcast = null
+                updatePlaybackState(mediaSession.controller.playbackState?.state ?: PlaybackStateCompat.STATE_PLAYING)
+            }
+            return
+        }
+
+        val matchKey = station.id + "|" + queries.joinToString("|")
+        if (matchKey == lastMatchKey) return
+        lastMatchKey = matchKey
+
+        matchPodcastJob?.cancel()
+        val generation = ++matchPodcastGeneration
+        matchPodcastJob = serviceScope.launch {
             try {
                 val repo = PodcastRepository(this@RadioService)
                 val podcasts = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
-                
-                // Try to find podcast whose title exactly matches the station title
-                val station = StationRepository.getStationById(stationId) ?: return@launch
-                val found = podcasts.firstOrNull { it.title.equals(station.title, ignoreCase = true) }
-                
-                // Update matched podcast (safely, ensuring we haven't switched stations)
-                if (currentStationId == stationId) {
+
+                // Only accept exact title match (case-insensitive) across show/episode/station titles
+                var found: Podcast? = null
+                for (q in queries) {
+                    found = podcasts.find { it.title.equals(q, ignoreCase = true) }
+                    if (found != null) break
+                }
+
+                if (generation == matchPodcastGeneration && currentStationId == station.id && !station.id.startsWith("podcast_")) {
                     matchedPodcast = found
                     if (found != null) {
                         Log.d(TAG, "Found matching podcast for station '${station.title}': '${found.title}'")
                     }
                     // Refresh playback state to update the subscribe button visibility
                     updatePlaybackState(mediaSession.controller.playbackState?.state ?: PlaybackStateCompat.STATE_PLAYING)
-                } else {
-                    Log.d(TAG, "Station changed before podcast match completed, discarding result")
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Error finding matching podcast: ${e.message}")

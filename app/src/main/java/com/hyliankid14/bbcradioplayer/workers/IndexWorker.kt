@@ -3,6 +3,7 @@ package com.hyliankid14.bbcradioplayer.workers
 import android.content.Context
 import android.util.Log
 import com.hyliankid14.bbcradioplayer.Podcast
+import com.hyliankid14.bbcradioplayer.PodcastEpisodeNotifier
 import com.hyliankid14.bbcradioplayer.db.IndexStore
 import com.hyliankid14.bbcradioplayer.PodcastRepository
 import kotlinx.coroutines.Dispatchers
@@ -207,6 +208,9 @@ object IndexWorker {
                         onProgress("No new episodes for: ${p.title}", completedPct, true)
                         continue
                     }
+
+                    // Notify user if they enabled notifications for this podcast
+                    PodcastEpisodeNotifier.notifyNewEpisodes(context, p, missing.size)
 
                     // Enrich missing episodes and append in chunks
                     val enriched = missing.map { ep -> ep.copy(description = listOfNotNull(ep.description, p.title).joinToString(" ")) }
