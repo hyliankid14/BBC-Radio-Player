@@ -9,13 +9,20 @@ import kotlinx.coroutines.launch
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        // Reschedule any configured periodic indexing after device reboot
+        // Reschedule any configured periodic indexing and subscription refreshes after device reboot
         CoroutineScope(Dispatchers.Default).launch {
             val days = IndexPreference.getIntervalDays(context)
             if (days > 0) {
                 IndexScheduler.scheduleIndexing(context)
             } else {
                 IndexScheduler.cancel(context)
+            }
+
+            val minutes = SubscriptionRefreshPreference.getIntervalMinutes(context)
+            if (minutes > 0) {
+                SubscriptionRefreshScheduler.scheduleRefresh(context)
+            } else {
+                SubscriptionRefreshScheduler.cancel(context)
             }
         }
     }
