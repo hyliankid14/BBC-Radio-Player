@@ -531,6 +531,36 @@
                     android:visibility="gone"
                     android:layout_marginTop="8dp" />
 
+                <!-- Subscription Refresh Controls -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Subscription Notifications"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="8dp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/subscription_refresh_layout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:boxStrokeColor="?attr/colorOutline"
+                    app:endIconMode="dropdown_menu"
+                    app:boxBackgroundColor="?attr/colorSurface"
+                    android:hint="Check for new episodes every">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/subscription_refresh_spinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:textColor="?attr/colorOnSurface"
+                        android:padding="8dp" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
             </LinearLayout>
 
         </ScrollView>

@@ -2287,6 +2287,42 @@ class MainActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                 }
             } catch (_: Exception) {}
+
+            // Setup subscription refresh interval spinner
+            try {
+                val refreshSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = findViewById(R.id.subscription_refresh_spinner)
+                val refreshOptions = arrayOf("Disabled", "15 minutes", "30 minutes", "60 minutes", "2 hours", "6 hours", "12 hours", "24 hours")
+                val refreshValues = intArrayOf(0, 15, 30, 60, 120, 360, 720, 1440) // in minutes
+                val adapter = android.widget.ArrayAdapter(this, R.layout.spinner_dropdown_item, refreshOptions)
+                refreshSpinner.setAdapter(adapter)
+
+                // Get saved interval and find corresponding position
+                val savedMinutes = SubscriptionRefreshPreference.getIntervalMinutes(this)
+                val pos = refreshValues.indexOf(savedMinutes).takeIf { it >= 0 } ?: 3 // Default to 60 minutes (index 3)
+                refreshSpinner.setText(refreshOptions[pos], false)
+
+                // Ensure any previously-configured schedule is (re)activated at startup
+                if (savedMinutes > 0) {
+                    SubscriptionRefreshScheduler.scheduleRefresh(this)
+                }
+
+                refreshSpinner.setOnItemClickListener { _, _, position, _ ->
+                    val minutes = refreshValues[position]
+                    val previous = SubscriptionRefreshPreference.getIntervalMinutes(this@MainActivity)
+                    
+                    if (minutes != previous) {
+                        SubscriptionRefreshPreference.setIntervalMinutes(this@MainActivity, minutes)
+                        if (minutes > 0) {
+                            SubscriptionRefreshScheduler.scheduleRefresh(this@MainActivity)
+                            val label = refreshOptions[position]
+                            android.widget.Toast.makeText(this@MainActivity, "Will check for new episodes every $label", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            SubscriptionRefreshScheduler.cancel(this@MainActivity)
+                            android.widget.Toast.makeText(this@MainActivity, "Subscription notifications disabled", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
         } catch (_: Exception) {}
 
 
