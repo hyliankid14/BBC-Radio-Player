@@ -185,12 +185,21 @@ object ShareUtil {
             if (responseCode == 200) {
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 // Parse JSON response for shorturl field
-                val shortUrl = response.substringAfter("\"shorturl\":\"")
-                    .substringBefore("\"")
-                    .takeIf { it.isNotEmpty() }
-                
-                shortUrl ?: longUrl
+                // Example: {"shorturl":"https:\/\/is.gd\/abc123"}
+                if (response.contains("\"shorturl\":")) {
+                    val shortUrl = response.substringAfter("\"shorturl\":\"")
+                        .substringBefore("\"")
+                        .replace("\\/", "/")
+                    
+                    // Validate it's actually a URL
+                    if (shortUrl.startsWith("http://") || shortUrl.startsWith("https://")) {
+                        return shortUrl
+                    }
+                }
+                android.util.Log.w("ShareUtil", "Invalid response from is.gd: $response")
+                longUrl
             } else {
+                android.util.Log.w("ShareUtil", "is.gd returned status $responseCode")
                 longUrl
             }
         } catch (e: Exception) {
