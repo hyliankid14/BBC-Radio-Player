@@ -41,11 +41,12 @@ object ShareUtil {
         Thread {
             try {
                 val shortUrl = shortenUrl(webUrl)
+                val cleanDesc = stripHtmlTags(podcast.description)
                 val shareMessage = buildString {
                     append("Check out \"${podcast.title}\"")
-                    if (podcast.description.isNotEmpty()) {
-                        append(" - ${podcast.description.take(100)}")
-                        if (podcast.description.length > 100) append("...")
+                    if (cleanDesc.isNotEmpty()) {
+                        append(" - ${cleanDesc.take(100)}")
+                        if (cleanDesc.length > 100) append("...")
                     }
                     append("\n\n")
                     append(shortUrl)
@@ -89,14 +90,15 @@ object ShareUtil {
         Thread {
             try {
                 val shortUrl = shortenUrl(webUrl)
+                val cleanDesc = stripHtmlTags(episode.description)
                 val shareMessage = buildString {
                     append("Listen to \"${episode.title}\"")
                     if (podcastTitle.isNotEmpty()) {
                         append(" from $podcastTitle")
                     }
-                    if (episode.description.isNotEmpty()) {
-                        append(" - ${episode.description.take(100)}")
-                        if (episode.description.length > 100) append("...")
+                    if (cleanDesc.isNotEmpty()) {
+                        append(" - ${cleanDesc.take(100)}")
+                        if (cleanDesc.length > 100) append("...")
                     }
                     append("\n\n")
                     append(shortUrl)
@@ -170,6 +172,19 @@ object ShareUtil {
             }
             else -> null
         }
+    }
+    
+    /**
+     * Strip HTML tags from a string
+     */
+    private fun stripHtmlTags(html: String): String {
+        return html.replace(Regex("<[^>]*>"), "")
+            .replace(Regex("&lt;"), "<")
+            .replace(Regex("&gt;"), ">")
+            .replace(Regex("&amp;"), "&")
+            .replace(Regex("&nbsp;"), " ")
+            .replace(Regex("\n+"), " ")
+            .trim()
     }
     
     /**
