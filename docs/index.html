@@ -429,8 +429,10 @@
                 } else {
                     app.innerHTML = this.renderEpisode(content);
                 }
+            }
 
-                this.attachEventListeners();
+            attachEventListeners() {
+                // Event listeners are attached via inline onclick handlers
             }
 
             renderPodcast(podcast) {
