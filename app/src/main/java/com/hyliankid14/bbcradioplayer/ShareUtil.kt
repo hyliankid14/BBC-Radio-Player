@@ -3,12 +3,8 @@ package com.hyliankid14.bbcradioplayer
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.net.URLEncoder
 import java.net.URL
+import java.net.URLEncoder
 
 /**
  * Utility for sharing podcasts and episodes with proper fallback support.
@@ -35,29 +31,33 @@ object ShareUtil {
         
         val shareTitle = podcast.title
         
-        // Launch coroutine to shorten URL and share
-        GlobalScope.launch(Dispatchers.Main) {
-            val shortUrl = shortenUrl(webUrl)
-            val shareMessage = buildString {
-                append("Check out \"${podcast.title}\"")
-                if (podcast.description.isNotEmpty()) {
-                    append(" - ${podcast.description.take(100)}")
-                    if (podcast.description.length > 100) append("...")
+        // Shorten URL on background thread
+        Thread {
+            try {
+                val shortUrl = shortenUrl(webUrl)
+                val shareMessage = buildString {
+                    append("Check out \"${podcast.title}\"")
+                    if (podcast.description.isNotEmpty()) {
+                        append(" - ${podcast.description.take(100)}")
+                        if (podcast.description.length > 100) append("...")
+                    }
+                    append("\n\n")
+                    append(shortUrl)
+                    append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
                 }
-                append("\n\n")
-                append(shortUrl)
-                append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
+                
+                val shareIntent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_SUBJECT, shareTitle)
+                    putExtra(Intent.EXTRA_TEXT, shareMessage)
+                    type = "text/plain"
+                }
+                
+                context.startActivity(Intent.createChooser(shareIntent, "Share podcast"))
+            } catch (e: Exception) {
+                android.util.Log.w("ShareUtil", "Failed to share podcast: ${e.message}")
             }
-            
-            val shareIntent = Intent().apply {
-                action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_SUBJECT, shareTitle)
-                putExtra(Intent.EXTRA_TEXT, shareMessage)
-                type = "text/plain"
-            }
-            
-            context.startActivity(Intent.createChooser(shareIntent, "Share podcast"))
-        }
+        }.start()
     }
     
     /**
@@ -74,32 +74,36 @@ object ShareUtil {
         
         val shareTitle = episode.title
         
-        // Launch coroutine to shorten URL and share
-        GlobalScope.launch(Dispatchers.Main) {
-            val shortUrl = shortenUrl(webUrl)
-            val shareMessage = buildString {
-                append("Listen to \"${episode.title}\"")
-                if (podcastTitle.isNotEmpty()) {
-                    append(" from $podcastTitle")
+        // Shorten URL on background thread
+        Thread {
+            try {
+                val shortUrl = shortenUrl(webUrl)
+                val shareMessage = buildString {
+                    append("Listen to \"${episode.title}\"")
+                    if (podcastTitle.isNotEmpty()) {
+                        append(" from $podcastTitle")
+                    }
+                    if (episode.description.isNotEmpty()) {
+                        append(" - ${episode.description.take(100)}")
+                        if (episode.description.length > 100) append("...")
+                    }
+                    append("\n\n")
+                    append(shortUrl)
+                    append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
                 }
-                if (episode.description.isNotEmpty()) {
-                    append(" - ${episode.description.take(100)}")
-                    if (episode.description.length > 100) append("...")
+                
+                val shareIntent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_SUBJECT, shareTitle)
+                    putExtra(Intent.EXTRA_TEXT, shareMessage)
+                    type = "text/plain"
                 }
-                append("\n\n")
-                append(shortUrl)
-                append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
+                
+                context.startActivity(Intent.createChooser(shareIntent, "Share episode"))
+            } catch (e: Exception) {
+                android.util.Log.w("ShareUtil", "Failed to share episode: ${e.message}")
             }
-            
-            val shareIntent = Intent().apply {
-                action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_SUBJECT, shareTitle)
-                putExtra(Intent.EXTRA_TEXT, shareMessage)
-                type = "text/plain"
-            }
-            
-            context.startActivity(Intent.createChooser(shareIntent, "Share episode"))
-        }
+        }.start()
     }
     
     /**
@@ -158,20 +162,26 @@ object ShareUtil {
     /**
      * Shorten a URL using is.gd service
      */
-    private suspend fun shortenUrl(longUrl: String): String = withContext(Dispatchers.IO) {
-        return@withContext try {
+    private fun shortenUrl(longUrl: String): String {
+        return try {
             val encodedUrl = URLEncoder.encode(longUrl, "UTF-8")
-            val connection = (URL("$SHORT_URL_API?format=json&url=$encodedUrl").openConnection() as java.net.HttpURLConnection).apply {
+            val urlStr = "$SHORT_URL_API?format=json&url=$encodedUrl"
+            val connection = (URL(urlStr).openConnection() as java.net.HttpURLConnection).apply {
                 connectTimeout = 5000
                 readTimeout = 5000
                 requestMethod = "GET"
+                setRequestProperty("User-Agent", "BBC Radio Player/1.0")
             }
             
-            if (connection.responseCode == 200) {
-                val response = connection.inputStream.bufferedReader().readText()
+            val responseCode = connection.responseCode
+            if (responseCode == 200) {
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                // Parse JSON response for shorturl field
                 val shortUrl = response.substringAfter("\"shorturl\":\"")
                     .substringBefore("\"")
-                if (shortUrl.isNotEmpty()) shortUrl else longUrl
+                    .takeIf { it.isNotEmpty() }
+                
+                shortUrl ?: longUrl
             } else {
                 longUrl
             }
