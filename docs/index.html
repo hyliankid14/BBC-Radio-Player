@@ -377,21 +377,25 @@
                 console.log('Loading content:', { type, id, params: Object.fromEntries(params) });
                 
                 if (type === 'p') {
-                    // Podcast - fetch metadata from RSS feed
+                    // Podcast - use inline data from params
+                    const title = params.get('title');
+                    const desc = params.get('desc');
+                    const img = params.get('img');
                     const rssUrl = params.get('rss');
+                    
+                    this.currentContent = {
+                        type: 'podcast',
+                        id: id,
+                        title: title || 'Shared Podcast',
+                        description: desc || 'This podcast was shared with you from the BBC Radio Player app.',
+                        imageUrl: img || null,
+                        rssUrl: rssUrl
+                    };
+                    this.render();
+                    
+                    // After rendering, load episodes from RSS if available
                     if (rssUrl) {
-                        await this.loadPodcastFromRSS(rssUrl, id);
-                    } else {
-                        // Fallback for old-style URLs with inline data
-                        this.currentContent = {
-                            type: 'podcast',
-                            id: id,
-                            title: params.get('title') || 'Shared Podcast',
-                            description: params.get('desc') || 'This podcast was shared with you from the BBC Radio Player app.',
-                            imageUrl: params.get('img') || null,
-                            rssUrl: null
-                        };
-                        this.render();
+                        await this.loadEpisodes(rssUrl);
                     }
                 } else {
                     // Episode data from URL params
