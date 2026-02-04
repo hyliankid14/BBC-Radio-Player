@@ -913,6 +913,11 @@ class NowPlayingActivity : AppCompatActivity() {
                     else -> null
                 }
 
+                // Share: only show when we have an episode
+                val episodeId = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
+                val shareItem = menu.findItem(R.id.action_share)
+                shareItem.isVisible = !episodeId.isNullOrEmpty()
+
                 // Subscribe / Unsubscribe: only show for podcast context
                 val subscribeItem = menu.findItem(R.id.action_subscribe)
                 if (podcastId != null) {
@@ -924,7 +929,6 @@ class NowPlayingActivity : AppCompatActivity() {
                 }
 
                 // Mark as played / unplayed: show only when we have an episode id (preview or playing)
-                val episodeId = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
                 val markItem = menu.findItem(R.id.action_mark_played)
                 if (!episodeId.isNullOrEmpty()) {
                     markItem.isVisible = true
@@ -944,6 +948,33 @@ class NowPlayingActivity : AppCompatActivity() {
                 when (item.itemId) {
                     android.R.id.home -> {
                         onSupportNavigateUp()
+                        return true
+                    }
+
+                    R.id.action_share -> {
+                        // Get current episode and podcast info
+                        val episode = previewEpisodeProp ?: run {
+                            // Build episode from current playback state
+                            val episodeId = PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
+                            if (episodeId.isNullOrEmpty()) return true
+                            
+                            Episode(
+                                id = episodeId,
+                                title = episodeTitle.text?.toString() ?: "Episode",
+                                description = fullDescriptionHtml.ifEmpty { showName.text?.toString() ?: "" },
+                                audioUrl = "",
+                                imageUrl = lastArtworkUrl ?: "",
+                                pubDate = releaseDateView.text?.toString() ?: "",
+                                durationMins = 0,
+                                podcastId = ""
+                            )
+                        }
+                        
+                        val podcastTitle = supportActionBar?.title?.toString() 
+                            ?: showName.text?.toString() 
+                            ?: "BBC Radio Player"
+                        
+                        ShareUtil.shareEpisode(this, episode, podcastTitle)
                         return true
                     }
 

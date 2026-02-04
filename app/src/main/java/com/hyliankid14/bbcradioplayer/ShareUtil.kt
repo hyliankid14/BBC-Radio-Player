@@ -23,7 +23,10 @@ object ShareUtil {
      * Non-app users will be directed to the web player.
      */
     fun sharePodcast(context: Context, podcast: Podcast) {
-        val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}"
+        val encodedTitle = Uri.encode(podcast.title)
+        val encodedDesc = Uri.encode(podcast.description.take(200))
+        val encodedImage = Uri.encode(podcast.imageUrl)
+        val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage"
         val deepLink = "$APP_SCHEME://podcast/${podcast.id}"
         
         val shareTitle = podcast.title
@@ -53,7 +56,12 @@ object ShareUtil {
      * Non-app users will be directed to the web player showing this episode.
      */
     fun shareEpisode(context: Context, episode: Episode, podcastTitle: String) {
-        val webUrl = "$WEB_BASE_URL/#/e/${episode.id}"
+        val encodedTitle = Uri.encode(episode.title)
+        val encodedDesc = Uri.encode(episode.description.take(200))
+        val encodedImage = Uri.encode(episode.imageUrl)
+        val encodedPodcast = Uri.encode(podcastTitle)
+        val encodedAudio = Uri.encode(episode.audioUrl)
+        val webUrl = "$WEB_BASE_URL/#/e/${episode.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&podcast=$encodedPodcast&audio=$encodedAudio&date=${episode.pubDate}&duration=${episode.durationMins}"
         val deepLink = "$APP_SCHEME://episode/${episode.id}"
         
         val shareTitle = episode.title

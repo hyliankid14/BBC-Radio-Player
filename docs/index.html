@@ -368,20 +368,37 @@
             }
 
             loadContent(type, id) {
-                // Simulate loading from API
-                setTimeout(() => {
-                    const content = type === 'p'
-                        ? CONFIG.MOCK_DATA.podcasts[id]
-                        : CONFIG.MOCK_DATA.episodes[id];
+                // Parse URL parameters for real podcast/episode data
+                const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+                
+                let content;
+                if (type === 'p') {
+                    // Podcast data from URL params
+                    content = {
+                        type: 'podcast',
+                        id: id,
+                        title: params.get('title') || 'Shared Podcast',
+                        description: params.get('desc') || 'This podcast was shared with you from the BBC Radio Player app.',
+                        imageUrl: params.get('img') || null,
+                        rssUrl: params.get('rss') || null
+                    };
+                } else {
+                    // Episode data from URL params
+                    content = {
+                        type: 'episode',
+                        id: id,
+                        title: params.get('title') || 'Shared Episode',
+                        description: params.get('desc') || 'This episode was shared with you from the BBC Radio Player app.',
+                        podcastTitle: params.get('podcast') || 'BBC Radio Player',
+                        imageUrl: params.get('img') || null,
+                        audioUrl: params.get('audio') || null,
+                        pubDate: params.get('date') || '',
+                        durationMins: parseInt(params.get('duration') || '0')
+                    };
+                }
 
-                    if (!content) {
-                        this.showError('Content not found', `Could not find the ${type === 'p' ? 'podcast' : 'episode'} you're looking for.`);
-                        return;
-                    }
-
-                    this.currentContent = content;
-                    this.render();
-                }, 800);
+                this.currentContent = content;
+                this.render();
             }
 
             render() {
