@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BBC Radio Player - Podcast & Episode Sharing</title>
+    <!-- Version: 2.1 - Fixed URL parameter parsing -->
     <style>
         * {
             margin: 0;
@@ -372,6 +373,8 @@
                 // Parse URL parameters for real podcast/episode data
                 const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
                 
+                console.log('Loading content:', { type, id, params: Object.fromEntries(params) });
+                
                 let content;
                 if (type === 'p') {
                     // Podcast data from URL params
@@ -398,6 +401,7 @@
                     };
                 }
 
+                console.log('Created content:', content);
                 this.currentContent = content;
                 this.render();
             }
@@ -405,6 +409,11 @@
             render() {
                 const app = document.getElementById('app');
                 const content = this.currentContent;
+
+                if (!content) {
+                    this.showError('Error', 'No content to display');
+                    return;
+                }
 
                 if (content.type === 'podcast') {
                     app.innerHTML = this.renderPodcast(content);
