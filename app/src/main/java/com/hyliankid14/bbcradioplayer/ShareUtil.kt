@@ -28,8 +28,11 @@ object ShareUtil {
      * Non-app users will be directed to the web player.
      */
     fun sharePodcast(context: Context, podcast: Podcast) {
+        val encodedTitle = Uri.encode(podcast.title)
+        val encodedDesc = Uri.encode(podcast.description.take(200))
+        val encodedImage = Uri.encode(podcast.imageUrl)
         val encodedRss = Uri.encode(podcast.rssUrl)
-        val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?rss=$encodedRss"
+        val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&rss=$encodedRss"
         
         val shareTitle = podcast.title
         val handler = Handler(Looper.getMainLooper())
@@ -189,22 +192,26 @@ object ShareUtil {
                 connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
             }
             
-            if (responseCode == 200 && response.contains("\"shorturl\"")) {
+            if (responseCode == 200 && response.contains("shorturl")) {
                 // Parse JSON response for shorturl field
-                // Example: {"shorturl":"https:\/\/is.gd\/abc123"}
-                val shortUrl = response.substringAfter("\"shorturl\":\"")
+                // Example: { "shorturl": "https://is.gd/abc123" }
+                val shortUrl = response.substringAfter("\"shorturl\"")
+                    .substringAfter("\"")
                     .substringBefore("\"")
                     .replace("\\/", "/")
+                    .trim()
                 
                 // Validate it's actually a URL
                 if (shortUrl.startsWith("http://") || shortUrl.startsWith("https://")) {
+                    android.util.Log.d("ShareUtil", "Successfully shortened to: $shortUrl")
                     return shortUrl
                 }
             }
             
             // Log any errors for debugging
-            if (response.contains("\"errorcode\"")) {
-                val errorMsg = response.substringAfter("\"errormessage\":\"")
+            if (response.contains("errorcode")) {
+                val errorMsg = response.substringAfter("\"errormessage\"")
+                    .substringAfter("\"")
                     .substringBefore("\"")
                 android.util.Log.w("ShareUtil", "is.gd error: $errorMsg")
             } else {
