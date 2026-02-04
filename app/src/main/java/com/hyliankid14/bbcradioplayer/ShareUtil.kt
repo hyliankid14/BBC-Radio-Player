@@ -14,8 +14,8 @@ import android.net.Uri
  */
 object ShareUtil {
 
-    // Replace with your actual domain
-    private const val WEB_BASE_URL = "https://bbcradioplayer.app"
+    // GitHub Pages URL for web player
+    private const val WEB_BASE_URL = "https://hyliankid14.github.io/BBC-Radio-Player"
     private const val APP_SCHEME = "app"
     
     /**
@@ -113,18 +113,22 @@ object ShareUtil {
                 val episodeId = uri.pathSegments.getOrNull(0) ?: return null
                 ShareContentType.EPISODE to episodeId
             }
-            uri.scheme == "https" && uri.host == "bbcradioplayer.app" -> {
-                when (uri.pathSegments.getOrNull(0)) {
-                    "p" -> {
-                        val podcastId = uri.pathSegments.getOrNull(1) ?: return null
-                        ShareContentType.PODCAST to podcastId
+            uri.scheme == "https" && uri.host == "hyliankid14.github.io" -> {
+                // GitHub Pages URL format: /BBC-Radio-Player/p/{id} or /BBC-Radio-Player/e/{id}
+                val segments = uri.pathSegments
+                if (segments.getOrNull(0) == "BBC-Radio-Player") {
+                    when (segments.getOrNull(1)) {
+                        "p" -> {
+                            val podcastId = segments.getOrNull(2) ?: return null
+                            ShareContentType.PODCAST to podcastId
+                        }
+                        "e" -> {
+                            val episodeId = segments.getOrNull(2) ?: return null
+                            ShareContentType.EPISODE to episodeId
+                        }
+                        else -> null
                     }
-                    "e" -> {
-                        val episodeId = uri.pathSegments.getOrNull(1) ?: return null
-                        ShareContentType.EPISODE to episodeId
-                    }
-                    else -> null
-                }
+                } else null
             }
             else -> null
         }
