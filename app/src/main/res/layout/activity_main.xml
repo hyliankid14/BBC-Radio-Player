@@ -345,37 +345,6 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Next/Previous Track Behaviour"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="32dp"
-                    android:layout_marginBottom="16dp" />
-
-                <RadioGroup
-                    android:id="@+id/scrolling_mode_radio_group"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <RadioButton
-                        android:id="@+id/radio_scroll_all_stations"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Scroll All Stations"
-                        android:padding="12dp" />
-
-                    <RadioButton
-                        android:id="@+id/radio_scroll_favorites"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Scroll Favourites Only"
-                        android:padding="12dp" />
-
-                </RadioGroup>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
                     android:text="Android Auto"
                     android:textSize="18sp"
                     android:textStyle="bold"
@@ -403,41 +372,66 @@
                         android:padding="12dp" />
                 </LinearLayout>
 
-                <!-- Backup &amp; Restore -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Backup &amp; Restore"
+                    android:text="Next/Previous Behaviour"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="32dp"
+                    android:layout_marginBottom="16dp" />
+
+                <RadioGroup
+                    android:id="@+id/scrolling_mode_radio_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/radio_scroll_all_stations"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Scroll All Stations"
+                        android:padding="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio_scroll_favorites"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Scroll Favourites Only"
+                        android:padding="12dp" />
+
+                </RadioGroup>
+
+                <!-- Subscription Refresh Controls -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Subscription Notifications"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginTop="24dp"
                     android:layout_marginBottom="8dp" />
 
-                <LinearLayout
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/subscription_refresh_layout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
+                    app:boxStrokeColor="?attr/colorOutline"
+                    app:endIconMode="dropdown_menu"
+                    app:boxBackgroundColor="?attr/colorSurface"
+                    android:hint="Check for new episodes every">
 
-                    <Button
-                        android:id="@+id/export_prefs_button"
-                        android:layout_width="0dp"
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/subscription_refresh_spinner"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Export Settings" />
+                        android:inputType="none"
+                        android:textColor="?attr/colorOnSurface"
+                        android:padding="8dp" />
 
-                    <Space
-                        android:layout_width="12dp"
-                        android:layout_height="wrap_content" />
-
-                    <Button
-                        android:id="@+id/import_prefs_button"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Import Settings" />
-                </LinearLayout>
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Podcast Indexing Controls -->
                 <TextView
@@ -531,35 +525,41 @@
                     android:visibility="gone"
                     android:layout_marginTop="8dp" />
 
-                <!-- Subscription Refresh Controls -->
+                <!-- Backup &amp; Restore -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Subscription Notifications"
+                    android:text="Backup &amp; Restore"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginTop="24dp"
                     android:layout_marginBottom="8dp" />
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/subscription_refresh_layout"
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:boxStrokeColor="?attr/colorOutline"
-                    app:endIconMode="dropdown_menu"
-                    app:boxBackgroundColor="?attr/colorSurface"
-                    android:hint="Check for new episodes every">
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
 
-                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                        android:id="@+id/subscription_refresh_spinner"
-                        android:layout_width="match_parent"
+                    <Button
+                        android:id="@+id/export_prefs_button"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:inputType="none"
-                        android:textColor="?attr/colorOnSurface"
-                        android:padding="8dp" />
+                        android:layout_weight="1"
+                        android:text="Export Settings" />
 
-                </com.google.android.material.textfield.TextInputLayout>
+                    <Space
+                        android:layout_width="12dp"
+                        android:layout_height="wrap_content" />
+
+                    <Button
+                        android:id="@+id/import_prefs_button"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Import Settings" />
+                </LinearLayout>
 
             </LinearLayout>
 

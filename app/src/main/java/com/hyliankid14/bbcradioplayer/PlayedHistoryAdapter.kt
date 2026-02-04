@@ -126,6 +126,10 @@ class PlayedHistoryAdapter(
 
     override fun getItemCount(): Int = entries.size
 
+    fun getEntryAt(position: Int): PlayedHistoryPreference.Entry? {
+        return entries.getOrNull(position)
+    }
+
     fun updateEntries(newEntries: List<PlayedHistoryPreference.Entry>) {
         entries = newEntries
         notifyDataSetChanged()

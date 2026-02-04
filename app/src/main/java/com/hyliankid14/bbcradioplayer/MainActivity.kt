@@ -533,27 +533,34 @@ class MainActivity : AppCompatActivity() {
             if (historyEntries.isNotEmpty()) {
                 historyRecycler.layoutManager = LinearLayoutManager(this)
                 historyRecycler.isNestedScrollingEnabled = false
-                val adapter = PlayedHistoryAdapter(this, historyEntries, onPlayEpisode = { episode, podcastTitle, podcastImage ->
-                    val intent = android.content.Intent(this, RadioService::class.java).apply {
-                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                        putExtra(RadioService.EXTRA_EPISODE, episode)
-                        putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                        putExtra(RadioService.EXTRA_PODCAST_TITLE, podcastTitle)
-                        putExtra(RadioService.EXTRA_PODCAST_IMAGE, podcastImage)
+                val adapter = (historyRecycler.adapter as? PlayedHistoryAdapter) ?: PlayedHistoryAdapter(
+                    this,
+                    historyEntries,
+                    onPlayEpisode = { episode, podcastTitle, podcastImage ->
+                        val intent = android.content.Intent(this, RadioService::class.java).apply {
+                            action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                            putExtra(RadioService.EXTRA_EPISODE, episode)
+                            putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                            putExtra(RadioService.EXTRA_PODCAST_TITLE, podcastTitle)
+                            putExtra(RadioService.EXTRA_PODCAST_IMAGE, podcastImage)
+                        }
+                        startService(intent)
+                    },
+                    onOpenEpisode = { episode, podcastTitle, podcastImage ->
+                        val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
+                            putExtra("preview_episode", episode)
+                            putExtra("preview_use_play_ui", true)
+                            putExtra("preview_podcast_title", podcastTitle)
+                            putExtra("preview_podcast_image", podcastImage)
+                        }
+                        startActivity(intent)
                     }
-                    startService(intent)
-                }, onOpenEpisode = { episode, podcastTitle, podcastImage ->
-                    val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
-                        putExtra("preview_episode", episode)
-                        putExtra("preview_use_play_ui", true)
-                        putExtra("preview_podcast_title", podcastTitle)
-                        putExtra("preview_podcast_image", podcastImage)
-                    }
-                    startActivity(intent)
-                })
+                )
 
-                // Always keep the adapter up-to-date, but only make the views visible when the History sub-tab is selected.
-                historyRecycler.adapter = adapter
+                if (historyRecycler.adapter == null) {
+                    historyRecycler.adapter = adapter
+                }
+                adapter.updateEntries(historyEntries)
 
                 // Attach swipe-to-delete for History (only once)
                 if (historyItemTouchHelper == null) {
@@ -563,7 +570,13 @@ class MainActivity : AppCompatActivity() {
                         override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                             val pos = viewHolder.bindingAdapterPosition
                             if (pos != RecyclerView.NO_POSITION) {
-                                val removedEntry = historyEntries[pos]
+                                val adapter = historyRecycler.adapter as? PlayedHistoryAdapter
+                                val removedEntry = adapter?.getEntryAt(pos)
+                                if (removedEntry == null) {
+                                    try { historyRecycler.adapter?.notifyItemChanged(pos) } catch (_: Exception) { }
+                                    return
+                                }
+
                                 // Remove entry from store and refresh adapter
                                 PlayedHistoryPreference.removeEntry(this@MainActivity, removedEntry.id)
                                 val updated = PlayedHistoryPreference.getHistory(this@MainActivity)
