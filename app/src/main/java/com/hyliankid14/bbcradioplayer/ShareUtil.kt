@@ -32,7 +32,6 @@ object ShareUtil {
     fun sharePodcast(context: Context, podcast: Podcast) {
         val encodedRss = Uri.encode(podcast.rssUrl)
         val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?rss=$encodedRss"
-        val deepLink = "$APP_SCHEME://podcast/${podcast.id}"
         
         val shareTitle = podcast.title
         
@@ -72,7 +71,6 @@ object ShareUtil {
         val encodedPodcast = Uri.encode(podcastTitle)
         val encodedAudio = Uri.encode(episode.audioUrl)
         val webUrl = "$WEB_BASE_URL/#/e/${episode.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&podcast=$encodedPodcast&audio=$encodedAudio&date=${episode.pubDate}&duration=${episode.durationMins}"
-        val deepLink = "$APP_SCHEME://episode/${episode.id}"
         
         val shareTitle = episode.title
         
@@ -102,6 +100,7 @@ object ShareUtil {
             
             context.startActivity(Intent.createChooser(shareIntent, "Share episode"))
         }
+    }
     
     /**
      * Generate a podcast share URL (for use in custom sharing scenarios)
@@ -159,7 +158,7 @@ object ShareUtil {
     /**
      * Shorten a URL using is.gd service
      */
-    suspend fun shortenUrl(longUrl: String): String = withContext(Dispatchers.IO) {
+    private suspend fun shortenUrl(longUrl: String): String = withContext(Dispatchers.IO) {
         return@withContext try {
             val encodedUrl = URLEncoder.encode(longUrl, "UTF-8")
             val connection = (URL("$SHORT_URL_API?format=json&url=$encodedUrl").openConnection() as java.net.HttpURLConnection).apply {
