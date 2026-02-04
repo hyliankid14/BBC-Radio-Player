@@ -23,7 +23,7 @@ object ShareUtil {
      * Non-app users will be directed to the web player.
      */
     fun sharePodcast(context: Context, podcast: Podcast) {
-        val webUrl = "$WEB_BASE_URL/p/${podcast.id}"
+        val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}"
         val deepLink = "$APP_SCHEME://podcast/${podcast.id}"
         
         val shareTitle = podcast.title
@@ -53,7 +53,7 @@ object ShareUtil {
      * Non-app users will be directed to the web player showing this episode.
      */
     fun shareEpisode(context: Context, episode: Episode, podcastTitle: String) {
-        val webUrl = "$WEB_BASE_URL/e/${episode.id}"
+        val webUrl = "$WEB_BASE_URL/#/e/${episode.id}"
         val deepLink = "$APP_SCHEME://episode/${episode.id}"
         
         val shareTitle = episode.title
@@ -85,14 +85,14 @@ object ShareUtil {
      * Generate a podcast share URL (for use in custom sharing scenarios)
      */
     fun getPodcastShareUrl(podcastId: String): String {
-        return "$WEB_BASE_URL/p/$podcastId"
+        return "$WEB_BASE_URL/#/p/$podcastId"
     }
     
     /**
      * Generate an episode share URL (for use in custom sharing scenarios)
      */
     fun getEpisodeShareUrl(episodeId: String): String {
-        return "$WEB_BASE_URL/e/$episodeId"
+        return "$WEB_BASE_URL/#/e/$episodeId"
     }
     
     /**

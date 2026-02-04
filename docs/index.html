@@ -354,8 +354,9 @@
             }
 
             parseUrl() {
-                const path = window.location.pathname;
-                const match = path.match(/\/(p|e)\/([^\/]+)/);
+                // Parse hash-based routing: /#/p/id or /#/e/id
+                const hash = window.location.hash;
+                const match = hash.match(/#\/(p|e)\/([^\/]+)/);
 
                 if (!match) {
                     this.showError('Invalid podcast or episode link', 'Could not parse the share URL. Please check the link and try again.');
