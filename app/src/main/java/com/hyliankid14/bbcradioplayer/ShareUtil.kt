@@ -1,0 +1,137 @@
+package com.hyliankid14.bbcradioplayer
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+
+/**
+ * Utility for sharing podcasts and episodes with proper fallback support.
+ * 
+ * Sharing strategy:
+ * 1. Generate deep links for app users (app://podcast/{id} or app://episode/{id})
+ * 2. Generate web fallback URLs (https://bbcradioplayer.app/p/{id})
+ * 3. Use Android's share sheet with rich text and metadata
+ */
+object ShareUtil {
+
+    // Replace with your actual domain
+    private const val WEB_BASE_URL = "https://bbcradioplayer.app"
+    private const val APP_SCHEME = "app"
+    
+    /**
+     * Share a podcast with others.
+     * Non-app users will be directed to the web player.
+     */
+    fun sharePodcast(context: Context, podcast: Podcast) {
+        val webUrl = "$WEB_BASE_URL/p/${podcast.id}"
+        val deepLink = "$APP_SCHEME://podcast/${podcast.id}"
+        
+        val shareTitle = podcast.title
+        val shareMessage = buildString {
+            append("Check out \"${podcast.title}\"")
+            if (podcast.description.isNotEmpty()) {
+                append(" - ${podcast.description.take(100)}")
+                if (podcast.description.length > 100) append("...")
+            }
+            append("\n\n")
+            append(webUrl)
+            append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
+        }
+        
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_SUBJECT, shareTitle)
+            putExtra(Intent.EXTRA_TEXT, shareMessage)
+            type = "text/plain"
+        }
+        
+        context.startActivity(Intent.createChooser(shareIntent, "Share podcast"))
+    }
+    
+    /**
+     * Share a specific episode with others.
+     * Non-app users will be directed to the web player showing this episode.
+     */
+    fun shareEpisode(context: Context, episode: Episode, podcastTitle: String) {
+        val webUrl = "$WEB_BASE_URL/e/${episode.id}"
+        val deepLink = "$APP_SCHEME://episode/${episode.id}"
+        
+        val shareTitle = episode.title
+        val shareMessage = buildString {
+            append("Listen to \"${episode.title}\"")
+            if (podcastTitle.isNotEmpty()) {
+                append(" from $podcastTitle")
+            }
+            if (episode.description.isNotEmpty()) {
+                append(" - ${episode.description.take(100)}")
+                if (episode.description.length > 100) append("...")
+            }
+            append("\n\n")
+            append(webUrl)
+            append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
+        }
+        
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_SUBJECT, shareTitle)
+            putExtra(Intent.EXTRA_TEXT, shareMessage)
+            type = "text/plain"
+        }
+        
+        context.startActivity(Intent.createChooser(shareIntent, "Share episode"))
+    }
+    
+    /**
+     * Generate a podcast share URL (for use in custom sharing scenarios)
+     */
+    fun getPodcastShareUrl(podcastId: String): String {
+        return "$WEB_BASE_URL/p/$podcastId"
+    }
+    
+    /**
+     * Generate an episode share URL (for use in custom sharing scenarios)
+     */
+    fun getEpisodeShareUrl(episodeId: String): String {
+        return "$WEB_BASE_URL/e/$episodeId"
+    }
+    
+    /**
+     * Handle incoming deep links from share URLs.
+     * Call this from MainActivity's onCreate when processing Intent data.
+     * 
+     * Returns the content type and ID, or null if not a share link.
+     */
+    fun parseShareLink(intent: Intent): Pair<ShareContentType, String>? {
+        val uri = intent.data ?: return null
+        
+        return when {
+            uri.scheme == APP_SCHEME && uri.host == "podcast" -> {
+                val podcastId = uri.pathSegments.getOrNull(0) ?: return null
+                ShareContentType.PODCAST to podcastId
+            }
+            uri.scheme == APP_SCHEME && uri.host == "episode" -> {
+                val episodeId = uri.pathSegments.getOrNull(0) ?: return null
+                ShareContentType.EPISODE to episodeId
+            }
+            uri.scheme == "https" && uri.host == "bbcradioplayer.app" -> {
+                when (uri.pathSegments.getOrNull(0)) {
+                    "p" -> {
+                        val podcastId = uri.pathSegments.getOrNull(1) ?: return null
+                        ShareContentType.PODCAST to podcastId
+                    }
+                    "e" -> {
+                        val episodeId = uri.pathSegments.getOrNull(1) ?: return null
+                        ShareContentType.EPISODE to episodeId
+                    }
+                    else -> null
+                }
+            }
+            else -> null
+        }
+    }
+    
+    enum class ShareContentType {
+        PODCAST,
+        EPISODE
+    }
+}

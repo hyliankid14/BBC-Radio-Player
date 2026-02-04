@@ -93,6 +93,16 @@
                 android:backgroundTint="@android:color/transparent"
                 android:textColor="?attr/colorPrimary" />
 
+            <ImageButton
+                android:id="@+id/share_button"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_share"
+                android:contentDescription="Share podcast"
+                android:tint="?attr/colorOnSurface"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
             <ImageView
                 android:id="@+id/notification_bell_button"
                 android:layout_width="48dp"

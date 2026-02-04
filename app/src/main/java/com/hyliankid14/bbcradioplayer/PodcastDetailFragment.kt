@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -60,6 +61,7 @@ class PodcastDetailFragment : Fragment() {
             val descriptionView: TextView = view.findViewById(R.id.podcast_detail_description)
             val showMoreView: TextView = view.findViewById(R.id.podcast_detail_show_more)
             val subscribeButton: Button = view.findViewById(R.id.subscribe_button)
+            val shareButton: ImageButton = view.findViewById(R.id.share_button)
             val notificationBell: ImageView = view.findViewById(R.id.notification_bell_button)
             val episodesRecycler: RecyclerView = view.findViewById(R.id.episodes_recycler)
             val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
@@ -172,6 +174,10 @@ class PodcastDetailFragment : Fragment() {
                 com.google.android.material.snackbar.Snackbar.make(requireView(), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
                     .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
                     .show()
+            }
+
+            shareButton.setOnClickListener {
+                ShareUtil.sharePodcast(requireContext(), podcast)
             }
 
             episodesRecycler.layoutManager = LinearLayoutManager(requireContext())

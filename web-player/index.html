@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBC Radio Player - Podcast & Episode Sharing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .loading-state {
+            padding: 60px 40px;
+            text-align: center;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .artwork-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .artwork {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin: 0 auto;
+        }
+
+        .artwork-placeholder {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 60px;
+        }
+
+        .info-section {
+            margin-bottom: 30px;
+        }
+
+        .info-title {
+            font-size: 14px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .info-value {
+            font-size: 18px;
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .info-value.description {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .player-container {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f8f8;
+            border-radius: 12px;
+        }
+
+        .player-title {
+            font-size: 14px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .audio-player {
+            width: 100%;
+            height: 40px;
+            border-radius: 8px;
+        }
+
+        .audio-player::-webkit-media-controls-panel {
+            background-color: white;
+        }
+
+        .duration-info {
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .button {
+            flex: 1;
+            min-width: 160px;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .button-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+
+        .button-secondary:hover {
+            background: #e8e8e8;
+            border-color: #d0d0d0;
+        }
+
+        .app-link {
+            display: inline-block;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: #d32f2f;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .error-message {
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .publication-info {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #999;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #f0f0f0;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .hero-text {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f8f8;
+            border-radius: 8px;
+        }
+
+        .hero-text h2 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .hero-text p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .artwork {
+                width: 150px;
+                height: 150px;
+            }
+
+            .artwork-placeholder {
+                width: 150px;
+                height: 150px;
+                font-size: 48px;
+            }
+
+            .button {
+                min-width: 120px;
+                padding: 12px 16px;
+                font-size: 13px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading podcast information...</p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            // Replace these with your actual API endpoints or podcast data source
+            API_BASE: 'https://api.podcasts.example.com',
+            // Mock podcast data - replace with real API calls
+            MOCK_DATA: {
+                podcasts: {
+                    'example-1': {
+                        type: 'podcast',
+                        title: 'BBC Radio Player',
+                        description: 'Your favorite BBC podcasts and radio content',
+                        imageUrl: 'https://via.placeholder.com/400x400?text=BBC+Radio',
+                        rssUrl: 'https://example.com/feed.xml'
+                    }
+                },
+                episodes: {
+                    'example-ep-1': {
+                        type: 'episode',
+                        title: 'Episode Title',
+                        description: 'Episode description goes here',
+                        podcastTitle: 'Podcast Name',
+                        imageUrl: 'https://via.placeholder.com/400x400?text=Episode',
+                        audioUrl: 'https://example.com/episode.mp3',
+                        pubDate: new Date().toLocaleDateString(),
+                        durationMins: 30
+                    }
+                }
+            }
+        };
+
+        class PodcastPlayer {
+            constructor() {
+                this.currentContent = null;
+                this.init();
+            }
+
+            init() {
+                this.parseUrl();
+            }
+
+            parseUrl() {
+                const path = window.location.pathname;
+                const match = path.match(/\/(p|e)\/([^\/]+)/);
+
+                if (!match) {
+                    this.showError('Invalid podcast or episode link', 'Could not parse the share URL. Please check the link and try again.');
+                    return;
+                }
+
+                const [, type, id] = match;
+                this.loadContent(type, id);
+            }
+
+            loadContent(type, id) {
+                // Simulate loading from API
+                setTimeout(() => {
+                    const content = type === 'p'
+                        ? CONFIG.MOCK_DATA.podcasts[id]
+                        : CONFIG.MOCK_DATA.episodes[id];
+
+                    if (!content) {
+                        this.showError('Content not found', `Could not find the ${type === 'p' ? 'podcast' : 'episode'} you're looking for.`);
+                        return;
+                    }
+
+                    this.currentContent = content;
+                    this.render();
+                }, 800);
+            }
+
+            render() {
+                const app = document.getElementById('app');
+                const content = this.currentContent;
+
+                if (content.type === 'podcast') {
+                    app.innerHTML = this.renderPodcast(content);
+                } else {
+                    app.innerHTML = this.renderEpisode(content);
+                }
+
+                this.attachEventListeners();
+            }
+
+            renderPodcast(podcast) {
+                return `
+                    <div class="header">
+                        <h1>🎙️ BBC Radio Player</h1>
+                        <p>Podcast Sharing</p>
+                    </div>
+                    <div class="content">
+                        <div class="artwork-container">
+                            ${podcast.imageUrl
+                                ? `<img src="${this.escapeHtml(podcast.imageUrl)}" alt="${this.escapeHtml(podcast.title)}" class="artwork" onerror="this.style.display='none'; this.nextElementSibling?.style.display='flex'">`
+                                : ''
+                            }
+                            <div class="artwork-placeholder" style="${podcast.imageUrl ? 'display:none;' : ''}">🎙️</div>
+                        </div>
+
+                        <div class="info-section">
+                            <div class="info-title">Podcast</div>
+                            <h2 class="info-value">${this.escapeHtml(podcast.title)}</h2>
+                        </div>
+
+                        ${podcast.description ? `
+                            <div class="info-section">
+                                <div class="info-title">About</div>
+                                <p class="info-value description">${this.escapeHtml(podcast.description)}</p>
+                            </div>
+                        ` : ''}
+
+                        <div class="button-group">
+                            <button class="button button-primary" onclick="player.openInApp('podcast')">
+                                📱 Open in App
+                            </button>
+                            <button class="button button-secondary" onclick="player.copyShareLink('podcast')">
+                                🔗 Copy Link
+                            </button>
+                        </div>
+
+                        <div class="hero-text">
+                            <h2>Subscribe to this podcast</h2>
+                            <p>Don't have the BBC Radio Player app? You can subscribe and listen on your favorite podcast platform.</p>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="button button-secondary" onclick="player.openRSSFeed('${this.escapeHtml(podcast.rssUrl)}')">
+                                📡 Subscribe via RSS
+                            </button>
+                            <button class="button button-secondary" onclick="player.searchPodcast('${this.escapeHtml(podcast.title)}')">
+                                🔍 Find on Spotify
+                            </button>
+                        </div>
+
+                        <div class="publication-info">
+                            <span>💡 Install the BBC Radio Player app for the best experience</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderEpisode(episode) {
+                return `
+                    <div class="header">
+                        <h1>🎙️ BBC Radio Player</h1>
+                        <p>Episode Sharing</p>
+                    </div>
+                    <div class="content">
+                        <div class="artwork-container">
+                            ${episode.imageUrl
+                                ? `<img src="${this.escapeHtml(episode.imageUrl)}" alt="${this.escapeHtml(episode.title)}" class="artwork" onerror="this.style.display='none'; this.nextElementSibling?.style.display='flex'">`
+                                : ''
+                            }
+                            <div class="artwork-placeholder" style="${episode.imageUrl ? 'display:none;' : ''}">🎧</div>
+                        </div>
+
+                        <div class="info-section">
+                            <div class="info-title">Episode</div>
+                            <h2 class="info-value">${this.escapeHtml(episode.title)}</h2>
+                        </div>
+
+                        ${episode.podcastTitle ? `
+                            <div class="info-section">
+                                <div class="info-title">From</div>
+                                <p class="info-value">${this.escapeHtml(episode.podcastTitle)}</p>
+                            </div>
+                        ` : ''}
+
+                        ${episode.description ? `
+                            <div class="info-section">
+                                <div class="info-title">Description</div>
+                                <p class="info-value description">${this.escapeHtml(episode.description)}</p>
+                            </div>
+                        ` : ''}
+
+                        ${episode.audioUrl ? `
+                            <div class="player-container">
+                                <div class="player-title">Listen Now</div>
+                                <audio controls class="audio-player">
+                                    <source src="${this.escapeHtml(episode.audioUrl)}" type="audio/mpeg">
+                                    Your browser does not support the audio element.
+                                </audio>
+                                ${episode.durationMins ? `
+                                    <div class="duration-info">Duration: ${episode.durationMins} minutes</div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+
+                        ${episode.pubDate ? `
+                            <div class="publication-info">
+                                <span>📅 ${this.escapeHtml(episode.pubDate)}</span>
+                                ${episode.durationMins ? `<span>⏱️ ${episode.durationMins} minutes</span>` : ''}
+                            </div>
+                        ` : ''}
+
+                        <div class="button-group">
+                            <button class="button button-primary" onclick="player.openInApp('episode')">
+                                📱 Open in App
+                            </button>
+                            <button class="button button-secondary" onclick="player.copyShareLink('episode')">
+                                🔗 Copy Link
+                            </button>
+                        </div>
+
+                        <div class="hero-text">
+                            <h2>Get the full experience</h2>
+                            <p>Install the BBC Radio Player app to enjoy better playback, save episodes, and track your listening history.</p>
+                        </div>
+
+                        <div class="button-group">
+                            <button class="button button-secondary" onclick="window.open('https://play.google.com/store/apps/details?id=com.hyliankid14.bbcradioplayer', '_blank')">
+                                🤖 Install on Android
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            openInApp(type) {
+                const path = window.location.pathname;
+                const match = path.match(/\/(p|e)\/([^\/]+)/);
+                if (!match) return;
+
+                const [, , id] = match;
+                const deepLink = `app://${type === 'podcast' ? 'podcast' : 'episode'}/${id}`;
+
+                // Try to open the deep link
+                window.location.href = deepLink;
+
+                // Fallback: show a message after a delay
+                setTimeout(() => {
+                    alert('Could not open the app. Make sure BBC Radio Player is installed.');
+                }, 500);
+            }
+
+            copyShareLink(type) {
+                const url = window.location.href;
+                navigator.clipboard.writeText(url).then(() => {
+                    const button = event.target;
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '✅ Copied!';
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                    }, 2000);
+                }).catch(() => {
+                    alert('Failed to copy link. Please try again.');
+                });
+            }
+
+            openRSSFeed(rssUrl) {
+                window.open(rssUrl, '_blank');
+            }
+
+            searchPodcast(title) {
+                const query = encodeURIComponent(title);
+                window.open(`https://open.spotify.com/search/${query}`, '_blank');
+            }
+
+            showError(title, message) {
+                const app = document.getElementById('app');
+                app.innerHTML = `
+                    <div class="header">
+                        <h1>🎙️ BBC Radio Player</h1>
+                        <p>Podcast Sharing</p>
+                    </div>
+                    <div class="error-state">
+                        <div class="error-icon">⚠️</div>
+                        <h2 style="margin-bottom: 10px;">${this.escapeHtml(title)}</h2>
+                        <p class="error-message">${this.escapeHtml(message)}</p>
+                        <button class="button button-primary" onclick="window.location.href='/'">
+                            ← Go Home
+                        </button>
+                    </div>
+                `;
+            }
+
+            escapeHtml(text) {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                };
+                return text.replace(/[&<>"']/g, m => map[m]);
+            }
+        }
+
+        // Initialize the player
+        const player = new PodcastPlayer();
+    </script>
+</body>
+</html>
