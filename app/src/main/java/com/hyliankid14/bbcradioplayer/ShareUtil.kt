@@ -29,7 +29,7 @@ object ShareUtil {
      */
     fun sharePodcast(context: Context, podcast: Podcast) {
         val encodedTitle = Uri.encode(podcast.title)
-        val encodedDesc = Uri.encode(podcast.description.take(200))
+        val encodedDesc = Uri.encode(stripHtmlTags(podcast.description).take(200))
         val encodedImage = Uri.encode(podcast.imageUrl)
         val encodedRss = Uri.encode(podcast.rssUrl)
         val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&rss=$encodedRss"
@@ -75,7 +75,7 @@ object ShareUtil {
      */
     fun shareEpisode(context: Context, episode: Episode, podcastTitle: String) {
         val encodedTitle = Uri.encode(episode.title)
-        val encodedDesc = Uri.encode(episode.description.take(200))
+        val encodedDesc = Uri.encode(stripHtmlTags(episode.description).take(200))
         val encodedImage = Uri.encode(episode.imageUrl)
         val encodedPodcast = Uri.encode(podcastTitle)
         val encodedAudio = Uri.encode(episode.audioUrl)
