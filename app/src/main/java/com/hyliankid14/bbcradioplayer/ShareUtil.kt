@@ -78,7 +78,9 @@ object ShareUtil {
         val encodedImage = Uri.encode(episode.imageUrl)
         val encodedPodcast = Uri.encode(podcastTitle)
         val encodedAudio = Uri.encode(episode.audioUrl)
-        val webUrl = "$WEB_BASE_URL/#/e/${episode.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&podcast=$encodedPodcast&audio=$encodedAudio&date=${episode.pubDate}&duration=${episode.durationMins}"
+        val encodedDate = Uri.encode(episode.pubDate.toString())
+        val encodedDuration = Uri.encode(episode.durationMins.toString())
+        val webUrl = "$WEB_BASE_URL/#/e/${episode.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&podcast=$encodedPodcast&audio=$encodedAudio&date=$encodedDate&duration=$encodedDuration"
         
         val shareTitle = episode.title
         val handler = Handler(Looper.getMainLooper())
@@ -175,6 +177,7 @@ object ShareUtil {
      */
     private fun shortenUrl(longUrl: String): String {
         return try {
+            android.util.Log.d("ShareUtil", "Shortening URL (length: ${longUrl.length}): ${longUrl.take(200)}...")
             val encodedUrl = URLEncoder.encode(longUrl, "UTF-8")
             val urlStr = "$SHORT_URL_API?format=json&url=$encodedUrl"
             val connection = (URL(urlStr).openConnection() as java.net.HttpURLConnection).apply {
