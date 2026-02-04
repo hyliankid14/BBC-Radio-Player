@@ -19,7 +19,7 @@
     <!-- Fill the small gap under the app bar with the same surface container colour -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="8dp"
+        android:layout_height="0dp"
         android:background="?attr/colorSurfaceContainer" />
 
     <!-- Favorites toggle group shown under the app bar for quick access -->

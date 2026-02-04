@@ -1263,8 +1263,13 @@ class MainActivity : AppCompatActivity() {
         currentMode = "podcasts"
         fragmentContainer.visibility = View.VISIBLE
         staticContentContainer.visibility = View.GONE
-        // Hide the global action bar so the Podcasts fragment can present its own search app bar at the top
-        supportActionBar?.hide()
+        // Show the global action bar to match other sections and display the Podcasts title
+        supportActionBar?.apply {
+            show()
+            title = "Podcasts"
+            setDisplayHomeAsUpEnabled(false)
+            setDisplayShowHomeEnabled(false)
+        }
         // Hide favourites toggle group when viewing podcasts
         try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
 

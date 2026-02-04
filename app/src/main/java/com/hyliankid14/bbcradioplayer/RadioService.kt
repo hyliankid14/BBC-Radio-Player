@@ -272,6 +272,15 @@ class RadioService : MediaBrowserServiceCompat() {
                             PodcastSubscriptions.toggleSubscription(this@RadioService, podcast.id)
                             val nowSubscribed = PodcastSubscriptions.isSubscribed(this@RadioService, podcast.id)
                             Log.d(TAG, "Podcast subscription toggled via Android Auto: ${podcast.title} (subscribed=$nowSubscribed)")
+                            
+                            // Show feedback notification
+                            val feedbackMsg = if (nowSubscribed) {
+                                "Subscribed to ${podcast.title}"
+                            } else {
+                                "Unsubscribed from ${podcast.title}"
+                            }
+                            showSubscriptionFeedback(feedbackMsg)
+                            
                             // Refresh playback state to update button label
                             updatePlaybackState(mediaSession.controller.playbackState?.state ?: PlaybackStateCompat.STATE_PLAYING)
                         }
@@ -2435,6 +2444,37 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     override fun onBind(intent: Intent?): android.os.IBinder? {
         Log.d(TAG, "onBind - action: ${intent?.action}")
         return super.onBind(intent)
+    }
+
+    private fun showSubscriptionFeedback(message: String) {
+        // Show a brief feedback notification that appears in Android Auto
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            // Create a simple notification for feedback
+            val feedbackNotification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("BBC Radio Player")
+                .setContentText(message)
+                .setSmallIcon(R.drawable.ic_podcast)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setAutoCancel(true)
+                .setTimeoutAfter(3000) // Auto-dismiss after 3 seconds
+                .build()
+            
+            // Use a different notification ID so it doesn't interfere with the main playback notification
+            notificationManager.notify(999, feedbackNotification)
+            
+            // Auto-cancel after a short delay
+            handler.postDelayed({
+                try {
+                    notificationManager.cancel(999)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to cancel feedback notification: ${e.message}")
+                }
+            }, 3000)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to show subscription feedback: ${e.message}")
+        }
     }
 
     private fun updateMatchingPodcastForShow(station: Station?, show: CurrentShow) {

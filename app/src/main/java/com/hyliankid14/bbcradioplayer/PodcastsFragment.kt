@@ -376,7 +376,7 @@ class PodcastsFragment : Fragment() {
         }
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        podcastAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast -> onPodcastClicked(podcast) })
+        podcastAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast -> onPodcastClicked(podcast) }, showNotificationBell = false)
 
         // Shuffle helper: open episodes page for a random podcast
         fun shuffleAndOpenRandomPodcastLocal() { shuffleAndOpenRandomPodcast() }

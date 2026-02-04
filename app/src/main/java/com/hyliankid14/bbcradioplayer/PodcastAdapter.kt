@@ -24,7 +24,8 @@ class PodcastAdapter(
     private val onPodcastClick: (Podcast) -> Unit,
     private val onOpenPlayer: (() -> Unit)? = null,
     private val highlightSubscribed: Boolean = false,
-    private val showSubscribedIcon: Boolean = true
+    private val showSubscribedIcon: Boolean = true,
+    private val showNotificationBell: Boolean = true
 ) : RecyclerView.Adapter<PodcastAdapter.PodcastViewHolder>() {
 
     private var newEpisodeIds: Set<String> = emptySet()
@@ -170,8 +171,8 @@ class PodcastAdapter(
                 subscribedIcon?.visibility = View.GONE
             }
 
-            // Show notification bell only for subscribed podcasts
-            if (PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
+            // Show notification bell only for subscribed podcasts when enabled
+            if (showNotificationBell && PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)) {
                 notificationBell.visibility = View.VISIBLE
                 updateBellIcon(podcast.id)
             } else {

@@ -318,7 +318,7 @@ class PodcastDetailFragment : Fragment() {
         }
         val current = (activity as? AppCompatActivity)?.supportFragmentManager?.findFragmentById(R.id.fragment_container)
         if (current is PodcastsFragment) {
-            (activity as? AppCompatActivity)?.supportActionBar?.hide()
+            (activity as? AppCompatActivity)?.supportActionBar?.show()
         }
     }
 
