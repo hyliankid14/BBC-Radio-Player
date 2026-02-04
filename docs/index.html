@@ -685,15 +685,39 @@
 
             async loadEpisodes(rssUrl) {
                 try {
+                    if (!rssUrl) {
+                        console.log('No RSS URL provided');
+                        return;
+                    }
+                    
+                    // Ensure RSS URL is decoded
+                    const decodedRssUrl = decodeURIComponent(rssUrl);
+                    console.log('Loading episodes from RSS:', decodedRssUrl);
+                    
                     // Use a CORS proxy to fetch the RSS feed
                     const proxyUrl = 'https://api.allorigins.win/raw?url=';
-                    const response = await fetch(proxyUrl + encodeURIComponent(rssUrl));
+                    const response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
+                    
+                    if (!response.ok) {
+                        console.error('Failed to fetch RSS:', response.status, response.statusText);
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
                     const text = await response.text();
+                    console.log('Received RSS data, length:', text.length);
                     
                     const parser = new DOMParser();
                     const xml = parser.parseFromString(text, 'text/xml');
                     
+                    // Check for parse errors
+                    if (xml.documentElement.tagName === 'parsererror') {
+                        console.error('XML parse error:', xml.documentElement.textContent);
+                        throw new Error('Failed to parse RSS feed');
+                    }
+                    
                     const items = xml.querySelectorAll('item');
+                    console.log('Found', items.length, 'episodes');
+                    
                     this.episodes = Array.from(items).slice(0, 10).map(item => {
                         const enclosure = item.querySelector('enclosure');
                         return {
