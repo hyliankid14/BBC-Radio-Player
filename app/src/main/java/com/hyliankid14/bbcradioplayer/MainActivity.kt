@@ -2799,7 +2799,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "podcast_filter_prefs", "theme_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "subscription_refresh_prefs", "podcast_filter_prefs", "theme_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)
@@ -2829,6 +2829,9 @@ class MainActivity : AppCompatActivity() {
                     // index is machine-local and is cleared on uninstall. Exporting it can
                     // lead to misleading "Last rebuilt" values on import.
                     if (obj.has("last_reindex_time")) obj.remove("last_reindex_time")
+                }
+                if (name == "subscription_refresh_prefs") {
+                    if (!obj.has("refresh_interval_minutes")) obj.put("refresh_interval_minutes", SubscriptionRefreshPreference.getIntervalMinutes(this))
                 }
                 if (name == "podcast_filter_prefs") {
                     if (!obj.has("exclude_non_english")) obj.put("exclude_non_english", PodcastFilterPreference.excludeNonEnglish(this))
@@ -2969,6 +2972,27 @@ class MainActivity : AppCompatActivity() {
                                 val options = resources.getStringArray(R.array.index_schedule_options)
                                 // Prevent the selection change from triggering a toast/callback
                                 suppressIndexSpinnerSelection = true
+                                spinner?.setText(options[pos], false)
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+            } catch (e: Exception) { /* Ignore */ }
+
+            try {
+                if (root.has("subscription_refresh_prefs")) {
+                    val sr = root.getJSONObject("subscription_refresh_prefs")
+                    if (sr.has("refresh_interval_minutes")) {
+                        val minutes = sr.optInt("refresh_interval_minutes", SubscriptionRefreshPreference.getIntervalMinutes(this))
+                        SubscriptionRefreshPreference.setIntervalMinutes(this, minutes)
+                        if (minutes > 0) SubscriptionRefreshScheduler.scheduleRefresh(this) else SubscriptionRefreshScheduler.cancel(this)
+
+                        runOnUiThread {
+                            try {
+                                val spinner: com.google.android.material.textfield.MaterialAutoCompleteTextView? = findViewById(R.id.subscription_refresh_spinner)
+                                val options = arrayOf("Disabled", "15 minutes", "30 minutes", "60 minutes", "2 hours", "6 hours", "12 hours", "24 hours")
+                                val values = intArrayOf(0, 15, 30, 60, 120, 360, 720, 1440)
+                                val pos = values.indexOf(minutes).takeIf { it >= 0 } ?: 3
                                 spinner?.setText(options[pos], false)
                             } catch (_: Exception) {}
                         }

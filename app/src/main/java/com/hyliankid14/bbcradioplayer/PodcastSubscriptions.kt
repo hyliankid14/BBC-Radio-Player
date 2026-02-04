@@ -25,8 +25,8 @@ object PodcastSubscriptions {
             setNotificationsEnabled(context, podcastId, false)
         } else {
             current.add(podcastId)
-            // Enable notifications by default when subscribing
-            setNotificationsEnabled(context, podcastId, true)
+            // Notifications remain disabled until the user opts in
+            setNotificationsEnabled(context, podcastId, false)
         }
         prefs(context).edit().putStringSet(KEY_SUBSCRIBED_IDS, current).apply()
     }
