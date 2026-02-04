@@ -3,6 +3,8 @@ package com.hyliankid14.bbcradioplayer
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import java.net.URL
 import java.net.URLEncoder
 
@@ -30,6 +32,7 @@ object ShareUtil {
         val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?rss=$encodedRss"
         
         val shareTitle = podcast.title
+        val handler = Handler(Looper.getMainLooper())
         
         // Shorten URL on background thread
         Thread {
@@ -46,14 +49,16 @@ object ShareUtil {
                     append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
                 }
                 
-                val shareIntent = Intent().apply {
-                    action = Intent.ACTION_SEND
-                    putExtra(Intent.EXTRA_SUBJECT, shareTitle)
-                    putExtra(Intent.EXTRA_TEXT, shareMessage)
-                    type = "text/plain"
+                // Post back to main thread to start activity
+                handler.post {
+                    val shareIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_SUBJECT, shareTitle)
+                        putExtra(Intent.EXTRA_TEXT, shareMessage)
+                        type = "text/plain"
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share podcast"))
                 }
-                
-                context.startActivity(Intent.createChooser(shareIntent, "Share podcast"))
             } catch (e: Exception) {
                 android.util.Log.w("ShareUtil", "Failed to share podcast: ${e.message}")
             }
@@ -73,6 +78,7 @@ object ShareUtil {
         val webUrl = "$WEB_BASE_URL/#/e/${episode.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&podcast=$encodedPodcast&audio=$encodedAudio&date=${episode.pubDate}&duration=${episode.durationMins}"
         
         val shareTitle = episode.title
+        val handler = Handler(Looper.getMainLooper())
         
         // Shorten URL on background thread
         Thread {
@@ -92,14 +98,16 @@ object ShareUtil {
                     append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
                 }
                 
-                val shareIntent = Intent().apply {
-                    action = Intent.ACTION_SEND
-                    putExtra(Intent.EXTRA_SUBJECT, shareTitle)
-                    putExtra(Intent.EXTRA_TEXT, shareMessage)
-                    type = "text/plain"
+                // Post back to main thread to start activity
+                handler.post {
+                    val shareIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_SUBJECT, shareTitle)
+                        putExtra(Intent.EXTRA_TEXT, shareMessage)
+                        type = "text/plain"
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share episode"))
                 }
-                
-                context.startActivity(Intent.createChooser(shareIntent, "Share episode"))
             } catch (e: Exception) {
                 android.util.Log.w("ShareUtil", "Failed to share episode: ${e.message}")
             }
