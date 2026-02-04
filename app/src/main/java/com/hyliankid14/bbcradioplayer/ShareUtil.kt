@@ -3,13 +3,17 @@ package com.hyliankid14.bbcradioplayer
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.URLEncoder
+import java.net.URL
 
 /**
  * Utility for sharing podcasts and episodes with proper fallback support.
  * 
  * Sharing strategy:
  * 1. Generate deep links for app users (app://podcast/{id} or app://episode/{id})
- * 2. Generate web fallback URLs (https://bbcradioplayer.app/p/{id})
+ * 2. Generate web fallback URLs with short codes
  * 3. Use Android's share sheet with rich text and metadata
  */
 object ShareUtil {
@@ -17,16 +21,15 @@ object ShareUtil {
     // GitHub Pages URL for web player
     private const val WEB_BASE_URL = "https://hyliankid14.github.io/BBC-Radio-Player"
     private const val APP_SCHEME = "app"
+    private const val SHORT_URL_API = "https://is.gd/create.php"
     
     /**
      * Share a podcast with others.
      * Non-app users will be directed to the web player.
      */
     fun sharePodcast(context: Context, podcast: Podcast) {
-        val encodedTitle = Uri.encode(podcast.title)
-        val encodedDesc = Uri.encode(podcast.description.take(200))
-        val encodedImage = Uri.encode(podcast.imageUrl)
-        val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage"
+        val encodedRss = Uri.encode(podcast.rssUrl)
+        val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?rss=$encodedRss"
         val deepLink = "$APP_SCHEME://podcast/${podcast.id}"
         
         val shareTitle = podcast.title
@@ -139,6 +142,32 @@ object ShareUtil {
                 } else null
             }
             else -> null
+        }
+    }
+    
+    /**
+     * Shorten a URL using is.gd service
+     */
+    suspend fun shortenUrl(longUrl: String): String = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val encodedUrl = URLEncoder.encode(longUrl, "UTF-8")
+            val connection = (URL("$SHORT_URL_API?format=json&url=$encodedUrl").openConnection() as java.net.HttpURLConnection).apply {
+                connectTimeout = 5000
+                readTimeout = 5000
+                requestMethod = "GET"
+            }
+            
+            if (connection.responseCode == 200) {
+                val response = connection.inputStream.bufferedReader().readText()
+                val shortUrl = response.substringAfter("\"shorturl\":\"")
+                    .substringBefore("\"")
+                if (shortUrl.isNotEmpty()) shortUrl else longUrl
+            } else {
+                longUrl
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("ShareUtil", "Failed to shorten URL: ${e.message}")
+            longUrl
         }
     }
     
