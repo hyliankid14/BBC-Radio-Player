@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URLEncoder
 import java.net.URL
@@ -33,25 +35,30 @@ object ShareUtil {
         val deepLink = "$APP_SCHEME://podcast/${podcast.id}"
         
         val shareTitle = podcast.title
-        val shareMessage = buildString {
-            append("Check out \"${podcast.title}\"")
-            if (podcast.description.isNotEmpty()) {
-                append(" - ${podcast.description.take(100)}")
-                if (podcast.description.length > 100) append("...")
+        
+        // Launch coroutine to shorten URL and share
+        GlobalScope.launch(Dispatchers.Main) {
+            val shortUrl = shortenUrl(webUrl)
+            val shareMessage = buildString {
+                append("Check out \"${podcast.title}\"")
+                if (podcast.description.isNotEmpty()) {
+                    append(" - ${podcast.description.take(100)}")
+                    if (podcast.description.length > 100) append("...")
+                }
+                append("\n\n")
+                append(shortUrl)
+                append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
             }
-            append("\n\n")
-            append(webUrl)
-            append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
+            
+            val shareIntent = Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_SUBJECT, shareTitle)
+                putExtra(Intent.EXTRA_TEXT, shareMessage)
+                type = "text/plain"
+            }
+            
+            context.startActivity(Intent.createChooser(shareIntent, "Share podcast"))
         }
-        
-        val shareIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_SUBJECT, shareTitle)
-            putExtra(Intent.EXTRA_TEXT, shareMessage)
-            type = "text/plain"
-        }
-        
-        context.startActivity(Intent.createChooser(shareIntent, "Share podcast"))
     }
     
     /**
@@ -68,29 +75,33 @@ object ShareUtil {
         val deepLink = "$APP_SCHEME://episode/${episode.id}"
         
         val shareTitle = episode.title
-        val shareMessage = buildString {
-            append("Listen to \"${episode.title}\"")
-            if (podcastTitle.isNotEmpty()) {
-                append(" from $podcastTitle")
-            }
-            if (episode.description.isNotEmpty()) {
-                append(" - ${episode.description.take(100)}")
-                if (episode.description.length > 100) append("...")
-            }
-            append("\n\n")
-            append(webUrl)
-            append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
-        }
         
-        val shareIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_SUBJECT, shareTitle)
-            putExtra(Intent.EXTRA_TEXT, shareMessage)
-            type = "text/plain"
+        // Launch coroutine to shorten URL and share
+        GlobalScope.launch(Dispatchers.Main) {
+            val shortUrl = shortenUrl(webUrl)
+            val shareMessage = buildString {
+                append("Listen to \"${episode.title}\"")
+                if (podcastTitle.isNotEmpty()) {
+                    append(" from $podcastTitle")
+                }
+                if (episode.description.isNotEmpty()) {
+                    append(" - ${episode.description.take(100)}")
+                    if (episode.description.length > 100) append("...")
+                }
+                append("\n\n")
+                append(shortUrl)
+                append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
+            }
+            
+            val shareIntent = Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_SUBJECT, shareTitle)
+                putExtra(Intent.EXTRA_TEXT, shareMessage)
+                type = "text/plain"
+            }
+            
+            context.startActivity(Intent.createChooser(shareIntent, "Share episode"))
         }
-        
-        context.startActivity(Intent.createChooser(shareIntent, "Share episode"))
-    }
     
     /**
      * Generate a podcast share URL (for use in custom sharing scenarios)
