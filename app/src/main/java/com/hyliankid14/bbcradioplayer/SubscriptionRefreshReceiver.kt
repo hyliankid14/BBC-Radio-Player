@@ -28,17 +28,26 @@ class SubscriptionRefreshReceiver : BroadcastReceiver() {
                     val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
                     if (episodes.isEmpty()) continue
 
-                    // Get the last known episode count from SharedPreferences
-                    val prefs = context.getSharedPreferences("podcast_episode_counts", Context.MODE_PRIVATE)
-                    val lastKnownCount = prefs.getInt(podcast.id, 0)
+                    // Assume newest episode is first (repository returns newest-first)
+                    val latest = episodes.firstOrNull() ?: continue
+                    val latestId = latest.id
+                    if (latestId.isBlank()) continue
 
-                    if (episodes.size > lastKnownCount) {
-                        val newCount = episodes.size - lastKnownCount
-                        PodcastEpisodeNotifier.notifyNewEpisodes(context, podcast, newCount)
+                    // Track last seen episode per podcast
+                    val prefs = context.getSharedPreferences("podcast_last_episode", Context.MODE_PRIVATE)
+                    val lastSeenId = prefs.getString(podcast.id, null)
+
+                    if (lastSeenId == null) {
+                        // First run: seed state without notifying
+                        prefs.edit().putString(podcast.id, latestId).apply()
+                        continue
                     }
 
-                    // Update the episode count
-                    prefs.edit().putInt(podcast.id, episodes.size).apply()
+                    if (lastSeenId != latestId) {
+                        val episodeTitle = latest.title.ifBlank { "(Untitled Episode)" }
+                        PodcastEpisodeNotifier.notifyNewEpisode(context, podcast, episodeTitle)
+                        prefs.edit().putString(podcast.id, latestId).apply()
+                    }
                 }
             } catch (_: Exception) {
                 // swallow - this is a best-effort background job

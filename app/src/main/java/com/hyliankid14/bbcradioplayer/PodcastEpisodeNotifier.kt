@@ -16,18 +16,19 @@ object PodcastEpisodeNotifier {
     private const val CHANNEL_ID = "podcast_updates"
     private const val CHANNEL_NAME = "Podcast updates"
 
-    fun notifyNewEpisodes(context: Context, podcast: Podcast, newCount: Int) {
-        if (newCount <= 0) return
+    fun notifyNewEpisode(context: Context, podcast: Podcast, episodeTitle: String) {
+        if (episodeTitle.isBlank()) return
         if (!PodcastSubscriptions.isNotificationsEnabled(context, podcast.id)) return
         if (!areNotificationsAllowed(context)) return
 
         ensureChannel(context)
 
         val title = podcast.title.ifBlank { "Podcast" }
-        val text = if (newCount == 1) "1 new episode" else "$newCount new episodes"
+        val text = "New episode added - $episodeTitle"
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("open_podcast_id", podcast.id)
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
