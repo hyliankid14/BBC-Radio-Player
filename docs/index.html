@@ -548,7 +548,7 @@
 
                         ${episode.pubDate ? `
                             <div class="publication-info">
-                                <span>📅 ${this.escapeHtml(episode.pubDate)}</span>
+                                <span>📅 ${this.formatDate(episode.pubDate)}</span>
                                 ${episode.durationMins ? `<span>⏱️ ${episode.durationMins} minutes</span>` : ''}
                             </div>
                         ` : ''}
