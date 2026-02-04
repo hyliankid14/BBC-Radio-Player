@@ -175,33 +175,43 @@ object ShareUtil {
             val encodedUrl = URLEncoder.encode(longUrl, "UTF-8")
             val urlStr = "$SHORT_URL_API?format=json&url=$encodedUrl"
             val connection = (URL(urlStr).openConnection() as java.net.HttpURLConnection).apply {
-                connectTimeout = 5000
-                readTimeout = 5000
+                connectTimeout = 10000
+                readTimeout = 10000
                 requestMethod = "GET"
                 setRequestProperty("User-Agent", "BBC Radio Player/1.0")
             }
             
             val responseCode = connection.responseCode
-            if (responseCode == 200) {
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
+            val response = if (responseCode == 200) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                // For errors, read from error stream
+                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            }
+            
+            if (responseCode == 200 && response.contains("\"shorturl\"")) {
                 // Parse JSON response for shorturl field
                 // Example: {"shorturl":"https:\/\/is.gd\/abc123"}
-                if (response.contains("\"shorturl\":")) {
-                    val shortUrl = response.substringAfter("\"shorturl\":\"")
-                        .substringBefore("\"")
-                        .replace("\\/", "/")
-                    
-                    // Validate it's actually a URL
-                    if (shortUrl.startsWith("http://") || shortUrl.startsWith("https://")) {
-                        return shortUrl
-                    }
+                val shortUrl = response.substringAfter("\"shorturl\":\"")
+                    .substringBefore("\"")
+                    .replace("\\/", "/")
+                
+                // Validate it's actually a URL
+                if (shortUrl.startsWith("http://") || shortUrl.startsWith("https://")) {
+                    return shortUrl
                 }
-                android.util.Log.w("ShareUtil", "Invalid response from is.gd: $response")
-                longUrl
-            } else {
-                android.util.Log.w("ShareUtil", "is.gd returned status $responseCode")
-                longUrl
             }
+            
+            // Log any errors for debugging
+            if (response.contains("\"errorcode\"")) {
+                val errorMsg = response.substringAfter("\"errormessage\":\"")
+                    .substringBefore("\"")
+                android.util.Log.w("ShareUtil", "is.gd error: $errorMsg")
+            } else {
+                android.util.Log.w("ShareUtil", "is.gd returned status $responseCode: $response")
+            }
+            
+            longUrl
         } catch (e: Exception) {
             android.util.Log.w("ShareUtil", "Failed to shorten URL: ${e.message}")
             longUrl
