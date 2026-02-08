@@ -767,8 +767,30 @@
                         clearTimeout(timeoutId);
                     } catch (proxyError) {
                         clearTimeout(timeoutId);
-                        console.warn('CORS proxy failed:', proxyError.message);
-                        throw new Error('Feed unavailable');
+                        console.warn('Primary CORS proxy failed, trying alternative:', proxyError.message);
+                        
+                        // Try alternative proxy without streaming (simpler, for fallback)
+                        try {
+                            const altController = new AbortController();
+                            const altTimeoutId = setTimeout(() => altController.abort(), 10000);
+                            
+                            const altProxyUrl = 'https://corsproxy.io/?';
+                            const altResponse = await fetch(altProxyUrl + encodeURIComponent(decodedRssUrl), {
+                                signal: altController.signal
+                            });
+                            
+                            clearTimeout(altTimeoutId);
+                            
+                            if (!altResponse.ok) {
+                                throw new Error(`HTTP ${altResponse.status}`);
+                            }
+                            
+                            text = await altResponse.text();
+                            console.log('Alternative proxy succeeded');
+                        } catch (altError) {
+                            console.warn('Alternative CORS proxy also failed:', altError.message);
+                            throw new Error('Feed unavailable');
+                        }
                     }
                     
                     console.log('Received RSS data, length:', text.length);
