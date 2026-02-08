@@ -120,12 +120,19 @@ class PodcastsFragment : Fragment() {
         val snap = DisplaySnapshot(queryNorm, currentFilterHash(), isSearchAdapter)
         // Capture current adapter to avoid races with mutable properties
         val currentAdapter = recyclerView.adapter
+        
+        android.util.Log.d("PodcastsFragment", "showResultsSafely: snap=$snap lastDisplaySnapshot=$lastDisplaySnapshot currentAdapter=$currentAdapter adapter=$adapter hasContent=$hasContent")
+        
         // If the same snapshot is already displayed and adapter instance matches, skip any UI work
-        if (lastDisplaySnapshot == snap && currentAdapter == adapter) return
+        if (lastDisplaySnapshot == snap && currentAdapter == adapter) {
+            android.util.Log.d("PodcastsFragment", "showResultsSafely: snapshot and adapter match, skipping UI update")
+            return
+        }
         lastDisplaySnapshot = snap
         lastActiveQueryNorm = queryNorm
 
         // Apply adapter and visibility in a single, atomic UI update to avoid flicker
+        android.util.Log.d("PodcastsFragment", "showResultsSafely: updating UI - adapter=${adapter?.javaClass?.simpleName} hasContent=$hasContent")
         recyclerView.adapter = adapter
         if (hasContent) {
             emptyState.visibility = View.GONE
@@ -1007,8 +1014,19 @@ class PodcastsFragment : Fragment() {
                 val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
                 searchQuery = q
                 
+                android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: query='$q' allPodcasts.size=${allPodcasts.size} currentSort='$currentSort'")
+                
                 // Check if job was cancelled early
                 if (!isActive) {
+                    showSpinnerJob.cancel()
+                    loadingView?.visibility = View.GONE
+                    return@launch
+                }
+
+                // If no podcasts loaded yet, show empty state and return
+                if (allPodcasts.isEmpty()) {
+                    android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: allPodcasts is empty, showing empty state")
+                    showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = false, emptyState)
                     showSpinnerJob.cancel()
                     loadingView?.visibility = View.GONE
                     return@launch
