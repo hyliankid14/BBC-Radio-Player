@@ -429,10 +429,15 @@
                     return;
                 }
 
-                if (content.type === 'podcast') {
-                    app.innerHTML = this.renderPodcast(content);
-                } else {
-                    app.innerHTML = this.renderEpisode(content);
+                try {
+                    if (content.type === 'podcast') {
+                        app.innerHTML = this.renderPodcast(content);
+                    } else {
+                        app.innerHTML = this.renderEpisode(content);
+                    }
+                } catch (error) {
+                    console.error('Error rendering content:', error);
+                    this.showError('Error', 'Failed to render content');
                 }
             }
 
@@ -710,9 +715,10 @@
                     if (xml.documentElement.tagName === 'parsererror') return;
                     
                     const description = xml.querySelector('channel > description')?.textContent || '';
-                    if (description) {
+                    if (description && this.currentContent) {
                         this.currentContent.description = description;
-                        this.updateDescriptionDisplay();
+                        // Use setTimeout to ensure DOM is ready
+                        setTimeout(() => this.updateDescriptionDisplay(), 100);
                     }
                 } catch (error) {
                     console.error('Failed to load podcast description:', error);
@@ -722,9 +728,11 @@
             updateDescriptionDisplay() {
                 const descText = document.getElementById('description-text');
                 const seeMoreBtn = document.getElementById('see-more-btn');
-                if (!descText) return;
+                if (!descText || !this.currentContent) return;
                 
-                const fullDescription = this.currentContent.description;
+                const fullDescription = this.currentContent.description || '';
+                if (!fullDescription) return;
+                
                 const maxChars = 200;
                 const lines = fullDescription.split('\n');
                 
