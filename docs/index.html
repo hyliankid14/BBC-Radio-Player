@@ -827,10 +827,19 @@
                     this.loadMoreEpisodes();
                 } catch (error) {
                     console.error('Failed to load episodes:', error);
-                    // Silently hide the episodes section - podcast info is already shown from URL params
+                    // Show a helpful message for large podcasts instead of hiding the section
                     const episodesSection = document.getElementById('episodes-section');
                     if (episodesSection) {
-                        episodesSection.style.display = 'none';
+                        episodesSection.innerHTML = `
+                            <div style="margin-top: 30px; text-align: center; padding: 40px 20px; background: #f8f8f8; border-radius: 12px;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+                                <h3 style="font-size: 20px; margin-bottom: 12px; color: #333;">Episode Library Unavailable</h3>
+                                <p style="font-size: 15px; color: #666; line-height: 1.6; max-width: 500px; margin: 0 auto;">
+                                    This podcast has many episodes. For the complete library with playback, 
+                                    search, and download features, install the BBC Radio Player app.
+                                </p>
+                            </div>
+                        `;
                     }
                 }
             }
