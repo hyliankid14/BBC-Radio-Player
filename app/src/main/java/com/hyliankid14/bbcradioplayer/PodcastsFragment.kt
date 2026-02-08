@@ -651,6 +651,8 @@ class PodcastsFragment : Fragment() {
         // (Legacy incremental/FTS implementation remains below but is intentionally bypassed
         //  for now to keep the behavior minimal and deterministic.)
         searchJob?.cancel()
+        // Clear the display snapshot to ensure UI is updated
+        lastDisplaySnapshot = null
         simplifiedApplyFilters(emptyState, recyclerView)
         return
         // Legacy/complex path removed — simplified search (called above) is used instead.
