@@ -348,6 +348,9 @@
             constructor() {
                 this.currentContent = null;
                 this.episodes = [];
+                this.allEpisodes = [];
+                this.displayedCount = 0;
+                this.episodesPerPage = 10;
                 this.init();
             }
 
@@ -720,7 +723,7 @@
                     const items = xml.querySelectorAll('item');
                     console.log('Found', items.length, 'episodes');
                     
-                    this.episodes = Array.from(items).slice(0, 10).map(item => {
+                    this.allEpisodes = Array.from(items).map(item => {
                         const enclosure = item.querySelector('enclosure');
                         return {
                             title: item.querySelector('title')?.textContent || 'Untitled',
@@ -731,7 +734,9 @@
                         };
                     });
                     
-                    this.renderEpisodesList();
+                    this.displayedCount = 0;
+                    this.episodes = [];
+                    this.loadMoreEpisodes();
                 } catch (error) {
                     console.error('Failed to load episodes:', error);
                     const episodesSection = document.getElementById('episodes-section');
@@ -757,9 +762,22 @@
                 return parseInt(durationStr) / 60 || 0;
             }
 
+            loadMoreEpisodes() {
+                const start = this.displayedCount;
+                const end = Math.min(start + this.episodesPerPage, this.allEpisodes.length);
+                
+                const newEpisodes = this.allEpisodes.slice(start, end);
+                this.episodes.push(...newEpisodes);
+                this.displayedCount = end;
+                
+                this.renderEpisodesList();
+            }
+
             renderEpisodesList() {
                 const episodesSection = document.getElementById('episodes-section');
                 if (!episodesSection || this.episodes.length === 0) return;
+                
+                const hasMore = this.displayedCount < this.allEpisodes.length;
                 
                 episodesSection.innerHTML = `
                     <div style="margin-top: 30px;">
@@ -779,6 +797,24 @@
                                 ` : ''}
                             </div>
                         `).join('')}
+                        ${hasMore ? `
+                            <div style="text-align: center; margin-top: 20px;">
+                                <button onclick="player.loadMoreEpisodes()" style="
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    border: none;
+                                    padding: 12px 32px;
+                                    font-size: 16px;
+                                    font-weight: 600;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                                    transition: transform 0.2s, box-shadow 0.2s;
+                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                                    Load More Episodes (${this.allEpisodes.length - this.displayedCount} remaining)
+                                </button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }
