@@ -348,6 +348,10 @@
             constructor() {
                 this.currentContent = null;
                 this.episodes = [];
+                this.allEpisodes = [];
+                this.displayedEpisodeCount = 0;
+                this.episodesPerPage = 15;
+                this.isLoadingMore = false;
                 this.init();
             }
 
@@ -720,7 +724,7 @@
                     const items = xml.querySelectorAll('item');
                     console.log('Found', items.length, 'episodes');
                     
-                    this.episodes = Array.from(items).slice(0, 10).map(item => {
+                    this.allEpisodes = Array.from(items).map(item => {
                         const enclosure = item.querySelector('enclosure');
                         return {
                             title: item.querySelector('title')?.textContent || 'Untitled',
@@ -731,7 +735,8 @@
                         };
                     });
                     
-                    this.renderEpisodesList();
+                    this.displayedEpisodeCount = 0;
+                    this.renderMoreEpisodes();
                 } catch (error) {
                     console.error('Failed to load episodes:', error);
                     const episodesSection = document.getElementById('episodes-section');
@@ -759,28 +764,67 @@
 
             renderEpisodesList() {
                 const episodesSection = document.getElementById('episodes-section');
-                if (!episodesSection || this.episodes.length === 0) return;
+                if (!episodesSection) return;
                 
-                episodesSection.innerHTML = `
-                    <div style="margin-top: 30px;">
-                        <h3 style="font-size: 20px; margin-bottom: 20px; color: #333;">Recent Episodes</h3>
-                        ${this.episodes.map((ep, index) => `
-                            <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
-                                <h4 style="font-size: 16px; margin-bottom: 8px; color: #333;">${this.escapeHtml(ep.title)}</h4>
-                                <p style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.4;">
-                                    ${this.escapeHtml(this.stripHtml(ep.description).substring(0, 150))}${ep.description.length > 150 ? '...' : ''}
-                                </p>
-                                ${ep.pubDate ? `<p style="font-size: 12px; color: #999; margin-bottom: 12px;">${this.formatDate(ep.pubDate)}${ep.duration > 0 ? ` • ${Math.round(ep.duration)} min` : ''}</p>` : ''}
-                                ${ep.audioUrl ? `
-                                    <audio controls style="width: 100%; margin-top: 12px; border-radius: 8px;">
-                                        <source src="${this.escapeHtml(ep.audioUrl)}" type="audio/mpeg">
-                                        Your browser does not support the audio element.
-                                    </audio>
-                                ` : ''}
-                            </div>
-                        `).join('')}
+                if (this.displayedEpisodeCount === 0) {
+                    // First render - create the container
+                    episodesSection.innerHTML = `
+                        <div id="episodes-container" style="margin-top: 30px;">
+                            <h3 style="font-size: 20px; margin-bottom: 20px; color: #333;">Recent Episodes</h3>
+                            <div id="episodes-list"></div>
+                            <div id="load-more-trigger" style="height: 100px;"></div>
+                        </div>
+                    `;
+                    this.setupInfiniteScroll();
+                }
+                this.renderMoreEpisodes();
+            }
+
+            renderMoreEpisodes() {
+                const episodesList = document.getElementById('episodes-list');
+                if (!episodesList || this.isLoadingMore) return;
+                
+                const startIndex = this.displayedEpisodeCount;
+                const endIndex = Math.min(startIndex + this.episodesPerPage, this.allEpisodes.length);
+                
+                const html = this.allEpisodes.slice(startIndex, endIndex).map((ep) => `
+                    <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+                        <h4 style="font-size: 16px; margin-bottom: 8px; color: #333;">${this.escapeHtml(ep.title)}</h4>
+                        <p style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.4;">
+                            ${this.escapeHtml(this.stripHtml(ep.description).substring(0, 150))}${ep.description.length > 150 ? '...' : ''}
+                        </p>
+                        ${ep.pubDate ? `<p style="font-size: 12px; color: #999; margin-bottom: 12px;">${this.formatDate(ep.pubDate)}${ep.duration > 0 ? ` • ${Math.round(ep.duration)} min` : ''}</p>` : ''}
+                        ${ep.audioUrl ? `
+                            <audio controls style="width: 100%; margin-top: 12px; border-radius: 8px;">
+                                <source src="${this.escapeHtml(ep.audioUrl)}" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>
+                        ` : ''}
                     </div>
-                `;
+                `).join('');
+                
+                episodesList.innerHTML += html;
+                this.displayedEpisodeCount = endIndex;
+                
+                if (endIndex >= this.allEpisodes.length) {
+                    const trigger = document.getElementById('load-more-trigger');
+                    if (trigger) trigger.style.display = 'none';
+                }
+            }
+
+            setupInfiniteScroll() {
+                const observer = new IntersectionObserver((entries) => {
+                    if (entries[0].isIntersecting && this.displayedEpisodeCount < this.allEpisodes.length && !this.isLoadingMore) {
+                        this.isLoadingMore = true;
+                        setTimeout(() => {
+                            this.renderMoreEpisodes();
+                            this.isLoadingMore = false;
+                        }, 300);
+                    }
+                });
+                
+                const trigger = document.getElementById('load-more-trigger');
+                if (trigger) observer.observe(trigger);
             }
 
             stripHtml(html) {

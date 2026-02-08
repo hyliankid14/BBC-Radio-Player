@@ -1317,11 +1317,32 @@ class MainActivity : AppCompatActivity() {
         // Hide favourites toggle group when viewing podcasts
         try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
 
-        // Create and show podcasts fragment
-        val podcastsFragment = PodcastsFragment()
-        supportFragmentManager.beginTransaction().apply {
-            replace(R.id.fragment_container, podcastsFragment)
-            commit()
+        val fm = supportFragmentManager
+
+        // If we're already showing the Podcasts list with no detail on top, do nothing (avoid flicker)
+        val existingVisible = fm.findFragmentById(R.id.fragment_container)
+        if (existingVisible is PodcastsFragment && fm.backStackEntryCount == 0) {
+            return
+        }
+
+        // If a detail fragment is on the back stack, pop it to reveal the existing list
+        if (fm.backStackEntryCount > 0) {
+            try { fm.popBackStack() } catch (_: Exception) { }
+        }
+
+        // Ensure a PodcastsFragment exists in the container
+        val existing = fm.findFragmentByTag("podcasts_fragment") as? PodcastsFragment
+        if (existing == null) {
+            val podcastsFragment = PodcastsFragment()
+            fm.beginTransaction().apply {
+                replace(R.id.fragment_container, podcastsFragment, "podcasts_fragment")
+                commit()
+            }
+        } else if (!existing.isAdded) {
+            fm.beginTransaction().apply {
+                replace(R.id.fragment_container, existing, "podcasts_fragment")
+                commit()
+            }
         }
     }
 
