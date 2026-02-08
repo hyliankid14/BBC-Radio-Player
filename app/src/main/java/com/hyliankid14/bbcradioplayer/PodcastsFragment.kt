@@ -1003,11 +1003,16 @@ class PodcastsFragment : Fragment() {
             
             var spinnerShown = false
             // Delay showing the spinner slightly to avoid a flicker on very-fast searches
-            val showSpinnerJob = launch {
-                kotlinx.coroutines.delay(120)
-                if (!isActive) return@launch
-                loadingView?.visibility = View.VISIBLE
-                spinnerShown = true
+            // But only delay if we have podcasts to process - don't delay the empty case
+            val showSpinnerJob = if (allPodcasts.isNotEmpty()) {
+                launch {
+                    kotlinx.coroutines.delay(120)
+                    if (!isActive) return@launch
+                    loadingView?.visibility = View.VISIBLE
+                    spinnerShown = true
+                }
+            } else {
+                null
             }
 
             try {
@@ -1018,7 +1023,7 @@ class PodcastsFragment : Fragment() {
                 
                 // Check if job was cancelled early
                 if (!isActive) {
-                    showSpinnerJob.cancel()
+                    showSpinnerJob?.cancel()
                     loadingView?.visibility = View.GONE
                     return@launch
                 }
@@ -1027,7 +1032,7 @@ class PodcastsFragment : Fragment() {
                 if (allPodcasts.isEmpty()) {
                     android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: allPodcasts is empty, showing empty state")
                     showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = false, emptyState)
-                    showSpinnerJob.cancel()
+                    showSpinnerJob?.cancel()
                     loadingView?.visibility = View.GONE
                     return@launch
                 }
@@ -1385,7 +1390,7 @@ class PodcastsFragment : Fragment() {
 
                 loadingView?.visibility = View.GONE
             } finally {
-                showSpinnerJob.cancel()
+                showSpinnerJob?.cancel()
                 loadingView?.visibility = View.GONE
             }
         }
