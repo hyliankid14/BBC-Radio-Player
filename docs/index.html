@@ -699,16 +699,33 @@
                     const decodedRssUrl = decodeURIComponent(rssUrl);
                     console.log('Loading episodes from RSS:', decodedRssUrl);
                     
-                    // Use a CORS proxy to fetch the RSS feed
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
-                    const response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
+                    // Try primary CORS proxy first
+                    let response;
+                    let text;
                     
-                    if (!response.ok) {
-                        console.error('Failed to fetch RSS:', response.status, response.statusText);
-                        throw new Error(`HTTP ${response.status}`);
+                    try {
+                        const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                        response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        
+                        text = await response.text();
+                    } catch (proxyError) {
+                        console.warn('Primary CORS proxy failed, trying alternative:', proxyError.message);
+                        
+                        // Try alternative CORS proxy
+                        const altProxyUrl = 'https://corsproxy.io/?';
+                        response = await fetch(altProxyUrl + encodeURIComponent(decodedRssUrl));
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        
+                        text = await response.text();
                     }
                     
-                    const text = await response.text();
                     console.log('Received RSS data, length:', text.length);
                     
                     const parser = new DOMParser();
@@ -744,7 +761,8 @@
                         episodesSection.innerHTML = `
                             <div class="hero-text">
                                 <h2>Recent Episodes</h2>
-                                <p>Unable to load episodes. Please try the RSS feed or search on your favorite podcast platform.</p>
+                                <p>Unable to load episodes from the RSS feed. This podcast may have too many episodes or the feed may be temporarily unavailable.</p>
+                                <p style="font-size: 14px; margin-top: 10px;">Try accessing the podcast through the BBC Radio Player app for the full episode list.</p>
                             </div>
                         `;
                     }
