@@ -719,7 +719,6 @@
                         const reader = response.body.getReader();
                         const decoder = new TextDecoder();
                         let itemCount = 0;
-                        const targetItems = 10;
                         
                         while (true) {
                             const { done, value } = await reader.read();
@@ -733,9 +732,10 @@
                             const closedMatches = text.match(/<\/item>/gi);
                             itemCount = closedMatches ? closedMatches.length : 0;
                             
-                            // If we have enough complete episodes, stop reading
-                            if (itemCount >= targetItems) {
-                                console.log(`Found ${itemCount} complete episodes, stopping read for large feed`);
+                            // Only stop early if the feed is getting very large (>2MB) and we have at least 10 episodes
+                            // This allows smaller series to load completely
+                            if (text.length > 2000000 && itemCount >= 10) {
+                                console.log(`Feed is large (${Math.round(text.length/1024)}KB) and has ${itemCount} episodes, stopping read`);
                                 reader.cancel();
                                 
                                 // Find the position after the last </item> tag
@@ -749,9 +749,9 @@
                                 break;
                             }
                             
-                            // Safety check: if we've read more than 5MB, stop
-                            if (text.length > 5000000) {
-                                console.log('Feed too large, stopping at 5MB');
+                            // Hard limit: if we've read more than 10MB, stop regardless
+                            if (text.length > 10000000) {
+                                console.log('Feed extremely large (>10MB), stopping read');
                                 reader.cancel();
                                 
                                 // Find the last complete item
