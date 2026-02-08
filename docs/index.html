@@ -699,31 +699,67 @@
                     const decodedRssUrl = decodeURIComponent(rssUrl);
                     console.log('Loading episodes from RSS:', decodedRssUrl);
                     
-                    // Try primary CORS proxy first
-                    let response;
-                    let text;
+                    // Set a timeout for large feeds
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                    
+                    let text = '';
                     
                     try {
                         const proxyUrl = 'https://api.allorigins.win/raw?url=';
-                        response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
+                        const response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl), {
+                            signal: controller.signal
+                        });
                         
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}`);
                         }
                         
-                        text = await response.text();
+                        // For large feeds, try to read just enough for 10 episodes
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let itemCount = 0;
+                        const targetItems = 10;
+                        
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            
+                            if (done) break;
+                            
+                            const chunk = decoder.decode(value, { stream: true });
+                            text += chunk;
+                            
+                            // Count items found so far
+                            const matches = text.match(/<item>/gi);
+                            itemCount = matches ? matches.length : 0;
+                            
+                            // If we have enough episodes and the closing tags, stop reading
+                            if (itemCount >= targetItems && text.includes('</item>')) {
+                                console.log(`Found ${itemCount} episodes, stopping read for large feed`);
+                                reader.cancel();
+                                // Ensure we have valid XML by adding closing tags if needed
+                                if (!text.includes('</channel>')) {
+                                    text += '</channel></rss>';
+                                }
+                                break;
+                            }
+                            
+                            // Safety check: if we've read more than 5MB, stop
+                            if (text.length > 5000000) {
+                                console.log('Feed too large, stopping at 5MB');
+                                reader.cancel();
+                                if (!text.includes('</channel>')) {
+                                    text += '</channel></rss>';
+                                }
+                                break;
+                            }
+                        }
+                        
+                        clearTimeout(timeoutId);
                     } catch (proxyError) {
-                        console.warn('Primary CORS proxy failed, trying alternative:', proxyError.message);
-                        
-                        // Try alternative CORS proxy
-                        const altProxyUrl = 'https://corsproxy.io/?';
-                        response = await fetch(altProxyUrl + encodeURIComponent(decodedRssUrl));
-                        
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}`);
-                        }
-                        
-                        text = await response.text();
+                        clearTimeout(timeoutId);
+                        console.warn('CORS proxy failed:', proxyError.message);
+                        throw new Error('Feed unavailable');
                     }
                     
                     console.log('Received RSS data, length:', text.length);
@@ -739,6 +775,10 @@
                     
                     const items = xml.querySelectorAll('item');
                     console.log('Found', items.length, 'episodes');
+                    
+                    if (items.length === 0) {
+                        throw new Error('No episodes found in feed');
+                    }
                     
                     this.allEpisodes = Array.from(items).map(item => {
                         const enclosure = item.querySelector('enclosure');
@@ -756,15 +796,10 @@
                     this.loadMoreEpisodes();
                 } catch (error) {
                     console.error('Failed to load episodes:', error);
+                    // Silently hide the episodes section - podcast info is already shown from URL params
                     const episodesSection = document.getElementById('episodes-section');
                     if (episodesSection) {
-                        episodesSection.innerHTML = `
-                            <div class="hero-text">
-                                <h2>Recent Episodes</h2>
-                                <p>Unable to load episodes from the RSS feed. This podcast may have too many episodes or the feed may be temporarily unavailable.</p>
-                                <p style="font-size: 14px; margin-top: 10px;">Try accessing the podcast through the BBC Radio Player app for the full episode list.</p>
-                            </div>
-                        `;
+                        episodesSection.style.display = 'none';
                     }
                 }
             }
