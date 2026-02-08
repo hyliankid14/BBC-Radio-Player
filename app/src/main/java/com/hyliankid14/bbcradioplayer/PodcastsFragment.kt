@@ -1391,7 +1391,11 @@ class PodcastsFragment : Fragment() {
                     
                     val hasContent = podcastMatches.isNotEmpty() || enrichedEpisodes.isNotEmpty()
                     if (!hasContent && q.isNotEmpty()) {
+                        // Hide search status card before showing empty state to ensure card doesn't appear on top
+                        searchStatusCard?.visibility = View.GONE
                         emptyState.text = getString(R.string.no_podcasts_found)
+                    } else if (hasContent) {
+                        // Also hide the card when we have content to show
                         searchStatusCard?.visibility = View.GONE
                     }
                     
