@@ -397,8 +397,9 @@
                     };
                     this.render();
                     
-                    // After rendering, load episodes from RSS if available
+                    // After rendering, load episodes and full description from RSS if available
                     if (rssUrl) {
+                        await this.loadPodcastDescription(rssUrl);
                         await this.loadEpisodes(rssUrl);
                     }
                 } else {
@@ -462,7 +463,10 @@
                         ${podcast.description ? `
                             <div class="info-section">
                                 <div class="info-title">About</div>
-                                <div class="info-value description">${this.escapeHtml(podcast.description)}</div>
+                                <div class="info-value description" id="podcast-description">
+                                    <div id="description-text">${this.escapeHtml(podcast.description)}</div>
+                                    <button class="button button-text" onclick="player.toggleDescriptionExpanded()" id="see-more-btn" style="display:none; margin-top: 10px; padding: 8px 0; font-size: 14px; text-align: left;">See more</button>
+                                </div>
                             </div>
                         ` : ''}
 
@@ -689,7 +693,74 @@
                 }
             }
 
-            async loadEpisodes(rssUrl) {
+            async loadPodcastDescription(rssUrl) {
+                try {
+                    if (!rssUrl) return;
+                    
+                    const decodedRssUrl = decodeURIComponent(rssUrl);
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                    const response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
+                    
+                    if (!response.ok) return;
+                    
+                    const text = await response.text();
+                    const parser = new DOMParser();
+                    const xml = parser.parseFromString(text, 'text/xml');
+                    
+                    if (xml.documentElement.tagName === 'parsererror') return;
+                    
+                    const description = xml.querySelector('channel > description')?.textContent || '';
+                    if (description) {
+                        this.currentContent.description = description;
+                        this.updateDescriptionDisplay();
+                    }
+                } catch (error) {
+                    console.error('Failed to load podcast description:', error);
+                }
+            }
+
+            updateDescriptionDisplay() {
+                const descText = document.getElementById('description-text');
+                const seeMoreBtn = document.getElementById('see-more-btn');
+                if (!descText) return;
+                
+                const fullDescription = this.currentContent.description;
+                const maxChars = 200;
+                const lines = fullDescription.split('\n');
+                
+                // Show first 2 lines or up to maxChars
+                let truncated = lines.slice(0, 2).join('\n');
+                if (truncated.length > maxChars) {
+                    truncated = truncated.substring(0, maxChars);
+                }
+                
+                descText.innerHTML = this.escapeHtml(truncated);
+                
+                // Show "see more" button if there's more text
+                if (seeMoreBtn && (fullDescription.length > truncated.length || lines.length > 2)) {
+                    seeMoreBtn.style.display = 'inline-block';
+                }
+            }
+
+            toggleDescriptionExpanded() {
+                const descText = document.getElementById('description-text');
+                const seeMoreBtn = document.getElementById('see-more-btn');
+                if (!descText) return;
+                
+                const isExpanded = descText.getAttribute('data-expanded') === 'true';
+                
+                if (isExpanded) {
+                    // Collapse
+                    this.updateDescriptionDisplay();
+                    seeMoreBtn.textContent = 'See more';
+                } else {
+                    // Expand
+                    descText.innerHTML = this.escapeHtml(this.currentContent.description);
+                    seeMoreBtn.textContent = 'See less';
+                }
+                
+                descText.setAttribute('data-expanded', !isExpanded);
+            }
                 try {
                     if (!rssUrl) {
                         console.log('No RSS URL provided');
@@ -736,7 +807,7 @@
                     });
                     
                     this.displayedEpisodeCount = 0;
-                    this.renderMoreEpisodes();
+                    this.renderEpisodesList();
                 } catch (error) {
                     console.error('Failed to load episodes:', error);
                     const episodesSection = document.getElementById('episodes-section');

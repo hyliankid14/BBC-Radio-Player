@@ -614,6 +614,9 @@ class PodcastsFragment : Fragment() {
                 } else allPodcasts
                 allPodcasts = sorted
                 viewModel.cachedPodcasts = allPodcasts
+                
+                // Hide loading indicator before applying filters so it doesn't stay visible during the async filter operation
+                loadingIndicator.visibility = View.GONE
                 applyFilters(emptyState, recyclerView)
 
                 // Start a background prefetch of episode metadata for the top podcasts only
