@@ -1062,7 +1062,7 @@ class PodcastsFragment : Fragment() {
                     podcastAdapter.updatePodcasts(initialPage)
 
                     showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = filteredList.isNotEmpty(), emptyState)
-                    showSpinnerJob.cancel()
+                    showSpinnerJob?.cancel()
                     loadingView?.visibility = View.GONE
                     return@launch
                 }
