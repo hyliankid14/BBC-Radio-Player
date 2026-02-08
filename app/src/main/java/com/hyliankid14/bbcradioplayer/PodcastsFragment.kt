@@ -1019,10 +1019,11 @@ class PodcastsFragment : Fragment() {
                 val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
                 searchQuery = q
                 
-                android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: query='$q' allPodcasts.size=${allPodcasts.size} currentSort='$currentSort'")
+                android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters START: query='$q' allPodcasts.size=${allPodcasts.size} currentSort='$currentSort'")
                 
                 // Check if job was cancelled early
                 if (!isActive) {
+                    android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: job was cancelled early")
                     showSpinnerJob?.cancel()
                     loadingView?.visibility = View.GONE
                     return@launch
@@ -1039,6 +1040,7 @@ class PodcastsFragment : Fragment() {
 
                 // Empty -> show main list (preserve sorting/pagination)
                 if (q.isEmpty()) {
+                    android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: Empty query, showing main list")
                     // Hide search status card when not searching
                     searchStatusCard?.visibility = View.GONE
                     
@@ -1061,7 +1063,9 @@ class PodcastsFragment : Fragment() {
                     val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
                     podcastAdapter.updatePodcasts(initialPage)
 
+                    android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: About to call showResultsSafely with ${initialPage.size} podcasts")
                     showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = filteredList.isNotEmpty(), emptyState)
+                    android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: After showResultsSafely, cancelling spinner")
                     showSpinnerJob?.cancel()
                     loadingView?.visibility = View.GONE
                     return@launch
