@@ -63,6 +63,52 @@ class PodcastsFragment : Fragment() {
 
     private fun currentFilterHash(): Int = (currentFilter.hashCode() * 31) xor currentSort.hashCode()
 
+    private fun bindGenreSpinner(
+        genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView,
+        genres: List<String>,
+        emptyState: TextView,
+        recyclerView: RecyclerView
+    ) {
+        val spinnerAdapter = ArrayAdapter(requireContext(), R.layout.dropdown_item_large, genres)
+        spinnerAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
+        genreSpinner.setAdapter(spinnerAdapter)
+
+        val desired = currentFilter.genres.firstOrNull() ?: "All Genres"
+        val safeSelection = if (genres.contains(desired)) desired else "All Genres"
+        genreSpinner.setText(safeSelection, false)
+
+        genreSpinner.setOnItemClickListener { parent, _, position, _ ->
+            val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
+            currentFilter = if (selected == "All Genres") {
+                currentFilter.copy(genres = emptySet())
+            } else {
+                currentFilter.copy(genres = setOf(selected))
+            }
+            viewModel.cachedFilter = currentFilter
+            // Re-apply filters against any existing cached search (do NOT clear cache here).
+            applyFilters(emptyState, recyclerView)
+        }
+    }
+
+    private fun bindSortSpinner(
+        sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView,
+        emptyState: TextView,
+        recyclerView: RecyclerView
+    ) {
+        val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
+        val sortAdapter = ArrayAdapter(requireContext(), R.layout.dropdown_item_large, sortOptions)
+        sortAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
+        sortSpinner.setAdapter(sortAdapter)
+        sortSpinner.setText(currentSort, false)
+        sortSpinner.setOnItemClickListener { parent, _, position, _ ->
+            val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
+            currentSort = selected
+            viewModel.cachedSort = currentSort
+            // Re-apply sort against any existing cached search (do NOT clear cache here).
+            applyFilters(emptyState, recyclerView)
+        }
+    }
+
     private fun showResultsSafely(
         recyclerView: RecyclerView,
         adapter: RecyclerView.Adapter<*>?,
@@ -436,6 +482,8 @@ class PodcastsFragment : Fragment() {
             // Set exposed dropdowns back to 'All Genres' / default label
             genreSpinner.setText("All Genres", false)
             sortSpinner.setText("Most popular", false)
+            viewModel.cachedFilter = currentFilter
+            viewModel.cachedSort = "Most popular"
             applyFilters(emptyState, recyclerView)
         }
 
@@ -485,6 +533,28 @@ class PodcastsFragment : Fragment() {
 
         fab?.setOnClickListener { nestedScroll.smoothScrollTo(0, 0) }
 
+        // Fast restore: if we already have cached data in the ViewModel, reuse it to avoid UI flicker
+        if (viewModel.cachedPodcasts.isNotEmpty()) {
+            allPodcasts = viewModel.cachedPodcasts
+            cachedUpdates = viewModel.cachedUpdates
+            currentFilter = viewModel.cachedFilter
+            currentSort = viewModel.cachedSort
+
+            val genres = if (viewModel.cachedGenres.isNotEmpty()) {
+                viewModel.cachedGenres
+            } else {
+                listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
+            }
+            viewModel.cachedGenres = genres
+
+            bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
+            bindSortSpinner(sortSpinner, emptyState, recyclerView)
+            loadingIndicator.visibility = View.GONE
+            emptyState.text = "No podcasts found"
+            applyFilters(emptyState, recyclerView)
+            return
+        }
+
         loadPodcasts(loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
     }
 
@@ -527,46 +597,23 @@ class PodcastsFragment : Fragment() {
                     return@launch
                 }
 
+                // Cache the list for future restores
+                viewModel.cachedPodcasts = allPodcasts
+
                 val genres = listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
-                val spinnerAdapter = ArrayAdapter(requireContext(), R.layout.dropdown_item_large, genres)
-                spinnerAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
-                genreSpinner.setAdapter(spinnerAdapter)
-                // default to showing all podcasts immediately
-                genreSpinner.setText(genres[0], false)
-
-                genreSpinner.setOnItemClickListener { parent, _, position, _ ->
-                    val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
-                    currentFilter = if (selected == "All Genres") {
-                        currentFilter.copy(genres = emptySet())
-                    } else {
-                        currentFilter.copy(genres = setOf(selected))
-                    }
-                    // Re-apply filters against any existing cached search (do NOT clear cache here).
-                    applyFilters(emptyState, recyclerView)
-                }
-                // ensure the list is shown by applying filters after spinner is configured
-                applyFilters(emptyState, recyclerView)
-
-                // Setup sort dropdown
-                val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
-                val sortAdapter = ArrayAdapter(requireContext(), R.layout.dropdown_item_large, sortOptions)
-                sortAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
-                sortSpinner.setAdapter(sortAdapter)
-                sortSpinner.setText(currentSort, false)
-                sortSpinner.setOnItemClickListener { parent, _, position, _ ->
-                    val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
-                    currentSort = selected
-                    // Re-apply sort against any existing cached search (do NOT clear cache here).
-                    applyFilters(emptyState, recyclerView)
-                }
+                viewModel.cachedGenres = genres
+                bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
+                bindSortSpinner(sortSpinner, emptyState, recyclerView)
 
                 // Sort by most recent update when starting
                 val updates = withContext(Dispatchers.IO) { repository.fetchLatestUpdates(allPodcasts) }
                 cachedUpdates = updates
+                viewModel.cachedUpdates = updates
                 val sorted = if (updates.isNotEmpty()) {
                     allPodcasts.sortedByDescending { updates[it.id] ?: 0L }
                 } else allPodcasts
                 allPodcasts = sorted
+                viewModel.cachedPodcasts = allPodcasts
                 applyFilters(emptyState, recyclerView)
 
                 // Start a background prefetch of episode metadata for the top podcasts only

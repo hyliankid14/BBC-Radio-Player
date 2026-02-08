@@ -28,6 +28,13 @@ class PodcastsViewModel : ViewModel() {
     @Volatile
     private var cachedSearch: SearchCache? = null
 
+    // Cached podcasts list + UI state to avoid visible refresh when returning to the Podcasts page
+    var cachedPodcasts: List<Podcast> = emptyList()
+    var cachedUpdates: Map<String, Long> = emptyMap()
+    var cachedGenres: List<String> = emptyList()
+    var cachedFilter: PodcastFilter = PodcastFilter()
+    var cachedSort: String = "Most popular"
+
     fun setActiveSearch(query: String?) {
         // Use synchronous set so callers on the main (UI) thread can read the updated
         // value immediately (avoids races when applyFilters reads the LiveData right away).

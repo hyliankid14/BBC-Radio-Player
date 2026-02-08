@@ -93,6 +93,8 @@ class MainActivity : AppCompatActivity() {
     private var suppressIndexSpinnerSelection = false
     private var miniPlayerUpdateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
+    // When opening a podcast from Favorites, return back to Favorites instead of Podcasts list
+    private var returnToFavoritesOnBack: Boolean = false
 
     // Track the last visible percent for the episode/index progress bar so we can
     // defensively ignore any stray regressions emitted by background components.
@@ -205,6 +207,30 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
         }
+
+        // Intercept back presses to return to Favorites when a podcast was opened from Favorites
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                try {
+                    val top = supportFragmentManager.findFragmentById(R.id.fragment_container)
+                    if (returnToFavoritesOnBack && top is PodcastDetailFragment) {
+                        returnToFavoritesOnBack = false
+                        try { supportFragmentManager.popBackStack() } catch (_: Exception) { }
+
+                        suppressBottomNavSelection = true
+                        try { bottomNavigation.selectedItemId = R.id.navigation_favorites } catch (_: Exception) { }
+                        suppressBottomNavSelection = false
+                        showFavorites()
+                        return
+                    }
+                } catch (_: Exception) { }
+
+                // Default behavior
+                isEnabled = false
+                onBackPressedDispatcher.onBackPressed()
+                isEnabled = true
+            }
+        })
         
         // Register Activity Result Launchers for Export / Import
         createDocumentLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
@@ -935,6 +961,8 @@ class MainActivity : AppCompatActivity() {
                         staticContentContainer.visibility = View.GONE
                         // Ensure the main navigation reflects the Podcasts context
                         currentMode = "podcasts"
+                        // Mark origin so back returns to Favorites
+                        returnToFavoritesOnBack = true
                         // Disable swipe navigation when leaving All Stations
                         disableSwipeNavigation()
                         // Programmatic selection should not trigger the bottom-nav listener (it would replace our fragment)
@@ -1177,6 +1205,8 @@ class MainActivity : AppCompatActivity() {
                                 staticContentContainer.visibility = View.GONE
                                 // Ensure the main navigation reflects the Podcasts context
                                 currentMode = "podcasts"
+                                // Mark origin so back returns to Favorites
+                                returnToFavoritesOnBack = true
                                 // Disable swipe navigation when leaving All Stations
                                 disableSwipeNavigation()
                                 // Programmatic selection should not trigger the bottom-nav listener
@@ -1274,6 +1304,7 @@ class MainActivity : AppCompatActivity() {
         // Disable swipe navigation in Podcasts
         disableSwipeNavigation()
         currentMode = "podcasts"
+        returnToFavoritesOnBack = false
         fragmentContainer.visibility = View.VISIBLE
         staticContentContainer.visibility = View.GONE
         // Show the global action bar to match other sections and display the Podcasts title
