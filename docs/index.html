@@ -348,10 +348,6 @@
             constructor() {
                 this.currentContent = null;
                 this.episodes = [];
-                this.allEpisodes = [];
-                this.displayedEpisodeCount = 0;
-                this.episodesPerPage = 15;
-                this.isLoadingMore = false;
                 this.init();
             }
 
@@ -397,9 +393,8 @@
                     };
                     this.render();
                     
-                    // After rendering, load episodes and full description from RSS if available
+                    // After rendering, load episodes from RSS if available
                     if (rssUrl) {
-                        await this.loadPodcastDescription(rssUrl);
                         await this.loadEpisodes(rssUrl);
                     }
                 } else {
@@ -429,15 +424,10 @@
                     return;
                 }
 
-                try {
-                    if (content.type === 'podcast') {
-                        app.innerHTML = this.renderPodcast(content);
-                    } else {
-                        app.innerHTML = this.renderEpisode(content);
-                    }
-                } catch (error) {
-                    console.error('Error rendering content:', error);
-                    this.showError('Error', 'Failed to render content');
+                if (content.type === 'podcast') {
+                    app.innerHTML = this.renderPodcast(content);
+                } else {
+                    app.innerHTML = this.renderEpisode(content);
                 }
             }
 
@@ -468,10 +458,7 @@
                         ${podcast.description ? `
                             <div class="info-section">
                                 <div class="info-title">About</div>
-                                <div class="info-value description" id="podcast-description">
-                                    <div id="description-text">${this.escapeHtml(podcast.description)}</div>
-                                    <button class="button button-text" onclick="player.toggleDescriptionExpanded()" id="see-more-btn" style="display:none; margin-top: 10px; padding: 8px 0; font-size: 14px; text-align: left;">See more</button>
-                                </div>
+                                <div class="info-value description">${this.escapeHtml(podcast.description)}</div>
                             </div>
                         ` : ''}
 
@@ -698,92 +685,6 @@
                 }
             }
 
-            async loadPodcastDescription(rssUrl) {
-                try {
-                    if (!rssUrl) {
-                        console.log('No RSS URL provided for description');
-                        return;
-                    }
-                    
-                    const decodedRssUrl = decodeURIComponent(rssUrl);
-                    console.log('Loading podcast description from RSS:', decodedRssUrl);
-                    
-                    const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(decodedRssUrl)}`);
-                    
-                    if (!response.ok) {
-                        console.error('Failed to fetch RSS for description:', response.status);
-                        return;
-                    }
-                    
-                    const text = await response.text();
-                    const parser = new DOMParser();
-                    const xml = parser.parseFromString(text, 'text/xml');
-                    
-                    if (xml.documentElement.tagName === 'parsererror') {
-                        console.error('XML parse error for description:', xml.documentElement.textContent);
-                        return;
-                    }
-                    
-                    const description = xml.querySelector('channel > description')?.textContent || '';
-                    console.log('Loaded description length:', description.length);
-                    
-                    if (description && this.currentContent) {
-                        this.currentContent.description = description;
-                        // Use setTimeout to ensure DOM is ready
-                        setTimeout(() => this.updateDescriptionDisplay(), 100);
-                    } else {
-                        console.log('No description found in RSS or no currentContent');
-                    }
-                } catch (error) {
-                    console.error('Failed to load podcast description:', error);
-                }
-            }
-
-            updateDescriptionDisplay() {
-                const descText = document.getElementById('description-text');
-                const seeMoreBtn = document.getElementById('see-more-btn');
-                if (!descText || !this.currentContent) return;
-                
-                const fullDescription = this.currentContent.description || '';
-                if (!fullDescription) return;
-                
-                const maxChars = 200;
-                const lines = fullDescription.split('\n');
-                
-                // Show first 2 lines or up to maxChars
-                let truncated = lines.slice(0, 2).join('\n');
-                if (truncated.length > maxChars) {
-                    truncated = truncated.substring(0, maxChars);
-                }
-                
-                descText.innerHTML = this.escapeHtml(truncated);
-                
-                // Show "see more" button if there's more text
-                if (seeMoreBtn && (fullDescription.length > truncated.length || lines.length > 2)) {
-                    seeMoreBtn.style.display = 'inline-block';
-                }
-            }
-
-            toggleDescriptionExpanded() {
-                const descText = document.getElementById('description-text');
-                const seeMoreBtn = document.getElementById('see-more-btn');
-                if (!descText) return;
-                
-                const isExpanded = descText.getAttribute('data-expanded') === 'true';
-                
-                if (isExpanded) {
-                    // Collapse
-                    this.updateDescriptionDisplay();
-                    seeMoreBtn.textContent = 'See more';
-                } else {
-                    // Expand
-                    descText.innerHTML = this.escapeHtml(this.currentContent.description);
-                    seeMoreBtn.textContent = 'See less';
-                }
-                
-                descText.setAttribute('data-expanded', !isExpanded);
-            }
-
             async loadEpisodes(rssUrl) {
                 try {
                     if (!rssUrl) {
@@ -796,7 +697,8 @@
                     console.log('Loading episodes from RSS:', decodedRssUrl);
                     
                     // Use a CORS proxy to fetch the RSS feed
-                    const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(decodedRssUrl)}`);
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+                    const response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
                     
                     if (!response.ok) {
                         console.error('Failed to fetch RSS:', response.status, response.statusText);
@@ -818,7 +720,7 @@
                     const items = xml.querySelectorAll('item');
                     console.log('Found', items.length, 'episodes');
                     
-                    this.allEpisodes = Array.from(items).map(item => {
+                    this.episodes = Array.from(items).slice(0, 10).map(item => {
                         const enclosure = item.querySelector('enclosure');
                         return {
                             title: item.querySelector('title')?.textContent || 'Untitled',
@@ -829,7 +731,6 @@
                         };
                     });
                     
-                    this.displayedEpisodeCount = 0;
                     this.renderEpisodesList();
                 } catch (error) {
                     console.error('Failed to load episodes:', error);
@@ -858,75 +759,28 @@
 
             renderEpisodesList() {
                 const episodesSection = document.getElementById('episodes-section');
-                console.log('renderEpisodesList called, episodesSection:', !!episodesSection, 'allEpisodes count:', this.allEpisodes.length);
+                if (!episodesSection || this.episodes.length === 0) return;
                 
-                if (!episodesSection) return;
-                
-                if (this.displayedEpisodeCount === 0) {
-                    // First render - create the container
-                    console.log('Creating episodes container');
-                    episodesSection.innerHTML = `
-                        <div id="episodes-container" style="margin-top: 30px;">
-                            <h3 style="font-size: 20px; margin-bottom: 20px; color: #333;">Recent Episodes</h3>
-                            <div id="episodes-list"></div>
-                            <div id="load-more-trigger" style="height: 100px;"></div>
-                        </div>
-                    `;
-                    this.setupInfiniteScroll();
-                }
-                this.renderMoreEpisodes();
-            }
-
-            renderMoreEpisodes() {
-                const episodesList = document.getElementById('episodes-list');
-                console.log('renderMoreEpisodes: episodesList found:', !!episodesList, 'allEpisodes:', this.allEpisodes.length, 'displayed:', this.displayedEpisodeCount);
-                
-                if (!episodesList || this.isLoadingMore) return;
-                
-                const startIndex = this.displayedEpisodeCount;
-                const endIndex = Math.min(startIndex + this.episodesPerPage, this.allEpisodes.length);
-                const episodesToRender = this.allEpisodes.slice(startIndex, endIndex);
-                
-                console.log('Rendering episodes', startIndex, 'to', endIndex, 'count:', episodesToRender.length);
-                
-                const html = episodesToRender.map((ep) => `
-                    <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
-                        <h4 style="font-size: 16px; margin-bottom: 8px; color: #333;">${this.escapeHtml(ep.title)}</h4>
-                        <p style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.4;">
-                            ${this.escapeHtml(this.stripHtml(ep.description).substring(0, 150))}${ep.description.length > 150 ? '...' : ''}
-                        </p>
-                        ${ep.pubDate ? `<p style="font-size: 12px; color: #999; margin-bottom: 12px;">${this.formatDate(ep.pubDate)}${ep.duration > 0 ? ` • ${Math.round(ep.duration)} min` : ''}</p>` : ''}
-                        ${ep.audioUrl ? `
-                            <audio controls style="width: 100%; margin-top: 12px; border-radius: 8px;">
-                                <source src="${this.escapeHtml(ep.audioUrl)}" type="audio/mpeg">
-                                Your browser does not support the audio element.
-                            </audio>
-                        ` : ''}
+                episodesSection.innerHTML = `
+                    <div style="margin-top: 30px;">
+                        <h3 style="font-size: 20px; margin-bottom: 20px; color: #333;">Recent Episodes</h3>
+                        ${this.episodes.map((ep, index) => `
+                            <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
+                                <h4 style="font-size: 16px; margin-bottom: 8px; color: #333;">${this.escapeHtml(ep.title)}</h4>
+                                <p style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.4;">
+                                    ${this.escapeHtml(this.stripHtml(ep.description).substring(0, 150))}${ep.description.length > 150 ? '...' : ''}
+                                </p>
+                                ${ep.pubDate ? `<p style="font-size: 12px; color: #999; margin-bottom: 12px;">${this.formatDate(ep.pubDate)}${ep.duration > 0 ? ` • ${Math.round(ep.duration)} min` : ''}</p>` : ''}
+                                ${ep.audioUrl ? `
+                                    <audio controls style="width: 100%; margin-top: 12px; border-radius: 8px;">
+                                        <source src="${this.escapeHtml(ep.audioUrl)}" type="audio/mpeg">
+                                        Your browser does not support the audio element.
+                                    </audio>
+                                ` : ''}
+                            </div>
+                        `).join('')}
                     </div>
-                `).join('');
-                
-                episodesList.innerHTML += html;
-                this.displayedEpisodeCount = endIndex;
-                
-                if (endIndex >= this.allEpisodes.length) {
-                    const trigger = document.getElementById('load-more-trigger');
-                    if (trigger) trigger.style.display = 'none';
-                }
-            }
-
-            setupInfiniteScroll() {
-                const observer = new IntersectionObserver((entries) => {
-                    if (entries[0].isIntersecting && this.displayedEpisodeCount < this.allEpisodes.length && !this.isLoadingMore) {
-                        this.isLoadingMore = true;
-                        setTimeout(() => {
-                            this.renderMoreEpisodes();
-                            this.isLoadingMore = false;
-                        }, 300);
-                    }
-                });
-                
-                const trigger = document.getElementById('load-more-trigger');
-                if (trigger) observer.observe(trigger);
+                `;
             }
 
             stripHtml(html) {
