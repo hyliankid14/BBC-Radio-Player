@@ -729,17 +729,22 @@
                             const chunk = decoder.decode(value, { stream: true });
                             text += chunk;
                             
-                            // Count items found so far
-                            const matches = text.match(/<item>/gi);
-                            itemCount = matches ? matches.length : 0;
+                            // Count closed items (complete items only)
+                            const closedMatches = text.match(/<\/item>/gi);
+                            itemCount = closedMatches ? closedMatches.length : 0;
                             
-                            // If we have enough episodes and the closing tags, stop reading
-                            if (itemCount >= targetItems && text.includes('</item>')) {
-                                console.log(`Found ${itemCount} episodes, stopping read for large feed`);
+                            // If we have enough complete episodes, stop reading
+                            if (itemCount >= targetItems) {
+                                console.log(`Found ${itemCount} complete episodes, stopping read for large feed`);
                                 reader.cancel();
-                                // Ensure we have valid XML by adding closing tags if needed
-                                if (!text.includes('</channel>')) {
-                                    text += '</channel></rss>';
+                                
+                                // Find the position after the last </item> tag
+                                const lastItemEnd = text.lastIndexOf('</item>');
+                                if (lastItemEnd !== -1) {
+                                    // Truncate after the last complete item
+                                    text = text.substring(0, lastItemEnd + 7); // 7 = length of '</item>'
+                                    // Add proper closing tags
+                                    text += '\n</channel>\n</rss>';
                                 }
                                 break;
                             }
@@ -748,8 +753,12 @@
                             if (text.length > 5000000) {
                                 console.log('Feed too large, stopping at 5MB');
                                 reader.cancel();
-                                if (!text.includes('</channel>')) {
-                                    text += '</channel></rss>';
+                                
+                                // Find the last complete item
+                                const lastItemEnd = text.lastIndexOf('</item>');
+                                if (lastItemEnd !== -1) {
+                                    text = text.substring(0, lastItemEnd + 7);
+                                    text += '\n</channel>\n</rss>';
                                 }
                                 break;
                             }
