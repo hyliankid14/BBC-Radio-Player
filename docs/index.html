@@ -708,8 +708,8 @@
                     const decodedRssUrl = decodeURIComponent(rssUrl);
                     console.log('Loading podcast description from RSS:', decodedRssUrl);
                     
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
-                    const response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
+                    const proxyUrl = 'https://thingproxy.freeboard.io/fetch/';
+                    const response = await fetch(proxyUrl + decodedRssUrl);
                     
                     if (!response.ok) {
                         console.error('Failed to fetch RSS for description:', response.status);
@@ -797,8 +797,8 @@
                     console.log('Loading episodes from RSS:', decodedRssUrl);
                     
                     // Use a CORS proxy to fetch the RSS feed
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
-                    const response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
+                    const proxyUrl = 'https://thingproxy.freeboard.io/fetch/';
+                    const response = await fetch(proxyUrl + decodedRssUrl);
                     
                     if (!response.ok) {
                         console.error('Failed to fetch RSS:', response.status, response.statusText);
