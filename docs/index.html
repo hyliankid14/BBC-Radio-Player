@@ -769,6 +769,8 @@
                 
                 descText.setAttribute('data-expanded', !isExpanded);
             }
+
+            async loadEpisodes(rssUrl) {
                 try {
                     if (!rssUrl) {
                         console.log('No RSS URL provided');
