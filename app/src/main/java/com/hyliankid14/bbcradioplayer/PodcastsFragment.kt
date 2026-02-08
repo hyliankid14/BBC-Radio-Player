@@ -986,10 +986,16 @@ class PodcastsFragment : Fragment() {
     // 2. Continue indexing episode matches in background (slower)
     // 3. Update UI with status indicators showing progress
     private fun simplifiedApplyFilters(emptyState: TextView, recyclerView: RecyclerView) {
+        android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters called - BEFORE coroutine launch")
         // Ensure only one search runs at a time
         searchJob?.cancel()
+        android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: About to launch coroutine in viewLifecycleOwner.lifecycleScope")
         searchJob = viewLifecycleOwner.lifecycleScope.launch {
-            if (!isAdded) return@launch
+            android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: INSIDE coroutine, isAdded=$isAdded")
+            if (!isAdded) {
+                android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: Fragment not added, returning")
+                return@launch
+            }
 
             val loadingView = view?.findViewById<ProgressBar>(R.id.loading_progress)
             val searchStatusCard = view?.findViewById<View>(R.id.search_status_card)
