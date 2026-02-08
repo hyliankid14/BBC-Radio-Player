@@ -700,25 +700,40 @@
 
             async loadPodcastDescription(rssUrl) {
                 try {
-                    if (!rssUrl) return;
+                    if (!rssUrl) {
+                        console.log('No RSS URL provided for description');
+                        return;
+                    }
                     
                     const decodedRssUrl = decodeURIComponent(rssUrl);
+                    console.log('Loading podcast description from RSS:', decodedRssUrl);
+                    
                     const proxyUrl = 'https://api.allorigins.win/raw?url=';
                     const response = await fetch(proxyUrl + encodeURIComponent(decodedRssUrl));
                     
-                    if (!response.ok) return;
+                    if (!response.ok) {
+                        console.error('Failed to fetch RSS for description:', response.status);
+                        return;
+                    }
                     
                     const text = await response.text();
                     const parser = new DOMParser();
                     const xml = parser.parseFromString(text, 'text/xml');
                     
-                    if (xml.documentElement.tagName === 'parsererror') return;
+                    if (xml.documentElement.tagName === 'parsererror') {
+                        console.error('XML parse error for description:', xml.documentElement.textContent);
+                        return;
+                    }
                     
                     const description = xml.querySelector('channel > description')?.textContent || '';
+                    console.log('Loaded description length:', description.length);
+                    
                     if (description && this.currentContent) {
                         this.currentContent.description = description;
                         // Use setTimeout to ensure DOM is ready
                         setTimeout(() => this.updateDescriptionDisplay(), 100);
+                    } else {
+                        console.log('No description found in RSS or no currentContent');
                     }
                 } catch (error) {
                     console.error('Failed to load podcast description:', error);
@@ -845,10 +860,13 @@
 
             renderEpisodesList() {
                 const episodesSection = document.getElementById('episodes-section');
+                console.log('renderEpisodesList called, episodesSection:', !!episodesSection, 'allEpisodes count:', this.allEpisodes.length);
+                
                 if (!episodesSection) return;
                 
                 if (this.displayedEpisodeCount === 0) {
                     // First render - create the container
+                    console.log('Creating episodes container');
                     episodesSection.innerHTML = `
                         <div id="episodes-container" style="margin-top: 30px;">
                             <h3 style="font-size: 20px; margin-bottom: 20px; color: #333;">Recent Episodes</h3>
@@ -863,12 +881,17 @@
 
             renderMoreEpisodes() {
                 const episodesList = document.getElementById('episodes-list');
+                console.log('renderMoreEpisodes: episodesList found:', !!episodesList, 'allEpisodes:', this.allEpisodes.length, 'displayed:', this.displayedEpisodeCount);
+                
                 if (!episodesList || this.isLoadingMore) return;
                 
                 const startIndex = this.displayedEpisodeCount;
                 const endIndex = Math.min(startIndex + this.episodesPerPage, this.allEpisodes.length);
+                const episodesToRender = this.allEpisodes.slice(startIndex, endIndex);
                 
-                const html = this.allEpisodes.slice(startIndex, endIndex).map((ep) => `
+                console.log('Rendering episodes', startIndex, 'to', endIndex, 'count:', episodesToRender.length);
+                
+                const html = episodesToRender.map((ep) => `
                     <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin-bottom: 16px;">
                         <h4 style="font-size: 16px; margin-bottom: 8px; color: #333;">${this.escapeHtml(ep.title)}</h4>
                         <p style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.4;">
