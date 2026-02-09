@@ -559,7 +559,7 @@ class PodcastsFragment : Fragment() {
             val cached = viewModel.getCachedSearch()
             val hasCachedSearch = activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm
             
-            if (hasCachedSearch) {
+            if (hasCachedSearch && cached != null) {
                 // Restore cached search results immediately to prevent re-running the search
                 try {
                     val cachedPodcasts = (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
@@ -871,7 +871,7 @@ class PodcastsFragment : Fragment() {
             val cached = viewModel.getCachedSearch()
             if (activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm) {
                 // Check if we've already restored this in onViewCreated (adapter is already SearchResultsAdapter)
-                if (rv.adapter is SearchResultsAdapter) {
+                if (rv?.adapter is SearchResultsAdapter) {
                     android.util.Log.d("PodcastsFragment", "onResume: cached search already restored in onViewCreated, skipping")
                     return
                 }
