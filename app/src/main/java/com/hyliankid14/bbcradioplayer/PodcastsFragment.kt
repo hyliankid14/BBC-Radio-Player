@@ -1097,6 +1097,9 @@ class PodcastsFragment : Fragment() {
                     return@launch
                 }
 
+                // Hide empty state while searching to avoid overlap with the status card
+                emptyState.visibility = View.GONE
+
                 // Show search status card with initial state - all spinners showing
                 searchStatusCard?.visibility = View.VISIBLE
                 nameProgressBar?.visibility = View.VISIBLE
