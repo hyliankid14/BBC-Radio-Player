@@ -560,20 +560,13 @@ class PodcastsFragment : Fragment() {
             val hasCachedSearch = activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm
             
             if (hasCachedSearch) {
-                // Restore spinners without triggering listeners to avoid redundant search
-                suppressSearchWatcher = true
-                try {
-                    genreSpinner.setText(currentFilter.genres.firstOrNull() ?: "All Genres", false)
-                    sortSpinner.setText(currentSort, false)
-                } finally {
-                    suppressSearchWatcher = false
-                }
-                bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
-                bindSortSpinner(sortSpinner, emptyState, recyclerView)
+                // Just set spinner text without binding listeners to avoid triggering applyFilters
+                genreSpinner.setText(currentFilter.genres.firstOrNull() ?: "All Genres", false)
+                sortSpinner.setText(currentSort, false)
                 loadingIndicator.visibility = View.GONE
                 emptyState.text = "No podcasts found"
-                // Don't call applyFilters - onResume will restore the cached search
-                android.util.Log.d("PodcastsFragment", "onViewCreated: skipping applyFilters due to cached search")
+                // onResume will restore the cached search without calling applyFilters
+                android.util.Log.d("PodcastsFragment", "onViewCreated: skipping spinner binding due to cached search")
             } else {
                 // No cached search, proceed with normal setup
                 bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
