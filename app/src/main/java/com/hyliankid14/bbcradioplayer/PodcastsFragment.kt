@@ -870,7 +870,7 @@ class PodcastsFragment : Fragment() {
                 // If the cached search is present but incomplete (no episodeMatches yet),
                 // resume the background episode search so results continue populating while
                 // the user is viewing the player or returns to this fragment.
-                if ((cached.episodeMatches.isEmpty()) && normalizeQuery(cached.query).length >= 3 && searchJob?.isActive != true) {
+                if (!cached.isComplete && (cached.episodeMatches.isEmpty()) && normalizeQuery(cached.query).length >= 3 && searchJob?.isActive != true) {
                     // Launch without changing the current UI state (showResultsSafely prevents flicker).
                     viewLifecycleOwner.lifecycleScope.launch {
                         // Small delay to let the restored UI settle
@@ -1186,6 +1186,21 @@ class PodcastsFragment : Fragment() {
                     }
                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = true, emptyState)
                 }
+
+                // Persist the quick (podcast-only) results so we can restore instantly on back navigation.
+                // Mark as complete only if episodes won't be searched (short query or no index).
+                if (isActive) {
+                    val quickComplete = (!hasIndexedEpisodes) || q.length < 3
+                    persistCachedSearch(
+                        PodcastsViewModel.SearchCache(
+                            query = q,
+                            titleMatches = titleMatches,
+                            descMatches = descMatches,
+                            episodeMatches = emptyList(),
+                            isComplete = quickComplete
+                        )
+                    )
+                }
                 
                 // PHASE 2: Episode indexing - runs in background, updates results when done
                 val episodeMatches = async(Dispatchers.IO) {
@@ -1423,6 +1438,17 @@ class PodcastsFragment : Fragment() {
                     }
                     
                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = hasContent, emptyState)
+
+                    // Persist the completed results (including episodes) so returning from an episode view is instant.
+                    persistCachedSearch(
+                        PodcastsViewModel.SearchCache(
+                            query = q,
+                            titleMatches = titleMatches,
+                            descMatches = descMatches,
+                            episodeMatches = enrichedEpisodes,
+                            isComplete = true
+                        )
+                    )
                 }
 
                 loadingView?.visibility = View.GONE
