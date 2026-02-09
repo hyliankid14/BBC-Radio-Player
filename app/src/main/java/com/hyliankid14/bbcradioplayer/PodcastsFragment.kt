@@ -867,23 +867,11 @@ class PodcastsFragment : Fragment() {
 
                 android.util.Log.d("PodcastsFragment", "onResume: restored cached search for='${viewModel.activeSearchQuery.value}' without rebuild")
 
-                // If the cached search is present but incomplete (no episodeMatches yet),
-                // resume the background episode search so results continue populating while
-                // the user is viewing the player or returns to this fragment.
-                if (!cached.isComplete && (cached.episodeMatches.isEmpty()) && normalizeQuery(cached.query).length >= 3 && searchJob?.isActive != true) {
-                    // Launch without changing the current UI state (showResultsSafely prevents flicker).
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        // Small delay to let the restored UI settle
-                        kotlinx.coroutines.delay(20)
-                        if (!isAdded) return@launch
-                        view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
-                            view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { rv ->
-                                applyFilters(empty, rv)
-                            }
-                        }
-                    }
-                }
-
+                // Cache was successfully restored to the UI - don't re-run the search.
+                // The user can see their results immediately. If the cache is incomplete,
+                // the background episode search will update results when the user modifies
+                // the search or filters, but we don't automatically re-run on navigation.
+                
                 return
             }
 
