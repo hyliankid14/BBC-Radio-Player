@@ -78,6 +78,7 @@ class PodcastsFragment : Fragment() {
         genreSpinner.setText(safeSelection, false)
 
         genreSpinner.setOnItemClickListener { parent, _, position, _ ->
+            if (suppressSearchWatcher) return@setOnItemClickListener
             val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
             currentFilter = if (selected == "All Genres") {
                 currentFilter.copy(genres = emptySet())
@@ -101,6 +102,7 @@ class PodcastsFragment : Fragment() {
         sortSpinner.setAdapter(sortAdapter)
         sortSpinner.setText(currentSort, false)
         sortSpinner.setOnItemClickListener { parent, _, position, _ ->
+            if (suppressSearchWatcher) return@setOnItemClickListener
             val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
             currentSort = selected
             viewModel.cachedSort = currentSort
@@ -560,29 +562,38 @@ class PodcastsFragment : Fragment() {
             val hasCachedSearch = activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm
             
             if (hasCachedSearch && cached != null) {
-                // Restore cached search results immediately to prevent re-running the search
+                // Restore cached search results immediately WITHOUT filtering to prevent slowdown
                 try {
-                    val cachedPodcasts = (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
-                    val filteredCachedPodcasts = repository.filterPodcasts(cachedPodcasts, currentFilter)
-                    val filteredTitle = cached.titleMatches.filter { filteredCachedPodcasts.contains(it) }
-                    val filteredDesc = cached.descMatches.filter { filteredCachedPodcasts.contains(it) }
-                    val filteredEpisodes = cached.episodeMatches.filter { filteredCachedPodcasts.contains(it.second) }
-
-                    searchAdapter = createSearchAdapter(filteredTitle, filteredDesc, filteredEpisodes)
-                    displayedEpisodeCount = filteredEpisodes.size
+                    searchAdapter = SearchResultsAdapter(
+                        context = requireContext(),
+                        titleMatches = cached.titleMatches,
+                        descMatches = cached.descMatches,
+                        episodeMatches = cached.episodeMatches,
+                        onPodcastClick = { podcast -> onPodcastClicked(podcast) },
+                        onPlayEpisode = { ep -> playEpisode(ep) },
+                        onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
+                    )
+                    displayedEpisodeCount = cached.episodeMatches.size
                     
                     recyclerView.adapter = searchAdapter
                     emptyState.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
                     
-                    android.util.Log.d("PodcastsFragment", "onViewCreated: restored cached search adapter immediately (${filteredTitle.size}+${filteredDesc.size}+${filteredEpisodes.size} results)")
+                    android.util.Log.d("PodcastsFragment", "onViewCreated: restored cached search adapter immediately (${cached.titleMatches.size}+${cached.descMatches.size}+${cached.episodeMatches.size} results)")
                 } catch (e: Exception) {
                     android.util.Log.w("PodcastsFragment", "Failed to restore cached search: ${e.message}")
                 }
                 
-                // Just set spinner text without binding listeners
-                genreSpinner.setText(currentFilter.genres.firstOrNull() ?: "All Genres", false)
-                sortSpinner.setText(currentSort, false)
+                // Bind spinner listeners but suppress initial applyFilters calls
+                suppressSearchWatcher = true
+                try {
+                    bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
+                    bindSortSpinner(sortSpinner, emptyState, recyclerView)
+                    genreSpinner.setText(currentFilter.genres.firstOrNull() ?: "All Genres", false)
+                    sortSpinner.setText(currentSort, false)
+                } finally {
+                    suppressSearchWatcher = false
+                }
                 loadingIndicator.visibility = View.GONE
                 emptyState.text = "No podcasts found"
             } else {
