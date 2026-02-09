@@ -554,20 +554,32 @@ class PodcastsFragment : Fragment() {
             }
             viewModel.cachedGenres = genres
 
-            bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
-            bindSortSpinner(sortSpinner, emptyState, recyclerView)
-            loadingIndicator.visibility = View.GONE
-            emptyState.text = "No podcasts found"
-            
-            // Only apply filters if we don't have a cached search that onResume will restore.
-            // This prevents redundant search execution when returning from episode views.
+            // Check if we have a cached search that onResume will restore
             val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value)
             val cached = viewModel.getCachedSearch()
             val hasCachedSearch = activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm
             
-            android.util.Log.d("PodcastsFragment", "onViewCreated cache check: activeNorm='$activeNorm' cached=${cached != null} cachedQuery='${cached?.query}' hasCachedSearch=$hasCachedSearch")
-            
-            if (!hasCachedSearch) {
+            if (hasCachedSearch) {
+                // Restore spinners without triggering listeners to avoid redundant search
+                suppressSearchWatcher = true
+                try {
+                    genreSpinner.setText(currentFilter.genres.firstOrNull() ?: "All Genres", false)
+                    sortSpinner.setText(currentSort, false)
+                } finally {
+                    suppressSearchWatcher = false
+                }
+                bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
+                bindSortSpinner(sortSpinner, emptyState, recyclerView)
+                loadingIndicator.visibility = View.GONE
+                emptyState.text = "No podcasts found"
+                // Don't call applyFilters - onResume will restore the cached search
+                android.util.Log.d("PodcastsFragment", "onViewCreated: skipping applyFilters due to cached search")
+            } else {
+                // No cached search, proceed with normal setup
+                bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
+                bindSortSpinner(sortSpinner, emptyState, recyclerView)
+                loadingIndicator.visibility = View.GONE
+                emptyState.text = "No podcasts found"
                 applyFilters(emptyState, recyclerView)
             }
             return
