@@ -561,47 +561,18 @@ class PodcastsFragment : Fragment() {
             val cached = viewModel.getCachedSearch()
             val hasCachedSearch = activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm
             
+            // Bind spinners first so filters work
+            bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
+            bindSortSpinner(sortSpinner, emptyState, recyclerView)
+            loadingIndicator.visibility = View.GONE
+            emptyState.text = "No podcasts found"
+            
             if (hasCachedSearch && cached != null) {
-                // Restore cached search results immediately WITHOUT filtering to prevent slowdown
-                try {
-                    searchAdapter = SearchResultsAdapter(
-                        context = requireContext(),
-                        titleMatches = cached.titleMatches,
-                        descMatches = cached.descMatches,
-                        episodeMatches = cached.episodeMatches,
-                        onPodcastClick = { podcast -> onPodcastClicked(podcast) },
-                        onPlayEpisode = { ep -> playEpisode(ep) },
-                        onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
-                    )
-                    displayedEpisodeCount = cached.episodeMatches.size
-                    
-                    recyclerView.adapter = searchAdapter
-                    emptyState.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                    
-                    android.util.Log.d("PodcastsFragment", "onViewCreated: restored cached search adapter immediately (${cached.titleMatches.size}+${cached.descMatches.size}+${cached.episodeMatches.size} results)")
-                } catch (e: Exception) {
-                    android.util.Log.w("PodcastsFragment", "Failed to restore cached search: ${e.message}")
-                }
-                
-                // Bind spinner listeners but suppress initial applyFilters calls
-                suppressSearchWatcher = true
-                try {
-                    bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
-                    bindSortSpinner(sortSpinner, emptyState, recyclerView)
-                    genreSpinner.setText(currentFilter.genres.firstOrNull() ?: "All Genres", false)
-                    sortSpinner.setText(currentSort, false)
-                } finally {
-                    suppressSearchWatcher = false
-                }
-                loadingIndicator.visibility = View.GONE
-                emptyState.text = "No podcasts found"
+                // Don't do anything - let onResume handle the instant restore
+                // This prevents slow adapter recreation and keeps everything fast
+                android.util.Log.d("PodcastsFragment", "onViewCreated: cached search exists, letting onResume restore it")
             } else {
                 // No cached search, proceed with normal setup
-                bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
-                bindSortSpinner(sortSpinner, emptyState, recyclerView)
-                loadingIndicator.visibility = View.GONE
-                emptyState.text = "No podcasts found"
                 applyFilters(emptyState, recyclerView)
             }
             return
@@ -881,32 +852,33 @@ class PodcastsFragment : Fragment() {
             val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value)
             val cached = viewModel.getCachedSearch()
             if (activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm) {
-                // Check if we've already restored this in onViewCreated (adapter is already SearchResultsAdapter)
+                // Check if we already have the search adapter set up
                 if (rv?.adapter is SearchResultsAdapter) {
-                    android.util.Log.d("PodcastsFragment", "onResume: cached search already restored in onViewCreated, skipping")
+                    android.util.Log.d("PodcastsFragment", "onResume: cached search adapter already active, skipping")
                     return
                 }
                 
+                // Restore adapter from cache - reuse existing instance if available, otherwise create new one
+                if (searchAdapter == null) {
+                    searchAdapter = SearchResultsAdapter(
+                        context = requireContext(),
+                        titleMatches = cached.titleMatches,
+                        descMatches = cached.descMatches,
+                        episodeMatches = cached.episodeMatches,
+                        onPodcastClick = { podcast -> onPodcastClicked(podcast) },
+                        onPlayEpisode = { ep -> playEpisode(ep) },
+                        onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
+                    )
+                    displayedEpisodeCount = cached.episodeMatches.size
+                    android.util.Log.d("PodcastsFragment", "onResume: created search adapter from cache (${cached.titleMatches.size}+${cached.descMatches.size}+${cached.episodeMatches.size} results)")
+                }
+                
                 view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { cachedRv ->
-                    // Re-filter cached results for current UI filters and restore adapter
-                    val cachedPodcasts = (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
-                    val filteredCachedPodcasts = repository.filterPodcasts(cachedPodcasts, currentFilter)
-                    val filteredTitle = cached.titleMatches.filter { filteredCachedPodcasts.contains(it) }
-                    val filteredDesc = cached.descMatches.filter { filteredCachedPodcasts.contains(it) }
-                    val filteredEpisodes = cached.episodeMatches.filter { filteredCachedPodcasts.contains(it.second) }
-
-                    searchAdapter = createSearchAdapter(filteredTitle, filteredDesc, filteredEpisodes)
-                    // track how many episode items the adapter is showing (used for incremental loads)
-                    displayedEpisodeCount = filteredEpisodes.size
-
                     cachedRv.adapter = searchAdapter
                     view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
-                        if (filteredTitle.isEmpty() && filteredDesc.isEmpty() && filteredEpisodes.isEmpty()) {
-                            // If this came from a persisted active search, inform the user explicitly
-                            val active = viewModel.activeSearchQuery.value
-                            if (!active.isNullOrBlank()) {
-                                empty.text = getString(R.string.no_podcasts_found)
-                            }
+                        val hasContent = cached.titleMatches.isNotEmpty() || cached.descMatches.isNotEmpty() || cached.episodeMatches.isNotEmpty()
+                        if (!hasContent) {
+                            empty.text = getString(R.string.no_podcasts_found)
                             empty.visibility = View.VISIBLE
                             cachedRv.visibility = View.GONE
                         } else {
@@ -916,8 +888,7 @@ class PodcastsFragment : Fragment() {
                     }
                 }
 
-                android.util.Log.d("PodcastsFragment", "onResume: restored cached search for='${viewModel.activeSearchQuery.value}' without rebuild")
-
+                android.util.Log.d("PodcastsFragment", "onResume: restored cached search instantly")
                 return
             }
 
