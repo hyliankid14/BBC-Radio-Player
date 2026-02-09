@@ -612,17 +612,25 @@ class PodcastsFragment : Fragment() {
                 bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
                 bindSortSpinner(sortSpinner, emptyState, recyclerView)
 
-                // Sort by most recent update when starting
+                // INSTANT DISPLAY: Sort by most popular and show immediately without waiting for updates
+                // Most popular sorting doesn't need updates, so we can display instantly
+                allPodcasts = allPodcasts.sortedWith(compareBy { getPopularRank(it) })
+                currentSort = "Most popular"
+                currentFilter = PodcastFilter(genres = emptySet(), minDuration = 0, maxDuration = Int.MAX_VALUE, searchQuery = "")
+                
+                // Hide loading indicator and show list immediately
+                loadingIndicator.visibility = View.GONE
+                
+                // Display results without waiting for updates
+                applyFilters(emptyState, recyclerView)
+                
+                // NOW fetch updates in the background to refresh timestamps for "Most recent" sorting
                 val updates = withContext(Dispatchers.IO) { repository.fetchLatestUpdates(allPodcasts) }
                 cachedUpdates = updates
                 viewModel.cachedUpdates = updates
-                val sorted = if (updates.isNotEmpty()) {
-                    allPodcasts.sortedByDescending { updates[it.id] ?: 0L }
-                } else allPodcasts
-                allPodcasts = sorted
-                viewModel.cachedPodcasts = allPodcasts
                 
-                // Hide loading indicator before applying filters so it doesn't stay visible during the async filter operation
+                // If user switches to "Most recent" sort, the cached updates will be used
+
                 loadingIndicator.visibility = View.GONE
                 applyFilters(emptyState, recyclerView)
 
