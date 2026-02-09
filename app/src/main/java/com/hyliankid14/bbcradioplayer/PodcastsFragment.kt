@@ -560,13 +560,31 @@ class PodcastsFragment : Fragment() {
             val hasCachedSearch = activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm
             
             if (hasCachedSearch) {
-                // Just set spinner text without binding listeners to avoid triggering applyFilters
+                // Restore cached search results immediately to prevent re-running the search
+                try {
+                    val cachedPodcasts = (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
+                    val filteredCachedPodcasts = repository.filterPodcasts(cachedPodcasts, currentFilter)
+                    val filteredTitle = cached.titleMatches.filter { filteredCachedPodcasts.contains(it) }
+                    val filteredDesc = cached.descMatches.filter { filteredCachedPodcasts.contains(it) }
+                    val filteredEpisodes = cached.episodeMatches.filter { filteredCachedPodcasts.contains(it.second) }
+
+                    searchAdapter = createSearchAdapter(filteredTitle, filteredDesc, filteredEpisodes)
+                    displayedEpisodeCount = filteredEpisodes.size
+                    
+                    recyclerView.adapter = searchAdapter
+                    emptyState.visibility = View.GONE
+                    recyclerView.visibility = View.VISIBLE
+                    
+                    android.util.Log.d("PodcastsFragment", "onViewCreated: restored cached search adapter immediately (${filteredTitle.size}+${filteredDesc.size}+${filteredEpisodes.size} results)")
+                } catch (e: Exception) {
+                    android.util.Log.w("PodcastsFragment", "Failed to restore cached search: ${e.message}")
+                }
+                
+                // Just set spinner text without binding listeners
                 genreSpinner.setText(currentFilter.genres.firstOrNull() ?: "All Genres", false)
                 sortSpinner.setText(currentSort, false)
                 loadingIndicator.visibility = View.GONE
                 emptyState.text = "No podcasts found"
-                // onResume will restore the cached search without calling applyFilters
-                android.util.Log.d("PodcastsFragment", "onViewCreated: skipping spinner binding due to cached search")
             } else {
                 // No cached search, proceed with normal setup
                 bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
@@ -852,6 +870,12 @@ class PodcastsFragment : Fragment() {
             val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value)
             val cached = viewModel.getCachedSearch()
             if (activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm) {
+                // Check if we've already restored this in onViewCreated (adapter is already SearchResultsAdapter)
+                if (rv.adapter is SearchResultsAdapter) {
+                    android.util.Log.d("PodcastsFragment", "onResume: cached search already restored in onViewCreated, skipping")
+                    return
+                }
+                
                 view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { cachedRv ->
                     // Re-filter cached results for current UI filters and restore adapter
                     val cachedPodcasts = (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
@@ -883,11 +907,6 @@ class PodcastsFragment : Fragment() {
 
                 android.util.Log.d("PodcastsFragment", "onResume: restored cached search for='${viewModel.activeSearchQuery.value}' without rebuild")
 
-                // Cache was successfully restored to the UI - don't re-run the search.
-                // The user can see their results immediately. If the cache is incomplete,
-                // the background episode search will update results when the user modifies
-                // the search or filters, but we don't automatically re-run on navigation.
-                
                 return
             }
 
