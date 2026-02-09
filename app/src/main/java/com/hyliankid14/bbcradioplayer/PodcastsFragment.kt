@@ -799,7 +799,19 @@ class PodcastsFragment : Fragment() {
                 if (active.isNullOrBlank()) {
                     // No active persisted search — if we're already showing the main podcasts list, skip reapplying filters
                     if (searchQuery.isBlank() && rv.adapter == podcastAdapter) {
-                        android.util.Log.d("PodcastsFragment", "onResume: no active search and already showing podcasts, skipping rebuild")
+                        android.util.Log.d("PodcastsFragment", "onResume: no active search and already showing podcasts, ensuring visibility")
+                        // Ensure the list is visible (it may have been hidden when navigating away)
+                        rv.visibility = View.VISIBLE
+                        view?.findViewById<TextView>(R.id.empty_state_text)?.visibility = View.GONE
+                        // If the adapter has no data, refresh it
+                        if (podcastAdapter?.itemCount == 0) {
+                            android.util.Log.d("PodcastsFragment", "onResume: adapter is empty, refreshing podcast list")
+                            view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loadingBar ->
+                                view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
+                                    applyFilters(empty, rv)
+                                }
+                            }
+                        }
                         return
                     }
                 } else {
