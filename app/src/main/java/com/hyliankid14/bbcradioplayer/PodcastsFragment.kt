@@ -558,7 +558,16 @@ class PodcastsFragment : Fragment() {
             bindSortSpinner(sortSpinner, emptyState, recyclerView)
             loadingIndicator.visibility = View.GONE
             emptyState.text = "No podcasts found"
-            applyFilters(emptyState, recyclerView)
+            
+            // Only apply filters if we don't have a cached search that onResume will restore.
+            // This prevents redundant search execution when returning from episode views.
+            val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value)
+            val cached = viewModel.getCachedSearch()
+            val hasCachedSearch = activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm
+            
+            if (!hasCachedSearch) {
+                applyFilters(emptyState, recyclerView)
+            }
             return
         }
 
