@@ -565,6 +565,8 @@ class PodcastsFragment : Fragment() {
             val cached = viewModel.getCachedSearch()
             val hasCachedSearch = activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm
             
+            android.util.Log.d("PodcastsFragment", "onViewCreated cache check: activeNorm='$activeNorm' cached=${cached != null} cachedQuery='${cached?.query}' hasCachedSearch=$hasCachedSearch")
+            
             if (!hasCachedSearch) {
                 applyFilters(emptyState, recyclerView)
             }
