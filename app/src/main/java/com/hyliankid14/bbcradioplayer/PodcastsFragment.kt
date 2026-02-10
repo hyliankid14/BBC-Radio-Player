@@ -555,26 +555,25 @@ class PodcastsFragment : Fragment() {
         recyclerViewForScroll.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             private var filtersVisible = true
             private var isAnimating = false
-            private var scrollDelta = 0
+            private var accumulatedScroll = 0
             private val scrollThreshold = (30 * resources.displayMetrics.density).toInt() // 30dp threshold
-            private val deadzone = (5 * resources.displayMetrics.density).toInt() // 5dp deadzone for jitter
             
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 val offset = recyclerView.computeVerticalScrollOffset()
                 
-                // Only accumulate if we're scrolling in a clear direction (beyond deadzone)
-                if (dy > deadzone) {
-                    // Clear down scrolling
-                    scrollDelta = maxOf(scrollDelta + dy, 1) // Ensure positive
-                } else if (dy < -deadzone) {
-                    // Clear up scrolling
-                    scrollDelta = minOf(scrollDelta + dy, -1) // Ensure negative
+                // Continuously accumulate scroll distance in the current direction
+                // Reset accumulation when direction flips
+                if (dy > 0) {
+                    if (accumulatedScroll < 0) accumulatedScroll = 0
+                    accumulatedScroll += dy
+                } else if (dy < 0) {
+                    if (accumulatedScroll > 0) accumulatedScroll = 0
+                    accumulatedScroll += dy
                 }
-                // Ignore tiny scrolls (jitter)
                 
                 // Hide filters when scrolling down past threshold
-                if (scrollDelta > scrollThreshold && filtersVisible && !isAnimating) {
+                if (accumulatedScroll > scrollThreshold && filtersVisible && !isAnimating) {
                     isAnimating = true
                     filtersVisible = false
                     filtersContainer.animate()
@@ -584,10 +583,10 @@ class PodcastsFragment : Fragment() {
                         .withEndAction { 
                             filtersContainer.visibility = View.GONE
                             isAnimating = false
-                            scrollDelta = 0 // Reset after animation
+                            accumulatedScroll = 0
                         }
                         .start()
-                } else if (scrollDelta < -scrollThreshold && !filtersVisible && !isAnimating) {
+                } else if (accumulatedScroll < -scrollThreshold && !filtersVisible && !isAnimating) {
                     // Show filters when scrolling up past threshold
                     isAnimating = true
                     filtersVisible = true
@@ -599,8 +598,8 @@ class PodcastsFragment : Fragment() {
                         .translationY(0f)
                         .setDuration(200)
                         .withEndAction { 
-                            isAnimating = false
-                            scrollDelta = 0 // Reset after animation
+                            isAnimating = false 
+                            accumulatedScroll = 0
                         }
                         .start()
                 }
