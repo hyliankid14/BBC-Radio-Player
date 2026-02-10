@@ -553,23 +553,31 @@ class PodcastsFragment : Fragment() {
         requireActivity().window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         recyclerViewForScroll.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            private var lastScrollY = 0
+            private var filtersVisible = true
+            private var isAnimating = false
             
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 val offset = recyclerView.computeVerticalScrollOffset()
                 
                 // Hide filters when scrolling down, show when scrolling up or at top
-                if (dy > 0 && filtersContainer.visibility == View.VISIBLE) {
+                if (dy > 0 && filtersVisible && !isAnimating) {
                     // Scrolling down - hide filters
+                    isAnimating = true
+                    filtersVisible = false
                     filtersContainer.animate()
                         .alpha(0f)
                         .translationY(-filtersContainer.height.toFloat())
                         .setDuration(200)
-                        .withEndAction { filtersContainer.visibility = View.GONE }
+                        .withEndAction { 
+                            filtersContainer.visibility = View.GONE
+                            isAnimating = false
+                        }
                         .start()
-                } else if (dy < 0 && filtersContainer.visibility == View.GONE) {
+                } else if (dy < 0 && !filtersVisible && !isAnimating) {
                     // Scrolling up - show filters
+                    isAnimating = true
+                    filtersVisible = true
                     filtersContainer.visibility = View.VISIBLE
                     filtersContainer.alpha = 0f
                     filtersContainer.translationY = -filtersContainer.height.toFloat()
@@ -577,6 +585,7 @@ class PodcastsFragment : Fragment() {
                         .alpha(1f)
                         .translationY(0f)
                         .setDuration(200)
+                        .withEndAction { isAnimating = false }
                         .start()
                 }
                 
