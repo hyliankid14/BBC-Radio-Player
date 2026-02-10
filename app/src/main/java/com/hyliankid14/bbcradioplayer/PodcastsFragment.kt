@@ -1568,7 +1568,9 @@ class PodcastsFragment : Fragment() {
                             if (!kotlin.coroutines.coroutineContext.isActive) return@async emptyList<Pair<Episode, Podcast>>()
 
                             if (ftsResults.isNotEmpty()) {
-                                val grouped = ftsResults.groupBy { it.podcastId }
+                                // Deduplicate FTS results by episode ID (proximity search may return duplicates)
+                                val uniqueResults = ftsResults.distinctBy { it.episodeId }
+                                val grouped = uniqueResults.groupBy { it.podcastId }
                                 var total = 0
                                 for ((podId, hits) in grouped) {
                                     if (!coroutineContext.isActive) break
