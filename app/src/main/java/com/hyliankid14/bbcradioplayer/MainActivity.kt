@@ -2199,91 +2199,50 @@ class MainActivity : AppCompatActivity() {
 
         indexNowBtn.setOnClickListener {
             try {
-                indexStatus.text = "Starting background indexing..."
-                indexEpisodesProgress.isIndeterminate = true
+                indexStatus.text = "Starting index..."
+                indexEpisodesProgress.isIndeterminate = false
                 indexEpisodesProgress.visibility = android.view.View.VISIBLE
                 indexEpisodesProgress.progress = 0
+                lastSeenIndexPercent = 0
                 
-                try {
-                    // Enqueue background indexing work
-                    com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.enqueueIndexing(
-                        this@MainActivity,
-                        fullReindex = true
-                    )
-                    
-                    // Observe the work status
-                    androidx.work.WorkManager.getInstance(this@MainActivity)
-                        .getWorkInfosByTagLiveData(com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.WORK_NAME)
-                        .observe(this@MainActivity) { workInfoList ->
-                            workInfoList?.firstOrNull()?.let { workInfo ->
-                                when (workInfo.state) {
-                                    androidx.work.WorkInfo.State.RUNNING -> {
-                                        indexStatus.text = "Indexing in background..."
-                                        indexEpisodesProgress.visibility = android.view.View.VISIBLE
-                                        indexEpisodesProgress.isIndeterminate = true
-                                    }
-                                    androidx.work.WorkInfo.State.SUCCEEDED -> {
-                                        indexStatus.text = "Indexing complete"
-                                        indexEpisodesProgress.visibility = android.view.View.GONE
-                                        indexEpisodesProgress.isIndeterminate = false
-                                        val now = System.currentTimeMillis()
-                                        updateLastRebuilt(now)
-                                        android.widget.Toast.makeText(
-                                            this@MainActivity,
-                                            "Podcast indexing completed successfully",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                    androidx.work.WorkInfo.State.FAILED -> {
-                                        indexStatus.text = "Indexing failed"
-                                        indexEpisodesProgress.visibility = android.view.View.GONE
-                                        indexEpisodesProgress.isIndeterminate = false
-                                        android.widget.Toast.makeText(
-                                            this@MainActivity,
-                                            "Podcast indexing failed",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                    else -> {
-                                        // ENQUEUED, BLOCKED, CANCELLED
-                                        indexStatus.text = "Indexing queued..."
-                                        indexEpisodesProgress.isIndeterminate = true
-                                    }
-                                }
-                            }
-                        }
-                    
-                    android.widget.Toast.makeText(
-                        this@MainActivity,
-                        "Indexing started in background - you can continue using the app or close it",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                } catch (wme: Exception) {
-                    // WorkManager not available or other error - fall back to direct execution
-                    android.util.Log.e("MainActivity", "WorkManager failed, using direct execution: ${wme.message}", wme)
-                    indexStatus.text = "Starting index..."
-                    indexEpisodesProgress.isIndeterminate = false
-                    indexEpisodesProgress.progress = 0
-                    lifecycleScope.launch {
-                        com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent, _ ->
-                            runOnUiThread {
-                                indexStatus.text = if (percent == 100) "Indexing complete" else "Indexing..."
-                                if (percent >= 0) {
-                                    indexEpisodesProgress.isIndeterminate = false
-                                    indexEpisodesProgress.progress = percent
-                                } else {
-                                    indexEpisodesProgress.isIndeterminate = true
-                                }
-                                if (percent == 100) {
-                                    indexEpisodesProgress.visibility = android.view.View.GONE
-                                    updateLastRebuilt(System.currentTimeMillis())
-                                }
-                            }
-                        }
+                // Use direct execution for manual indexing (faster, with progress updates)
+                // WorkManager is reserved for scheduled background indexing only
+                lifecycleScope.launch {
+                    com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent, isEpisodePhase ->
                         runOnUiThread {
-                            indexStatus.text = "Indexing complete"
-                            indexEpisodesProgress.visibility = android.view.View.GONE
+                            val displayStatus = when {
+                                percent == 100 || status.contains("complete", ignoreCase = true) -> "Indexing complete"
+                                status.contains("Indexing", ignoreCase = true) || status.contains("Fetching", ignoreCase = true) -> "Indexing..."
+                                else -> status
+                            }
+                            indexStatus.text = displayStatus
+                            
+                            if (isEpisodePhase) {
+                                indexEpisodesProgress.visibility = android.view.View.VISIBLE
+                                if (percent < 0) {
+                                    indexEpisodesProgress.isIndeterminate = true
+                                } else {
+                                    val target = percent.coerceIn(0, 100)
+                                    if (target > lastSeenIndexPercent || target == 100) {
+                                        indexEpisodesProgress.isIndeterminate = false
+                                        indexEpisodesProgress.progress = target
+                                        lastSeenIndexPercent = target
+                                    }
+                                }
+                            } else {
+                                indexEpisodesProgress.visibility = android.view.View.GONE
+                            }
+                            
+                            if (percent == 100 || status.contains("complete", ignoreCase = true)) {
+                                indexEpisodesProgress.visibility = android.view.View.GONE
+                                updateLastRebuilt(System.currentTimeMillis())
+                            }
                         }
+                    }
+                    runOnUiThread {
+                        indexStatus.text = "Indexing complete"
+                        indexEpisodesProgress.visibility = android.view.View.GONE
+                        updateLastRebuilt(com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this@MainActivity).getLastReindexTime())
                     }
                 }
                 
