@@ -555,58 +555,80 @@ class PodcastsFragment : Fragment() {
         recyclerViewForScroll.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             private var filtersVisible = true
             private var isAnimating = false
-            private var accumulatedScroll = 0
-            private val scrollThreshold = (30 * resources.displayMetrics.density).toInt() // 30dp threshold
+            private var filterScrollOffset = 0
+            private val hideThreshold = (50 * resources.displayMetrics.density).toInt() // Distance to scroll down before hiding
+            private val showThreshold = (50 * resources.displayMetrics.density).toInt() // Distance to scroll up before showing
+            
+            // We track a value between 0 (Show) and hideThreshold (Hide)
+            // When hidden, we track from hideThreshold down to hideThreshold - showThreshold? 
+            // Better to just have a single accumulated delta that is clamped.
+            
+            private var accumulatedY = 0
             
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
-                val offset = recyclerView.computeVerticalScrollOffset()
+                val scrollOffset = recyclerView.computeVerticalScrollOffset()
                 
-                // Continuously accumulate scroll distance in the current direction
-                // Reset accumulation when direction flips
-                if (dy > 0) {
-                    if (accumulatedScroll < 0) accumulatedScroll = 0
-                    accumulatedScroll += dy
-                } else if (dy < 0) {
-                    if (accumulatedScroll > 0) accumulatedScroll = 0
-                    accumulatedScroll += dy
-                }
+                // Add to accumulator
+                accumulatedY += dy
                 
-                // Hide filters when scrolling down past threshold
-                if (accumulatedScroll > scrollThreshold && filtersVisible && !isAnimating) {
-                    isAnimating = true
-                    filtersVisible = false
-                    filtersContainer.animate()
-                        .alpha(0f)
-                        .translationY(-filtersContainer.height.toFloat())
-                        .setDuration(200)
-                        .withEndAction { 
-                            filtersContainer.visibility = View.GONE
-                            isAnimating = false
-                            accumulatedScroll = 0
-                        }
-                        .start()
-                } else if (accumulatedScroll < -scrollThreshold && !filtersVisible && !isAnimating) {
-                    // Show filters when scrolling up past threshold
-                    isAnimating = true
-                    filtersVisible = true
-                    filtersContainer.visibility = View.VISIBLE
-                    filtersContainer.alpha = 0f
-                    filtersContainer.translationY = -filtersContainer.height.toFloat()
-                    filtersContainer.animate()
-                        .alpha(1f)
-                        .translationY(0f)
-                        .setDuration(200)
-                        .withEndAction { 
-                            isAnimating = false 
-                            accumulatedScroll = 0
-                        }
-                        .start()
+                // State Logic: Hysteresis
+                // If Visible: We need to accumulate positive Y (down scroll) > hideThreshold to switch
+                // If Hidden: We need to accumulate negative Y (up scroll) < -showThreshold to switch
+                
+                if (filtersVisible) {
+                    // While visible, we only care about scrolling DOWN to hide.
+                    // Scrolling UP just clamps to 0 (cannot be more visible).
+                    if (accumulatedY < 0) accumulatedY = 0
+                    
+                    if (accumulatedY > hideThreshold && !isAnimating) {
+                        // Trigger Hide
+                        isAnimating = true
+                        filtersVisible = false
+                        filtersContainer.animate()
+                            .alpha(0f)
+                            .translationY(-filtersContainer.height.toFloat())
+                            .setDuration(200)
+                            .withEndAction { 
+                                filtersContainer.visibility = View.GONE
+                                isAnimating = false
+                                accumulatedY = 0 // Reset accumulator for next state
+                            }
+                            .start()
+                    }
+                } else {
+                    // While hidden, we only care about scrolling UP to show.
+                    // Scrolling DOWN just clamps to 0 (cannot be more hidden).
+                    // Note: UP scroll is negative dy.
+                    
+                    // Logic inversion for clarity: Track "Upward Movement"
+                    // If dy is positive (down), it counteracts showing.
+                    // If dy is negative (up), it contributes to showing.
+                    
+                    if (accumulatedY > 0) accumulatedY = 0
+                    
+                    if (accumulatedY < -showThreshold && !isAnimating) {
+                        // Trigger Show
+                        isAnimating = true
+                        filtersVisible = true
+                        filtersContainer.visibility = View.VISIBLE
+                        filtersContainer.alpha = 0f
+                        filtersContainer.translationY = -filtersContainer.height.toFloat()
+                        filtersContainer.animate()
+                            .alpha(1f)
+                            .translationY(0f)
+                            .setDuration(200)
+                            .withEndAction { 
+                                isAnimating = false
+                                accumulatedY = 0 // Reset accumulator for next state
+                            }
+                            .start()
+                    }
                 }
                 
                 // Show/hide FAB after some scrolling so it's unobtrusive initially
                 val dp200 = (200 * resources.displayMetrics.density).toInt()
-                if (offset > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
+                if (scrollOffset > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
 
                 // Trigger loading of next page when near the bottom
                 val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
