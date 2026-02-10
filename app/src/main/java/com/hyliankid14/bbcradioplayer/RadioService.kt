@@ -358,10 +358,11 @@ class RadioService : MediaBrowserServiceCompat() {
             else -> "Add to Favorites"
         }
 
-        val favoriteIcon = if (isFavorite) {
-            R.drawable.ic_star_filled_yellow
-        } else {
-            R.drawable.ic_star_outline
+        val favoriteIcon = when {
+            isPodcast && !currentEpisode.isNullOrEmpty() && isFavorite -> R.drawable.ic_bookmark
+            isPodcast && !currentEpisode.isNullOrEmpty() -> R.drawable.ic_bookmark_outline
+            isFavorite -> R.drawable.ic_star_filled_yellow
+            else -> R.drawable.ic_star_outline
         }
 
         // Determine allowed actions. For podcasts we avoid SKIP actions (replaced by seek custom actions)
