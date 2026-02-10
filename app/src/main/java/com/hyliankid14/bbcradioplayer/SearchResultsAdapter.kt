@@ -83,6 +83,13 @@ class SearchResultsAdapter(
         }
         notifyDataSetChanged()
     }
+
+    fun appendItems(more: List<Item>) {
+        if (more.isEmpty()) return
+        val start = items.size
+        items.addAll(more)
+        notifyItemRangeInserted(start, more.size)
+    }
     companion object {
         private const val TYPE_SECTION = 0
         private const val TYPE_PODCAST = 1

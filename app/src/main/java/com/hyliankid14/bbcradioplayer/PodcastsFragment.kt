@@ -50,6 +50,9 @@ class PodcastsFragment : Fragment() {
     private var searchJob: kotlinx.coroutines.Job? = null
     // When true, suppress automatic applyFilters calls during restore
     private var restoringFromCache: Boolean = false
+    // When restoring a large cached adapter, append items in chunks
+    private var restoreAppendJob: kotlinx.coroutines.Job? = null
+    private var usingCachedItemAppend: Boolean = false
     // Use viewLifecycleOwner.lifecycleScope for UI coroutines (auto-cancelled when the view is destroyed) 
 
     // Normalize queries for robust cache lookups (trim + locale-aware lowercase)
@@ -81,6 +84,8 @@ class PodcastsFragment : Fragment() {
 
         genreSpinner.setOnItemClickListener { parent, _, position, _ ->
             if (suppressSearchWatcher) return@setOnItemClickListener
+            restoreAppendJob?.cancel()
+            usingCachedItemAppend = false
             restoringFromCache = false
             val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
             currentFilter = if (selected == "All Genres") {
@@ -106,6 +111,8 @@ class PodcastsFragment : Fragment() {
         sortSpinner.setText(currentSort, false)
         sortSpinner.setOnItemClickListener { parent, _, position, _ ->
             if (suppressSearchWatcher) return@setOnItemClickListener
+            restoreAppendJob?.cancel()
+            usingCachedItemAppend = false
             restoringFromCache = false
             val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
             currentSort = selected
@@ -177,6 +184,8 @@ class PodcastsFragment : Fragment() {
     // Cached full episode matches for fast restore pagination (to avoid UI hangs)
     private var cachedEpisodeMatchesFull: List<Pair<Episode, Podcast>> = emptyList()
     private var usingCachedEpisodePagination: Boolean = false
+    private val RESTORE_ITEM_INITIAL = 250
+    private val RESTORE_ITEM_CHUNK = 150
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -322,6 +331,8 @@ class PodcastsFragment : Fragment() {
                 if (suppressSearchWatcher) return
                 // If we're restoring a cached search, ignore any text events triggered by setup
                 if (restoringFromCache) return
+                restoreAppendJob?.cancel()
+                usingCachedItemAppend = false
                 restoringFromCache = false
                 // Update the end-icon: show shuffle when empty, clear when non-empty
                 try {
@@ -419,6 +430,8 @@ class PodcastsFragment : Fragment() {
 
             // Cancel any pending debounce and apply filters immediately
             filterDebounceJob?.cancel()
+            restoreAppendJob?.cancel()
+            usingCachedItemAppend = false
             restoringFromCache = false
 
             val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
@@ -470,6 +483,8 @@ class PodcastsFragment : Fragment() {
         // When the user selects a history item, populate search and apply immediately
         searchEditText.setOnItemClickListener { parent, _, position, _ ->
             val sel = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
+            restoreAppendJob?.cancel()
+            usingCachedItemAppend = false
             restoringFromCache = false
             suppressSearchWatcher = true
             searchEditText.setText(sel)
@@ -502,6 +517,8 @@ class PodcastsFragment : Fragment() {
             // Clear both the typed query and the active persisted search; clear cached search results
             searchJob?.cancel()
             restoringFromCache = false
+            restoreAppendJob?.cancel()
+            usingCachedItemAppend = false
             usingCachedEpisodePagination = false
             cachedEpisodeMatchesFull = emptyList()
             searchQuery = ""
@@ -734,6 +751,7 @@ class PodcastsFragment : Fragment() {
         // If we're showing search results, paginate episodes from the pending index queue
         val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
         if (rv?.adapter == searchAdapter) {
+            if (usingCachedItemAppend) return
             // If we restored from cache with a large episode list, paginate from the cached full list
             if (usingCachedEpisodePagination && cachedEpisodeMatchesFull.isNotEmpty()) {
                 if (displayedEpisodeCount >= cachedEpisodeMatchesFull.size) return
@@ -878,6 +896,7 @@ class PodcastsFragment : Fragment() {
         super.onDestroyView()
         filterDebounceJob?.cancel()
         searchJob?.cancel()
+        restoreAppendJob?.cancel()
         // Avoid leaking adapter/view references
         view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.adapter = null
     }
@@ -938,8 +957,9 @@ class PodcastsFragment : Fragment() {
                     // If cached episodes are large, show only an initial page to avoid UI hangs
                     val fullEpisodes = cached.episodeMatches
                     val initialEpisodes = if (fullEpisodes.size > INITIAL_EPISODE_DISPLAY_LIMIT) {
-                        usingCachedEpisodePagination = true
-                        cachedEpisodeMatchesFull = fullEpisodes
+                        // We'll handle large restores via cached item chunking; disable episode pagination here
+                        usingCachedEpisodePagination = false
+                        cachedEpisodeMatchesFull = emptyList()
                         fullEpisodes.take(INITIAL_EPISODE_DISPLAY_LIMIT)
                     } else {
                         usingCachedEpisodePagination = false
@@ -948,6 +968,13 @@ class PodcastsFragment : Fragment() {
                     }
                     resolvedEpisodeMatches = initialEpisodes.toMutableList()
                     displayedEpisodeCount = resolvedEpisodeMatches.size
+                    val initialItems = if (prebuilt != null && prebuilt.size > RESTORE_ITEM_INITIAL) {
+                        usingCachedItemAppend = true
+                        prebuilt.take(RESTORE_ITEM_INITIAL)
+                    } else {
+                        usingCachedItemAppend = false
+                        prebuilt
+                    }
                     searchAdapter = SearchResultsAdapter(
                         context = requireContext(),
                         titleMatches = cached.titleMatches,
@@ -956,9 +983,24 @@ class PodcastsFragment : Fragment() {
                         onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                         onPlayEpisode = { ep -> playEpisode(ep) },
                         onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
-                        prebuiltItems = prebuilt
+                        prebuiltItems = initialItems
                     )
-                    android.util.Log.d("PodcastsFragment", "onResume: created search adapter from cache (${cached.titleMatches.size}+${cached.descMatches.size}+${resolvedEpisodeMatches.size} results, fullEpisodes=${fullEpisodes.size})")
+                    android.util.Log.d("PodcastsFragment", "onResume: created search adapter from cache (${cached.titleMatches.size}+${cached.descMatches.size}+${resolvedEpisodeMatches.size} results, fullEpisodes=${fullEpisodes.size}, prebuilt=${prebuilt?.size ?: 0})")
+
+                    // Append remaining cached items in small chunks to avoid UI hang
+                    if (usingCachedItemAppend && prebuilt != null && prebuilt.size > RESTORE_ITEM_INITIAL) {
+                        restoreAppendJob?.cancel()
+                        restoreAppendJob = viewLifecycleOwner.lifecycleScope.launch {
+                            var idx = RESTORE_ITEM_INITIAL
+                            while (idx < prebuilt.size && isActive) {
+                                val next = prebuilt.subList(idx, minOf(idx + RESTORE_ITEM_CHUNK, prebuilt.size))
+                                searchAdapter?.appendItems(next)
+                                idx += next.size
+                                kotlinx.coroutines.delay(16)
+                            }
+                            usingCachedItemAppend = false
+                        }
+                    }
                 }
                 
                 view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { cachedRv ->
