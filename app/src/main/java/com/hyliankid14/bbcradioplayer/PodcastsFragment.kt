@@ -902,8 +902,12 @@ class PodcastsFragment : Fragment() {
         val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
         if (rv?.adapter is SearchResultsAdapter) {
             cachedSearchAdapter = rv.adapter as SearchResultsAdapter
+            // Don't clear the adapter to avoid RecyclerView relayout on restore
+            // rv?.adapter = null
+        } else {
+            // Only clear non-search adapters to avoid memory leaks
+            rv?.adapter = null
         }
-        rv?.adapter = null
     }
 
     override fun onResume() {
@@ -917,15 +921,15 @@ class PodcastsFragment : Fragment() {
             val cached = viewModel.getCachedSearch()
             if (activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm) {
                 android.util.Log.d("PodcastsFragment", "onResume: restoring cached search adapter instance (instant)")
-                // Post to next frame to avoid blocking
-                rv.post {
+                // Adapter should still be attached from before, but ensure it's set
+                if (rv.adapter != cachedSearchAdapter) {
                     rv.adapter = cachedSearchAdapter
-                    searchAdapter = cachedSearchAdapter
-                    cachedSearchAdapter = null
-                    rv.visibility = View.VISIBLE
-                    view?.findViewById<TextView>(R.id.empty_state_text)?.visibility = View.GONE
                 }
+                searchAdapter = cachedSearchAdapter
+                cachedSearchAdapter = null
                 restoringFromCache = false
+                rv.visibility = View.VISIBLE
+                view?.findViewById<TextView>(R.id.empty_state_text)?.visibility = View.GONE
                 return
             } else {
                 // Query changed, clear the cached adapter
