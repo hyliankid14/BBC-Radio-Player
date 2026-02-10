@@ -23,7 +23,8 @@ object IndexScheduler {
     }
 
     fun cancel(context: Context) {
-        com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.cancelPeriodicIndexing(context)
+        // Cancel both periodic and one-time work
+        com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.cancelAll(context)
     }
 }
 

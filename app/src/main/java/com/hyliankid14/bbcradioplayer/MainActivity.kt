@@ -148,6 +148,14 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Cancel any orphaned background indexing work from previous runs
+        // (manual indexing now uses direct execution, not WorkManager)
+        try {
+            com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.cancelAll(this)
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to cancel background work: ${e.message}")
+        }
+
         supportFragmentManager.addOnBackStackChangedListener(backStackListener)
 
         // Use Material Top App Bar instead of a classic action bar
@@ -2199,6 +2207,9 @@ class MainActivity : AppCompatActivity() {
 
         indexNowBtn.setOnClickListener {
             try {
+                // Cancel any pending background work first
+                com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.cancelAll(this@MainActivity)
+                
                 indexStatus.text = "Starting index..."
                 indexEpisodesProgress.isIndeterminate = false
                 indexEpisodesProgress.visibility = android.view.View.VISIBLE
