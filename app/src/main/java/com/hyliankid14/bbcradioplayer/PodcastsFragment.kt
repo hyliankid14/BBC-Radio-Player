@@ -555,16 +555,21 @@ class PodcastsFragment : Fragment() {
         recyclerViewForScroll.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             private var filtersVisible = true
             private var isAnimating = false
+            private var scrollDelta = 0
+            private val scrollThreshold = (50 * resources.displayMetrics.density).toInt() // 50dp threshold
             
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 val offset = recyclerView.computeVerticalScrollOffset()
                 
-                // Hide filters when scrolling down, show when scrolling up or at top
-                if (dy > 0 && filtersVisible && !isAnimating) {
-                    // Scrolling down - hide filters
+                // Accumulate scroll delta to avoid bouncing on slow scrolls
+                scrollDelta += dy
+                
+                // Hide filters when scrolling down past threshold
+                if (scrollDelta > scrollThreshold && filtersVisible && !isAnimating) {
                     isAnimating = true
                     filtersVisible = false
+                    scrollDelta = 0
                     filtersContainer.animate()
                         .alpha(0f)
                         .translationY(-filtersContainer.height.toFloat())
@@ -574,10 +579,11 @@ class PodcastsFragment : Fragment() {
                             isAnimating = false
                         }
                         .start()
-                } else if (dy < 0 && !filtersVisible && !isAnimating) {
-                    // Scrolling up - show filters
+                } else if (scrollDelta < -scrollThreshold && !filtersVisible && !isAnimating) {
+                    // Show filters when scrolling up past threshold
                     isAnimating = true
                     filtersVisible = true
+                    scrollDelta = 0
                     filtersContainer.visibility = View.VISIBLE
                     filtersContainer.alpha = 0f
                     filtersContainer.translationY = -filtersContainer.height.toFloat()
