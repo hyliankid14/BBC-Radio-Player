@@ -596,11 +596,13 @@ class PodcastsFragment : Fragment() {
                             .setDuration(200)
                             .start()
                         
-                        // Animate status card up to follow
-                        statusCard?.animate()
-                            ?.translationY(-height)
-                            ?.setDuration(200)
-                            ?.start()
+                        // Animate status card up to follow (only if currently visible)
+                        if (statusCard?.visibility == View.VISIBLE) {
+                            statusCard.animate()
+                                ?.translationY(-height)
+                                ?.setDuration(200)
+                                ?.start()
+                        }
                             
                         // Animate recycler up to follow
                         recyclerView.animate()
@@ -632,7 +634,10 @@ class PodcastsFragment : Fragment() {
                         // Immediately offset visuals to counter the layout shift
                         filtersContainer.translationY = -height
                         filtersContainer.alpha = 0f
-                        statusCard?.translationY = -height
+                        // Only offset status card if it's visible
+                        if (statusCard?.visibility == View.VISIBLE) {
+                            statusCard.translationY = -height
+                        }
                         // Also offset recycler so it visually stays put (then slides down)
                         recyclerView.translationY = -height
                         
@@ -643,10 +648,12 @@ class PodcastsFragment : Fragment() {
                             .setDuration(200)
                             .start()
                             
-                        statusCard?.animate()
-                            ?.translationY(0f)
-                            ?.setDuration(200)
-                            ?.start()
+                        if (statusCard?.visibility == View.VISIBLE) {
+                            statusCard.animate()
+                                ?.translationY(0f)
+                                ?.setDuration(200)
+                                ?.start()
+                        }
                             
                         recyclerView.animate()
                             .translationY(0f)
