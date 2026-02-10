@@ -317,6 +317,8 @@ class PodcastsFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 if (suppressSearchWatcher) return
+                // If we're restoring a cached search, ignore any text events triggered by setup
+                if (restoringFromCache) return
                 restoringFromCache = false
                 // Update the end-icon: show shuffle when empty, clear when non-empty
                 try {
