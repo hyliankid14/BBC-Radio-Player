@@ -553,11 +553,35 @@ class PodcastsFragment : Fragment() {
         requireActivity().window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         recyclerViewForScroll.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            private var lastScrollY = 0
+            
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
+                val offset = recyclerView.computeVerticalScrollOffset()
+                
+                // Hide filters when scrolling down, show when scrolling up or at top
+                if (dy > 0 && filtersContainer.visibility == View.VISIBLE) {
+                    // Scrolling down - hide filters
+                    filtersContainer.animate()
+                        .alpha(0f)
+                        .translationY(-filtersContainer.height.toFloat())
+                        .setDuration(200)
+                        .withEndAction { filtersContainer.visibility = View.GONE }
+                        .start()
+                } else if (dy < 0 && filtersContainer.visibility == View.GONE) {
+                    // Scrolling up - show filters
+                    filtersContainer.visibility = View.VISIBLE
+                    filtersContainer.alpha = 0f
+                    filtersContainer.translationY = -filtersContainer.height.toFloat()
+                    filtersContainer.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(200)
+                        .start()
+                }
+                
                 // Show/hide FAB after some scrolling so it's unobtrusive initially
                 val dp200 = (200 * resources.displayMetrics.density).toInt()
-                val offset = recyclerView.computeVerticalScrollOffset()
                 if (offset > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
 
                 // Trigger loading of next page when near the bottom
@@ -931,6 +955,27 @@ class PodcastsFragment : Fragment() {
                 restoringFromCache = false
                 rv.visibility = View.VISIBLE
                 view?.findViewById<TextView>(R.id.empty_state_text)?.visibility = View.GONE
+                
+                // Rebind filters to ensure they show all available options
+                try {
+                    val genreSpinner = view?.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.genre_filter_spinner)
+                    val sortSpinner = view?.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.sort_spinner)
+                    if (genreSpinner != null && sortSpinner != null) {
+                        val genres = if (viewModel.cachedGenres.isNotEmpty()) {
+                            viewModel.cachedGenres
+                        } else {
+                            listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
+                        }
+                        suppressSearchWatcher = true
+                        try {
+                            bindGenreSpinner(genreSpinner, genres, view?.findViewById(R.id.empty_state_text) ?: return, rv)
+                            bindSortSpinner(sortSpinner, view?.findViewById(R.id.empty_state_text) ?: return, rv)
+                        } finally {
+                            suppressSearchWatcher = false
+                        }
+                    }
+                } catch (_: Exception) { }
+                
                 return
             } else {
                 // Query changed, clear the cached adapter
