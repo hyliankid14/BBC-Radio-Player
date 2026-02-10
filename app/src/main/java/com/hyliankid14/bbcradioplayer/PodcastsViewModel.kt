@@ -28,6 +28,10 @@ class PodcastsViewModel : ViewModel() {
     @Volatile
     private var cachedSearch: SearchCache? = null
 
+    // Prebuilt adapter items for fast restore (in-memory only)
+    @Volatile
+    var cachedSearchItems: List<SearchResultsAdapter.Item>? = null
+
     // Cached podcasts list + UI state to avoid visible refresh when returning to the Podcasts page
     var cachedPodcasts: List<Podcast> = emptyList()
     var cachedUpdates: Map<String, Long> = emptyMap()
@@ -55,5 +59,8 @@ class PodcastsViewModel : ViewModel() {
 
     fun getCachedSearch(): SearchCache? = cachedSearch
     fun setCachedSearch(cache: SearchCache?) { cachedSearch = cache }
-    fun clearCachedSearch() { cachedSearch = null }
+    fun clearCachedSearch() {
+        cachedSearch = null
+        cachedSearchItems = null
+    }
 }

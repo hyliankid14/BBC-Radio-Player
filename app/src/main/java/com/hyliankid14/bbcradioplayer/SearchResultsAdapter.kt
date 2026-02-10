@@ -26,10 +26,11 @@ class SearchResultsAdapter(
     private val episodeMatches: List<Pair<Episode, Podcast>>,
     private val onPodcastClick: (Podcast) -> Unit,
     private val onPlayEpisode: (Episode) -> Unit,
-    private val onOpenEpisode: (Episode, Podcast) -> Unit
+    private val onOpenEpisode: (Episode, Podcast) -> Unit,
+    private val prebuiltItems: List<Item>? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private sealed class Item {
+    sealed class Item {
         data class Section(val title: String) : Item()
         data class PodcastItem(val podcast: Podcast) : Item()
         data class EpisodeItem(val episode: Episode, val podcast: Podcast) : Item()
@@ -38,8 +39,14 @@ class SearchResultsAdapter(
     private var items: MutableList<Item> = mutableListOf()
 
     init {
-        rebuildItems(titleMatches, descMatches, episodeMatches)
+        if (prebuiltItems != null) {
+            items = prebuiltItems.toMutableList()
+        } else {
+            rebuildItems(titleMatches, descMatches, episodeMatches)
+        }
     }
+
+    fun snapshotItems(): List<Item> = items.toList()
 
     private fun rebuildItems(titleMatches: List<Podcast>, descMatches: List<Podcast>, episodeMatches: List<Pair<Episode, Podcast>>) {
         items.clear()
