@@ -570,6 +570,9 @@ class PodcastsFragment : Fragment() {
                 super.onScrolled(recyclerView, dx, dy)
                 val scrollOffset = recyclerView.computeVerticalScrollOffset()
                 
+                // Don't process scroll events while animating to avoid retriggering animations
+                if (isAnimating) return
+                
                 // Add to accumulator
                 accumulatedY += dy
                 
