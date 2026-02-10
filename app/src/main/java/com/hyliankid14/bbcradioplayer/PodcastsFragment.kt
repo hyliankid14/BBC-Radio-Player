@@ -612,13 +612,8 @@ class PodcastsFragment : Fragment() {
                             .start()
                     }
                 } else {
-                    // While hidden, we only care about scrolling UP to show.
-                    // Scrolling DOWN just clamps to 0 (cannot be more hidden).
-                    // Note: UP scroll is negative dy.
-                    
-                    if (accumulatedY > 0) accumulatedY = 0
-                    
-                    if (accumulatedY < -showThreshold && !isAnimating) {
+                    // While hidden, only show when we reach the top of the list
+                    if (scrollOffset == 0 && !isAnimating) {
                         // Trigger Show
                         isAnimating = true
                         filtersVisible = true
