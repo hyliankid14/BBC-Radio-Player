@@ -556,13 +556,16 @@ class PodcastsFragment : Fragment() {
             private var filtersVisible = true
             private var isAnimating = false
             private var scrollDelta = 0
-            private val scrollThreshold = (50 * resources.displayMetrics.density).toInt() // 50dp threshold
+            private val scrollThreshold = (20 * resources.displayMetrics.density).toInt() // 20dp threshold
             
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 val offset = recyclerView.computeVerticalScrollOffset()
                 
-                // Accumulate scroll delta to avoid bouncing on slow scrolls
+                // Accumulate scroll delta, resetting when direction changes
+                if ((dy > 0 && scrollDelta < 0) || (dy < 0 && scrollDelta > 0)) {
+                    scrollDelta = 0 // Direction changed, reset
+                }
                 scrollDelta += dy
                 
                 // Hide filters when scrolling down past threshold
