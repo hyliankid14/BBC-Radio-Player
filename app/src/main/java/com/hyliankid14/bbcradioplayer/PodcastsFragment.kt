@@ -556,23 +556,27 @@ class PodcastsFragment : Fragment() {
             private var filtersVisible = true
             private var isAnimating = false
             private var scrollDelta = 0
-            private val scrollThreshold = (20 * resources.displayMetrics.density).toInt() // 20dp threshold
+            private val scrollThreshold = (30 * resources.displayMetrics.density).toInt() // 30dp threshold
+            private val deadzone = (5 * resources.displayMetrics.density).toInt() // 5dp deadzone for jitter
             
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 val offset = recyclerView.computeVerticalScrollOffset()
                 
-                // Accumulate scroll delta, resetting when direction changes
-                if ((dy > 0 && scrollDelta < 0) || (dy < 0 && scrollDelta > 0)) {
-                    scrollDelta = 0 // Direction changed, reset
+                // Only accumulate if we're scrolling in a clear direction (beyond deadzone)
+                if (dy > deadzone) {
+                    // Clear down scrolling
+                    scrollDelta = maxOf(scrollDelta + dy, 1) // Ensure positive
+                } else if (dy < -deadzone) {
+                    // Clear up scrolling
+                    scrollDelta = minOf(scrollDelta + dy, -1) // Ensure negative
                 }
-                scrollDelta += dy
+                // Ignore tiny scrolls (jitter)
                 
                 // Hide filters when scrolling down past threshold
                 if (scrollDelta > scrollThreshold && filtersVisible && !isAnimating) {
                     isAnimating = true
                     filtersVisible = false
-                    scrollDelta = 0
                     filtersContainer.animate()
                         .alpha(0f)
                         .translationY(-filtersContainer.height.toFloat())
@@ -580,13 +584,13 @@ class PodcastsFragment : Fragment() {
                         .withEndAction { 
                             filtersContainer.visibility = View.GONE
                             isAnimating = false
+                            scrollDelta = 0 // Reset after animation
                         }
                         .start()
                 } else if (scrollDelta < -scrollThreshold && !filtersVisible && !isAnimating) {
                     // Show filters when scrolling up past threshold
                     isAnimating = true
                     filtersVisible = true
-                    scrollDelta = 0
                     filtersContainer.visibility = View.VISIBLE
                     filtersContainer.alpha = 0f
                     filtersContainer.translationY = -filtersContainer.height.toFloat()
@@ -594,7 +598,10 @@ class PodcastsFragment : Fragment() {
                         .alpha(1f)
                         .translationY(0f)
                         .setDuration(200)
-                        .withEndAction { isAnimating = false }
+                        .withEndAction { 
+                            isAnimating = false
+                            scrollDelta = 0 // Reset after animation
+                        }
                         .start()
                 }
                 
