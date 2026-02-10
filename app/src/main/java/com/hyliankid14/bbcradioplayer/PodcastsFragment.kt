@@ -1093,7 +1093,13 @@ class PodcastsFragment : Fragment() {
         android.util.Log.d("PodcastsFragment", "onPodcastClick triggered for: ${'$'}{podcast.title}")
         (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.show()
         val detailFragment = PodcastDetailFragment().apply { arguments = Bundle().apply { putParcelable("podcast", podcast) } }
-        parentFragmentManager.beginTransaction().apply { replace(R.id.fragment_container, detailFragment); addToBackStack(null); commit() }
+        parentFragmentManager.beginTransaction().apply {
+            setReorderingAllowed(true)
+            add(R.id.fragment_container, detailFragment, "podcast_detail")
+            hide(this@PodcastsFragment)
+            addToBackStack("podcast_detail")
+            commit()
+        }
     }
 
     private fun shuffleAndOpenRandomPodcast() {
