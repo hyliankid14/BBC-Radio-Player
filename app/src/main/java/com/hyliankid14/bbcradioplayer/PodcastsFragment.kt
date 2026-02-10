@@ -184,8 +184,8 @@ class PodcastsFragment : Fragment() {
     // Cached full episode matches for fast restore pagination (to avoid UI hangs)
     private var cachedEpisodeMatchesFull: List<Pair<Episode, Podcast>> = emptyList()
     private var usingCachedEpisodePagination: Boolean = false
-    private val RESTORE_ITEM_INITIAL = 250
-    private val RESTORE_ITEM_CHUNK = 150
+    private val RESTORE_ITEM_INITIAL = 50
+    private val RESTORE_ITEM_CHUNK = 50
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -996,7 +996,7 @@ class PodcastsFragment : Fragment() {
                                 val next = prebuilt.subList(idx, minOf(idx + RESTORE_ITEM_CHUNK, prebuilt.size))
                                 searchAdapter?.appendItems(next)
                                 idx += next.size
-                                kotlinx.coroutines.delay(16)
+                                kotlinx.coroutines.delay(50)
                             }
                             usingCachedItemAppend = false
                         }
