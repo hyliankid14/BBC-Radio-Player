@@ -1685,19 +1685,7 @@ class PodcastsFragment : Fragment() {
                         } ?: 0L
                     }
 
-                    val matchRank: (Pair<Episode, Podcast>) -> Int = { pair ->
-                        when {
-                            repository.textMatchesNormalized(pair.first.title, q) -> 2
-                            repository.textMatchesNormalized(pair.first.description, q) -> 1
-                            else -> 0
-                        }
-                    }
-
                     val cmp = Comparator<Pair<Episode, Podcast>> { a, b ->
-                        val ma = matchRank(a)
-                        val mb = matchRank(b)
-                        if (ma != mb) return@Comparator mb - ma
-
                         when (currentSort) {
                             "Most recent" -> epochOf(b.first).compareTo(epochOf(a.first))
                             "Alphabetical (A-Z)" -> {
