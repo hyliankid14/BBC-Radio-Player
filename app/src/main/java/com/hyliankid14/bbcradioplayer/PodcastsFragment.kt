@@ -1169,8 +1169,7 @@ class PodcastsFragment : Fragment() {
                 null
             }
 
-            try
-                
+            try {
                 android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters START: query='$q' allPodcasts.size=${allPodcasts.size} currentSort='$currentSort'")
                 
                 // Check if job was cancelled early
