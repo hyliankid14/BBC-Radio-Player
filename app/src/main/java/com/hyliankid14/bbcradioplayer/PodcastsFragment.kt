@@ -546,6 +546,7 @@ class PodcastsFragment : Fragment() {
         // Show a FAB when the user scrolls and implement lazy loading when the user nears the end of the list.
         // Scroll handling for RecyclerView / pagination
         val fab: com.google.android.material.floatingactionbutton.FloatingActionButton? = view.findViewById(R.id.scroll_to_top_fab)
+        val statusCard: View? = view.findViewById(R.id.search_status_card)
         val recyclerViewForScroll: RecyclerView = view.findViewById(R.id.podcasts_recycler)
 
         // Prevent navbar from resizing when keyboard opens while in this fragment
@@ -594,6 +595,12 @@ class PodcastsFragment : Fragment() {
                             .alpha(0f)
                             .setDuration(200)
                             .start()
+                        
+                        // Animate status card up to follow
+                        statusCard?.animate()
+                            ?.translationY(-height)
+                            ?.setDuration(200)
+                            ?.start()
                             
                         // Animate recycler up to follow
                         recyclerView.animate()
@@ -603,6 +610,7 @@ class PodcastsFragment : Fragment() {
                                 // Apply layout change
                                 filtersContainer.visibility = View.GONE
                                 filtersContainer.translationY = 0f
+                                statusCard?.translationY = 0f
                                 // Reset recycler translation as it now naturally occupies the space
                                 recyclerView.translationY = 0f
                                 
@@ -624,6 +632,7 @@ class PodcastsFragment : Fragment() {
                         // Immediately offset visuals to counter the layout shift
                         filtersContainer.translationY = -height
                         filtersContainer.alpha = 0f
+                        statusCard?.translationY = -height
                         // Also offset recycler so it visually stays put (then slides down)
                         recyclerView.translationY = -height
                         
@@ -633,6 +642,11 @@ class PodcastsFragment : Fragment() {
                             .alpha(1f)
                             .setDuration(200)
                             .start()
+                            
+                        statusCard?.animate()
+                            ?.translationY(0f)
+                            ?.setDuration(200)
+                            ?.start()
                             
                         recyclerView.animate()
                             .translationY(0f)
