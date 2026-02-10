@@ -585,14 +585,29 @@ class PodcastsFragment : Fragment() {
                         // Trigger Hide
                         isAnimating = true
                         filtersVisible = false
+                        
+                        val height = filtersContainer.height.toFloat()
+                        
+                        // Animate filters up and out
                         filtersContainer.animate()
+                            .translationY(-height)
                             .alpha(0f)
-                            .translationY(-filtersContainer.height.toFloat())
                             .setDuration(200)
-                            .withEndAction { 
+                            .start()
+                            
+                        // Animate recycler up to follow
+                        recyclerView.animate()
+                            .translationY(-height)
+                            .setDuration(200)
+                            .withEndAction {
+                                // Apply layout change
                                 filtersContainer.visibility = View.GONE
+                                filtersContainer.translationY = 0f
+                                // Reset recycler translation as it now naturally occupies the space
+                                recyclerView.translationY = 0f
+                                
                                 isAnimating = false
-                                accumulatedY = 0 // Reset accumulator for next state
+                                accumulatedY = 0
                             }
                             .start()
                     }
@@ -601,26 +616,35 @@ class PodcastsFragment : Fragment() {
                     // Scrolling DOWN just clamps to 0 (cannot be more hidden).
                     // Note: UP scroll is negative dy.
                     
-                    // Logic inversion for clarity: Track "Upward Movement"
-                    // If dy is positive (down), it counteracts showing.
-                    // If dy is negative (up), it contributes to showing.
-                    
                     if (accumulatedY > 0) accumulatedY = 0
                     
                     if (accumulatedY < -showThreshold && !isAnimating) {
                         // Trigger Show
                         isAnimating = true
                         filtersVisible = true
+                        
+                        val height = filtersContainer.height.toFloat()
+                        // Set visibility first to allocate layout space
                         filtersContainer.visibility = View.VISIBLE
+                        // Immediately offset visuals to counter the layout shift
+                        filtersContainer.translationY = -height
                         filtersContainer.alpha = 0f
-                        filtersContainer.translationY = -filtersContainer.height.toFloat()
+                        // Also offset recycler so it visually stays put (then slides down)
+                        recyclerView.translationY = -height
+                        
+                        // Animate both back to 0 (natural position)
                         filtersContainer.animate()
+                            .translationY(0f)
                             .alpha(1f)
+                            .setDuration(200)
+                            .start()
+                            
+                        recyclerView.animate()
                             .translationY(0f)
                             .setDuration(200)
                             .withEndAction { 
                                 isAnimating = false
-                                accumulatedY = 0 // Reset accumulator for next state
+                                accumulatedY = 0
                             }
                             .start()
                     }
