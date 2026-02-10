@@ -186,6 +186,7 @@ class PodcastsFragment : Fragment() {
     private var usingCachedEpisodePagination: Boolean = false
     private val RESTORE_ITEM_INITIAL = 100
     private val RESTORE_ITEM_CHUNK = 100
+    private var cachedSearchAdapter: SearchResultsAdapter? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -897,8 +898,12 @@ class PodcastsFragment : Fragment() {
         filterDebounceJob?.cancel()
         searchJob?.cancel()
         restoreAppendJob?.cancel()
-        // Avoid leaking adapter/view references
-        view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.adapter = null
+        // Cache search adapter if active to avoid expensive rebuild on back navigation
+        val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+        if (rv?.adapter is SearchResultsAdapter) {
+            cachedSearchAdapter = rv.adapter as SearchResultsAdapter
+        }
+        rv?.adapter = null
     }
 
     override fun onResume() {
@@ -947,6 +952,16 @@ class PodcastsFragment : Fragment() {
                 // Check if we already have the search adapter set up
                 if (rv?.adapter is SearchResultsAdapter) {
                     android.util.Log.d("PodcastsFragment", "onResume: cached search adapter already active, skipping")
+                    restoringFromCache = false
+                    return
+                }
+                
+                // Super fast-path: if we have the adapter instance cached from before view destruction, reuse it
+                if (cachedSearchAdapter != null) {
+                    android.util.Log.d("PodcastsFragment", "onResume: restoring cached search adapter instance (instant)")
+                    rv?.adapter = cachedSearchAdapter
+                    searchAdapter = cachedSearchAdapter
+                    cachedSearchAdapter = null
                     restoringFromCache = false
                     return
                 }
