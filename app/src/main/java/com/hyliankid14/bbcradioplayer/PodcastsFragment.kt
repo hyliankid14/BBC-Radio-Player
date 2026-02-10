@@ -174,6 +174,9 @@ class PodcastsFragment : Fragment() {
     private val podcastsBeingFetched: MutableSet<String> = mutableSetOf() // avoid duplicate fetches per-podcast
     // How many episode items are currently displayed by the adapter (used for search pagination)
     private var displayedEpisodeCount: Int = 0
+    // Cached full episode matches for fast restore pagination (to avoid UI hangs)
+    private var cachedEpisodeMatchesFull: List<Pair<Episode, Podcast>> = emptyList()
+    private var usingCachedEpisodePagination: Boolean = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -499,6 +502,8 @@ class PodcastsFragment : Fragment() {
             // Clear both the typed query and the active persisted search; clear cached search results
             searchJob?.cancel()
             restoringFromCache = false
+            usingCachedEpisodePagination = false
+            cachedEpisodeMatchesFull = emptyList()
             searchQuery = ""
             viewModel.clearActiveSearch()
             // Clear both in-memory and persisted search cache
@@ -729,6 +734,42 @@ class PodcastsFragment : Fragment() {
         // If we're showing search results, paginate episodes from the pending index queue
         val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
         if (rv?.adapter == searchAdapter) {
+            // If we restored from cache with a large episode list, paginate from the cached full list
+            if (usingCachedEpisodePagination && cachedEpisodeMatchesFull.isNotEmpty()) {
+                if (displayedEpisodeCount >= cachedEpisodeMatchesFull.size) return
+                isLoadingPage = true
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        val next = cachedEpisodeMatchesFull
+                            .subList(displayedEpisodeCount, cachedEpisodeMatchesFull.size)
+                            .take(EPISODE_PAGE_SIZE)
+                        if (next.isNotEmpty()) {
+                            resolvedEpisodeMatches.addAll(next)
+                            displayedEpisodeCount += next.size
+                            searchAdapter?.updateEpisodeMatches(resolvedEpisodeMatches)
+                            // Update in-memory cache only (avoid disk writes)
+                            val cached = viewModel.getCachedSearch()
+                            if (cached != null) {
+                                viewModel.setCachedSearch(
+                                    PodcastsViewModel.SearchCache(
+                                        cached.query,
+                                        cached.titleMatches,
+                                        cached.descMatches,
+                                        resolvedEpisodeMatches.toList(),
+                                        cached.isComplete
+                                    )
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("PodcastsFragment", "Error paginating cached episodes", e)
+                    } finally {
+                        isLoadingPage = false
+                    }
+                }
+                return
+            }
+
             if (displayedEpisodeCount >= resolvedEpisodeMatches.size && pendingIndexEpisodeIds.isEmpty()) return
             isLoadingPage = true
 
@@ -894,18 +935,30 @@ class PodcastsFragment : Fragment() {
                 // Restore adapter from cache - reuse existing instance if available, otherwise create new one
                 if (searchAdapter == null) {
                     val prebuilt = viewModel.cachedSearchItems
+                    // If cached episodes are large, show only an initial page to avoid UI hangs
+                    val fullEpisodes = cached.episodeMatches
+                    val initialEpisodes = if (fullEpisodes.size > INITIAL_EPISODE_DISPLAY_LIMIT) {
+                        usingCachedEpisodePagination = true
+                        cachedEpisodeMatchesFull = fullEpisodes
+                        fullEpisodes.take(INITIAL_EPISODE_DISPLAY_LIMIT)
+                    } else {
+                        usingCachedEpisodePagination = false
+                        cachedEpisodeMatchesFull = emptyList()
+                        fullEpisodes
+                    }
+                    resolvedEpisodeMatches = initialEpisodes.toMutableList()
+                    displayedEpisodeCount = resolvedEpisodeMatches.size
                     searchAdapter = SearchResultsAdapter(
                         context = requireContext(),
                         titleMatches = cached.titleMatches,
                         descMatches = cached.descMatches,
-                        episodeMatches = cached.episodeMatches,
+                        episodeMatches = resolvedEpisodeMatches,
                         onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                         onPlayEpisode = { ep -> playEpisode(ep) },
                         onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
                         prebuiltItems = prebuilt
                     )
-                    displayedEpisodeCount = cached.episodeMatches.size
-                    android.util.Log.d("PodcastsFragment", "onResume: created search adapter from cache (${cached.titleMatches.size}+${cached.descMatches.size}+${cached.episodeMatches.size} results)")
+                    android.util.Log.d("PodcastsFragment", "onResume: created search adapter from cache (${cached.titleMatches.size}+${cached.descMatches.size}+${resolvedEpisodeMatches.size} results, fullEpisodes=${fullEpisodes.size})")
                 }
                 
                 view?.findViewById<RecyclerView>(R.id.podcasts_recycler)?.let { cachedRv ->
@@ -1097,9 +1150,15 @@ class PodcastsFragment : Fragment() {
             val episodesMessage = view?.findViewById<TextView>(R.id.search_status_episodes_message)
             
             var spinnerShown = false
+            
+            // Get the query first to determine if we should show the large spinner
+            val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
+            searchQuery = q
+            
             // Delay showing the spinner slightly to avoid a flicker on very-fast searches
             // But only delay if we have podcasts to process - don't delay the empty case
-            val showSpinnerJob = if (allPodcasts.isNotEmpty()) {
+            // Don't show the large spinner when searching (q is not empty) because the Search Status card shows individual progress indicators
+            val showSpinnerJob = if (allPodcasts.isNotEmpty() && q.isEmpty()) {
                 launch {
                     kotlinx.coroutines.delay(120)
                     if (!isActive) return@launch
@@ -1110,9 +1169,7 @@ class PodcastsFragment : Fragment() {
                 null
             }
 
-            try {
-                val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
-                searchQuery = q
+            try
                 
                 android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters START: query='$q' allPodcasts.size=${allPodcasts.size} currentSort='$currentSort'")
                 
@@ -1497,6 +1554,11 @@ class PodcastsFragment : Fragment() {
                         onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
                     )
                     viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
+                    // Reset cached-restore pagination state for fresh searches
+                    usingCachedEpisodePagination = false
+                    cachedEpisodeMatchesFull = emptyList()
+                    resolvedEpisodeMatches = enrichedEpisodes.toMutableList()
+                    displayedEpisodeCount = resolvedEpisodeMatches.size
                     
                     val hasContent = podcastMatches.isNotEmpty() || enrichedEpisodes.isNotEmpty()
                     if (!hasContent && q.isNotEmpty()) {
