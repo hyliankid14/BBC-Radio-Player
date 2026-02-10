@@ -78,19 +78,14 @@
 
 
 
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/podcasts_scroll"
+    <LinearLayout
+        android:id="@+id/podcasts_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="?attr/actionBarSize"
-        android:fillViewport="true"
-        android:background="?attr/colorSurfaceContainer">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingTop="8dp">
+        android:background="?attr/colorSurfaceContainer"
+        android:orientation="vertical"
+        android:paddingTop="8dp">
 
             <!-- Filters container (hidden by default; toggled by the filter button) -->
             <LinearLayout
@@ -309,16 +304,15 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Podcasts RecyclerView (participates in the NestedScrollView) -->
+            <!-- Podcasts RecyclerView (primary scroller) -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/podcasts_recycler"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:scrollbars="vertical"
                 android:background="?attr/colorSurface" />
-            </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+    </LinearLayout>
 
     <!-- Loading Indicator (overlays center) -->
     <ProgressBar

@@ -543,31 +543,32 @@ class PodcastsFragment : Fragment() {
             filtersContainer.visibility = if (filtersContainer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
 
-        // Previously we hid filters on scroll which caused flicker. Let the filters scroll with content inside the NestedScrollView.
         // Show a FAB when the user scrolls and implement lazy loading when the user nears the end of the list.
-
-        // Scroll handling for nested scroll / pagination
-        val nestedScroll: androidx.core.widget.NestedScrollView = view.findViewById(R.id.podcasts_scroll)
+        // Scroll handling for RecyclerView / pagination
         val fab: com.google.android.material.floatingactionbutton.FloatingActionButton? = view.findViewById(R.id.scroll_to_top_fab)
+        val recyclerViewForScroll: RecyclerView = view.findViewById(R.id.podcasts_recycler)
 
         // Prevent navbar from resizing when keyboard opens while in this fragment
         val previousSoftInputMode = requireActivity().window.attributes.softInputMode
         requireActivity().window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
-        nestedScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            // Show/hide FAB after some scrolling so it's unobtrusive initially
-            val dp200 = (200 * resources.displayMetrics.density).toInt()
-            if (scrollY > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
+        recyclerViewForScroll.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                // Show/hide FAB after some scrolling so it's unobtrusive initially
+                val dp200 = (200 * resources.displayMetrics.density).toInt()
+                val offset = recyclerView.computeVerticalScrollOffset()
+                if (offset > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
 
-            // Trigger loading of next page when near the bottom
-            val child = nestedScroll.getChildAt(0)
-            if (child != null) {
-                val diff = child.measuredHeight - (nestedScroll.height + nestedScroll.scrollY)
-                if (diff <= 300 && !isLoadingPage) {
+                // Trigger loading of next page when near the bottom
+                val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
+                val total = layoutManager.itemCount
+                val lastVisible = layoutManager.findLastVisibleItemPosition()
+                if (total > 0 && lastVisible >= total - 5 && !isLoadingPage) {
                     loadNextPage()
                 }
             }
-        }
+        })
         // Restore previous mode when view is destroyed
         viewLifecycleOwner.lifecycle.addObserver(object : androidx.lifecycle.LifecycleEventObserver {
             override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: androidx.lifecycle.Lifecycle.Event) {
@@ -582,7 +583,7 @@ class PodcastsFragment : Fragment() {
             }
         })
 
-        fab?.setOnClickListener { nestedScroll.smoothScrollTo(0, 0) }
+        fab?.setOnClickListener { recyclerViewForScroll.smoothScrollToPosition(0) }
 
         // Fast restore: if we already have cached data in the ViewModel, reuse it to avoid UI flicker
         if (viewModel.cachedPodcasts.isNotEmpty()) {
