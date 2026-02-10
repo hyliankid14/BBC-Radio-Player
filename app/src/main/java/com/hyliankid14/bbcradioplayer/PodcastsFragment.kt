@@ -122,6 +122,27 @@ class PodcastsFragment : Fragment() {
         }
     }
 
+    private fun rebuildFilterSpinners(emptyState: TextView, recyclerView: RecyclerView) {
+        val view = view ?: return
+        val genreSpinner = view.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.genre_filter_spinner)
+        val sortSpinner = view.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.sort_spinner)
+        val genres = if (allPodcasts.isNotEmpty()) {
+            listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
+        } else if (viewModel.cachedGenres.isNotEmpty()) {
+            viewModel.cachedGenres
+        } else {
+            listOf("All Genres")
+        }
+        viewModel.cachedGenres = genres
+        suppressSearchWatcher = true
+        try {
+            bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
+            bindSortSpinner(sortSpinner, emptyState, recyclerView)
+        } finally {
+            suppressSearchWatcher = false
+        }
+    }
+
     private fun showResultsSafely(
         recyclerView: RecyclerView,
         adapter: RecyclerView.Adapter<*>?,
@@ -1533,6 +1554,7 @@ class PodcastsFragment : Fragment() {
                         viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
                     }
                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = true, emptyState)
+                    rebuildFilterSpinners(emptyState, recyclerView)
                 }
 
                 // Persist the quick (podcast-only) results so we can restore instantly on back navigation.
@@ -1794,6 +1816,7 @@ class PodcastsFragment : Fragment() {
                     }
                     
                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = hasContent, emptyState)
+                    rebuildFilterSpinners(emptyState, recyclerView)
 
                     // Persist the completed results (including episodes) so returning from an episode view is instant.
                     persistCachedSearch(
