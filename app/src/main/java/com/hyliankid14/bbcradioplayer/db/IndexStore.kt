@@ -38,13 +38,13 @@ class IndexStore private constructor(private val context: Context) {
             val tokens = q.split(Regex("\\s+"))
             if (tokens.size == 1) return "${tokens[0]}*"
 
-            // Construct an exact quoted phrase match (best-case), a NEAR/3 proximity fallback,
-            // and finally a prefix-AND fallback to maximize recall for phrase-like queries.
+            // Construct proximity-based search (NEAR/10) first for looser matching,
+            // then exact phrase match, and finally a prefix-AND fallback.
             val phrase = '"' + tokens.joinToString(" ") + '"'
-            val near = tokens.joinToString(" NEAR/3 ") { it }
+            val near = tokens.joinToString(" NEAR/10 ") { it }
             val tokenAnd = tokens.joinToString(" AND ") { "${it}*" }
             // Parenthesize each clause to ensure correct operator precedence in MATCH expressions
-            return "($phrase) OR ($near) OR ($tokenAnd)"
+            return "($near) OR ($phrase) OR ($tokenAnd)"
         }
     }
 
@@ -195,19 +195,19 @@ class IndexStore private constructor(private val context: Context) {
         }
 
         val phrase = '"' + tokens.joinToString(" ") + '"'
-        val near = tokens.joinToString(" NEAR/3 ") { it }
+        val near = tokens.joinToString(" NEAR/10 ") { it }
         // bigram phrase variants: "t1 t2" OR "t2 t3" ... (helps match adjacent-word queries)
         val bigramList = tokens.windowed(2).map { '"' + it.joinToString(" ") + '"' }
         val bigramClause = if (bigramList.isNotEmpty()) bigramList.joinToString(" OR ") else ""
         val tokenAnd = tokens.joinToString(" AND ") { "${it}*" }
 
         val variants = mutableListOf<String>()
+        // NEAR proximity first for looser matching (finds words within 10 positions)
+        variants.add("($near)")
         // Exact phrase across all fields
         variants.add("($phrase)")
         // Phrase in title or description specifically
         variants.add("(title:$phrase) OR (description:$phrase)")
-        // NEAR proximity (looser but adjacency-preserving)
-        variants.add("($near)")
         // Bigram adjacency fallback (helps where only partial phrase exists)
         if (bigramClause.isNotBlank()) variants.add("($bigramClause)")
         // Prefix-AND fallback
@@ -221,8 +221,8 @@ class IndexStore private constructor(private val context: Context) {
         val db = helper.readableDatabase
 
         // Try prioritized MATCH variants and return first non-empty result set
-        // Limit to first 2 variants to avoid slow searches
-        val variants = buildFtsVariants(query).take(2)
+        // Limit to first 3 variants to include proximity, exact phrase, and field-specific searches
+        val variants = buildFtsVariants(query).take(3)
         for (v in variants) {
             try {
                 Log.d("IndexStore", "FTS episode try: variant='$v' originalQuery='$query' limit=$limit")

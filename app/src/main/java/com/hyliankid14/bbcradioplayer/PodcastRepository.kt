@@ -47,10 +47,26 @@ class PodcastRepository(private val context: Context) {
         // Exact phrase contains
         if (textNorm.contains(queryNorm)) return true
 
-        // Token-AND: ensure all tokens from the query are present somewhere in the text
+        // Token proximity: ensure all tokens from the query are present in reasonable proximity
         val tokens = queryNorm.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (tokens.size <= 1) return false
-        return tokens.all { textNorm.contains(it) }
+        
+        // First check if all tokens exist at all
+        if (!tokens.all { textNorm.contains(it) }) return false
+        
+        // For 2-token queries, check if they appear within 50 words of each other
+        // For 3+ token queries, use simpler all-tokens-present check
+        if (tokens.size == 2) {
+            val words = textNorm.split(Regex("\\s+"))
+            val idx0 = words.indexOfFirst { it.contains(tokens[0]) }
+            val idx1 = words.indexOfFirst { it.contains(tokens[1]) }
+            if (idx0 >= 0 && idx1 >= 0) {
+                return kotlin.math.abs(idx0 - idx1) <= 50
+            }
+            return false
+        }
+        
+        return true
     }
 
     // Public helper so other classes can check normalized phrase/token-AND matches using repository logic

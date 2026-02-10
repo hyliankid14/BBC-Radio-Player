@@ -2199,87 +2199,65 @@ class MainActivity : AppCompatActivity() {
 
         indexNowBtn.setOnClickListener {
             try {
-                indexStatus.text = "Starting index..."
-                // Start at zero and allow worker emitted percents to drive the bar so it moves
-                // monotonically from left->right rather than performing an indeterminate pan.
-                indexEpisodesProgress.isIndeterminate = false
+                indexStatus.text = "Starting background indexing..."
+                indexEpisodesProgress.isIndeterminate = true
+                indexEpisodesProgress.visibility = android.view.View.VISIBLE
                 indexEpisodesProgress.progress = 0
-                lifecycleScope.launch {
-                    com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexAll(this@MainActivity) { status, percent, isEpisodePhase ->
-                        runOnUiThread {
-                            // If the status contains a podcast name (emitted by the indexer),
-                            // display a stable "Indexing: <podcast>" message so the user sees
-                            // which podcast is being processed without flicker between
-                            // "Fetching" and "Indexing".
-                            val podcastForMatch = Regex("""(?:Indexing|Fetching|Indexed) (?:episodes )?for:\s*(.+)""", RegexOption.IGNORE_CASE).find(status)
-                            val displayStatus = podcastForMatch?.groups?.get(1)?.value?.let { "Indexing: ${it.trim()}" }
-                                ?: when {
-                                    // Prefer an explicit completion message when percent==100 or a
-                                    // completion-status string is received.
-                                    percent == 100 || status.contains("Index complete", ignoreCase = true) || status.contains("Index finished", ignoreCase = true) -> "Indexing complete"
-                                    status.contains("Index", ignoreCase = true) || isEpisodePhase || status.contains("Fetch", ignoreCase = true) -> "Indexing..."
-                                    else -> status
-                                }
-                            indexStatus.text = displayStatus
-
-                            // Only use the episode-specific progress bar (under the status text)
-                            // Log every incoming progress update so we can diagnose stray emitters.
-                            if (isEpisodePhase) {
-                                Log.d("MainActivity", "Index progress update: status='${'$'}status' percent=${'$'}percent isEpisodePhase=${'$'}isEpisodePhase lastSeen=${'$'}lastSeenIndexPercent")
-                                indexEpisodesProgress.visibility = android.view.View.VISIBLE
-
-                                // Indeterminate while a podcast is being processed
-                                if (percent < 0) {
+                
+                // Enqueue background indexing work
+                com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.enqueueIndexing(
+                    this@MainActivity,
+                    fullReindex = true
+                )
+                
+                // Observe the work status
+                androidx.work.WorkManager.getInstance(this@MainActivity)
+                    .getWorkInfosByTagLiveData(com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.WORK_NAME)
+                    .observe(this@MainActivity) { workInfoList ->
+                        workInfoList?.firstOrNull()?.let { workInfo ->
+                            when (workInfo.state) {
+                                androidx.work.WorkInfo.State.RUNNING -> {
+                                    indexStatus.text = "Indexing in background..."
+                                    indexEpisodesProgress.visibility = android.view.View.VISIBLE
                                     indexEpisodesProgress.isIndeterminate = true
-                                } else {
-                                    // Defensive monotonicity: ignore any percent that would move the
-                                    // bar backwards (this prevents UI jitter if another component
-                                    // emits intermediate episode-level percents).
-                                    val target = percent.coerceIn(0, 100)
-                                    if (target != 100 && target <= lastSeenIndexPercent) {
-                                        Log.d("MainActivity", "Ignoring non-monotonic index percent: ${'$'}target <= ${'$'}lastSeenIndexPercent")
-                                        // Keep indeterminate if we're between podcasts
-                                        indexEpisodesProgress.isIndeterminate = false
-                                        indexEpisodesProgress.progress = lastSeenIndexPercent
-                                        return@runOnUiThread
-                                    }
-
-                                    indexEpisodesProgress.isIndeterminate = false
-                                    indexEpisodesProgress.max = 100
-                                    val current = indexEpisodesProgress.progress
-                                    if (target > current) {
-                                        android.animation.ObjectAnimator.ofInt(indexEpisodesProgress, "progress", current, target).apply {
-                                            duration = 450
-                                            interpolator = android.view.animation.DecelerateInterpolator()
-                                        }.start()
-                                        lastSeenIndexPercent = target
-                                    } else {
-                                        // Never animate backwards — keep current value
-                                        indexEpisodesProgress.progress = current
-                                    }
                                 }
-                            } else {
-                                indexEpisodesProgress.visibility = android.view.View.GONE
-                                indexEpisodesProgress.isIndeterminate = false
-                                indexEpisodesProgress.progress = 0
-                                lastSeenIndexPercent = 0
-                            }
-
-                            // When index completes, update the last rebuilt timestamp immediately
-                            if (percent == 100 || status.startsWith("Index complete")) {
-                                val now = System.currentTimeMillis()
-                                updateLastRebuilt(now)
+                                androidx.work.WorkInfo.State.SUCCEEDED -> {
+                                    indexStatus.text = "Indexing complete"
+                                    indexEpisodesProgress.visibility = android.view.View.GONE
+                                    indexEpisodesProgress.isIndeterminate = false
+                                    val now = System.currentTimeMillis()
+                                    updateLastRebuilt(now)
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "Podcast indexing completed successfully",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                androidx.work.WorkInfo.State.FAILED -> {
+                                    indexStatus.text = "Indexing failed"
+                                    indexEpisodesProgress.visibility = android.view.View.GONE
+                                    indexEpisodesProgress.isIndeterminate = false
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "Podcast indexing failed",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                else -> {
+                                    // ENQUEUED, BLOCKED, CANCELLED
+                                    indexStatus.text = "Indexing queued..."
+                                    indexEpisodesProgress.isIndeterminate = true
+                                }
                             }
                         }
                     }
-                    indexStatus.text = "Indexing complete"
-                    // Ensure episode bar hidden once done
-                    indexEpisodesProgress.visibility = android.view.View.GONE
-                    // Mark final progress observed
-                    lastSeenIndexPercent = 100
-                    // Also refresh persisted value (in case it was updated by the worker)
-                    updateLastRebuilt(com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this@MainActivity).getLastReindexTime())
-                }
+                
+                android.widget.Toast.makeText(
+                    this@MainActivity,
+                    "Indexing started in background - you can continue using the app or close it",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                
             } catch (e: Exception) {
                 indexStatus.text = "Failed to schedule indexing: ${e.message}"
                 android.util.Log.w("MainActivity", "Failed to start indexing: ${e.message}")

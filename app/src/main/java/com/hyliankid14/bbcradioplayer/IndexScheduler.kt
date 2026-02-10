@@ -1,37 +1,29 @@
 package com.hyliankid14.bbcradioplayer
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.os.SystemClock
 
+/**
+ * Scheduler for periodic podcast indexing using WorkManager.
+ * This ensures indexing can run in the background even when the app is closed.
+ */
 object IndexScheduler {
-    private const val ACTION = "com.hyliankid14.bbcradioplayer.ACTION_PERFORM_INDEX"
-    private const val REQUEST_CODE = 0xF1
-
+    
     fun scheduleIndexing(context: Context) {
         val days = IndexPreference.getIntervalDays(context)
-        if (days <= 0) return cancel(context)
-
-        val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pi = PendingIntent.getBroadcast(context, REQUEST_CODE, Intent(ACTION).setPackage(context.packageName), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-
-        val intervalMs = days.toLong() * 24L * 60L * 60L * 1000L
-        val triggerAt = System.currentTimeMillis() + intervalMs
-
-        try {
-            // Use setInexactRepeating so the system can batch alarms
-            alarm.setInexactRepeating(AlarmManager.RTC_WAKEUP, triggerAt, intervalMs, pi)
-        } catch (e: Exception) {
-            // Fallback to elapsed realtime version
-            alarm.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + intervalMs, intervalMs, pi)
+        if (days <= 0) {
+            cancel(context)
+            return
         }
+
+        // Use WorkManager for reliable background scheduling
+        com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.schedulePeriodicIndexing(
+            context,
+            days
+        )
     }
 
     fun cancel(context: Context) {
-        val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pi = PendingIntent.getBroadcast(context, REQUEST_CODE, Intent(ACTION).setPackage(context.packageName), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        try { alarm.cancel(pi) } catch (_: Exception) {}
+        com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.cancelPeriodicIndexing(context)
     }
 }
+
