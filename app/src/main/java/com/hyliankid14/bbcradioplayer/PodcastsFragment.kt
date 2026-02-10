@@ -559,6 +559,7 @@ class PodcastsFragment : Fragment() {
             private var filterScrollOffset = 0
             private val hideThreshold = (50 * resources.displayMetrics.density).toInt() // Distance to scroll down before hiding
             private val showThreshold = (50 * resources.displayMetrics.density).toInt() // Distance to scroll up before showing
+            private var hasScrolledDown = false
             
             // We track a value between 0 (Show) and hideThreshold (Hide)
             // When hidden, we track from hideThreshold down to hideThreshold - showThreshold? 
@@ -580,6 +581,10 @@ class PodcastsFragment : Fragment() {
                 // If Visible: We need to accumulate positive Y (down scroll) > hideThreshold to switch
                 // If Hidden: We need to accumulate negative Y (up scroll) < -showThreshold to switch
                 
+                if (scrollOffset > 0) {
+                    hasScrolledDown = true
+                }
+
                 if (filtersVisible) {
                     // While visible, we only care about scrolling DOWN to hide.
                     // Scrolling UP just clamps to 0 (cannot be more visible).
@@ -625,8 +630,8 @@ class PodcastsFragment : Fragment() {
                             .start()
                     }
                 } else {
-                    // While hidden, only show when we reach the top of the list
-                    if (scrollOffset == 0 && !isAnimating) {
+                    // While hidden, only show when we reach the top of the list via user scroll-up
+                    if (hasScrolledDown && scrollOffset == 0 && dy < 0 && !isAnimating) {
                         // Trigger Show
                         isAnimating = true
                         filtersVisible = true
@@ -664,6 +669,7 @@ class PodcastsFragment : Fragment() {
                             .withEndAction { 
                                 isAnimating = false
                                 accumulatedY = 0
+                                hasScrolledDown = false
                             }
                             .start()
                     }
