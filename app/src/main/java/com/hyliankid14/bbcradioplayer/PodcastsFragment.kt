@@ -909,6 +909,30 @@ class PodcastsFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         android.util.Log.d("PodcastsFragment", "onResume: activeSearchQuery='${viewModel.activeSearchQuery.value}' searchQuery='${searchQuery}' allPodcasts.size=${allPodcasts.size}")
+        
+        // Super fast-path: if we have a cached adapter from before view destruction, restore it immediately
+        val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+        if (cachedSearchAdapter != null && rv != null) {
+            val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value)
+            val cached = viewModel.getCachedSearch()
+            if (activeNorm.isNotEmpty() && cached != null && normalizeQuery(cached.query) == activeNorm) {
+                android.util.Log.d("PodcastsFragment", "onResume: restoring cached search adapter instance (instant)")
+                // Post to next frame to avoid blocking
+                rv.post {
+                    rv.adapter = cachedSearchAdapter
+                    searchAdapter = cachedSearchAdapter
+                    cachedSearchAdapter = null
+                    rv.visibility = View.VISIBLE
+                    view?.findViewById<TextView>(R.id.empty_state_text)?.visibility = View.GONE
+                }
+                restoringFromCache = false
+                return
+            } else {
+                // Query changed, clear the cached adapter
+                cachedSearchAdapter = null
+            }
+        }
+        
         if (viewModel.activeSearchQuery.value.isNullOrBlank()) {
             restoringFromCache = false
         }
@@ -956,17 +980,7 @@ class PodcastsFragment : Fragment() {
                     return
                 }
                 
-                // Super fast-path: if we have the adapter instance cached from before view destruction, reuse it
-                if (cachedSearchAdapter != null) {
-                    android.util.Log.d("PodcastsFragment", "onResume: restoring cached search adapter instance (instant)")
-                    rv?.adapter = cachedSearchAdapter
-                    searchAdapter = cachedSearchAdapter
-                    cachedSearchAdapter = null
-                    restoringFromCache = false
-                    return
-                }
-                
-                // Restore adapter from cache - reuse existing instance if available, otherwise create new one
+                // Restore adapter from cache - create new one
                 if (searchAdapter == null) {
                     val prebuilt = viewModel.cachedSearchItems
                     // If cached episodes are large, show only an initial page to avoid UI hangs
