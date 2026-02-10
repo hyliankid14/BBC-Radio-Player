@@ -566,11 +566,8 @@ class PodcastsFragment : Fragment() {
             currentFilter = viewModel.cachedFilter
             currentSort = viewModel.cachedSort
 
-            val genres = if (viewModel.cachedGenres.isNotEmpty()) {
-                viewModel.cachedGenres
-            } else {
-                listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
-            }
+            // Always rebuild genres from the cached podcasts so the spinner stays populated
+            val genres = listOf("All Genres") + repository.getUniqueGenres(allPodcasts)
             viewModel.cachedGenres = genres
 
             // Check if we have a cached search that onResume will restore
@@ -931,13 +928,9 @@ class PodcastsFragment : Fragment() {
                     val emptyState = view?.findViewById<TextView>(R.id.empty_state_text)
                     val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
                     if (genreSpinner != null && sortSpinner != null && emptyState != null && rv != null) {
-                        val genres = if (viewModel.cachedGenres.isNotEmpty()) {
-                            viewModel.cachedGenres
-                        } else {
-                            val pods = if (allPodcasts.isNotEmpty()) allPodcasts
-                            else (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
-                            listOf("All Genres") + repository.getUniqueGenres(pods)
-                        }
+                        val pods = if (allPodcasts.isNotEmpty()) allPodcasts
+                        else (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
+                        val genres = listOf("All Genres") + repository.getUniqueGenres(pods)
                         viewModel.cachedGenres = genres
                         suppressSearchWatcher = true
                         try {
@@ -950,6 +943,7 @@ class PodcastsFragment : Fragment() {
                 } catch (_: Exception) { }
 
                 android.util.Log.d("PodcastsFragment", "onResume: restored cached search instantly")
+                // Now that the cached adapter is visible, allow user-driven searches/filters again
                 restoringFromCache = false
                 return
             }
@@ -1074,6 +1068,12 @@ class PodcastsFragment : Fragment() {
     // 3. Update UI with status indicators showing progress
     private fun simplifiedApplyFilters(emptyState: TextView, recyclerView: RecyclerView) {
         android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters called - BEFORE coroutine launch")
+        // Hard-stop if we're restoring cached results to avoid reloading the search
+        val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)
+        if (restoringFromCache && activeNorm.isNotEmpty()) {
+            android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: skipping due to cache restore for '$activeNorm'")
+            return
+        }
         // Ensure only one search runs at a time
         searchJob?.cancel()
         android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: About to launch coroutine in viewLifecycleOwner.lifecycleScope")
