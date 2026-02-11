@@ -1,6 +1,7 @@
 package com.hyliankid14.bbcradioplayer
 
 import android.content.Context
+import androidx.work.ExistingPeriodicWorkPolicy
 
 /**
  * Scheduler for periodic podcast indexing using WorkManager.
@@ -12,14 +13,25 @@ object IndexScheduler {
         val days = IndexPreference.getIntervalDays(context)
         if (days <= 0) {
             cancel(context)
+            IndexPreference.setLastScheduledDays(context, 0)
             return
+        }
+
+        val lastScheduled = IndexPreference.getLastScheduledDays(context)
+        val policy = if (lastScheduled != days) {
+            ExistingPeriodicWorkPolicy.REPLACE
+        } else {
+            ExistingPeriodicWorkPolicy.KEEP
         }
 
         // Use WorkManager for reliable background scheduling
         com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.schedulePeriodicIndexing(
             context,
-            days
+            days,
+            policy
         )
+
+        IndexPreference.setLastScheduledDays(context, days)
     }
 
     fun cancel(context: Context) {

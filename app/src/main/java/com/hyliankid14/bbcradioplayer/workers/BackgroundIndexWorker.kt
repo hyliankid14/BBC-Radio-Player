@@ -64,7 +64,11 @@ class BackgroundIndexWorker(
         /**
          * Schedule periodic indexing in the background
          */
-        fun schedulePeriodicIndexing(context: Context, intervalDays: Int) {
+        fun schedulePeriodicIndexing(
+            context: Context,
+            intervalDays: Int,
+            policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP
+        ) {
             if (intervalDays <= 0) {
                 cancelPeriodicIndexing(context)
                 return
@@ -76,6 +80,7 @@ class BackgroundIndexWorker(
                 java.util.concurrent.TimeUnit.DAYS
             )
                 .setInputData(inputData)
+                .setInitialDelay(intervalDays.toLong(), java.util.concurrent.TimeUnit.DAYS)
                 .setConstraints(
                     Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -87,7 +92,7 @@ class BackgroundIndexWorker(
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME_SCHEDULED,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                policy,
                 workRequest
             )
 
@@ -179,7 +184,7 @@ class BackgroundIndexWorker(
         val notification = NotificationCompat.Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Indexing Podcasts")
             .setContentText(status)
-            .setSmallIcon(R.drawable.ic_circle_outline)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .apply {
                 if (percent >= 0) {
