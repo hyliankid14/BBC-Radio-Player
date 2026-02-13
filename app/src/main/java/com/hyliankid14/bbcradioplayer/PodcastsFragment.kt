@@ -551,6 +551,7 @@ class PodcastsFragment : Fragment() {
             lastDisplaySnapshot = null
             lastActiveQueryNorm = ""
             currentFilter = PodcastFilter()
+            currentSort = "Most popular"
             // Set exposed dropdowns back to 'All Genres' / default label
             genreSpinner.setText("All Genres", false)
             sortSpinner.setText("Most popular", false)
