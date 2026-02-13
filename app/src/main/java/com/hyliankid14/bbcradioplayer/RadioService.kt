@@ -41,7 +41,6 @@ class RadioService : MediaBrowserServiceCompat() {
     private var player: ExoPlayer? = null
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private var audioFocusRequest: AudioFocusRequest? = null
-    private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
     private var currentStationTitle: String = ""
     private var currentStationId: String = ""
     private var currentPodcastId: String? = null
@@ -909,19 +908,31 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     private fun requestAudioFocus() {
-        // Create audio focus change listener to stop playback when losing focus to other apps
-        audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        val focusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
             when (focusChange) {
-                AudioManager.AUDIOFOCUS_LOSS, 
-                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                    Log.d(TAG, "Audio focus lost (focusChange=$focusChange) — stopping playback")
+                AudioManager.AUDIOFOCUS_LOSS -> {
+                    // Permanent loss - another app has taken audio focus permanently
+                    Log.d(TAG, "Audio focus permanently lost — stopping playback")
                     if (PlaybackStateHelper.getIsPlaying()) {
                         stopPlayback()
                     }
                 }
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                    // Temporary loss - just pause, don't stop
+                    Log.d(TAG, "Audio focus temporarily lost — pausing")
+                    player?.pause()
+                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
+                    PlaybackStateHelper.setIsPlaying(false)
+                }
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                    // Lower volume temporarily
+                    Log.d(TAG, "Audio focus lost (can duck) — lowering volume")
+                    player?.volume = 0.3f
+                }
                 AudioManager.AUDIOFOCUS_GAIN -> {
-                    Log.d(TAG, "Audio focus gained")
-                    // Optionally resume playback here if desired
+                    // Regained focus - restore volume
+                    Log.d(TAG, "Audio focus regained — restoring volume")
+                    player?.volume = 1.0f
                 }
             }
         }
@@ -934,12 +945,12 @@ class RadioService : MediaBrowserServiceCompat() {
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(audioAttributes)
                 .setAcceptsDelayedFocusGain(false)
-                .setOnAudioFocusChangeListener(audioFocusChangeListener!!)
+                .setOnAudioFocusChangeListener(focusChangeListener)
                 .build()
             audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
         } else {
             @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+            audioManager.requestAudioFocus(focusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
     }
 
@@ -2529,9 +2540,6 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         // Abandon audio focus when service is destroyed
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(audioFocusChangeListener)
         }
         
         super.onDestroy()
