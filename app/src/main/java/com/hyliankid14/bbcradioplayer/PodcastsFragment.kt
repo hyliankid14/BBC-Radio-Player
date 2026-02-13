@@ -565,150 +565,39 @@ class PodcastsFragment : Fragment() {
         }
 
         // Show a FAB when the user scrolls and implement lazy loading when the user nears the end of the list.
-        // Scroll handling for RecyclerView / pagination
         val fab: com.google.android.material.floatingactionbutton.FloatingActionButton? = view.findViewById(R.id.scroll_to_top_fab)
-        val statusCard: View? = view.findViewById(R.id.search_status_card)
+        val scrollView: androidx.core.widget.NestedScrollView = view.findViewById(R.id.podcasts_scroll_view)
         val recyclerViewForScroll: RecyclerView = view.findViewById(R.id.podcasts_recycler)
+
+        // Disable nested scrolling on RecyclerView so it works within NestedScrollView
+        recyclerViewForScroll.isNestedScrollingEnabled = false
 
         // Prevent navbar from resizing when keyboard opens while in this fragment
         val previousSoftInputMode = requireActivity().window.attributes.softInputMode
         requireActivity().window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
-        recyclerViewForScroll.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            private var filtersVisible = true
-            private var isAnimating = false
-            private var filterScrollOffset = 0
-            private val hideThreshold = (50 * resources.displayMetrics.density).toInt() // Distance to scroll down before hiding
-            private val showThreshold = (50 * resources.displayMetrics.density).toInt() // Distance to scroll up before showing
-            private var hasScrolledDown = false
-            
-            // We track a value between 0 (Show) and hideThreshold (Hide)
-            // When hidden, we track from hideThreshold down to hideThreshold - showThreshold? 
-            // Better to just have a single accumulated delta that is clamped.
-            
-            private var accumulatedY = 0
-            
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-                val scrollOffset = recyclerView.computeVerticalScrollOffset()
-                
-                // Don't process scroll events while animating to avoid retriggering animations
-                if (isAnimating) return
-                
-                // Add to accumulator
-                accumulatedY += dy
-                
-                // State Logic: Hysteresis
-                // If Visible: We need to accumulate positive Y (down scroll) > hideThreshold to switch
-                // If Hidden: We need to accumulate negative Y (up scroll) < -showThreshold to switch
-                
-                if (scrollOffset > 0) {
-                    hasScrolledDown = true
-                }
+        // Simple scroll listener for FAB visibility and pagination
+        scrollView.setOnScrollChangeListener { v, _, scrollY, _, _ ->
+            // Show/hide FAB based on scroll position
+            val dp200 = (200 * resources.displayMetrics.density).toInt()
+            if (scrollY > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
 
-                if (filtersVisible) {
-                    // While visible, we only care about scrolling DOWN to hide.
-                    // Scrolling UP just clamps to 0 (cannot be more visible).
-                    if (accumulatedY < 0) accumulatedY = 0
-                    
-                    if (accumulatedY > hideThreshold && !isAnimating) {
-                        // Trigger Hide
-                        isAnimating = true
-                        filtersVisible = false
-                        
-                        val height = filtersContainer.height.toFloat()
-                        
-                        // Animate filters up and out
-                        filtersContainer.animate()
-                            .translationY(-height)
-                            .alpha(0f)
-                            .setDuration(200)
-                            .start()
-                        
-                        // Animate status card up to follow (only if currently visible)
-                        if (statusCard?.visibility == View.VISIBLE) {
-                            statusCard.animate()
-                                ?.translationY(-height)
-                                ?.setDuration(200)
-                                ?.start()
-                        }
-                            
-                        // Animate recycler up to follow
-                        recyclerView.animate()
-                            .translationY(-height)
-                            .setDuration(200)
-                            .withEndAction {
-                                // Apply layout change
-                                filtersContainer.visibility = View.GONE
-                                filtersContainer.translationY = 0f
-                                statusCard?.translationY = 0f
-                                // Reset recycler translation as it now naturally occupies the space
-                                recyclerView.translationY = 0f
-                                
-                                isAnimating = false
-                                accumulatedY = 0
-                            }
-                            .start()
+            // Trigger loading of next page when near the bottom
+            val child = scrollView.getChildAt(0)
+            if (child != null) {
+                val diff = child.measuredHeight - (scrollView.height + scrollY)
+                // Load next page when within ~600px of bottom
+                if (diff <= 600 && !isLoadingPage) {
+                    val layoutManager = recyclerViewForScroll.layoutManager as? LinearLayoutManager ?: return@setOnScrollChangeListener
+                    val total = layoutManager.itemCount
+                    // Only load if we have items and haven't reached the end
+                    if (total > 0) {
+                        loadNextPage()
                     }
-                } else {
-                    // While hidden, only show when we reach the top of the list via user scroll-up
-                    if (hasScrolledDown && scrollOffset == 0 && dy < 0 && !isAnimating) {
-                        // Trigger Show
-                        isAnimating = true
-                        filtersVisible = true
-                        
-                        val height = filtersContainer.height.toFloat()
-                        // Set visibility first to allocate layout space
-                        filtersContainer.visibility = View.VISIBLE
-                        // Immediately offset visuals to counter the layout shift
-                        filtersContainer.translationY = -height
-                        filtersContainer.alpha = 0f
-                        // Only offset status card if it's visible
-                        if (statusCard?.visibility == View.VISIBLE) {
-                            statusCard.translationY = -height
-                        }
-                        // Also offset recycler so it visually stays put (then slides down)
-                        recyclerView.translationY = -height
-                        
-                        // Animate both back to 0 (natural position)
-                        filtersContainer.animate()
-                            .translationY(0f)
-                            .alpha(1f)
-                            .setDuration(200)
-                            .start()
-                            
-                        if (statusCard?.visibility == View.VISIBLE) {
-                            statusCard.animate()
-                                ?.translationY(0f)
-                                ?.setDuration(200)
-                                ?.start()
-                        }
-                            
-                        recyclerView.animate()
-                            .translationY(0f)
-                            .setDuration(200)
-                            .withEndAction { 
-                                isAnimating = false
-                                accumulatedY = 0
-                                hasScrolledDown = false
-                            }
-                            .start()
-                    }
-                }
-                
-                // Show/hide FAB after some scrolling so it's unobtrusive initially
-                val dp200 = (200 * resources.displayMetrics.density).toInt()
-                if (scrollOffset > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
-
-                // Trigger loading of next page when near the bottom
-                val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return
-                val total = layoutManager.itemCount
-                val lastVisible = layoutManager.findLastVisibleItemPosition()
-                if (total > 0 && lastVisible >= total - 5 && !isLoadingPage) {
-                    loadNextPage()
                 }
             }
-        })
+        }
+
         // Restore previous mode when view is destroyed
         viewLifecycleOwner.lifecycle.addObserver(object : androidx.lifecycle.LifecycleEventObserver {
             override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: androidx.lifecycle.Lifecycle.Event) {
@@ -723,7 +612,8 @@ class PodcastsFragment : Fragment() {
             }
         })
 
-        fab?.setOnClickListener { recyclerViewForScroll.smoothScrollToPosition(0) }
+        // FAB scrolls to top quickly (instant scroll)
+        fab?.setOnClickListener { scrollView.scrollTo(0, 0) }
 
         // Fast restore: if we already have cached data in the ViewModel, reuse it to avoid UI flicker
         if (viewModel.cachedPodcasts.isNotEmpty()) {

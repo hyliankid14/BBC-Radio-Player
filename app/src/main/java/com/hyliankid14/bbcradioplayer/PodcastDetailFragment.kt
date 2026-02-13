@@ -201,7 +201,7 @@ class PodcastDetailFragment : Fragment() {
             val showThresholdPx = (48 * resources.displayMetrics.density).toInt()
             fab.setOnClickListener {
                 val scrollView = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.podcast_detail_scroll)
-                scrollView.smoothScrollTo(0, 0)
+                scrollView.scrollTo(0, 0)  // Instant scroll to top
             }
 
             // Implement lazy-loading (paged) fetch for episodes

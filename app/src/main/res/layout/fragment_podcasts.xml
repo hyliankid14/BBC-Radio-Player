@@ -4,88 +4,102 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Search App Bar (Material 3 style) - pinned at the top of the fragment -->
+    <!-- Simple title bar that floats above the scrollable content -->
     <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/podcasts_search_bar"
+        android:id="@+id/podcasts_title_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorSurfaceContainer"
         android:fitsSystemWindows="true"
-        app:contentInsetStartWithNavigation="0dp"
-        android:elevation="2dp">
+        app:title="Podcasts"
+        app:titleTextColor="?attr/colorOnSurface"
+        android:elevation="2dp" />
 
-        <!-- Use a custom end-icon so visibility can be controlled independently of focus/IME -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/search_podcast_text_input"
-            style="@style/Widget.Material3.TextInputLayout.FilledBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:boxBackgroundColor="?attr/colorSurface"
-            app:boxBackgroundMode="filled"
-            app:boxStrokeWidth="0dp"
-            app:boxStrokeWidthFocused="2dp"
-            app:boxCornerRadiusTopStart="16dp"
-            app:boxCornerRadiusTopEnd="16dp"
-            app:boxCornerRadiusBottomStart="16dp"
-            app:boxCornerRadiusBottomEnd="16dp"
-            app:hintEnabled="false"
-            app:startIconDrawable="@drawable/ic_search"
-            app:endIconMode="custom"
-            app:endIconDrawable="@drawable/ic_clear"
-            app:endIconContentDescription="@string/clear_search">
-
-            <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                android:id="@+id/search_podcast_edittext"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text"
-                android:imeOptions="actionSearch"
-                android:textColor="?attr/colorOnSurface"
-                android:textColorHint="?attr/colorOnSurfaceVariant"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
-                android:paddingStart="64dp"
-                android:background="@null"
-                android:maxLines="1"
-                android:singleLine="true"
-                android:hint="Search podcasts..." />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <ImageButton
-            android:id="@+id/podcasts_filter_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_filter_list"
-            android:contentDescription="Filter podcasts"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="?attr/colorOnSurface" />
-    </com.google.android.material.appbar.MaterialToolbar>
-
-    <!-- Active search hint (visible when a persisted search is active) -->
-    <TextView
-        android:id="@+id/active_search_hint"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="12sp"
-        android:textStyle="italic"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:visibility="gone"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:text="" />
-
-
-
-    <LinearLayout
-        android:id="@+id/podcasts_content"
+    <!-- Scrollable content containing search, filters, and list -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/podcasts_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="?attr/actionBarSize"
-        android:background="?attr/colorSurfaceContainer"
-        android:orientation="vertical"
-        android:paddingTop="8dp">
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/podcasts_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/colorSurfaceContainer"
+            android:orientation="vertical">
+
+            <!-- Search App Bar (Material 3 style) -->
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/podcasts_search_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/colorSurfaceContainer"
+                app:contentInsetStartWithNavigation="0dp"
+                android:paddingTop="8dp">
+
+                <!-- Use a custom end-icon so visibility can be controlled independently of focus/IME -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/search_podcast_text_input"
+                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:boxBackgroundColor="?attr/colorSurface"
+                    app:boxBackgroundMode="filled"
+                    app:boxStrokeWidth="0dp"
+                    app:boxStrokeWidthFocused="2dp"
+                    app:boxCornerRadiusTopStart="16dp"
+                    app:boxCornerRadiusTopEnd="16dp"
+                    app:boxCornerRadiusBottomStart="16dp"
+                    app:boxCornerRadiusBottomEnd="16dp"
+                    app:hintEnabled="false"
+                    app:startIconDrawable="@drawable/ic_search"
+                    app:endIconMode="custom"
+                    app:endIconDrawable="@drawable/ic_clear"
+                    app:endIconContentDescription="@string/clear_search">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/search_podcast_edittext"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:imeOptions="actionSearch"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textColorHint="?attr/colorOnSurfaceVariant"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp"
+                        android:paddingStart="64dp"
+                        android:background="@null"
+                        android:maxLines="1"
+                        android:singleLine="true"
+                        android:hint="Search podcasts..." />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <ImageButton
+                    android:id="@+id/podcasts_filter_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_filter_list"
+                    android:contentDescription="Filter podcasts"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:tint="?attr/colorOnSurface" />
+            </com.google.android.material.appbar.MaterialToolbar>
+
+            <!-- Active search hint (visible when a persisted search is active) -->
+            <TextView
+                android:id="@+id/active_search_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textStyle="italic"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:visibility="gone"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="" />
 
             <!-- Filters container (hidden by default; toggled by the filter button) -->
             <LinearLayout
@@ -95,9 +109,8 @@
                 android:orientation="vertical"
                 android:visibility="visible"
                 android:background="?attr/colorSurfaceContainer"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
-                android:layout_marginTop="2dp">
+                android:paddingTop="2dp"
+                android:paddingBottom="8dp">
 
                 <!-- Genre Filter (Exposed dropdown - Material 3) -->
                 <com.google.android.material.textfield.TextInputLayout
@@ -106,7 +119,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="12dp"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="2dp"
                     app:boxStrokeColor="?attr/colorOutline"
                     app:endIconMode="dropdown_menu"
                     app:hintEnabled="true"
@@ -308,11 +321,14 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/podcasts_recycler"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
                 android:scrollbars="vertical"
+                android:paddingBottom="96dp"
+                android:clipToPadding="false"
                 android:background="?attr/colorSurface" />
-    </LinearLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- Loading Indicator (overlays center) -->
     <ProgressBar
