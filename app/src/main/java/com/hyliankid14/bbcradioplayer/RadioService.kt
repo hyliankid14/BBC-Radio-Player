@@ -41,24 +41,6 @@ class RadioService : MediaBrowserServiceCompat() {
     private var player: ExoPlayer? = null
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private var audioFocusRequest: AudioFocusRequest? = null
-    
-    // Minimal audio focus listener - only handles permanent loss
-    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-        if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
-            // Only handle permanent loss - ExoPlayer handles transient losses automatically
-            Log.d(TAG, "Permanent audio focus loss — stopping playback")
-            handler.post {
-                try {
-                    if (player != null && PlaybackStateHelper.getIsPlaying()) {
-                        stopPlayback()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error stopping playback on focus loss: ${e.message}")
-                }
-            }
-        }
-    }
-    
     private var currentStationTitle: String = ""
     private var currentStationId: String = ""
     private var currentPodcastId: String? = null
@@ -934,7 +916,6 @@ class RadioService : MediaBrowserServiceCompat() {
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(audioAttributes)
                 .setAcceptsDelayedFocusGain(false)
-                .setOnAudioFocusChangeListener(audioFocusChangeListener, handler)
                 .build()
             audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
         } else {
@@ -2525,12 +2506,6 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         try {
             historyChangeReceiver?.let { unregisterReceiver(it) }
         } catch (_: Exception) { }
-        
-        // Abandon audio focus
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-        }
-        
         super.onDestroy()
     }
 }
