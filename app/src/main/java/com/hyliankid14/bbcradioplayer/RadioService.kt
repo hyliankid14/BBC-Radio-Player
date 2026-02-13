@@ -41,6 +41,37 @@ class RadioService : MediaBrowserServiceCompat() {
     private var player: ExoPlayer? = null
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private var audioFocusRequest: AudioFocusRequest? = null
+    
+    // Audio focus change listener - created once and reused
+    private val audioFocusChangeListener by lazy {
+        AudioManager.OnAudioFocusChangeListener { focusChange ->
+            when (focusChange) {
+                AudioManager.AUDIOFOCUS_LOSS -> {
+                    // Permanent loss - another app has taken audio focus (e.g., user started Spotify)
+                    Log.d(TAG, "Audio focus permanently lost — stopping playback")
+                    stopPlayback()
+                }
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                    // Temporary loss - pause but don't stop (e.g., notification, phone call)
+                    Log.d(TAG, "Audio focus temporarily lost — pausing")
+                    player?.pause()
+                    updatePlaybackState(PlaybackStateCompat.STATE_PAUSED)
+                    PlaybackStateHelper.setIsPlaying(false)
+                }
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                    // Can duck - lower volume (e.g., GPS navigation)
+                    Log.d(TAG, "Audio focus lost (can duck) — lowering volume")
+                    player?.volume = 0.3f
+                }
+                AudioManager.AUDIOFOCUS_GAIN -> {
+                    // Regained focus - restore volume
+                    Log.d(TAG, "Audio focus regained — restoring volume")
+                    player?.volume = 1.0f
+                }
+            }
+        }
+    }
+    
     private var currentStationTitle: String = ""
     private var currentStationId: String = ""
     private var currentPodcastId: String? = null
@@ -916,11 +947,12 @@ class RadioService : MediaBrowserServiceCompat() {
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(audioAttributes)
                 .setAcceptsDelayedFocusGain(false)
+                .setOnAudioFocusChangeListener(audioFocusChangeListener)
                 .build()
             audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
         } else {
             @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+            audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
     }
 
@@ -2506,6 +2538,15 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         try {
             historyChangeReceiver?.let { unregisterReceiver(it) }
         } catch (_: Exception) { }
+        
+        // Abandon audio focus when service is destroyed
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusChangeListener)
+        }
+        
         super.onDestroy()
     }
 }
