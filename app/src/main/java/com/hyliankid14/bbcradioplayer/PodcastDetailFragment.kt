@@ -320,11 +320,11 @@ class PodcastDetailFragment : Fragment() {
         appCompat?.supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(false)
             setDisplayShowHomeEnabled(false)
-            title = "Podcasts"
         }
         val current = (activity as? AppCompatActivity)?.supportFragmentManager?.findFragmentById(R.id.fragment_container)
         if (current is PodcastsFragment) {
-            (activity as? AppCompatActivity)?.supportActionBar?.show()
+            // Hide action bar since PodcastsFragment has its own title bar
+            (activity as? AppCompatActivity)?.supportActionBar?.hide()
         }
     }
 
