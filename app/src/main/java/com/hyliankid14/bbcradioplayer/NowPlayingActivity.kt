@@ -1227,7 +1227,7 @@ class NowPlayingActivity : AppCompatActivity() {
     }
 
     private fun showFullDescription() {
-        val title = supportActionBar?.title?.toString() ?: "Episode Description"
+        val title = episodeTitle.text?.toString()?.takeIf { it.isNotEmpty() } ?: "Episode Description"
         val dialog = EpisodeDescriptionDialogFragment.newInstance(fullDescriptionHtml, title, lastArtworkUrl)
         dialog.show(supportFragmentManager, "episode_description")
     }

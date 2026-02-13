@@ -62,10 +62,14 @@ class EpisodeDescriptionDialogFragment : DialogFragment() {
                 contentDescription = title
             }
             val imageHeight = (200 * resources.displayMetrics.density + 0.5f).toInt()
-            container.addView(imageView, android.view.ViewGroup.LayoutParams(
+            val bottomMargin = (16 * resources.displayMetrics.density + 0.5f).toInt()
+            val layoutParams = android.view.ViewGroup.MarginLayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 imageHeight
-            ))
+            ).apply {
+                setMargins(0, 0, 0, bottomMargin)
+            }
+            container.addView(imageView, layoutParams)
             Glide.with(requireContext()).load(imageUrl).into(imageView)
         }
 

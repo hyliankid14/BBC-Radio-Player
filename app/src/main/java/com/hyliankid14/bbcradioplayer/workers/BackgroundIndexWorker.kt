@@ -80,7 +80,7 @@ class BackgroundIndexWorker(
                 java.util.concurrent.TimeUnit.DAYS
             )
                 .setInputData(inputData)
-                .setInitialDelay(intervalDays.toLong(), java.util.concurrent.TimeUnit.DAYS)
+                .setInitialDelay(15, java.util.concurrent.TimeUnit.MINUTES)
                 .setConstraints(
                     Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.CONNECTED)
