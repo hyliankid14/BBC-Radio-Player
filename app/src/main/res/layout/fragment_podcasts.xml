@@ -36,6 +36,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="?attr/colorSurfaceContainer"
+                app:contentInsetStart="0dp"
+                app:contentInsetEnd="0dp"
                 app:contentInsetStartWithNavigation="0dp"
                 android:paddingTop="8dp">
 
