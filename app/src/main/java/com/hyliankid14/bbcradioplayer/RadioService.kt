@@ -47,7 +47,10 @@ class RadioService : MediaBrowserServiceCompat() {
         if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
             Log.d(TAG, "Audio focus permanently lost — stopping player")
             try {
-                player?.stop()
+                // Only stop if player is currently playing (not during initialization)
+                if (player?.isPlaying == true) {
+                    player?.stop()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error stopping player on focus loss: ${e.message}")
             }
@@ -934,7 +937,8 @@ class RadioService : MediaBrowserServiceCompat() {
             audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
         } else {
             @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+            // For older Android versions, request focus without listener to avoid conflicts
+            audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
     }
 
@@ -2521,7 +2525,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             historyChangeReceiver?.let { unregisterReceiver(it) }
         } catch (_: Exception) { }
         
-        // Abandon audio focus
+        // Abandon audio focus (only needed for Android O+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
         }
