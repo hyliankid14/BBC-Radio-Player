@@ -41,6 +41,19 @@ class RadioService : MediaBrowserServiceCompat() {
     private var player: ExoPlayer? = null
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private var audioFocusRequest: AudioFocusRequest? = null
+    
+    // Minimal audio focus listener - only stops player on permanent loss
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+            Log.d(TAG, "Audio focus permanently lost — stopping player")
+            try {
+                player?.stop()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping player on focus loss: ${e.message}")
+            }
+        }
+    }
+    
     private var currentStationTitle: String = ""
     private var currentStationId: String = ""
     private var currentPodcastId: String? = null
@@ -916,11 +929,12 @@ class RadioService : MediaBrowserServiceCompat() {
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(audioAttributes)
                 .setAcceptsDelayedFocusGain(false)
+                .setOnAudioFocusChangeListener(audioFocusChangeListener)
                 .build()
             audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
         } else {
             @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+            audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         }
     }
 
@@ -2506,6 +2520,12 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         try {
             historyChangeReceiver?.let { unregisterReceiver(it) }
         } catch (_: Exception) { }
+        
+        // Abandon audio focus
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        }
+        
         super.onDestroy()
     }
 }
