@@ -74,7 +74,7 @@ class PodcastsFragment : Fragment() {
         emptyState: TextView,
         recyclerView: RecyclerView
     ) {
-        val spinnerAdapter = ArrayAdapter(requireContext(), R.layout.dropdown_item_large, genres)
+        val spinnerAdapter = NoFilterArrayAdapter(requireContext(), R.layout.dropdown_item_large, genres)
         spinnerAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
         genreSpinner.setAdapter(spinnerAdapter)
 
@@ -105,7 +105,7 @@ class PodcastsFragment : Fragment() {
         recyclerView: RecyclerView
     ) {
         val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
-        val sortAdapter = ArrayAdapter(requireContext(), R.layout.dropdown_item_large, sortOptions)
+        val sortAdapter = NoFilterArrayAdapter(requireContext(), R.layout.dropdown_item_large, sortOptions)
         sortAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
         sortSpinner.setAdapter(sortAdapter)
         sortSpinner.setText(currentSort, false)
@@ -1827,5 +1827,32 @@ class PodcastsFragment : Fragment() {
             "Just One Thing - with Michael Mosley" to 99,
             "Scientifically..." to 100
         )
+    } // End of PodcastsFragment class
+
+    /**
+     * Custom adapter that ignores filtering (always shows all items).
+     * This prevents the "exposed dropdown" from filtering its list based on the currently selected text.
+     */
+    private class NoFilterArrayAdapter(context: android.content.Context, layout: Int, val items: List<String>) :
+        ArrayAdapter<String>(context, layout, items) {
+
+        private val noOpFilter = object : android.widget.Filter() {
+            override fun performFiltering(constraint: CharSequence?): FilterResults {
+                val results = FilterResults()
+                results.values = items
+                results.count = items.size
+                return results
+            }
+
+            override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                if (results != null && results.count > 0) {
+                    notifyDataSetChanged()
+                } else {
+                    notifyDataSetInvalidated()
+                }
+            }
+        }
+
+        override fun getFilter(): android.widget.Filter = noOpFilter
     }
 }
