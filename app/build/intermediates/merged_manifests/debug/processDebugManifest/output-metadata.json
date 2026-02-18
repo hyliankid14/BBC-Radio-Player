@@ -4,7 +4,7 @@
     "type": "MERGED_MANIFESTS",
     "kind": "Directory"
   },
-  "applicationId": "com.example.androidautoradioplayer",
+  "applicationId": "com.hyliankid14.bbcradioplayer",
   "variantName": "debug",
   "elements": [
     {

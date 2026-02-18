@@ -1,10 +1,27 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.androidautoradioplayer.app-mergeDebugResources-22:/values-large-v4/values-large-v4.xml",
+            "outputFile": "com.hyliankid14.bbcradioplayer.app-mergeDebugResources-41:/values-large-v4/values-large-v4.xml",
             "map": [
                 {
-                    "source": "/home/shaivure/.gradle/caches/9.2.1/transforms/ee3ac60e2b10e539e9d108acfbcca93a/transformed/appcompat-1.6.1/res/values-large-v4/values-large-v4.xml",
+                    "source": "/home/shaivure/.gradle/caches/9.2.1/transforms/3a87824773491a4f39dd9ca25272224c/transformed/material-1.11.0/res/values-large-v4/values-large-v4.xml",
+                    "from": {
+                        "startLines": "2,3,4,5",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "55,169,285,407",
+                        "endColumns": "113,115,121,133",
+                        "endOffsets": "164,280,402,536"
+                    },
+                    "to": {
+                        "startLines": "11,12,13,14",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "752,866,982,1104",
+                        "endColumns": "113,115,121,133",
+                        "endOffsets": "861,977,1099,1233"
+                    }
+                },
+                {
+                    "source": "/home/shaivure/.gradle/caches/9.2.1/transforms/6f75297a1abd3824b514933a56eac1da/transformed/appcompat-1.6.1/res/values-large-v4/values-large-v4.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10",
                         "startColumns": "4,4,4,4,4,4,4,4,4",

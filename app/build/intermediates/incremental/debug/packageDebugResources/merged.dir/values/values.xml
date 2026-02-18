@@ -1,9 +1,121 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string-array name="index_schedule_options">
+        <item>@string/index_schedule_never</item>
+        <item>@string/index_schedule_1</item>
+        <item>@string/index_schedule_3</item>
+        <item>@string/index_schedule_7</item>
+    </string-array>
+    <bool name="is_tablet">false</bool>
+    <color name="episode_check_green">#4CAF50</color>
+    <color name="episode_tilde_amber">#FFC107</color>
+    <color name="favorite_star_color">#6200EE</color>
+    <color name="ic_launcher_background">#6200EE</color>
+    <color name="md_theme_background">#FFFBFE</color>
+    <color name="md_theme_error">#B3261E</color>
+    <color name="md_theme_errorContainer">#F9DEDC</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_onErrorContainer">#410E0B</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_onPrimaryContainer">#21005D</color>
+    <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_onSecondaryContainer">#1D192B</color>
+    <color name="md_theme_onSurface">#1C1B1F</color>
+    <color name="md_theme_onSurfaceVariant">#49454E</color>
+    <color name="md_theme_onTertiary">#FFFFFF</color>
+    <color name="md_theme_onTertiaryContainer">#31101D</color>
+    <color name="md_theme_outline">#79747E</color>
+    <color name="md_theme_primary">#6200EE</color>
+    <color name="md_theme_primaryContainer">#EADDFF</color>
+    <color name="md_theme_secondary">#625B71</color>
+    <color name="md_theme_secondaryContainer">#E8DEF8</color>
+    <color name="md_theme_surface">#FFFBFE</color>
+    <color name="md_theme_surfaceContainer">#F3EDF7</color>
+    <color name="md_theme_surfaceVariant">#E7E0EC</color>
+    <color name="md_theme_tertiary">#7D5260</color>
+    <color name="md_theme_tertiaryContainer">#FFD8E4</color>
+    <color name="mini_player_icon_tint">#424242</color>
+    <color name="now_playing_play_pause_tint">#6200EE</color>
+    <color name="playback_progress">@color/md_theme_primary</color>
+    <color name="playback_track">#E0E0E0</color>
+    <color name="search_field_bg">#E7E0EC</color>
+    <color name="search_field_hint">#49454E</color>
+    <color name="search_field_text">#1C1B1F</color>
+    <color name="subscribe_button_bg">#EADDFF</color>
+    <color name="subscribe_button_bg_subscribed">#6200EE</color>
+    <color name="subscribe_button_text">#21005D</color>
+    <color name="subscribe_button_text_subscribed">#FFFFFF</color>
+    <color name="subscribed_podcasts_bg">@color/md_theme_surface</color>
+    <color name="subscribed_podcasts_text">@color/md_theme_onSurface</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#E0E0E0</color>
+    <dimen name="mini_player_button_padding">6dp</dimen>
+    <dimen name="mini_player_button_size">44dp</dimen>
+    <dimen name="mini_player_controls_margin_horizontal">-12dp</dimen>
+    <dimen name="now_playing_artwork_width">0dp</dimen>
+    <item name="connected_button_corner_px" type="id"/>
+    <item name="swipe_haptic_trigger" type="id"/>
     <string name="app_name">BBC Radio Player</string>
-    <style name="Theme.AndroidAutoRadioPlayer" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="colorPrimary">#6200EE</item>
-        <item name="colorPrimaryDark">#3700B3</item>
-        <item name="colorAccent">#03DAC5</item>
+    <string name="clear_search">Clear search</string>
+    <string name="exclude_non_english_label">Exclude non-English podcasts</string>
+    <string name="index_schedule_1">Every day</string>
+    <string name="index_schedule_3">Every 3 days</string>
+    <string name="index_schedule_7">Every 7 days</string>
+    <string name="index_schedule_label">Index schedule</string>
+    <string name="index_schedule_never">Never</string>
+    <string name="no_podcasts_found">No podcasts found</string>
+    <string name="no_podcasts_shuffle">No podcasts available to shuffle</string>
+    <string name="shuffle_podcast_desc">Play a random podcast</string>
+    <style name="MiniPlayerControlsLayout">
+        <item name="android:gravity">center_vertical|start</item>
+    </style>
+    <style name="Theme.AndroidAutoRadioPlayer" parent="Theme.Material3.DayNight">
+        
+        <item name="colorPrimary">@color/md_theme_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/md_theme_onPrimaryContainer</item>
+        
+        
+        <item name="colorSecondary">@color/md_theme_secondary</item>
+        <item name="colorOnSecondary">@color/md_theme_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/md_theme_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/md_theme_onSecondaryContainer</item>
+        
+        
+        <item name="colorTertiary">@color/md_theme_tertiary</item>
+        <item name="colorOnTertiary">@color/md_theme_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/md_theme_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/md_theme_onTertiaryContainer</item>
+        
+        
+        <item name="colorError">@color/md_theme_error</item>
+        <item name="colorOnError">@color/md_theme_onError</item>
+        <item name="colorErrorContainer">@color/md_theme_errorContainer</item>
+        <item name="colorOnErrorContainer">@color/md_theme_onErrorContainer</item>
+        
+        
+        <item name="android:colorBackground">@color/md_theme_background</item>
+        <item name="colorSurface">@color/md_theme_surface</item>
+        <item name="colorOnSurface">@color/md_theme_onSurface</item>
+        <item name="colorSurfaceVariant">@color/md_theme_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/md_theme_onSurfaceVariant</item>
+        <item name="colorSurfaceContainer">@color/md_theme_surfaceContainer</item>
+        <item name="colorOutline">@color/md_theme_outline</item>
+        
+        
+        <item name="android:statusBarColor">?attr/colorPrimary</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
+        
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        
+        
+        <item name="actionBarStyle">@style/Widget.AppCompat.ActionBar.Solid</item>
+        <item name="android:textColorPrimary">@android:color/white</item>
+        <item name="android:textColorSecondary">@android:color/white</item>
+        
+        
+        <item name="colorSecondaryContainer">#E8DEF8</item>
     </style>
 </resources>

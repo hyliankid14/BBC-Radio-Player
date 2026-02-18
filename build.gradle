@@ -16,6 +16,8 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.all {
+    }
 }
 
 task clean(type: Delete) {

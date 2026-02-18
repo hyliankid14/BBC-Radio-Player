@@ -1,6 +1,6 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-3    package="com.example.androidautoradioplayer"
+3    package="com.hyliankid14.bbcradioplayer"
 4    android:versionCode="1"
 5    android:versionName="1.0" >
 6
@@ -9,95 +9,575 @@
 9        android:targetSdkVersion="34" />
 10
 11    <uses-permission android:name="android.permission.INTERNET" />
-11-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:3:5-67
-11-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:3:22-64
-12    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-12-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:4:5-77
-12-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:4:22-74
-13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-13-->[com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:24:5-79
-13-->[com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:24:22-76
-14
-15    <permission
-15-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
-16        android:name="com.example.androidautoradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-16-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
-17        android:protectionLevel="signature" />
-17-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
-18
-19    <uses-permission android:name="com.example.androidautoradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-19-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
-19-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
-20
-21    <application
-21-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:6:5-28:19
-22        android:allowBackup="true"
-22-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:7:9-35
-23        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-23-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:28:18-86
-24        android:debuggable="true"
-25        android:extractNativeLibs="true"
-26        android:label="@string/app_name"
-26-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:8:9-41
-27        android:supportsRtl="true"
-27-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:9:9-35
-28        android:theme="@style/Theme.AndroidAutoRadioPlayer" >
-28-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:10:9-60
-29        <activity
-29-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:9-17:20
-30            android:name="com.example.androidautoradioplayer.MainActivity"
-30-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:19-47
-31            android:exported="true" >
-31-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:48-71
-32            <intent-filter>
-32-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:13:13-16:29
-33                <action android:name="android.intent.action.MAIN" />
-33-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:14:17-69
-33-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:14:25-66
-34
-35                <category android:name="android.intent.category.LAUNCHER" />
-35-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:15:17-77
-35-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:15:27-74
-36            </intent-filter>
-37        </activity>
-38
-39        <service
-39-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:19:9-26:19
-40            android:name="com.example.androidautoradioplayer.RadioService"
-40-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:20:13-41
-41            android:exported="true"
-41-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:21:13-36
-42            android:permission="android.permission.BIND_MEDIA_BROWSER_SERVICE" >
-42-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:22:13-79
-43            <intent-filter>
-43-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:23:13-25:29
-44                <action android:name="android.media.browse.MediaBrowserService" />
-44-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:24:17-83
-44-->/home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:24:25-80
-45            </intent-filter>
-46        </service>
-47
-48        <provider
-48-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
-49            android:name="androidx.startup.InitializationProvider"
-49-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
-50            android:authorities="com.example.androidautoradioplayer.androidx-startup"
-50-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
-51            android:exported="false" >
-51-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
-52            <meta-data
-52-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
-53                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-53-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
-54                android:value="androidx.startup" />
-54-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
-55            <meta-data
-55-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:31:13-33:52
-56                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-56-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:32:17-78
-57                android:value="androidx.startup" />
-57-->[androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:33:17-49
-58        </provider>
-59    </application>
+11-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:3:5-67
+11-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:3:22-64
+12    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+12-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:4:5-79
+12-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:4:22-76
+13    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+13-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:5:5-81
+13-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:5:22-78
+14    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+14-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:6:5-77
+14-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:6:22-74
+15    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+15-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:7:5-92
+15-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:7:22-89
+16    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+16-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:8:5-87
+16-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:8:22-84
+17    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+17-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:9:5-77
+17-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:9:22-74
+18    <uses-permission android:name="android.permission.WAKE_LOCK" />
+18-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:23:5-68
+18-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:23:22-65
+19
+20    <permission
+20-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
+21        android:name="com.hyliankid14.bbcradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+21-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
+22        android:protectionLevel="signature" />
+22-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+23
+24    <uses-permission android:name="com.hyliankid14.bbcradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+24-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+24-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
+25
+26    <application
+26-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:11:5-96:19
+27        android:allowBackup="true"
+27-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:12:9-35
+28        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+28-->[androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:28:18-86
+29        android:debuggable="true"
+30        android:extractNativeLibs="true"
+31        android:fullBackupContent="@xml/backup_rules"
+31-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:13:9-54
+32        android:icon="@mipmap/ic_launcher"
+32-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:17:9-43
+33        android:label="@string/app_name"
+33-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:14:9-41
+34        android:roundIcon="@mipmap/ic_launcher_round"
+34-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:18:9-54
+35        android:supportsRtl="true"
+35-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:15:9-35
+36        android:theme="@style/Theme.AndroidAutoRadioPlayer"
+36-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:16:9-60
+37        android:usesCleartextTraffic="true" >
+37-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:19:9-44
+38        <meta-data
+38-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:21:9-23:59
+39            android:name="com.google.android.gms.car.application"
+39-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:22:13-66
+40            android:resource="@xml/automotive_app_desc" />
+40-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:23:13-56
+41        <meta-data
+41-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:25:9-27:96
+42            android:name="com.google.android.backup.api_key"
+42-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:26:13-61
+43            android:value="AEdPqrMQQqCf4X2O9hXN0jEbO/Bc04b2Yb1e6n8Qlbb+2lNMO6lR4xQDWZQ6bnEV" />
+43-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:27:13-93
+44
+45        <activity
+45-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:29:9-52:20
+46            android:name="com.hyliankid14.bbcradioplayer.MainActivity"
+46-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:29:19-47
+47            android:exported="true" >
+47-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:29:48-71
+48            <intent-filter>
+48-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:30:13-33:29
+49                <action android:name="android.intent.action.MAIN" />
+49-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:31:17-69
+49-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:31:25-66
+50
+51                <category android:name="android.intent.category.LAUNCHER" />
+51-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:32:17-77
+51-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:32:27-74
+52            </intent-filter>
+53
+54            <!-- Deep links for sharing podcasts and episodes -->
+55            <intent-filter android:label="@string/app_name" >
+55-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:36:13-42:29
+55-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:36:28-60
+56                <action android:name="android.intent.action.VIEW" />
+56-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:37:17-69
+56-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:37:25-66
+57
+58                <category android:name="android.intent.category.DEFAULT" />
+58-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:38:17-76
+58-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:38:27-73
+59                <category android:name="android.intent.category.BROWSABLE" />
+59-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:39:17-78
+59-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:39:27-75
 60
-61</manifest>
+61                <data
+61-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:17-69
+62                    android:host="podcast"
+62-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:44-66
+63                    android:scheme="app" />
+63-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:23-43
+64                <data
+64-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:17-69
+65                    android:host="episode"
+65-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:44-66
+66                    android:scheme="app" />
+66-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:23-43
+67            </intent-filter>
+68
+69            <!-- Web URLs for non-app users (App Links) -->
+70            <intent-filter
+70-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:45:13-51:29
+71                android:autoVerify="true"
+71-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:45:61-86
+72                android:label="@string/app_name" >
+72-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:45:28-60
+73                <action android:name="android.intent.action.VIEW" />
+73-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:37:17-69
+73-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:37:25-66
+74
+75                <category android:name="android.intent.category.DEFAULT" />
+75-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:38:17-76
+75-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:38:27-73
+76                <category android:name="android.intent.category.BROWSABLE" />
+76-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:39:17-78
+76-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:39:27-75
+77
+78                <data
+78-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:17-69
+79                    android:host="bbcradioplayer.app"
+79-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:44-66
+80                    android:pathPrefix="/p/"
+80-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:49:80-104
+81                    android:scheme="https" />
+81-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:23-43
+82                <data
+82-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:17-69
+83                    android:host="bbcradioplayer.app"
+83-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:44-66
+84                    android:pathPrefix="/e/"
+84-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:49:80-104
+85                    android:scheme="https" />
+85-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:23-43
+86            </intent-filter>
+87        </activity>
+88        <activity
+88-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:54:9-62:20
+89            android:name="com.hyliankid14.bbcradioplayer.NowPlayingActivity"
+89-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:55:13-47
+90            android:exported="false"
+90-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:56:13-37
+91            android:parentActivityName="com.hyliankid14.bbcradioplayer.MainActivity"
+91-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:58:13-55
+92            android:theme="@style/Theme.AndroidAutoRadioPlayer" >
+92-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:57:13-64
+93            <meta-data
+93-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:59:13-61:49
+94                android:name="android.support.PARENT_ACTIVITY"
+94-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:60:17-63
+95                android:value=".MainActivity" />
+95-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:61:17-46
+96        </activity>
+97
+98        <service
+98-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:64:9-71:19
+99            android:name="com.hyliankid14.bbcradioplayer.RadioService"
+99-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:65:13-41
+100            android:exported="true"
+100-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:66:13-36
+101            android:foregroundServiceType="mediaPlayback" >
+101-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:67:13-58
+102            <intent-filter>
+102-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:68:13-70:29
+103                <action android:name="android.media.browse.MediaBrowserService" />
+103-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:69:17-83
+103-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:69:25-80
+104            </intent-filter>
+105        </service>
+106
+107        <!-- WorkManager foreground service for background indexing -->
+108        <service
+108-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:74:9-77:40
+109            android:name="androidx.work.impl.foreground.SystemForegroundService"
+109-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:75:13-81
+110            android:directBootAware="false"
+110-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:55:13-44
+111            android:enabled="@bool/enable_system_foreground_service_default"
+111-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:56:13-77
+112            android:exported="false"
+112-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:77:13-37
+113            android:foregroundServiceType="dataSync" />
+113-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:76:13-53
+114
+115        <!-- Scheduling for periodic indexing now handled by WorkManager in BackgroundIndexWorker -->
+116        <!--
+117        <receiver android:name=".IndexAlarmReceiver" android:exported="true">
+118            <intent-filter>
+119                <action android:name="com.hyliankid14.bbcradioplayer.ACTION_PERFORM_INDEX" />
+120            </intent-filter>
+121        </receiver>
+122        -->
+123        <receiver
+123-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:85:9-89:20
+124            android:name="com.hyliankid14.bbcradioplayer.SubscriptionRefreshReceiver"
+124-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:85:19-62
+125            android:exported="true" >
+125-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:85:63-86
+126            <intent-filter>
+126-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:86:13-88:29
+127                <action android:name="com.hyliankid14.bbcradioplayer.ACTION_REFRESH_SUBSCRIPTIONS" />
+127-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:87:17-102
+127-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:87:25-99
+128            </intent-filter>
+129        </receiver>
+130        <receiver
+130-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:90:9-94:20
+131            android:name="com.hyliankid14.bbcradioplayer.BootReceiver"
+131-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:90:19-47
+132            android:exported="true" >
+132-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:90:48-71
+133            <intent-filter>
+133-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:91:13-93:29
+134                <action android:name="android.intent.action.BOOT_COMPLETED" />
+134-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:92:17-79
+134-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:92:25-76
+135            </intent-filter>
+136        </receiver>
+137
+138        <service
+138-->[com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:8:9-14:19
+139            android:name="com.google.mlkit.common.internal.MlKitComponentDiscoveryService"
+139-->[com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:9:13-91
+140            android:directBootAware="true"
+140-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:17:13-43
+141            android:exported="false" >
+141-->[com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:10:13-37
+142            <meta-data
+142-->[com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:11:13-13:85
+143                android:name="com.google.firebase.components:com.google.mlkit.nl.languageid.bundled.internal.ThickLanguageIdRegistrar"
+143-->[com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:12:17-135
+144                android:value="com.google.firebase.components.ComponentRegistrar" />
+144-->[com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:13:17-82
+145            <meta-data
+145-->[com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:26:13-28:85
+146                android:name="com.google.firebase.components:com.google.mlkit.nl.languageid.internal.LanguageIdRegistrar"
+146-->[com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:27:17-122
+147                android:value="com.google.firebase.components.ComponentRegistrar" />
+147-->[com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:28:17-82
+148            <meta-data
+148-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:20:13-22:85
+149                android:name="com.google.firebase.components:com.google.mlkit.common.internal.CommonComponentRegistrar"
+149-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:21:17-120
+150                android:value="com.google.firebase.components.ComponentRegistrar" />
+150-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:22:17-82
+151        </service>
+152
+153        <provider
+153-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:9:9-13:38
+154            android:name="com.google.mlkit.common.internal.MlKitInitProvider"
+154-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:10:13-78
+155            android:authorities="com.hyliankid14.bbcradioplayer.mlkitinitprovider"
+155-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:11:13-69
+156            android:exported="false"
+156-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:12:13-37
+157            android:initOrder="99" />
+157-->[com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:13:13-35
+158        <provider
+158-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+159            android:name="androidx.startup.InitializationProvider"
+159-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+160            android:authorities="com.hyliankid14.bbcradioplayer.androidx-startup"
+160-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+161            android:exported="false" >
+161-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+162            <meta-data
+162-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+163                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+163-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+164                android:value="androidx.startup" />
+164-->[androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+165            <meta-data
+165-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:34:13-36:52
+166                android:name="androidx.work.WorkManagerInitializer"
+166-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:35:17-68
+167                android:value="androidx.startup" />
+167-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:36:17-49
+168            <meta-data
+168-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:29:13-31:52
+169                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+169-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:30:17-78
+170                android:value="androidx.startup" />
+170-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:31:17-49
+171            <meta-data
+171-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
+172                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+172-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
+173                android:value="androidx.startup" />
+173-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
+174        </provider>
+175
+176        <activity
+176-->[com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:9-173
+177            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+177-->[com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:19-85
+178            android:exported="false"
+178-->[com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:146-170
+179            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+179-->[com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:86-145
+180
+181        <meta-data
+181-->[com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:9-122
+182            android:name="com.google.android.gms.version"
+182-->[com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:20-65
+183            android:value="@integer/google_play_services_version" />
+183-->[com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:66-119
+184
+185        <service
+185-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:39:9-45:35
+186            android:name="androidx.work.impl.background.systemalarm.SystemAlarmService"
+186-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:40:13-88
+187            android:directBootAware="false"
+187-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:41:13-44
+188            android:enabled="@bool/enable_system_alarm_service_default"
+188-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:42:13-72
+189            android:exported="false" />
+189-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:43:13-37
+190        <service
+190-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:46:9-52:35
+191            android:name="androidx.work.impl.background.systemjob.SystemJobService"
+191-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:47:13-84
+192            android:directBootAware="false"
+192-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:48:13-44
+193            android:enabled="@bool/enable_system_job_service_default"
+193-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:49:13-70
+194            android:exported="true"
+194-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:50:13-36
+195            android:permission="android.permission.BIND_JOB_SERVICE" />
+195-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:51:13-69
+196
+197        <receiver
+197-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:61:9-66:35
+198            android:name="androidx.work.impl.utils.ForceStopRunnable$BroadcastReceiver"
+198-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:62:13-88
+199            android:directBootAware="false"
+199-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:63:13-44
+200            android:enabled="true"
+200-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:64:13-35
+201            android:exported="false" />
+201-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:65:13-37
+202        <receiver
+202-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:67:9-77:20
+203            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryChargingProxy"
+203-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:68:13-106
+204            android:directBootAware="false"
+204-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:69:13-44
+205            android:enabled="false"
+205-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:70:13-36
+206            android:exported="false" >
+206-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:71:13-37
+207            <intent-filter>
+207-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:73:13-76:29
+208                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+208-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:74:17-87
+208-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:74:25-84
+209                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+209-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:75:17-90
+209-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:75:25-87
+210            </intent-filter>
+211        </receiver>
+212        <receiver
+212-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:78:9-88:20
+213            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryNotLowProxy"
+213-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:79:13-104
+214            android:directBootAware="false"
+214-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:80:13-44
+215            android:enabled="false"
+215-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:81:13-36
+216            android:exported="false" >
+216-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:82:13-37
+217            <intent-filter>
+217-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:84:13-87:29
+218                <action android:name="android.intent.action.BATTERY_OKAY" />
+218-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:85:17-77
+218-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:85:25-74
+219                <action android:name="android.intent.action.BATTERY_LOW" />
+219-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:86:17-76
+219-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:86:25-73
+220            </intent-filter>
+221        </receiver>
+222        <receiver
+222-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:89:9-99:20
+223            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$StorageNotLowProxy"
+223-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:90:13-104
+224            android:directBootAware="false"
+224-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:91:13-44
+225            android:enabled="false"
+225-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:92:13-36
+226            android:exported="false" >
+226-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:93:13-37
+227            <intent-filter>
+227-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:95:13-98:29
+228                <action android:name="android.intent.action.DEVICE_STORAGE_LOW" />
+228-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:96:17-83
+228-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:96:25-80
+229                <action android:name="android.intent.action.DEVICE_STORAGE_OK" />
+229-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:97:17-82
+229-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:97:25-79
+230            </intent-filter>
+231        </receiver>
+232        <receiver
+232-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:100:9-109:20
+233            android:name="androidx.work.impl.background.systemalarm.ConstraintProxy$NetworkStateProxy"
+233-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:101:13-103
+234            android:directBootAware="false"
+234-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:102:13-44
+235            android:enabled="false"
+235-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:103:13-36
+236            android:exported="false" >
+236-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:104:13-37
+237            <intent-filter>
+237-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:106:13-108:29
+238                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+238-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:107:17-79
+238-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:107:25-76
+239            </intent-filter>
+240        </receiver>
+241        <receiver
+241-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:110:9-121:20
+242            android:name="androidx.work.impl.background.systemalarm.RescheduleReceiver"
+242-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:111:13-88
+243            android:directBootAware="false"
+243-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:112:13-44
+244            android:enabled="false"
+244-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:113:13-36
+245            android:exported="false" >
+245-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:114:13-37
+246            <intent-filter>
+246-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:116:13-120:29
+247                <action android:name="android.intent.action.BOOT_COMPLETED" />
+247-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:92:17-79
+247-->/home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:92:25-76
+248                <action android:name="android.intent.action.TIME_SET" />
+248-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:118:17-73
+248-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:118:25-70
+249                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+249-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:119:17-81
+249-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:119:25-78
+250            </intent-filter>
+251        </receiver>
+252        <receiver
+252-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:122:9-131:20
+253            android:name="androidx.work.impl.background.systemalarm.ConstraintProxyUpdateReceiver"
+253-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:123:13-99
+254            android:directBootAware="false"
+254-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:124:13-44
+255            android:enabled="@bool/enable_system_alarm_service_default"
+255-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:125:13-72
+256            android:exported="false" >
+256-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:126:13-37
+257            <intent-filter>
+257-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:128:13-130:29
+258                <action android:name="androidx.work.impl.background.systemalarm.UpdateProxies" />
+258-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:129:17-98
+258-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:129:25-95
+259            </intent-filter>
+260        </receiver>
+261        <receiver
+261-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:132:9-142:20
+262            android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver"
+262-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:133:13-78
+263            android:directBootAware="false"
+263-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:134:13-44
+264            android:enabled="true"
+264-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:135:13-35
+265            android:exported="true"
+265-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:136:13-36
+266            android:permission="android.permission.DUMP" >
+266-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:137:13-57
+267            <intent-filter>
+267-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:139:13-141:29
+268                <action android:name="androidx.work.diagnostics.REQUEST_DIAGNOSTICS" />
+268-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:140:17-88
+268-->[androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:140:25-85
+269            </intent-filter>
+270        </receiver>
+271
+272        <service
+272-->[androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:24:9-28:63
+273            android:name="androidx.room.MultiInstanceInvalidationService"
+273-->[androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:25:13-74
+274            android:directBootAware="true"
+274-->[androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:26:13-43
+275            android:exported="false" />
+275-->[androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:27:13-37
+276
+277        <receiver
+277-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
+278            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+278-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
+279            android:directBootAware="false"
+279-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
+280            android:enabled="true"
+280-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
+281            android:exported="true"
+281-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
+282            android:permission="android.permission.DUMP" >
+282-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
+283            <intent-filter>
+283-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
+284                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+284-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
+284-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
+285            </intent-filter>
+286            <intent-filter>
+286-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
+287                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+287-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
+287-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
+288            </intent-filter>
+289            <intent-filter>
+289-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
+290                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+290-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
+290-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
+291            </intent-filter>
+292            <intent-filter>
+292-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
+293                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+293-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
+293-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92
+294            </intent-filter>
+295        </receiver>
+296
+297        <service
+297-->[com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:29:9-35:19
+298            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
+298-->[com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:30:13-103
+299            android:exported="false" >
+299-->[com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:31:13-37
+300            <meta-data
+300-->[com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:32:13-34:39
+301                android:name="backend:com.google.android.datatransport.cct.CctBackendFactory"
+301-->[com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:33:17-94
+302                android:value="cct" />
+302-->[com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:34:17-36
+303        </service>
+304        <service
+304-->[com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:26:9-30:19
+305            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
+305-->[com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:27:13-117
+306            android:exported="false"
+306-->[com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:28:13-37
+307            android:permission="android.permission.BIND_JOB_SERVICE" >
+307-->[com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:29:13-69
+308        </service>
+309
+310        <receiver
+310-->[com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:32:9-34:40
+311            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
+311-->[com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:33:13-132
+312            android:exported="false" />
+312-->[com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:34:13-37
+313    </application>
+314
+315</manifest>

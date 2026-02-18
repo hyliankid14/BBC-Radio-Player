@@ -1,263 +1,861 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:1:1-30:12
-INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:1:1-30:12
-INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:1:1-30:12
-INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:1:1-30:12
-MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/db2751c3bc9d9b4fdef79f3a6bc0867e/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.appcompat:appcompat:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/ee3ac60e2b10e539e9d108acfbcca93a/transformed/appcompat-1.6.1/AndroidManifest.xml:17:1-22:12
-MERGED from [com.google.android.exoplayer:exoplayer:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/47611c6c5acae100951222f09e6376f6/transformed/exoplayer-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-ui:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/4d6a667775331d29a97dbee0e4ed8dc2/transformed/exoplayer-ui-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.media:media:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/5029c8f54d16179d580481e8e253ec12/transformed/media-1.6.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.fragment:fragment:1.3.6] /home/shaivure/.gradle/caches/9.2.1/transforms/f289e7b0e9101870e895df5a0a38c2f1/transformed/fragment-1.3.6/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.activity:activity:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/70d784e95f3b7a5e49ffa4187e898831/transformed/activity-1.6.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0930e65f5e7e8a22bad9b34d7956412a/transformed/drawerlayout-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a881913faaff9e81606625b6ce6e5b46/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:2:1-7:12
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:17:1-35:12
-MERGED from [com.google.android.exoplayer:exoplayer-dash:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/1b106809022ef6298f2c9244524c0a13/transformed/exoplayer-dash-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-hls:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/0a0f46a309bf0910325317b181d4c1d1/transformed/exoplayer-hls-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-rtsp:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c43719432f36297db8031057f250c29d/transformed/exoplayer-rtsp-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-smoothstreaming:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/a07f33540ecff10be04daec34bff6b1c/transformed/exoplayer-smoothstreaming-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:17:1-26:12
-MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7ca16ede9157dc6e3532dbb1a17b7b09/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9afadeb29051de5c13bf042007d0b2f6/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/db3aabedd1e0689f29401077c020fea4/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.recyclerview:recyclerview:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9dc8c1a54240342d86ddc22167fa8684/transformed/recyclerview-1.2.1/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.customview:customview:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0e67090f4da4788977068fb7a1cc5e92/transformed/customview-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.loader:loader:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/2094781d750dad06b1e006931ce67778/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:17:1-30:12
-MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/482183966e9006a1f20c77a5d5d7000c/transformed/lifecycle-viewmodel-2.5.1/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/105547e9744e24003c085e5c894caf69/transformed/lifecycle-viewmodel-savedstate-2.5.1/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.core:core-ktx:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/de685e66d4e601382ad3930fdaf69844/transformed/core-ktx-1.9.0/AndroidManifest.xml:2:1-7:12
-MERGED from [androidx.savedstate:savedstate:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/96b263b752ad8d872e75212c27c3b557/transformed/savedstate-1.2.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/d30ec5ff6abeb2c7a871a4058341a4cf/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/40a560767ea9de707ce06b58d172ea63/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:17:1-37:12
-MERGED from [androidx.lifecycle:lifecycle-runtime:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/da8aa902c741ca310116b87a6f44c173/transformed/lifecycle-runtime-2.5.1/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-datasource:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/fcc6a3902a64e0afa0704704620bf6a1/transformed/exoplayer-datasource-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-database:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/5ffbaf034a61c39307a58473a5ec3e5c/transformed/exoplayer-database-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-extractor:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/2be4abbc26c06878ec44dddd5fef46f6/transformed/exoplayer-extractor-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-decoder:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/77929c60dbe45876f09b0ea0d2cb437c/transformed/exoplayer-decoder-2.18.2/AndroidManifest.xml:17:1-24:12
-MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/94a4fd7ae04c2192c2f84bc0a6b63421/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:17:1-26:12
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9bbb8a9390fc90cc6bdcfa2752da38d0/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e753db780d2b45a24e7a8e7ef8a32148/transformed/startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
-MERGED from [androidx.tracing:tracing:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/63e4258a198121634db8cf9ab6bf114b/transformed/tracing-1.0.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.lifecycle:lifecycle-livedata:2.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/905d564ce99359ae9d5ac919cca35749/transformed/lifecycle-livedata-2.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/87611fc5c065bf2f1dd87994f2871e77/transformed/lifecycle-livedata-core-2.5.1/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.arch.core:core-runtime:2.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f6eecacc05b013f799e139fdffcfe1f8/transformed/core-runtime-2.1.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.interpolator:interpolator:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/fe5bf57286632b04bbe6c508f2073759/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:1:1-98:12
+INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:1:1-98:12
+INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:1:1-98:12
+INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:1:1-98:12
+MERGED from [com.google.android.material:material:1.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3a87824773491a4f39dd9ca25272224c/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a85a8e0934e8472f5dfc2e58a19978e3/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/shaivure/.gradle/caches/9.2.1/transforms/41e3d83122444478af9e4ffda7dd0a17/transformed/constraintlayout-2.0.1/AndroidManifest.xml:2:1-11:12
+MERGED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:2:1-17:12
+MERGED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:17:1-32:12
+MERGED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:2:1-26:12
+MERGED from [androidx.appcompat:appcompat:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/6f75297a1abd3824b514933a56eac1da/transformed/appcompat-1.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [com.google.android.exoplayer:exoplayer:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/ba5f05eca38e6962e34df41f80b0329a/transformed/exoplayer-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-ui:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/aa25ab5d377d111b772cfdc30d9fac79/transformed/exoplayer-ui-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.media:media:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/190ed912a1730a948ae15b09a6442e82/transformed/media-1.6.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/e23e202ce8f69970ce4f05662f9c9c9e/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:17:1-35:12
+MERGED from [com.github.bumptech.glide:glide:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e6072d899d4d8291c43a6d08381eeab7/transformed/glide-4.15.1/AndroidManifest.xml:2:1-11:12
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f59759da45715be22af37340bde93472/transformed/viewpager2-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/49c5d0299e7a3d0972dcc65bbbbe2300/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:2:1-5:12
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:2:1-9:12
+MERGED from [androidx.fragment:fragment:1.3.6] /home/shaivure/.gradle/caches/9.2.1/transforms/705107ac5f8ff5b8eb084ad1bf8882fc/transformed/fragment-1.3.6/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.activity:activity:1.8.0] /home/shaivure/.gradle/caches/9.2.1/transforms/86855cc7e80e700f8c335f398f9297f5/transformed/activity-1.8.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/95d5e04f0b372d03e26850929c21bb93/transformed/drawerlayout-1.1.1/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/48d73b8a31f4c7a68af5985f8436fe18/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/e40f68b8bbe3ccb570593fbe5e3f4c83/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.transition:transition:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f16ff88884cdaeb58e7b0a47b278c04d/transformed/transition-1.2.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/5f0a1fb96251f92c8eb68cdedebbb69a/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3ef4390588dba0543c43409c785bde06/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-dash:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9bf4c911a6b6a45c2db20ca97e785444/transformed/exoplayer-dash-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-hls:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9300d09fc1673fa6fd08bdcb7418de4d/transformed/exoplayer-hls-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-rtsp:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c35bf978d20e637ce32c8a77829af780/transformed/exoplayer-rtsp-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-smoothstreaming:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/e7b8bae924eab1b2e937f195aaa4ae5f/transformed/exoplayer-smoothstreaming-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9e258040d7059d13384780cc8dbf9553/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:17:1-26:12
+MERGED from [androidx.work:work-runtime-ktx:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/5cdf527ab3c28dbcce1489eb8f81b846/transformed/work-runtime-ktx-2.8.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:17:1-145:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7af3c4830a638b1b5c40d62c65fbd2a3/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3879f275d3352a1ff0ca432a73ac8c8d/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9cad55177336086ed3b7560062c68e22/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.recyclerview:recyclerview:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/ba181b347b9d612c22a864dc532d7d5e/transformed/recyclerview-1.2.1/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.customview:customview:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0542ddf29434997568d8fa036abbec3f/transformed/customview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a0fb648c9bda576033d1241928a680d5/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-service:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a846e0531864a8ee94cb031490e257ed/transformed/lifecycle-service-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/97c1e9a4736eb027386812acb091d8b2/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/43f99dcadb34f7eecf698357ab7933dc/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/c61b0bf3a818c3bfcf1e0daa2d706398/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/34d92701986a14c968e454ffd8cd4183/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/6a82724ae9d92029f92cc9a3a982f8cd/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core-ktx:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/b92a3db068215d524e508dfafbd83cde/transformed/core-ktx-1.9.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:17:1-31:12
+MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/72ccfc88ef201c0c56a9da93d95f4085/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.sqlite:sqlite-framework:2.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/562f9ee5246fd1427d4609635d3e9d6d/transformed/sqlite-framework-2.3.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.sqlite:sqlite:2.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c96ebd5477a1089dc2a37bc803b0ff68/transformed/sqlite-2.3.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/937a0ea361c88e7ba97cc0ee91d09262/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cardview:cardview:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/33c12f55859be46d1458cfd11d3f850b/transformed/cardview-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [com.google.android.exoplayer:exoplayer-datasource:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c4910ffb64bfce72fbd992fc1642f917/transformed/exoplayer-datasource-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-database:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/7efac604642f873e08cdfcb22836164d/transformed/exoplayer-database-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-extractor:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3f2f7567fc8f9d2aeec31c552d249dba/transformed/exoplayer-extractor-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-decoder:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/a9a9b7762e8867640b4f9431c1358834/transformed/exoplayer-decoder-2.18.2/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/732e2aa2e5a2a9669f46875543d65393/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:17:1-26:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a38bac67c2c7df301533982ad6fead21/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
+MERGED from [com.github.bumptech.glide:gifdecoder:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/58f7ec1753e7b1215513a7164edde32d/transformed/gifdecoder-4.15.1/AndroidManifest.xml:2:1-11:12
+MERGED from [androidx.exifinterface:exifinterface:1.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/4b5cf30564661dee554cc3a340fb6629/transformed/exifinterface-1.3.3/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a13c7c608e78f12df1f309a66ab964ab/transformed/startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
+MERGED from [androidx.tracing:tracing:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/4b08578bae262fba409d18e13185eaff/transformed/tracing-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.firebase:firebase-components:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/ae86a52739dceac4d43ad1c4b8f4f6ea/transformed/firebase-components-16.1.0/AndroidManifest.xml:15:1-23:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/251a0ea156ead36d10849460f4c9b217/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:15:1-38:12
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:15:1-41:12
+MERGED from [com.google.android.datatransport:transport-api:2.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/0864aedd9a0c855add3c5916b99ab7aa/transformed/transport-api-2.2.1/AndroidManifest.xml:15:1-22:12
+MERGED from [com.google.firebase:firebase-encoders-json:17.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/48fb0c3620733ae5cbcd7b795ccc23fb/transformed/firebase-encoders-json-17.1.0/AndroidManifest.xml:15:1-23:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c1888032aacb1cf0210e6d2eeafe111c/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/1741b0839a36d24f2e44edec9685347b/transformed/documentfile-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f159d95ce003e539f544c5d61b22ea20/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.print:print:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/ff0905d5e90415bdb1dc3274b6674bbb/transformed/print-1.0.0/AndroidManifest.xml:17:1-22:12
 	package
-		INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml
+		INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml
 	android:versionName
-		INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml
+		INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml
 	android:versionCode
-		INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml
+		INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml
 	xmlns:android
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:1:11-69
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:1:11-69
 uses-permission#android.permission.INTERNET
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:3:5-67
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:3:5-67
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:26:5-67
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:26:5-67
 	android:name
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:3:22-64
-uses-permission#android.permission.FOREGROUND_SERVICE
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:4:5-77
-	android:name
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:4:22-74
-application
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:6:5-28:19
-INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:6:5-28:19
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:23:5-33:19
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:23:5-33:19
-MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:28:5-89
-MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:28:5-89
-MERGED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:25:5-35:19
-MERGED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:25:5-35:19
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9bbb8a9390fc90cc6bdcfa2752da38d0/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9bbb8a9390fc90cc6bdcfa2752da38d0/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e753db780d2b45a24e7a8e7ef8a32148/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e753db780d2b45a24e7a8e7ef8a32148/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
-	android:extractNativeLibs
-		INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml
-	android:appComponentFactory
-		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:28:18-86
-	android:supportsRtl
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:9:9-35
-	android:label
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:8:9-41
-	android:allowBackup
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:7:9-35
-	android:theme
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:10:9-60
-activity#com.example.androidautoradioplayer.MainActivity
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:9-17:20
-	android:exported
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:48-71
-	android:name
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:12:19-47
-intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:13:13-16:29
-action#android.intent.action.MAIN
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:14:17-69
-	android:name
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:14:25-66
-category#android.intent.category.LAUNCHER
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:15:17-77
-	android:name
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:15:27-74
-service#com.example.androidautoradioplayer.RadioService
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:19:9-26:19
-	android:exported
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:21:13-36
-	android:permission
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:22:13-79
-	android:name
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:20:13-41
-intent-filter#action:name:android.media.browse.MediaBrowserService
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:23:13-25:29
-action#android.media.browse.MediaBrowserService
-ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:24:17-83
-	android:name
-		ADDED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml:24:25-80
-uses-sdk
-INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
-INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml
-INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml
-MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/db2751c3bc9d9b4fdef79f3a6bc0867e/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/db2751c3bc9d9b4fdef79f3a6bc0867e/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.appcompat:appcompat:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/ee3ac60e2b10e539e9d108acfbcca93a/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.appcompat:appcompat:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/ee3ac60e2b10e539e9d108acfbcca93a/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
-MERGED from [com.google.android.exoplayer:exoplayer:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/47611c6c5acae100951222f09e6376f6/transformed/exoplayer-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/47611c6c5acae100951222f09e6376f6/transformed/exoplayer-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-ui:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/4d6a667775331d29a97dbee0e4ed8dc2/transformed/exoplayer-ui-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-ui:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/4d6a667775331d29a97dbee0e4ed8dc2/transformed/exoplayer-ui-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.media:media:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/5029c8f54d16179d580481e8e253ec12/transformed/media-1.6.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.media:media:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/5029c8f54d16179d580481e8e253ec12/transformed/media-1.6.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.fragment:fragment:1.3.6] /home/shaivure/.gradle/caches/9.2.1/transforms/f289e7b0e9101870e895df5a0a38c2f1/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.fragment:fragment:1.3.6] /home/shaivure/.gradle/caches/9.2.1/transforms/f289e7b0e9101870e895df5a0a38c2f1/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.activity:activity:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/70d784e95f3b7a5e49ffa4187e898831/transformed/activity-1.6.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.activity:activity:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/70d784e95f3b7a5e49ffa4187e898831/transformed/activity-1.6.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0930e65f5e7e8a22bad9b34d7956412a/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0930e65f5e7e8a22bad9b34d7956412a/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a881913faaff9e81606625b6ce6e5b46/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:5:5-44
-MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a881913faaff9e81606625b6ce6e5b46/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:5:5-44
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:21:5-44
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:21:5-44
-MERGED from [com.google.android.exoplayer:exoplayer-dash:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/1b106809022ef6298f2c9244524c0a13/transformed/exoplayer-dash-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-dash:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/1b106809022ef6298f2c9244524c0a13/transformed/exoplayer-dash-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-hls:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/0a0f46a309bf0910325317b181d4c1d1/transformed/exoplayer-hls-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-hls:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/0a0f46a309bf0910325317b181d4c1d1/transformed/exoplayer-hls-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-rtsp:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c43719432f36297db8031057f250c29d/transformed/exoplayer-rtsp-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-rtsp:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c43719432f36297db8031057f250c29d/transformed/exoplayer-rtsp-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-smoothstreaming:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/a07f33540ecff10be04daec34bff6b1c/transformed/exoplayer-smoothstreaming-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-smoothstreaming:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/a07f33540ecff10be04daec34bff6b1c/transformed/exoplayer-smoothstreaming-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7ca16ede9157dc6e3532dbb1a17b7b09/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7ca16ede9157dc6e3532dbb1a17b7b09/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9afadeb29051de5c13bf042007d0b2f6/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9afadeb29051de5c13bf042007d0b2f6/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/db3aabedd1e0689f29401077c020fea4/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/db3aabedd1e0689f29401077c020fea4/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.recyclerview:recyclerview:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9dc8c1a54240342d86ddc22167fa8684/transformed/recyclerview-1.2.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.recyclerview:recyclerview:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9dc8c1a54240342d86ddc22167fa8684/transformed/recyclerview-1.2.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.customview:customview:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0e67090f4da4788977068fb7a1cc5e92/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.customview:customview:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0e67090f4da4788977068fb7a1cc5e92/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.loader:loader:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/2094781d750dad06b1e006931ce67778/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.loader:loader:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/2094781d750dad06b1e006931ce67778/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/482183966e9006a1f20c77a5d5d7000c/transformed/lifecycle-viewmodel-2.5.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/482183966e9006a1f20c77a5d5d7000c/transformed/lifecycle-viewmodel-2.5.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/105547e9744e24003c085e5c894caf69/transformed/lifecycle-viewmodel-savedstate-2.5.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/105547e9744e24003c085e5c894caf69/transformed/lifecycle-viewmodel-savedstate-2.5.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.core:core-ktx:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/de685e66d4e601382ad3930fdaf69844/transformed/core-ktx-1.9.0/AndroidManifest.xml:5:5-44
-MERGED from [androidx.core:core-ktx:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/de685e66d4e601382ad3930fdaf69844/transformed/core-ktx-1.9.0/AndroidManifest.xml:5:5-44
-MERGED from [androidx.savedstate:savedstate:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/96b263b752ad8d872e75212c27c3b557/transformed/savedstate-1.2.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.savedstate:savedstate:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/96b263b752ad8d872e75212c27c3b557/transformed/savedstate-1.2.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/d30ec5ff6abeb2c7a871a4058341a4cf/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/d30ec5ff6abeb2c7a871a4058341a4cf/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/40a560767ea9de707ce06b58d172ea63/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/40a560767ea9de707ce06b58d172ea63/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:21:5-23:41
-MERGED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:21:5-23:41
-MERGED from [androidx.lifecycle:lifecycle-runtime:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/da8aa902c741ca310116b87a6f44c173/transformed/lifecycle-runtime-2.5.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.lifecycle:lifecycle-runtime:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/da8aa902c741ca310116b87a6f44c173/transformed/lifecycle-runtime-2.5.1/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-datasource:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/fcc6a3902a64e0afa0704704620bf6a1/transformed/exoplayer-datasource-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-datasource:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/fcc6a3902a64e0afa0704704620bf6a1/transformed/exoplayer-datasource-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-database:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/5ffbaf034a61c39307a58473a5ec3e5c/transformed/exoplayer-database-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-database:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/5ffbaf034a61c39307a58473a5ec3e5c/transformed/exoplayer-database-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-extractor:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/2be4abbc26c06878ec44dddd5fef46f6/transformed/exoplayer-extractor-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-extractor:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/2be4abbc26c06878ec44dddd5fef46f6/transformed/exoplayer-extractor-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-decoder:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/77929c60dbe45876f09b0ea0d2cb437c/transformed/exoplayer-decoder-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-decoder:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/77929c60dbe45876f09b0ea0d2cb437c/transformed/exoplayer-decoder-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/94a4fd7ae04c2192c2f84bc0a6b63421/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/94a4fd7ae04c2192c2f84bc0a6b63421/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9bbb8a9390fc90cc6bdcfa2752da38d0/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9bbb8a9390fc90cc6bdcfa2752da38d0/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e753db780d2b45a24e7a8e7ef8a32148/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e753db780d2b45a24e7a8e7ef8a32148/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
-MERGED from [androidx.tracing:tracing:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/63e4258a198121634db8cf9ab6bf114b/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.tracing:tracing:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/63e4258a198121634db8cf9ab6bf114b/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.lifecycle:lifecycle-livedata:2.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/905d564ce99359ae9d5ac919cca35749/transformed/lifecycle-livedata-2.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-livedata:2.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/905d564ce99359ae9d5ac919cca35749/transformed/lifecycle-livedata-2.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/87611fc5c065bf2f1dd87994f2871e77/transformed/lifecycle-livedata-core-2.5.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.5.1] /home/shaivure/.gradle/caches/9.2.1/transforms/87611fc5c065bf2f1dd87994f2871e77/transformed/lifecycle-livedata-core-2.5.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.arch.core:core-runtime:2.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f6eecacc05b013f799e139fdffcfe1f8/transformed/core-runtime-2.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.arch.core:core-runtime:2.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f6eecacc05b013f799e139fdffcfe1f8/transformed/core-runtime-2.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.interpolator:interpolator:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/fe5bf57286632b04bbe6c508f2073759/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.interpolator:interpolator:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/fe5bf57286632b04bbe6c508f2073759/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
-	android:targetSdkVersion
-		INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml
-	android:minSdkVersion
-		INJECTED from /home/shaivure/Development/Android Auto Radio Player/app/src/main/AndroidManifest.xml
-provider#androidx.startup.InitializationProvider
-ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
-MERGED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:26:9-34:20
-MERGED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:26:9-34:20
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e753db780d2b45a24e7a8e7ef8a32148/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e753db780d2b45a24e7a8e7ef8a32148/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
-	tools:node
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:28:13-31
-	android:authorities
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
-	android:exported
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
-	android:name
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
-meta-data#androidx.emoji2.text.EmojiCompatInitializer
-ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
-	android:value
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
-	android:name
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9ddfe16f3cdf919015b0b9c60ccc0eb0/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:3:22-64
 uses-permission#android.permission.ACCESS_NETWORK_STATE
-ADDED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:24:5-79
-MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/94a4fd7ae04c2192c2f84bc0a6b63421/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:24:5-79
-MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/94a4fd7ae04c2192c2f84bc0a6b63421/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:24:5-79
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:4:5-79
+MERGED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9e258040d7059d13384780cc8dbf9553/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:24:5-79
+MERGED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9e258040d7059d13384780cc8dbf9553/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:24:5-79
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:24:5-79
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:24:5-79
+MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/732e2aa2e5a2a9669f46875543d65393/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:24:5-79
+MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/732e2aa2e5a2a9669f46875543d65393/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:24:5-79
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:25:5-79
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:25:5-79
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:22:5-79
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:22:5-79
 	android:name
-		ADDED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3d4b5d628ad1a95f2c038d7a81b008a8/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:24:22-76
-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
-ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
-	android:protectionLevel
-		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:4:22-76
+uses-permission#android.permission.RECEIVE_BOOT_COMPLETED
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:5:5-81
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:25:5-81
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:25:5-81
 	android:name
-		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
-permission#com.example.androidautoradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
-ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
-	android:protectionLevel
-		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:5:22-78
+uses-permission#android.permission.FOREGROUND_SERVICE
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:6:5-77
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:26:5-77
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:26:5-77
 	android:name
-		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
-uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
-ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:6:22-74
+uses-permission#android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:7:5-92
 	android:name
-		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
-uses-permission#com.example.androidautoradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
-ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:7:22-89
+uses-permission#android.permission.FOREGROUND_SERVICE_DATA_SYNC
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:8:5-87
 	android:name
-		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80b20ff71638924305f209f25551fc68/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
-meta-data#androidx.lifecycle.ProcessLifecycleInitializer
-ADDED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:31:13-33:52
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:8:22-84
+uses-permission#android.permission.POST_NOTIFICATIONS
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:9:5-77
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:9:22-74
+application
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:11:5-96:19
+INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:11:5-96:19
+MERGED from [com.google.android.material:material:1.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3a87824773491a4f39dd9ca25272224c/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
+MERGED from [com.google.android.material:material:1.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3a87824773491a4f39dd9ca25272224c/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/shaivure/.gradle/caches/9.2.1/transforms/41e3d83122444478af9e4ffda7dd0a17/transformed/constraintlayout-2.0.1/AndroidManifest.xml:9:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/shaivure/.gradle/caches/9.2.1/transforms/41e3d83122444478af9e4ffda7dd0a17/transformed/constraintlayout-2.0.1/AndroidManifest.xml:9:5-20
+MERGED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:7:5-15:19
+MERGED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:7:5-15:19
+MERGED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:22:5-30:19
+MERGED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:22:5-30:19
+MERGED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:8:5-24:19
+MERGED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:8:5-24:19
+MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:23:5-33:19
+MERGED from [com.github.bumptech.glide:glide:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e6072d899d4d8291c43a6d08381eeab7/transformed/glide-4.15.1/AndroidManifest.xml:9:5-20
+MERGED from [com.github.bumptech.glide:glide:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e6072d899d4d8291c43a6d08381eeab7/transformed/glide-4.15.1/AndroidManifest.xml:9:5-20
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:4:5-6:19
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:4:5-6:19
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/49c5d0299e7a3d0972dcc65bbbbe2300/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:4:5-20
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/49c5d0299e7a3d0972dcc65bbbbe2300/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:4:5-20
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:5:5-7:19
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:5:5-7:19
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:28:5-143:19
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:28:5-143:19
+MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:23:5-29:19
+MERGED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:23:5-29:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a38bac67c2c7df301533982ad6fead21/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a38bac67c2c7df301533982ad6fead21/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [com.github.bumptech.glide:gifdecoder:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/58f7ec1753e7b1215513a7164edde32d/transformed/gifdecoder-4.15.1/AndroidManifest.xml:9:5-20
+MERGED from [com.github.bumptech.glide:gifdecoder:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/58f7ec1753e7b1215513a7164edde32d/transformed/gifdecoder-4.15.1/AndroidManifest.xml:9:5-20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a13c7c608e78f12df1f309a66ab964ab/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a13c7c608e78f12df1f309a66ab964ab/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:28:5-36:19
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:28:5-36:19
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:25:5-39:19
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:25:5-39:19
+	android:extractNativeLibs
+		INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:28:18-86
+	android:supportsRtl
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:15:9-35
+	android:label
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:14:9-41
+	android:fullBackupContent
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:13:9-54
+	android:roundIcon
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:18:9-54
+	android:icon
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:17:9-43
+	android:allowBackup
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:12:9-35
+	android:theme
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:16:9-60
+	android:usesCleartextTraffic
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:19:9-44
+meta-data#com.google.android.gms.car.application
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:21:9-23:59
+	android:resource
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:23:13-56
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:22:13-66
+meta-data#com.google.android.backup.api_key
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:25:9-27:96
 	android:value
-		ADDED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:33:17-49
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:27:13-93
 	android:name
-		ADDED from [androidx.lifecycle:lifecycle-process:2.4.1] /home/shaivure/.gradle/caches/9.2.1/transforms/1b5d939a1be0836aaa66bff8a7ce44d2/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:32:17-78
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:26:13-61
+activity#com.hyliankid14.bbcradioplayer.MainActivity
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:29:9-52:20
+	android:exported
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:29:48-71
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:29:19-47
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:30:13-33:29
+action#android.intent.action.MAIN
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:31:17-69
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:31:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:32:17-77
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:32:27-74
+intent-filter#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+category:name:android.intent.category.DEFAULT+data:host:episode+data:host:podcast+data:scheme:app+data:scheme:app
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:36:13-42:29
+	android:label
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:36:28-60
+action#android.intent.action.VIEW
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:37:17-69
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:37:25-66
+category#android.intent.category.DEFAULT
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:38:17-76
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:38:27-73
+category#android.intent.category.BROWSABLE
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:39:17-78
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:39:27-75
+data
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:17-69
+	android:host
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:44-66
+	android:scheme
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:40:23-43
+	android:pathPrefix
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:49:80-104
+intent-filter#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+category:name:android.intent.category.DEFAULT+data:host:bbcradioplayer.app+data:host:bbcradioplayer.app+data:pathPrefix:/e/+data:pathPrefix:/p/+data:scheme:https+data:scheme:https
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:45:13-51:29
+	android:label
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:45:28-60
+	android:autoVerify
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:45:61-86
+activity#com.hyliankid14.bbcradioplayer.NowPlayingActivity
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:54:9-62:20
+	android:parentActivityName
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:58:13-55
+	android:exported
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:56:13-37
+	android:theme
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:57:13-64
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:55:13-47
+meta-data#android.support.PARENT_ACTIVITY
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:59:13-61:49
+	android:value
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:61:17-46
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:60:17-63
+service#com.hyliankid14.bbcradioplayer.RadioService
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:64:9-71:19
+	android:exported
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:66:13-36
+	android:foregroundServiceType
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:67:13-58
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:65:13-41
+intent-filter#action:name:android.media.browse.MediaBrowserService
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:68:13-70:29
+action#android.media.browse.MediaBrowserService
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:69:17-83
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:69:25-80
+service#androidx.work.impl.foreground.SystemForegroundService
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:74:9-77:40
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:53:9-59:35
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:53:9-59:35
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:56:13-77
+	android:exported
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:77:13-37
+	tools:ignore
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:58:13-60
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:59:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:55:13-44
+	android:foregroundServiceType
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:76:13-53
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:75:13-81
+receiver#com.hyliankid14.bbcradioplayer.SubscriptionRefreshReceiver
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:85:9-89:20
+	android:exported
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:85:63-86
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:85:19-62
+intent-filter#action:name:com.hyliankid14.bbcradioplayer.ACTION_REFRESH_SUBSCRIPTIONS
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:86:13-88:29
+action#com.hyliankid14.bbcradioplayer.ACTION_REFRESH_SUBSCRIPTIONS
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:87:17-102
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:87:25-99
+receiver#com.hyliankid14.bbcradioplayer.BootReceiver
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:90:9-94:20
+	android:exported
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:90:48-71
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:90:19-47
+intent-filter#action:name:android.intent.action.BOOT_COMPLETED
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:91:13-93:29
+action#android.intent.action.BOOT_COMPLETED
+ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:92:17-79
+	android:name
+		ADDED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml:92:25-76
+uses-sdk
+INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml
+INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml
+MERGED from [com.google.android.material:material:1.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3a87824773491a4f39dd9ca25272224c/transformed/material-1.11.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.material:material:1.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3a87824773491a4f39dd9ca25272224c/transformed/material-1.11.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a85a8e0934e8472f5dfc2e58a19978e3/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a85a8e0934e8472f5dfc2e58a19978e3/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/shaivure/.gradle/caches/9.2.1/transforms/41e3d83122444478af9e4ffda7dd0a17/transformed/constraintlayout-2.0.1/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/shaivure/.gradle/caches/9.2.1/transforms/41e3d83122444478af9e4ffda7dd0a17/transformed/constraintlayout-2.0.1/AndroidManifest.xml:5:5-7:41
+MERGED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:5:5-44
+MERGED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:5:5-44
+MERGED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:6:5-44
+MERGED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:6:5-44
+MERGED from [androidx.appcompat:appcompat:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/6f75297a1abd3824b514933a56eac1da/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat:1.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/6f75297a1abd3824b514933a56eac1da/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.exoplayer:exoplayer:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/ba5f05eca38e6962e34df41f80b0329a/transformed/exoplayer-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/ba5f05eca38e6962e34df41f80b0329a/transformed/exoplayer-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-ui:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/aa25ab5d377d111b772cfdc30d9fac79/transformed/exoplayer-ui-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-ui:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/aa25ab5d377d111b772cfdc30d9fac79/transformed/exoplayer-ui-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.media:media:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/190ed912a1730a948ae15b09a6442e82/transformed/media-1.6.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.media:media:1.6.0] /home/shaivure/.gradle/caches/9.2.1/transforms/190ed912a1730a948ae15b09a6442e82/transformed/media-1.6.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/e23e202ce8f69970ce4f05662f9c9c9e/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/e23e202ce8f69970ce4f05662f9c9c9e/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:21:5-44
+MERGED from [com.github.bumptech.glide:glide:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e6072d899d4d8291c43a6d08381eeab7/transformed/glide-4.15.1/AndroidManifest.xml:5:5-7:41
+MERGED from [com.github.bumptech.glide:glide:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e6072d899d4d8291c43a6d08381eeab7/transformed/glide-4.15.1/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f59759da45715be22af37340bde93472/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f59759da45715be22af37340bde93472/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/49c5d0299e7a3d0972dcc65bbbbe2300/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/49c5d0299e7a3d0972dcc65bbbbe2300/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:3:5-44
+MERGED from [com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:3:5-44
+MERGED from [androidx.fragment:fragment:1.3.6] /home/shaivure/.gradle/caches/9.2.1/transforms/705107ac5f8ff5b8eb084ad1bf8882fc/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.3.6] /home/shaivure/.gradle/caches/9.2.1/transforms/705107ac5f8ff5b8eb084ad1bf8882fc/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.activity:activity:1.8.0] /home/shaivure/.gradle/caches/9.2.1/transforms/86855cc7e80e700f8c335f398f9297f5/transformed/activity-1.8.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.8.0] /home/shaivure/.gradle/caches/9.2.1/transforms/86855cc7e80e700f8c335f398f9297f5/transformed/activity-1.8.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/95d5e04f0b372d03e26850929c21bb93/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/95d5e04f0b372d03e26850929c21bb93/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/48d73b8a31f4c7a68af5985f8436fe18/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/48d73b8a31f4c7a68af5985f8436fe18/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/e40f68b8bbe3ccb570593fbe5e3f4c83/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/e40f68b8bbe3ccb570593fbe5e3f4c83/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.transition:transition:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f16ff88884cdaeb58e7b0a47b278c04d/transformed/transition-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f16ff88884cdaeb58e7b0a47b278c04d/transformed/transition-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/5f0a1fb96251f92c8eb68cdedebbb69a/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/5f0a1fb96251f92c8eb68cdedebbb69a/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3ef4390588dba0543c43409c785bde06/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3ef4390588dba0543c43409c785bde06/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-dash:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9bf4c911a6b6a45c2db20ca97e785444/transformed/exoplayer-dash-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-dash:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9bf4c911a6b6a45c2db20ca97e785444/transformed/exoplayer-dash-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-hls:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9300d09fc1673fa6fd08bdcb7418de4d/transformed/exoplayer-hls-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-hls:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9300d09fc1673fa6fd08bdcb7418de4d/transformed/exoplayer-hls-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-rtsp:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c35bf978d20e637ce32c8a77829af780/transformed/exoplayer-rtsp-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-rtsp:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c35bf978d20e637ce32c8a77829af780/transformed/exoplayer-rtsp-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-smoothstreaming:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/e7b8bae924eab1b2e937f195aaa4ae5f/transformed/exoplayer-smoothstreaming-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-smoothstreaming:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/e7b8bae924eab1b2e937f195aaa4ae5f/transformed/exoplayer-smoothstreaming-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9e258040d7059d13384780cc8dbf9553/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-core:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/9e258040d7059d13384780cc8dbf9553/transformed/exoplayer-core-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.work:work-runtime-ktx:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/5cdf527ab3c28dbcce1489eb8f81b846/transformed/work-runtime-ktx-2.8.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.work:work-runtime-ktx:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/5cdf527ab3c28dbcce1489eb8f81b846/transformed/work-runtime-ktx-2.8.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7af3c4830a638b1b5c40d62c65fbd2a3/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7af3c4830a638b1b5c40d62c65fbd2a3/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3879f275d3352a1ff0ca432a73ac8c8d/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3879f275d3352a1ff0ca432a73ac8c8d/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9cad55177336086ed3b7560062c68e22/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/9cad55177336086ed3b7560062c68e22/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.recyclerview:recyclerview:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/ba181b347b9d612c22a864dc532d7d5e/transformed/recyclerview-1.2.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/ba181b347b9d612c22a864dc532d7d5e/transformed/recyclerview-1.2.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0542ddf29434997568d8fa036abbec3f/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/0542ddf29434997568d8fa036abbec3f/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a0fb648c9bda576033d1241928a680d5/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a0fb648c9bda576033d1241928a680d5/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-service:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a846e0531864a8ee94cb031490e257ed/transformed/lifecycle-service-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-service:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a846e0531864a8ee94cb031490e257ed/transformed/lifecycle-service-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/97c1e9a4736eb027386812acb091d8b2/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/97c1e9a4736eb027386812acb091d8b2/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/43f99dcadb34f7eecf698357ab7933dc/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/43f99dcadb34f7eecf698357ab7933dc/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/c61b0bf3a818c3bfcf1e0daa2d706398/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/c61b0bf3a818c3bfcf1e0daa2d706398/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/34d92701986a14c968e454ffd8cd4183/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/34d92701986a14c968e454ffd8cd4183/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/6a82724ae9d92029f92cc9a3a982f8cd/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/6a82724ae9d92029f92cc9a3a982f8cd/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core-ktx:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/b92a3db068215d524e508dfafbd83cde/transformed/core-ktx-1.9.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/b92a3db068215d524e508dfafbd83cde/transformed/core-ktx-1.9.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/72ccfc88ef201c0c56a9da93d95f4085/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/72ccfc88ef201c0c56a9da93d95f4085/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite-framework:2.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/562f9ee5246fd1427d4609635d3e9d6d/transformed/sqlite-framework-2.3.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite-framework:2.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/562f9ee5246fd1427d4609635d3e9d6d/transformed/sqlite-framework-2.3.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite:2.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c96ebd5477a1089dc2a37bc803b0ff68/transformed/sqlite-2.3.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.sqlite:sqlite:2.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c96ebd5477a1089dc2a37bc803b0ff68/transformed/sqlite-2.3.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/937a0ea361c88e7ba97cc0ee91d09262/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/937a0ea361c88e7ba97cc0ee91d09262/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/33c12f55859be46d1458cfd11d3f850b/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/33c12f55859be46d1458cfd11d3f850b/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.exoplayer:exoplayer-datasource:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c4910ffb64bfce72fbd992fc1642f917/transformed/exoplayer-datasource-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-datasource:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/c4910ffb64bfce72fbd992fc1642f917/transformed/exoplayer-datasource-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-database:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/7efac604642f873e08cdfcb22836164d/transformed/exoplayer-database-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-database:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/7efac604642f873e08cdfcb22836164d/transformed/exoplayer-database-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-extractor:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3f2f7567fc8f9d2aeec31c552d249dba/transformed/exoplayer-extractor-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-extractor:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/3f2f7567fc8f9d2aeec31c552d249dba/transformed/exoplayer-extractor-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-decoder:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/a9a9b7762e8867640b4f9431c1358834/transformed/exoplayer-decoder-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-decoder:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/a9a9b7762e8867640b4f9431c1358834/transformed/exoplayer-decoder-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/732e2aa2e5a2a9669f46875543d65393/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.exoplayer:exoplayer-common:2.18.2] /home/shaivure/.gradle/caches/9.2.1/transforms/732e2aa2e5a2a9669f46875543d65393/transformed/exoplayer-common-2.18.2/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a38bac67c2c7df301533982ad6fead21/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a38bac67c2c7df301533982ad6fead21/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [com.github.bumptech.glide:gifdecoder:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/58f7ec1753e7b1215513a7164edde32d/transformed/gifdecoder-4.15.1/AndroidManifest.xml:5:5-7:41
+MERGED from [com.github.bumptech.glide:gifdecoder:4.15.1] /home/shaivure/.gradle/caches/9.2.1/transforms/58f7ec1753e7b1215513a7164edde32d/transformed/gifdecoder-4.15.1/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.exifinterface:exifinterface:1.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/4b5cf30564661dee554cc3a340fb6629/transformed/exifinterface-1.3.3/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.exifinterface:exifinterface:1.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/4b5cf30564661dee554cc3a340fb6629/transformed/exifinterface-1.3.3/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a13c7c608e78f12df1f309a66ab964ab/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a13c7c608e78f12df1f309a66ab964ab/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.tracing:tracing:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/4b08578bae262fba409d18e13185eaff/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.tracing:tracing:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/4b08578bae262fba409d18e13185eaff/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.firebase:firebase-components:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/ae86a52739dceac4d43ad1c4b8f4f6ea/transformed/firebase-components-16.1.0/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.firebase:firebase-components:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/ae86a52739dceac4d43ad1c4b8f4f6ea/transformed/firebase-components-16.1.0/AndroidManifest.xml:19:5-21:41
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/251a0ea156ead36d10849460f4c9b217/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/251a0ea156ead36d10849460f4c9b217/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:18:5-20:41
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:18:5-20:41
+MERGED from [com.google.android.datatransport:transport-api:2.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/0864aedd9a0c855add3c5916b99ab7aa/transformed/transport-api-2.2.1/AndroidManifest.xml:18:5-20:41
+MERGED from [com.google.android.datatransport:transport-api:2.2.1] /home/shaivure/.gradle/caches/9.2.1/transforms/0864aedd9a0c855add3c5916b99ab7aa/transformed/transport-api-2.2.1/AndroidManifest.xml:18:5-20:41
+MERGED from [com.google.firebase:firebase-encoders-json:17.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/48fb0c3620733ae5cbcd7b795ccc23fb/transformed/firebase-encoders-json-17.1.0/AndroidManifest.xml:19:5-21:41
+MERGED from [com.google.firebase:firebase-encoders-json:17.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/48fb0c3620733ae5cbcd7b795ccc23fb/transformed/firebase-encoders-json-17.1.0/AndroidManifest.xml:19:5-21:41
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c1888032aacb1cf0210e6d2eeafe111c/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c1888032aacb1cf0210e6d2eeafe111c/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/1741b0839a36d24f2e44edec9685347b/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/1741b0839a36d24f2e44edec9685347b/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f159d95ce003e539f544c5d61b22ea20/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/f159d95ce003e539f544c5d61b22ea20/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/ff0905d5e90415bdb1dc3274b6674bbb/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /home/shaivure/.gradle/caches/9.2.1/transforms/ff0905d5e90415bdb1dc3274b6674bbb/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
+	android:targetSdkVersion
+		INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/shaivure/Development/BBC Radio Player/app/src/main/AndroidManifest.xml
+service#com.google.mlkit.common.internal.MlKitComponentDiscoveryService
+ADDED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:8:9-14:19
+MERGED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:23:9-29:19
+MERGED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:23:9-29:19
+MERGED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:15:9-23:19
+MERGED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:15:9-23:19
+	android:exported
+		ADDED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:10:13-37
+	tools:targetApi
+		ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:19:13-32
+	android:directBootAware
+		ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:17:13-43
+	android:name
+		ADDED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:9:13-91
+meta-data#com.google.firebase.components:com.google.mlkit.nl.languageid.bundled.internal.ThickLanguageIdRegistrar
+ADDED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:11:13-13:85
+	android:value
+		ADDED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:13:17-82
+	android:name
+		ADDED from [com.google.mlkit:language-id:17.0.6] /home/shaivure/.gradle/caches/9.2.1/transforms/9ea3eb8d72df6ba41964b6a36645c9b7/transformed/language-id-17.0.6/AndroidManifest.xml:12:17-135
+meta-data#com.google.firebase.components:com.google.mlkit.nl.languageid.internal.LanguageIdRegistrar
+ADDED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:26:13-28:85
+	android:value
+		ADDED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:28:17-82
+	android:name
+		ADDED from [com.google.mlkit:language-id-common:16.1.0] /home/shaivure/.gradle/caches/9.2.1/transforms/c613db5b391cd04d744445946c62d99e/transformed/language-id-common-16.1.0/AndroidManifest.xml:27:17-122
+provider#com.google.mlkit.common.internal.MlKitInitProvider
+ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:9:9-13:38
+	android:authorities
+		ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:11:13-69
+	android:exported
+		ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:12:13-37
+	android:initOrder
+		ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:13:13-35
+	android:name
+		ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:10:13-78
+meta-data#com.google.firebase.components:com.google.mlkit.common.internal.CommonComponentRegistrar
+ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:20:13-22:85
+	android:value
+		ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:22:17-82
+	android:name
+		ADDED from [com.google.mlkit:common:18.11.0] /home/shaivure/.gradle/caches/9.2.1/transforms/7c2901cd54fbbe5d2e8df6d07d9eccc8/transformed/common-18.11.0/AndroidManifest.xml:21:17-120
+provider#androidx.startup.InitializationProvider
+ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:29:9-37:20
+MERGED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:29:9-37:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a13c7c608e78f12df1f309a66ab964ab/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/shaivure/.gradle/caches/9.2.1/transforms/a13c7c608e78f12df1f309a66ab964ab/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+	tools:node
+		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:28:13-31
+	android:authorities
+		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+	android:exported
+		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+meta-data#androidx.emoji2.text.EmojiCompatInitializer
+ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/shaivure/.gradle/caches/9.2.1/transforms/8489d8e026c73666a4a68b81a67af1b1/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+activity#com.google.android.gms.common.api.GoogleApiActivity
+ADDED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:9-173
+	android:exported
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:146-170
+	android:theme
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:86-145
+	android:name
+		ADDED from [com.google.android.gms:play-services-base:18.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/80c0f71ac9da9b5e163c537e7a69e2a5/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:19-85
+meta-data#com.google.android.gms.version
+ADDED from [com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:9-122
+	android:value
+		ADDED from [com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:66-119
+	android:name
+		ADDED from [com.google.android.gms:play-services-basement:18.4.0] /home/shaivure/.gradle/caches/9.2.1/transforms/3dae546fab05b604ce27d32befa7b321/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:20-65
+uses-permission#android.permission.WAKE_LOCK
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:23:5-68
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:23:22-65
+meta-data#androidx.work.WorkManagerInitializer
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:34:13-36:52
+	android:value
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:36:17-49
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:35:17-68
+service#androidx.work.impl.background.systemalarm.SystemAlarmService
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:39:9-45:35
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:42:13-72
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:43:13-37
+	tools:ignore
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:44:13-60
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:45:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:41:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:40:13-88
+service#androidx.work.impl.background.systemjob.SystemJobService
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:46:9-52:35
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:49:13-70
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:50:13-36
+	android:permission
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:51:13-69
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:52:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:48:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:47:13-84
+receiver#androidx.work.impl.utils.ForceStopRunnable$BroadcastReceiver
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:61:9-66:35
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:64:13-35
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:65:13-37
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:66:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:63:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:62:13-88
+receiver#androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryChargingProxy
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:67:9-77:20
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:70:13-36
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:71:13-37
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:72:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:69:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:68:13-106
+intent-filter#action:name:android.intent.action.ACTION_POWER_CONNECTED+action:name:android.intent.action.ACTION_POWER_DISCONNECTED
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:73:13-76:29
+action#android.intent.action.ACTION_POWER_CONNECTED
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:74:17-87
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:74:25-84
+action#android.intent.action.ACTION_POWER_DISCONNECTED
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:75:17-90
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:75:25-87
+receiver#androidx.work.impl.background.systemalarm.ConstraintProxy$BatteryNotLowProxy
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:78:9-88:20
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:81:13-36
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:82:13-37
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:83:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:80:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:79:13-104
+intent-filter#action:name:android.intent.action.BATTERY_LOW+action:name:android.intent.action.BATTERY_OKAY
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:84:13-87:29
+action#android.intent.action.BATTERY_OKAY
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:85:17-77
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:85:25-74
+action#android.intent.action.BATTERY_LOW
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:86:17-76
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:86:25-73
+receiver#androidx.work.impl.background.systemalarm.ConstraintProxy$StorageNotLowProxy
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:89:9-99:20
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:92:13-36
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:93:13-37
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:94:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:91:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:90:13-104
+intent-filter#action:name:android.intent.action.DEVICE_STORAGE_LOW+action:name:android.intent.action.DEVICE_STORAGE_OK
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:95:13-98:29
+action#android.intent.action.DEVICE_STORAGE_LOW
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:96:17-83
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:96:25-80
+action#android.intent.action.DEVICE_STORAGE_OK
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:97:17-82
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:97:25-79
+receiver#androidx.work.impl.background.systemalarm.ConstraintProxy$NetworkStateProxy
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:100:9-109:20
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:103:13-36
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:104:13-37
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:105:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:102:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:101:13-103
+intent-filter#action:name:android.net.conn.CONNECTIVITY_CHANGE
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:106:13-108:29
+action#android.net.conn.CONNECTIVITY_CHANGE
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:107:17-79
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:107:25-76
+receiver#androidx.work.impl.background.systemalarm.RescheduleReceiver
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:110:9-121:20
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:113:13-36
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:114:13-37
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:115:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:112:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:111:13-88
+intent-filter#action:name:android.intent.action.BOOT_COMPLETED+action:name:android.intent.action.TIMEZONE_CHANGED+action:name:android.intent.action.TIME_SET
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:116:13-120:29
+action#android.intent.action.TIME_SET
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:118:17-73
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:118:25-70
+action#android.intent.action.TIMEZONE_CHANGED
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:119:17-81
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:119:25-78
+receiver#androidx.work.impl.background.systemalarm.ConstraintProxyUpdateReceiver
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:122:9-131:20
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:125:13-72
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:126:13-37
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:127:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:124:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:123:13-99
+intent-filter#action:name:androidx.work.impl.background.systemalarm.UpdateProxies
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:128:13-130:29
+action#androidx.work.impl.background.systemalarm.UpdateProxies
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:129:17-98
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:129:25-95
+receiver#androidx.work.impl.diagnostics.DiagnosticsReceiver
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:132:9-142:20
+	android:enabled
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:135:13-35
+	android:exported
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:136:13-36
+	android:permission
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:137:13-57
+	tools:targetApi
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:138:13-32
+	android:directBootAware
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:134:13-44
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:133:13-78
+intent-filter#action:name:androidx.work.diagnostics.REQUEST_DIAGNOSTICS
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:139:13-141:29
+action#androidx.work.diagnostics.REQUEST_DIAGNOSTICS
+ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:140:17-88
+	android:name
+		ADDED from [androidx.work:work-runtime:2.8.1] /home/shaivure/.gradle/caches/9.2.1/transforms/e1ee1afd5e7794dd4efc617cae197ee5/transformed/work-runtime-2.8.1/AndroidManifest.xml:140:25-85
+permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
+permission#com.hyliankid14.bbcradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:23:9-81
+uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
+uses-permission#com.hyliankid14.bbcradioplayer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.9.0] /home/shaivure/.gradle/caches/9.2.1/transforms/57f1114dfc27eef6da31b790cfedde10/transformed/core-1.9.0/AndroidManifest.xml:26:22-94
+meta-data#androidx.lifecycle.ProcessLifecycleInitializer
+ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/shaivure/.gradle/caches/9.2.1/transforms/9199dcd5c095094de12b31410c90ca6a/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:30:17-78
+service#androidx.room.MultiInstanceInvalidationService
+ADDED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:24:9-28:63
+	android:exported
+		ADDED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:27:13-37
+	tools:ignore
+		ADDED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:28:13-60
+	android:directBootAware
+		ADDED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:26:13-43
+	android:name
+		ADDED from [androidx.room:room-runtime:2.5.0] /home/shaivure/.gradle/caches/9.2.1/transforms/a37863164daf4662a44426b0f9af5e0a/transformed/room-runtime-2.5.0/AndroidManifest.xml:25:13-74
+meta-data#androidx.profileinstaller.ProfileInstallerInitializer
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
+receiver#androidx.profileinstaller.ProfileInstallReceiver
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
+	android:enabled
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
+	android:permission
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
+	android:directBootAware
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
+intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
+action#androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
+intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
+action#androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
+intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
+action#androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
+intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
+action#androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/shaivure/.gradle/caches/9.2.1/transforms/68bd37c733497f0d9fd1010bf57f84f3/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92
+service#com.google.android.datatransport.runtime.backends.TransportBackendDiscovery
+ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:29:9-35:19
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:36:9-38:40
+MERGED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:36:9-38:40
+	android:exported
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:31:13-37
+	android:name
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:30:13-103
+meta-data#backend:com.google.android.datatransport.cct.CctBackendFactory
+ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:32:13-34:39
+	android:value
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:34:17-36
+	android:name
+		ADDED from [com.google.android.datatransport:transport-backend-cct:2.3.3] /home/shaivure/.gradle/caches/9.2.1/transforms/66646b064956031b08e73139fd48335b/transformed/transport-backend-cct-2.3.3/AndroidManifest.xml:33:17-94
+service#com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService
+ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:26:9-30:19
+	android:exported
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:28:13-37
+	android:permission
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:29:13-69
+	android:name
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:27:13-117
+receiver#com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver
+ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:32:9-34:40
+	android:exported
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:34:13-37
+	android:name
+		ADDED from [com.google.android.datatransport:transport-runtime:2.2.6] /home/shaivure/.gradle/caches/9.2.1/transforms/93a3e02028bcdb3a06ac7b739181e733/transformed/transport-runtime-2.2.6/AndroidManifest.xml:33:13-132

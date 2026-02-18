@@ -1,28 +1,585 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:background="?attr/colorSurfaceContainer">
 
-    <Button
-        android:id="@+id/btn_radio2"
+    <!-- Top App Bar (Material 3) -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/top_app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurfaceContainer"
+        app:titleTextColor="?attr/colorOnSurface"
+        app:navigationIconTint="?attr/colorOnSurface"
+        app:menu="@menu/top_app_bar_menu" />
+
+    <!-- Fill the small gap under the app bar with the same surface container colour -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="?attr/colorSurfaceContainer" />
+
+    <!-- Favorites toggle group shown under the app bar for quick access -->
+    <LinearLayout
+        android:id="@+id/favorites_toggle_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Play BBC Radio 2" />
+        android:orientation="horizontal"
+        android:background="@android:color/transparent"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:gravity="center">
 
-    <Button
-        android:id="@+id/btn_radio4"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_stations"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:layout_marginStart="0dp"
+            android:layout_marginEnd="2dp"
+            android:text="Stations"
+            app:icon="@drawable/ic_star"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:cornerRadius="100dp"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_subscribed"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:text="Subscribed"
+            app:icon="@drawable/ic_podcast"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:cornerRadius="100dp"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_saved"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:text="Saved"
+            app:icon="@drawable/ic_bookmark"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:cornerRadius="100dp"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_history"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="0dp"
+            android:text="History"
+            app:icon="@drawable/ic_history"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:cornerRadius="100dp"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+    </LinearLayout>
+
+    <!-- Dynamic Fragment Container (Podcasts) -->
+    <FrameLayout
+        android:id="@+id/fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
+
+    <!-- Static Content Container (Stations &amp; Settings) -->
+    <FrameLayout
+        android:id="@+id/static_content_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/stations_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="?attr/colorSurfaceContainer">
+
+            <!-- Filter Buttons (static; won't move during swipes) -->
+            <include
+                layout="@layout/filter_buttons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:id="@+id/filter_buttons_include" />
+
+            <!-- Stations content (this is translated during swipes; tabs above remain static) -->
+            <LinearLayout
+                android:id="@+id/stations_content"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/stations_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:clipToPadding="false"
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
+
+            </LinearLayout>
+
+            <!-- Favorites toggle group moved to top under the app bar -->
+
+            <!-- Stations (favourited radio stations) - reuse existing stations list -->
+            <!-- (stations_list already exists above and is used as the Stations view) -->
+
+            <!-- Subscribed podcasts: keep the card look but remove the old collapsible header -->
+            <FrameLayout
+                android:id="@+id/favorites_podcasts_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="0dp"
+                android:visibility="gone"
+                android:background="?attr/colorSurface"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/favorites_podcasts_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:paddingTop="0dp"
+                    android:clipToPadding="true"
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
+            </FrameLayout>
+
+            <!-- Saved Episodes: remove collapsible header and show as its own card when selected -->
+            <FrameLayout
+                android:id="@+id/saved_episodes_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone"
+                android:background="?attr/colorSurface"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/saved_episodes_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:paddingTop="0dp"
+                    android:clipToPadding="true"
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
+
+            </FrameLayout>
+
+            <!-- History: full-width list (no background card) -->
+            <FrameLayout
+                android:id="@+id/favorites_history_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone"
+                android:background="?attr/colorSurface"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/favorites_history_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:paddingTop="0dp"
+                    android:clipToPadding="true"
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
+
+            </FrameLayout>
+
+
+        </LinearLayout>
+
+        <!-- Settings View -->
+        <ScrollView
+            android:id="@+id/settings_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:background="?attr/colorSurface">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:background="?attr/colorSurface">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Theme"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp" />
+
+                <RadioGroup
+                    android:id="@+id/theme_radio_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/radio_light"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Light"
+                        android:padding="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio_dark"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Dark"
+                        android:padding="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio_system"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Match System"
+                        android:padding="12dp" />
+
+                </RadioGroup>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Audio Quality"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="32dp"
+                    android:layout_marginBottom="16dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Auto-detect based on network"
+                        android:textSize="14sp" />
+                    
+                    <CheckBox
+                        android:id="@+id/auto_quality_checkbox"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="12dp" />        </LinearLayout>
+
+
+
+
+
+                <RadioGroup
+                    android:id="@+id/quality_radio_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/radio_high_quality"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="High Quality (320kbps)"
+                        android:padding="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio_low_quality"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Low Quality (128kbps)"
+                        android:padding="12dp" />
+
+                </RadioGroup>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Android Auto"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="32dp"
+                    android:layout_marginBottom="16dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Auto-play last station or podcast when Android Auto connects"
+                        android:textSize="14sp" />
+
+                    <CheckBox
+                        android:id="@+id/auto_resume_android_auto_checkbox"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="12dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Next/Previous Behaviour"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="32dp"
+                    android:layout_marginBottom="16dp" />
+
+                <RadioGroup
+                    android:id="@+id/scrolling_mode_radio_group"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/radio_scroll_all_stations"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Scroll All Stations"
+                        android:padding="12dp" />
+
+                    <RadioButton
+                        android:id="@+id/radio_scroll_favorites"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Scroll Favourites Only"
+                        android:padding="12dp" />
+
+                </RadioGroup>
+
+                <!-- Subscription Refresh Controls -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Subscription Notifications"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="8dp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/subscription_refresh_layout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:boxStrokeColor="?attr/colorOutline"
+                    app:endIconMode="dropdown_menu"
+                    app:boxBackgroundColor="?attr/colorSurface"
+                    android:hint="Check for new episodes every">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/subscription_refresh_spinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:textColor="?attr/colorOnSurface"
+                        android:padding="8dp" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Podcast Indexing Controls -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Podcast Indexing"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Button
+                        android:id="@+id/index_now_button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Index Now" />
+
+                </LinearLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/index_schedule_layout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    app:boxStrokeColor="?attr/colorOutline"
+                    app:endIconMode="dropdown_menu"
+                    app:boxBackgroundColor="?attr/colorSurface"
+                    android:hint="@string/index_schedule_label">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/index_schedule_spinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:textColor="?attr/colorOnSurface"
+                        android:padding="8dp" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="8dp">
+
+                    <CheckBox
+                        android:id="@+id/exclude_non_english_checkbox"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/exclude_non_english_label" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/index_status_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Index status: idle"
+                    android:textSize="14sp"
+                    android:layout_marginTop="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:id="@+id/index_last_rebuilt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Last rebuilt: —"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
+
+                <!-- Visual progress bar for episode indexing (shows only during episode indexing) -->
+                <ProgressBar
+                    android:id="@+id/index_episodes_progress"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:indeterminate="false"
+                    android:max="100"
+                    android:progress="0"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp" />
+
+                <!-- Backup &amp; Restore -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Backup &amp; Restore"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <Button
+                        android:id="@+id/export_prefs_button"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Export Settings" />
+
+                    <Space
+                        android:layout_width="12dp"
+                        android:layout_height="wrap_content" />
+
+                    <Button
+                        android:id="@+id/import_prefs_button"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Import Settings" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </ScrollView>
+
+    </FrameLayout>
+
+    <include
+        layout="@layout/mini_player"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Play BBC Radio 4"
-        android:layout_marginTop="12dp" />
-
-    <Button
-        android:id="@+id/btn_radio6"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Play BBC Radio 6 Music"
-        android:layout_marginTop="12dp" />
+        app:menu="@menu/bottom_navigation_menu"
+        app:labelVisibilityMode="labeled"
+        app:itemIconTint="@color/bottom_nav_color"
+        app:itemTextColor="@color/bottom_nav_color"
+        style="@style/Widget.Material3.BottomNavigationView" />
 
 </LinearLayout>
