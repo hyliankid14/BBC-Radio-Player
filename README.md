@@ -166,7 +166,7 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
 ## Development & Deployment
 
 ### Prerequisites
-- **JDK 17**: Required for Gradle builds
+- **JDK 21**: Required for Gradle builds
 - **Android SDK**: Install via Android Studio or command-line tools
 - **Android Studio**: Recommended IDE (Iguana 2023.2.1+)
 
@@ -197,10 +197,10 @@ This triggers the GitHub Actions workflow, builds the APK in the cloud, and inst
 chmod +x gradlew
 ```
 
-**JDK 17 Installation** (Ubuntu/Debian):
+**JDK 21 Installation** (Ubuntu/Debian):
 ```bash
 sudo apt-get update
-sudo apt-get install -y openjdk-17-jdk
+sudo apt-get install -y openjdk-21-jdk
 
 # Verify installation
 java -version

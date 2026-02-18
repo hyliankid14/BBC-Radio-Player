@@ -30,6 +30,10 @@ fi
 CORES=$(nproc)
 echo "⚡ Building with $CORES cores..."
 
+if [ ! -x "./gradlew" ]; then
+    chmod +x ./gradlew
+fi
+
 # Build Debug APK
 # Using --offline if possible to save bandwidth, but for now we'll stick to standard
 ./gradlew assembleDebug --parallel --max-workers="$CORES"
