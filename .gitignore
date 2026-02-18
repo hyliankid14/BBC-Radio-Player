@@ -1,27 +1,27 @@
 # Build artifacts and temporary files
-.gradle/
-build/
-app/build/
-captures/
-.externalNativeBuild/
-.cxx/
-local.properties
+/.gradle/
+/build/
+/app/build/
+/captures/
+/.externalNativeBuild/
+/.cxx/
+/local.properties
 
 # IDE settings
-.idea/
-*.iml
-.vscode/
+/.idea/
+/*.iml
+/.vscode/
 
 # OS specific files
 .DS_Store
 Thumbs.db
 
 # Project-specific ignores
-SShots/
-artifacts/
-main
+/SShots/
+/artifacts/
+/main
 
 # Script build artifacts (but keep the scripts themselves)
-scripts/bin/
-scripts/debs/
-scripts/sysroot/
+/scripts/bin/
+/scripts/debs/
+/scripts/sysroot/
