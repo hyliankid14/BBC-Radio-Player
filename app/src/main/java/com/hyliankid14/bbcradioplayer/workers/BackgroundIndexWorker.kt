@@ -134,7 +134,7 @@ class BackgroundIndexWorker(
 
             if (isFullReindex) {
                 // Full reindex
-                IndexWorker.reindexAll(applicationContext) { status, percent, isEpisodePhase ->
+                IndexWorker.reindexAll(applicationContext) { status, percent, _ ->
                     // Update notification with progress
                     val notification = createForegroundInfo(status, percent)
                     try {
@@ -145,7 +145,7 @@ class BackgroundIndexWorker(
                 }
             } else {
                 // Incremental indexing
-                IndexWorker.reindexNewOnly(applicationContext) { status, percent, isEpisodePhase ->
+                IndexWorker.reindexNewOnly(applicationContext) { status, percent, _ ->
                     // Update notification with progress
                     val notification = createForegroundInfo(status, percent)
                     try {

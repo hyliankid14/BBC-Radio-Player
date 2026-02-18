@@ -711,7 +711,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     } else if (parentId == "podcasts_history") {
                         try {
                             val history = PlayedHistoryPreference.getHistory(this@RadioService)
-                            val items = history.map { h ->
+                            val historyItems = history.map { h ->
                                 MediaItem(
                                     MediaDescriptionCompat.Builder()
                                         .setMediaId("podcast_episode_${h.id}")
@@ -722,7 +722,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                     MediaItem.FLAG_PLAYABLE
                                 )
                             }
-                            result.sendResult(items)
+                            result.sendResult(historyItems)
                         } catch (e: Exception) {
                             Log.e(TAG, "Error loading history for Android Auto", e)
                             result.sendResult(emptyList())
@@ -1012,7 +1012,6 @@ class RadioService : MediaBrowserServiceCompat() {
 
             // For podcasts we want: Notification Title = podcast name, ContentText/SubText = episode title.
             val pbShow = PlaybackStateHelper.getCurrentShow()
-            val episodeTitle = (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: "").orEmpty()
 
             val notificationTitle = when {
                 // Podcasts: podcast name as title
@@ -1525,12 +1524,12 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     // For podcasts, guard against overwriting authoritative podcast series metadata
                     // with ShowInfoFetcher defaults (e.g. "BBC Radio"). Treat placeholder/empty
                     // responses as non-authoritative and do not replace the series title.
-                    val titleIsPlaceholder = (finalShow.title ?: "") == "BBC Radio"
+                    val titleIsPlaceholder = finalShow.title == "BBC Radio"
 
                     // Detect meaningful changes (ignore placeholder/empty fields from fetcher)
-                    val titleChanged = !titleIsPlaceholder && (finalShow.title ?: "") != (currentShowInfo.title ?: "")
-                    val episodeChanged = !finalShow.episodeTitle.isNullOrEmpty() && (finalShow.episodeTitle ?: "") != (currentShowInfo.episodeTitle ?: "")
-                    val imageChanged = !finalShow.imageUrl.isNullOrEmpty() && (finalShow.imageUrl ?: "") != (currentShowInfo.imageUrl ?: "")
+                    val titleChanged = !titleIsPlaceholder && finalShow.title != currentShowInfo.title
+                    val episodeChanged = !finalShow.episodeTitle.isNullOrEmpty() && finalShow.episodeTitle != currentShowInfo.episodeTitle
+                    val imageChanged = !finalShow.imageUrl.isNullOrEmpty() && finalShow.imageUrl != currentShowInfo.imageUrl
                     val songDataChanged = (!finalShow.secondary.isNullOrEmpty() && finalShow.secondary != currentShowInfo.secondary) || (!finalShow.tertiary.isNullOrEmpty() && finalShow.tertiary != currentShowInfo.tertiary)
 
                     // Merge fetched data into current show state but preserve an existing, non-placeholder
@@ -1539,7 +1538,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     val mergedImage = finalShow.imageUrl ?: currentShowInfo.imageUrl
                     val mergedEpisode = finalShow.episodeTitle ?: currentShowInfo.episodeTitle
 
-                    val mergedShow = finalShow.copy(title = mergedTitle ?: "", imageUrl = mergedImage, episodeTitle = mergedEpisode)
+                    val mergedShow = finalShow.copy(title = mergedTitle, imageUrl = mergedImage, episodeTitle = mergedEpisode)
 
                     // Update PlaybackStateHelper with the merged, authoritative show so other consumers
                     // never see the placeholder value unexpectedly.
@@ -1701,7 +1700,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
         // Defensive null-safety: treat station id/title fields as possibly-empty and avoid calling
         // String methods on nullable receivers in case older branches declare them nullable.
-        val isPodcast = currentStationId?.startsWith("podcast_") == true
+        val isPodcast = currentStationId.startsWith("podcast_")
 
         val mediaIdVal: String = if (isPodcast) {
             // Prefer currently-playing episode id; fall back to station id (never null at runtime, but coerce defensively)
@@ -1736,17 +1735,6 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
         // Compute the subtitle (centralized) and let computeUiSubtitle() keep PlaybackStateHelper in sync.
         val displaySubtitle = computeUiSubtitle()
-
-        // Compute the descriptive/right-hand piece (showDesc) from the authoritative PlaybackStateHelper
-        // so both MediaSession metadata and notifications expose the same value.
-        val pbShow = PlaybackStateHelper.getCurrentShow()
-        val showDesc = if (!pbShow.secondary.isNullOrEmpty() || !pbShow.tertiary.isNullOrEmpty()) {
-            val artist = pbShow.secondary ?: ""
-            val track = pbShow.tertiary ?: ""
-            if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else pbShow.getFormattedTitle()
-        } else {
-            (pbShow.episodeTitle ?: currentShowInfo.episodeTitle ?: currentShowTitle).orEmpty()
-        }
 
         val metadataBuilder = android.support.v4.media.MediaMetadataCompat.Builder()
             // Use metadata keys that make Android Auto show correct fields for podcasts and streams
@@ -1826,12 +1814,12 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
     // Centralized UI subtitle selection so notification / mini player / Android Auto remain consistent
     private fun computeUiSubtitle(): String {
-        val isPodcast = currentStationId?.startsWith("podcast_") == true
+        val isPodcast = currentStationId.startsWith("podcast_")
         val hasSongData = !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()
         // Use the actual programme/show name (not the formatted title) as the left-hand part
         val showName = currentShowName.orEmpty()
         // Prefer episodeTitle/secondary as the descriptive right-hand part, fall back to formatted title
-        val showDesc = (currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: currentShowTitle ?: "").orEmpty()
+        val showDesc = currentShowInfo.episodeTitle ?: currentShowInfo.secondary ?: currentShowTitle
 
         // Simplified behaviour: do NOT cycle. For live streams without song metadata show
         // "Show name - Show description" when both are available.

@@ -119,7 +119,7 @@ object PlayedHistoryPreference {
     fun removeEntry(context: Context, episodeId: String) {
         try {
             val current = getHistory(context).toMutableList()
-            val removed = current.firstOrNull { it.id == episodeId } ?: return
+            if (current.none { it.id == episodeId }) return
             current.removeAll { it.id == episodeId }
             val arr = JSONArray()
             for (e in current) {

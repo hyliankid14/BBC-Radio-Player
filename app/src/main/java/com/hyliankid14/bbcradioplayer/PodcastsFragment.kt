@@ -578,7 +578,7 @@ class PodcastsFragment : Fragment() {
         requireActivity().window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
         // Simple scroll listener for FAB visibility and pagination
-        scrollView.setOnScrollChangeListener { v, _, scrollY, _, _ ->
+        scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             // Show/hide FAB based on scroll position
             val dp200 = (200 * resources.displayMetrics.density).toInt()
             if (scrollY > dp200) fab?.visibility = View.VISIBLE else fab?.visibility = View.GONE
@@ -770,13 +770,6 @@ class PodcastsFragment : Fragment() {
         lastDisplaySnapshot = null
         simplifiedApplyFilters(emptyState, recyclerView)
         return
-        // Legacy/complex path removed — simplified search (called above) is used instead.
-        // Removed the old `viewLifecycleOwner.lifecycleScope.launch { ... }` block to avoid
-        // duplicate/unused coroutine scopes and to eliminate parser/brace-mismatch risks.
-        
-
-        // Ensure any loading spinner is hidden when filters finish applying
-        view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
     }
 
     private fun loadNextPage() {
@@ -996,21 +989,21 @@ class PodcastsFragment : Fragment() {
         if (allPodcasts.isNotEmpty()) {
             // If we're already showing the search results adapter and an active search exists, keep them
             val active = viewModel.activeSearchQuery.value
-            val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
-            if (rv != null) {
+            val podcastsRecycler = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+            if (podcastsRecycler != null) {
                 if (active.isNullOrBlank()) {
                     // No active persisted search — if we're already showing the main podcasts list, skip reapplying filters
-                    if (searchQuery.isBlank() && rv.adapter == podcastAdapter) {
+                    if (searchQuery.isBlank() && podcastsRecycler.adapter == podcastAdapter) {
                         android.util.Log.d("PodcastsFragment", "onResume: no active search and already showing podcasts, ensuring visibility")
                         // Ensure the list is visible (it may have been hidden when navigating away)
-                        rv.visibility = View.VISIBLE
+                        podcastsRecycler.visibility = View.VISIBLE
                         view?.findViewById<TextView>(R.id.empty_state_text)?.visibility = View.GONE
                         // If the adapter has no data, refresh it
-                        if (podcastAdapter?.itemCount == 0) {
+                        if (podcastAdapter.itemCount == 0) {
                             android.util.Log.d("PodcastsFragment", "onResume: adapter is empty, refreshing podcast list")
-                            view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loadingBar ->
+                            view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { _ ->
                                 view?.findViewById<TextView>(R.id.empty_state_text)?.let { empty ->
-                                    applyFilters(empty, rv)
+                                    applyFilters(empty, podcastsRecycler)
                                 }
                             }
                         }
@@ -1018,7 +1011,7 @@ class PodcastsFragment : Fragment() {
                     }
                 } else {
                     // An active search is persisted; if we're already showing the search results adapter, keep it to avoid re-running expensive searches
-                    if (rv.adapter == searchAdapter) {
+                    if (podcastsRecycler.adapter == searchAdapter) {
                         android.util.Log.d("PodcastsFragment", "onResume: keeping existing search results (active='${active}'), skipping rebuild")
                         return
                     }
@@ -1109,16 +1102,16 @@ class PodcastsFragment : Fragment() {
                     val genreSpinner = view?.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.genre_filter_spinner)
                     val sortSpinner = view?.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.sort_spinner)
                     val emptyState = view?.findViewById<TextView>(R.id.empty_state_text)
-                    val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
-                    if (genreSpinner != null && sortSpinner != null && emptyState != null && rv != null) {
+                    val cachedPodcastsRecycler = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+                    if (genreSpinner != null && sortSpinner != null && emptyState != null && cachedPodcastsRecycler != null) {
                         val pods = if (allPodcasts.isNotEmpty()) allPodcasts
                         else (cached.titleMatches + cached.descMatches + cached.episodeMatches.map { it.second }).distinct()
                         val genres = listOf("All Genres") + repository.getUniqueGenres(pods)
                         viewModel.cachedGenres = genres
                         suppressSearchWatcher = true
                         try {
-                            bindGenreSpinner(genreSpinner, genres, emptyState, rv)
-                            bindSortSpinner(sortSpinner, emptyState, rv)
+                            bindGenreSpinner(genreSpinner, genres, emptyState, cachedPodcastsRecycler)
+                            bindSortSpinner(sortSpinner, emptyState, cachedPodcastsRecycler)
                         } finally {
                             suppressSearchWatcher = false
                         }
@@ -1283,8 +1276,6 @@ class PodcastsFragment : Fragment() {
             val episodesCheckIcon = view?.findViewById<ImageView>(R.id.search_status_episodes_icon)
             val episodesMessage = view?.findViewById<TextView>(R.id.search_status_episodes_message)
             
-            var spinnerShown = false
-            
             // Get the query first to determine if we should show the large spinner
             val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
             searchQuery = q
@@ -1293,11 +1284,10 @@ class PodcastsFragment : Fragment() {
             // But only delay if we have podcasts to process - don't delay the empty case
             // Don't show the large spinner when searching (q is not empty) because the Search Status card shows individual progress indicators
             val showSpinnerJob = if (allPodcasts.isNotEmpty() && q.isEmpty()) {
-                launch {
+                launch spinner@{
                     kotlinx.coroutines.delay(120)
-                    if (!isActive) return@launch
+                    if (!isActive) return@spinner
                     loadingView?.visibility = View.VISIBLE
-                    spinnerShown = true
                 }
             } else {
                 null
@@ -1415,22 +1405,6 @@ class PodcastsFragment : Fragment() {
                 // Show podcast matches immediately (before episode indexing)
                 val podcastMatches = (titleMatches + descMatches).distinctBy { it.id }
                 if (podcastMatches.isNotEmpty() && isActive) {
-                    val sorted = when (currentSort) {
-                        "Most popular" -> podcastMatches.sortedWith(
-                            compareBy<Podcast> { if (titleMatches.contains(it)) 0 else 1 }
-                                .thenBy { getPopularRank(it) }
-                        )
-                        "Most recent" -> podcastMatches.sortedWith(
-                            compareBy<Podcast> { if (titleMatches.contains(it)) 0 else 1 }
-                                .thenByDescending { cachedUpdates[it.id] ?: 0L }
-                        )
-                        "Alphabetical (A-Z)" -> podcastMatches.sortedWith(
-                            compareBy<Podcast> { if (titleMatches.contains(it)) 0 else 1 }
-                                .thenBy { it.title }
-                        )
-                        else -> podcastMatches
-                    }
-                    
                     // Initialize search adapter with podcast-only results
                     if (searchAdapter == null) {
                         searchAdapter = SearchResultsAdapter(
@@ -1516,7 +1490,7 @@ class PodcastsFragment : Fragment() {
                                         return found ?: Episode(
                                             id = ef.episodeId,
                                             title = ef.title,
-                                            description = ef.description ?: "",
+                                            description = ef.description,
                                             audioUrl = "",
                                             imageUrl = p.imageUrl,
                                             pubDate = "",
@@ -1563,7 +1537,7 @@ class PodcastsFragment : Fragment() {
                     if (!kotlin.coroutines.coroutineContext.isActive) return@async emptyList<Pair<Episode, Podcast>>()
 
                     // Filter and sort episodes
-                    val epsFiltered = eps.filter { (ep, pod) ->
+                    val epsFiltered = eps.filter { (_, pod) ->
                         repository.filterPodcasts(listOf(pod), currentFilter).isNotEmpty()
                     }.filter { (ep, _) ->
                         ep.durationMins in currentFilter.minDuration..currentFilter.maxDuration

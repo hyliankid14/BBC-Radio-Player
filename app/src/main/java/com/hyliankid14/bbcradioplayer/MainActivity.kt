@@ -478,7 +478,14 @@ class MainActivity : AppCompatActivity() {
                                     if (!performed) {
                                         // Fallback to Vibrator API for more reliable feedback on some devices
                                         try {
-                                            val vib = itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                            val vib = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                                itemView.context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+                                            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                                itemView.context.getSystemService(android.os.Vibrator::class.java)
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                            }
                                             if (vib != null) {
                                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                                                     vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
@@ -528,7 +535,6 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 // Show the saved episodes immediately if the Favorites view is active AND the Saved tab is selected.
-                val toggle = try { findViewById<LinearLayout>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
                 val savedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved))
                 if (savedTabActive) {
                     savedRecycler.visibility = View.VISIBLE
@@ -561,7 +567,6 @@ class MainActivity : AppCompatActivity() {
             val historyRecycler = findViewById<RecyclerView>(R.id.favorites_history_recycler)
 
             // Only reveal the history RecyclerView when the Favorites *History* sub-tab is active.
-            val toggle = try { findViewById<LinearLayout>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
             val historyTabActive = isButtonChecked(R.id.fav_tab_history)
 
             if (historyEntries.isNotEmpty()) {
@@ -604,8 +609,8 @@ class MainActivity : AppCompatActivity() {
                         override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                             val pos = viewHolder.bindingAdapterPosition
                             if (pos != RecyclerView.NO_POSITION) {
-                                val adapter = historyRecycler.adapter as? PlayedHistoryAdapter
-                                val removedEntry = adapter?.getEntryAt(pos)
+                                val historyAdapter = historyRecycler.adapter as? PlayedHistoryAdapter
+                                val removedEntry = historyAdapter?.getEntryAt(pos)
                                 if (removedEntry == null) {
                                     try { historyRecycler.adapter?.notifyItemChanged(pos) } catch (_: Exception) { }
                                     return
@@ -781,9 +786,7 @@ class MainActivity : AppCompatActivity() {
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
         val favoritesPodcastsRecycler = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
         val savedContainer = findViewById<View>(R.id.saved_episodes_container)
-        val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
         val historyContainer = findViewById<View>(R.id.favorites_history_container)
-        val favoritesToggle = findViewById<LinearLayout>(R.id.favorites_toggle_group)
         // Ensure the favourites toggle group is visible when in Favorites
         try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
 
@@ -935,9 +938,6 @@ class MainActivity : AppCompatActivity() {
 
         // Load subscribed podcasts into Favorites section — do not force visibility unless the Subscribed tab was last-selected
         val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
-        val prefsLocal = getPreferences(android.content.Context.MODE_PRIVATE)
-        val lastFav = prefsLocal.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
-
         if (subscribedIds.isNotEmpty()) {
             favoritesPodcastsRecycler.layoutManager = LinearLayoutManager(this)
             // Start hidden; the toggle/tab will reveal this when appropriate
@@ -1002,8 +1002,8 @@ class MainActivity : AppCompatActivity() {
                             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                                 val pos = viewHolder.bindingAdapterPosition
                                 if (pos != RecyclerView.NO_POSITION) {
-                                    val adapter = favoritesPodcastsRecycler.adapter as? PodcastAdapter
-                                    val removedPodcast = adapter?.removePodcastAt(pos)
+                                    val podcastAdapterForSwipe = favoritesPodcastsRecycler.adapter as? PodcastAdapter
+                                    val removedPodcast = podcastAdapterForSwipe?.removePodcastAt(pos)
                                     removedPodcast?.let { p ->
                                         // Toggle subscription (unsub)
                                         PodcastSubscriptions.toggleSubscription(this@MainActivity, p.id)
@@ -1045,7 +1045,14 @@ class MainActivity : AppCompatActivity() {
                                         val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                                         if (!performed) {
                                             try {
-                                                val vib = itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                                val vib = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                                    itemView.context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+                                                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                                    itemView.context.getSystemService(android.os.Vibrator::class.java)
+                                                } else {
+                                                    @Suppress("DEPRECATION")
+                                                    itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                                }
                                                 if (vib != null) {
                                                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                                                         vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
@@ -1098,7 +1105,6 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     // Reveal recycler only if the Subscribed tab is actually selected right now
-                    val toggle = try { findViewById<LinearLayout>(R.id.favorites_toggle_group) } catch (_: Exception) { null }
                     val subscribedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_subscribed))
                     if (subscribedTabActive) {
                         favoritesPodcastsRecycler.visibility = View.VISIBLE
@@ -1192,18 +1198,6 @@ class MainActivity : AppCompatActivity() {
                         val podcasts = all.filter { ids.contains(it.id) }
                         val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(podcasts) } } catch (e: Exception) { emptyMap<String, Long>() }
                         val sorted = podcasts.sortedByDescending { updates[it.id] ?: 0L }
-                        val itemsPodcasts = sorted.map { p ->
-                            val subtitle = if ((updates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)) "New" else ""
-                            MediaItem(
-                                MediaDescriptionCompat.Builder()
-                                    .setMediaId("podcast_${'$'}{p.id}")
-                                    .setTitle(p.title)
-                                    .setSubtitle(subtitle)
-                                    .setIconUri(android.net.Uri.parse(p.imageUrl))
-                                    .build(),
-                                MediaItem.FLAG_BROWSABLE
-                            )
-                        }
                         runOnUiThread {
                             val rv = try { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler) } catch (_: Exception) { null }
                             rv?.layoutManager = LinearLayoutManager(this@MainActivity)
@@ -1420,8 +1414,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyConnectedButtonShape(
         btn: com.google.android.material.button.MaterialButton,
-        index: Int,
-        count: Int,
         selected: Boolean,
         smallCornerPx: Float,
         selectedCornerPx: Float
@@ -1429,7 +1421,6 @@ class MainActivity : AppCompatActivity() {
         try {
             val shapeBuilder = com.google.android.material.shape.ShapeAppearanceModel.builder()
             val smallCorner = com.google.android.material.shape.AbsoluteCornerSize(smallCornerPx)
-            val noCorner = com.google.android.material.shape.AbsoluteCornerSize(0f)
             val selectedCorner = com.google.android.material.shape.AbsoluteCornerSize(selectedCornerPx)
 
             if (selected) {
@@ -1445,8 +1436,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun animateCornerMorph(
         btn: com.google.android.material.button.MaterialButton,
-        index: Int,
-        count: Int,
         selected: Boolean,
         smallCornerPx: Float,
         selectedCornerPx: Float
@@ -1456,7 +1445,7 @@ class MainActivity : AppCompatActivity() {
         val startCorner = (btn.getTag(tagKey) as? Float) ?: smallCornerPx
 
         if (startCorner == targetUniformCorner) {
-            applyConnectedButtonShape(btn, index, count, selected, smallCornerPx, selectedCornerPx)
+            applyConnectedButtonShape(btn, selected, smallCornerPx, selectedCornerPx)
             return
         }
 
@@ -1477,10 +1466,10 @@ class MainActivity : AppCompatActivity() {
         animator.addListener(object : android.animation.Animator.AnimatorListener {
             override fun onAnimationStart(animation: android.animation.Animator) {}
             override fun onAnimationEnd(animation: android.animation.Animator) {
-                applyConnectedButtonShape(btn, index, count, selected, smallCornerPx, selectedCornerPx)
+                applyConnectedButtonShape(btn, selected, smallCornerPx, selectedCornerPx)
             }
             override fun onAnimationCancel(animation: android.animation.Animator) {
-                applyConnectedButtonShape(btn, index, count, selected, smallCornerPx, selectedCornerPx)
+                applyConnectedButtonShape(btn, selected, smallCornerPx, selectedCornerPx)
             }
             override fun onAnimationRepeat(animation: android.animation.Animator) {}
         })
@@ -1562,10 +1551,7 @@ class MainActivity : AppCompatActivity() {
         }
         val colorOnSurface = try { getThemeColorByName("colorOnSurface") } catch (_: Exception) { android.graphics.Color.BLACK }
 
-        val selectedIndex = ids.indexOf(selectedId)
-        val count = ids.size
-
-        for ((index, id) in ids.withIndex()) {
+        for ((_, id) in ids.withIndex()) {
             try {
                 val btn = findViewById<com.google.android.material.button.MaterialButton>(id)
                 val lp = btn.layoutParams as? android.widget.LinearLayout.LayoutParams
@@ -1618,7 +1604,7 @@ class MainActivity : AppCompatActivity() {
                 // Unselected: flat inner sides, slightly rounded outer edges
                 val smallCornerPx = dpToPx(8f)
                 val selectedCornerPx = dpToPx(1000f)
-                animateCornerMorph(btn, index, count, selected, smallCornerPx, selectedCornerPx)
+                animateCornerMorph(btn, selected, smallCornerPx, selectedCornerPx)
 
                 btn.contentDescription = labels[id]
                 btn.layoutParams = lp
@@ -2284,7 +2270,7 @@ class MainActivity : AppCompatActivity() {
                 IndexScheduler.scheduleIndexing(this)
             }
 
-            indexScheduleSpinner.setOnItemClickListener { parent, view, position, id ->
+            indexScheduleSpinner.setOnItemClickListener { _, _, position, _ ->
                 // If we're programmatically setting selection, ignore this callback once
                 if (suppressIndexSpinnerSelection) {
                     suppressIndexSpinnerSelection = false
@@ -2335,13 +2321,13 @@ class MainActivity : AppCompatActivity() {
                 val refreshSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = findViewById(R.id.subscription_refresh_spinner)
                 val refreshOptions = arrayOf("Disabled", "15 minutes", "30 minutes", "60 minutes", "2 hours", "6 hours", "12 hours", "24 hours")
                 val refreshValues = intArrayOf(0, 15, 30, 60, 120, 360, 720, 1440) // in minutes
-                val adapter = android.widget.ArrayAdapter(this, R.layout.spinner_dropdown_item, refreshOptions)
-                refreshSpinner.setAdapter(adapter)
+                val refreshAdapter = android.widget.ArrayAdapter(this, R.layout.spinner_dropdown_item, refreshOptions)
+                refreshSpinner.setAdapter(refreshAdapter)
 
                 // Get saved interval and find corresponding position
                 val savedMinutes = SubscriptionRefreshPreference.getIntervalMinutes(this)
-                val pos = refreshValues.indexOf(savedMinutes).takeIf { it >= 0 } ?: 3 // Default to 60 minutes (index 3)
-                refreshSpinner.setText(refreshOptions[pos], false)
+                val refreshPos = refreshValues.indexOf(savedMinutes).takeIf { it >= 0 } ?: 3 // Default to 60 minutes (index 3)
+                refreshSpinner.setText(refreshOptions[refreshPos], false)
 
                 // Ensure any previously-configured schedule is (re)activated at startup
                 if (savedMinutes > 0) {

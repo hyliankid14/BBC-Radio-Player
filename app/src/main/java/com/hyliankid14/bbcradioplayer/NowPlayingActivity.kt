@@ -428,9 +428,9 @@ class NowPlayingActivity : AppCompatActivity() {
 
                     // Avoid showing the same text twice: hide `artistTrack` when the description
                     // is effectively identical to the episode heading/title shown above.
-                    val episodeHeading = show.episodeTitle?.takeIf { it.isNotEmpty() } ?: show.title
+                    val episodeHeadingText = show.episodeTitle?.takeIf { it.isNotEmpty() } ?: show.title
                     val descPlain = spanned.toString().trim()
-                    if (descPlain.isNotEmpty() && !episodeHeading.isNullOrEmpty() && !descPlain.equals(episodeHeading.trim(), ignoreCase = true)) {
+                    if (descPlain.isNotEmpty() && !episodeHeadingText.isNullOrEmpty() && !descPlain.equals(episodeHeadingText.trim(), ignoreCase = true)) {
                         artistTrack.text = spanned
                         artistTrack.maxLines = 4
                         artistTrack.ellipsize = android.text.TextUtils.TruncateAt.END
@@ -804,7 +804,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 // Hide the small-line if it merely repeats the large episode heading (case-insensitive,
                 // trimmed). This prevents the duplicated subtitle seen in the screenshot.
                 val smallText = spanned.toString().trim()
-                val largeText = (episodeHeading ?: "").trim()
+                val largeText = episodeHeading.trim()
                 if (smallText.isNotEmpty() && smallText.equals(largeText, ignoreCase = true)) {
                     artistTrack.visibility = android.view.View.GONE
                     showMoreLink.visibility = android.view.View.GONE
@@ -993,7 +993,7 @@ class NowPlayingActivity : AppCompatActivity() {
                             var podcastName = PlaybackStateHelper.getCurrentStation()?.title
                                 ?: supportActionBar?.title?.toString()
                                 ?: "Podcast"
-                            podcastName = podcastName?.takeIf { it.isNotBlank() } ?: "Podcast"
+                            podcastName = podcastName.takeIf { it.isNotBlank() } ?: "Podcast"
                             // Guard against accidental template literals appearing in the title
                             if (podcastName.contains("${'$'}{")) podcastName = "Podcast"
                             val msg = if (now) "Subscribed to $podcastName" else "Unsubscribed from $podcastName"
@@ -1148,9 +1148,10 @@ class NowPlayingActivity : AppCompatActivity() {
 
         if (!episodeId.isNullOrEmpty()) {
             // Construct Episode object when necessary (previewEpisodeProp may already be available)
+            val baseTitle = PlaybackStateHelper.getCurrentShow().episodeTitle ?: PlaybackStateHelper.getCurrentShow().title
             val episode = previewEpisodeProp ?: Episode(
                 id = episodeId,
-                title = PlaybackStateHelper.getCurrentShow().episodeTitle ?: PlaybackStateHelper.getCurrentShow().title ?: "Saved episode",
+                title = baseTitle.takeIf { it.isNotBlank() } ?: "Saved episode",
                 description = PlaybackStateHelper.getCurrentShow().description ?: "",
                 audioUrl = "",
                 imageUrl = PlaybackStateHelper.getCurrentShow().imageUrl ?: "",

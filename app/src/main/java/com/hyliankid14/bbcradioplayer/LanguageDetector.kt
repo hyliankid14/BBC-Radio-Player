@@ -51,7 +51,7 @@ object LanguageDetector {
 
         // Latin script ratio (counts letters in Latin Unicode block)
         val lettersOnly = norm.replace(Regex("[^\\p{L}]+"), "")
-        val latinLetters = lettersOnly.count { it.toInt() in 0x0041..0x007A } // rough Latin range
+        val latinLetters = lettersOnly.count { it.code in 0x0041..0x007A } // rough Latin range
         val latinRatio = if (lettersOnly.isEmpty()) 0.0 else latinLetters.toDouble() / lettersOnly.length.toDouble()
 
         // Heuristic: require a reasonable latin script presence and some English stopwords

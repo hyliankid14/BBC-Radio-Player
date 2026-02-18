@@ -19,7 +19,7 @@ object IndexScheduler {
 
         val lastScheduled = IndexPreference.getLastScheduledDays(context)
         val policy = if (lastScheduled != days) {
-            ExistingPeriodicWorkPolicy.REPLACE
+            ExistingPeriodicWorkPolicy.UPDATE
         } else {
             ExistingPeriodicWorkPolicy.KEEP
         }
