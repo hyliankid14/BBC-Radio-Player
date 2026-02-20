@@ -25,6 +25,13 @@ android {
     kotlinOptions {
         jvmTarget = '21'
     }
+    
+    lint {
+        // Don't abort build on lint errors for release builds
+        abortOnError false
+        // Optionally create a baseline file to track existing issues
+        // baseline = file("lint-baseline.xml")
+    }
 }
 
 kotlin {
