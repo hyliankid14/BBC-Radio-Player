@@ -263,6 +263,17 @@ APK_FILENAME=$(basename "$APK_FILE")
 APK_SIZE=$(du -h "$APK_FILE" | cut -f1)
 
 echo "✅ Found: $APK_FILENAME ($APK_SIZE)"
+
+# Rename APK to bbc-radio-player.apk for release
+RELEASE_APK_NAME="bbc-radio-player.apk"
+RELEASE_APK_PATH="$(dirname "$APK_FILE")/$RELEASE_APK_NAME"
+
+if [ "$APK_FILENAME" != "$RELEASE_APK_NAME" ]; then
+    echo "📝 Renaming to $RELEASE_APK_NAME..."
+    cp "$APK_FILE" "$RELEASE_APK_PATH"
+    APK_FILE="$RELEASE_APK_PATH"
+    APK_FILENAME="$RELEASE_APK_NAME"
+fi
 echo ""
 
 # Determine release tag
