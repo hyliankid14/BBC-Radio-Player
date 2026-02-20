@@ -14,8 +14,8 @@ android {
         applicationId = "com.hyliankid14.bbcradioplayer"
         minSdk = 21
         targetSdk = 34
-        versionCode = 13
-        versionName = "0.9.6"
+        versionCode = 14
+        versionName = "0.9.7"
     }
 
     signingConfigs {
