@@ -318,7 +318,7 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
-    suspend fun fetchLatestUpdates(podcasts: List<Podcast>): Map<String, Long> = withContext(Dispatchers.IO) {
+    suspend fun fetchLatestUpdates(podcasts: List<Podcast>, forceRefresh: Boolean = false): Map<String, Long> = withContext(Dispatchers.IO) {
         try {
             // Try cache first
             val cached = readUpdatesCache()
@@ -326,7 +326,7 @@ class PodcastRepository(private val context: Context) {
             val result = mutableMapOf<String, Long>()
             podcasts.forEach { p ->
                 val cachedVal = cached[p.id]
-                if (cachedVal != null && (now - cachedVal.second) < updatesCacheTTL) {
+                if (!forceRefresh && cachedVal != null && (now - cachedVal.second) < updatesCacheTTL) {
                     result[p.id] = cachedVal.first
                 } else {
                     val latest = RSSParser.fetchLatestPubDateEpoch(p.rssUrl)

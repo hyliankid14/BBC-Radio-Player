@@ -282,11 +282,15 @@ object RSSParser {
             var eventType = parser.eventType
             var inItem = false
             var pubDate: String? = null
+            var latestEpoch: Long? = null
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 when (eventType) {
                     XmlPullParser.START_TAG -> {
                         when (parser.name) {
-                            ITEM -> inItem = true
+                            ITEM -> {
+                                inItem = true
+                                pubDate = null
+                            }
                             PUB_DATE -> if (inItem && parser.next() == XmlPullParser.TEXT) {
                                 pubDate = parser.text
                             }
@@ -294,14 +298,19 @@ object RSSParser {
                     }
                     XmlPullParser.END_TAG -> {
                         if (parser.name == ITEM) {
-                            // We've reached end of first item; return
-                            return pubDate?.let { parseRfc2822Date(it) }
+                            pubDate?.let {
+                                val epoch = parseRfc2822Date(it)
+                                if (epoch != null) {
+                                    latestEpoch = if (latestEpoch == null) epoch else maxOf(latestEpoch!!, epoch)
+                                }
+                            }
+                            inItem = false
                         }
                     }
                 }
                 eventType = parser.next()
             }
-            null
+            latestEpoch
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing latest pubDate", e)
             null
@@ -309,10 +318,28 @@ object RSSParser {
     }
 
     private fun parseRfc2822Date(s: String): Long? {
-        return try {
-            val fmt = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", java.util.Locale.US)
-            fmt.parse(s)?.time
-        } catch (_: Exception) { null }
+        val normalized = s.trim().replace(Regex("\\s+"), " ")
+        val patterns = listOf(
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy HH:mm:ss z",
+            "EEE, dd MMM yyyy HH:mm Z",
+            "EEE, dd MMM yyyy HH:mm z",
+            "dd MMM yyyy HH:mm:ss Z",
+            "dd MMM yyyy HH:mm:ss z",
+            "EEE, dd MMM yyyy",
+            "dd MMM yyyy"
+        )
+
+        for (pattern in patterns) {
+            try {
+                val fmt = java.text.SimpleDateFormat(pattern, java.util.Locale.US)
+                fmt.isLenient = false
+                val parsed = fmt.parse(normalized)?.time
+                if (parsed != null) return parsed
+            } catch (_: Exception) {
+            }
+        }
+        return null
     }
 
     fun parseDuration(durationStr: String): Int {

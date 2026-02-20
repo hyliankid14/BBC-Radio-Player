@@ -953,7 +953,7 @@ class MainActivity : AppCompatActivity() {
                 var subs = all.filter { subscribedIds.contains(it.id) }
                 // Fetch cached latest update epochs and sort subscribed podcasts by newest update first
                 val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
-                subs = subs.sortedByDescending { updates[it.id] ?: 0L }
+                subs = subs.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
                 // Determine which subscriptions have unseen episodes (latest update > last played epoch)
                 val newSet = subs.filter { p ->
                     val latest = updates[p.id] ?: 0L
@@ -1137,7 +1137,7 @@ class MainActivity : AppCompatActivity() {
                     val repo = PodcastRepository(this@MainActivity)
                     val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
                     val subs = all.filter { subscribedIds.contains(it.id) }
-                    val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
+                    val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs, forceRefresh = true) } } catch (e: Exception) { emptyMap<String, Long>() }
                     val newSet = subs.filter { p ->
                         val latest = updates[p.id] ?: 0L
                         val lastPlayed = PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
@@ -1197,7 +1197,7 @@ class MainActivity : AppCompatActivity() {
                         val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
                         val podcasts = all.filter { ids.contains(it.id) }
                         val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(podcasts) } } catch (e: Exception) { emptyMap<String, Long>() }
-                        val sorted = podcasts.sortedByDescending { updates[it.id] ?: 0L }
+                        val sorted = podcasts.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
                         runOnUiThread {
                             val rv = try { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler) } catch (_: Exception) { null }
                             rv?.layoutManager = LinearLayoutManager(this@MainActivity)

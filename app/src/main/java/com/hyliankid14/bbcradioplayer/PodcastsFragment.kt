@@ -1325,9 +1325,9 @@ class PodcastsFragment : Fragment() {
                     val sortedList = when (currentSort) {
                         "Most popular" -> filtered.sortedWith(
                             compareBy<Podcast> { getPopularRank(it) }
-                                .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: 0L else 0L }
+                                .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
                         )
-                        "Most recent" -> filtered.sortedByDescending { cachedUpdates[it.id] ?: 0L }
+                        "Most recent" -> filtered.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
                         "Alphabetical (A-Z)" -> filtered.sortedBy { it.title }
                         else -> filtered
                     }
