@@ -59,10 +59,14 @@ if ! adb get-state 1>/dev/null 2>&1; then
     exit 0
 fi
 
-echo "🗑️  Uninstalling old version..."
-adb uninstall com.hyliankid14.bbcradioplayer || true
-
-echo "🚀 Installing new version..."
-adb install -r "$APK_FILE"
+echo "� Installing new version (preserving data)..."
+# Use -r (reinstall) and -d (allow downgrade) to update in place without losing data
+# If this fails due to signature mismatch, user will need to manually uninstall first
+if ! adb install -r -d "$APK_FILE" 2>/dev/null; then
+    echo "⚠️  Update in place failed. Trying clean install..."
+    echo "    (This will clear app data)"
+    adb uninstall com.hyliankid14.bbcradioplayer || true
+    adb install "$APK_FILE"
+fi
 
 echo "✅ App installed successfully!"

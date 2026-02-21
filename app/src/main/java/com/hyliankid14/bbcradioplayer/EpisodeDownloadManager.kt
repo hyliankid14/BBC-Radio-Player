@@ -186,11 +186,6 @@ object EpisodeDownloadManager {
             }
 
             val downloadId = downloadManager.enqueue(request)
-
-            // Auto-save episodes when downloading so they appear in Saved Episodes.
-            if (!SavedEpisodes.isSaved(context, episode.id)) {
-                SavedEpisodes.toggleSaved(context, episode, podcastTitle)
-            }
             
             // Store download ID mapped to episode ID
             prefs(context).edit().putLong(KEY_PREFIX_DOWNLOAD_ID + episode.id, downloadId).apply()
@@ -270,6 +265,7 @@ object EpisodeDownloadManager {
     /**
      * Check if device is connected to WiFi.
      */
+    @Suppress("DEPRECATION")
     private fun isWifiConnected(context: Context): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         
@@ -278,7 +274,6 @@ object EpisodeDownloadManager {
             val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
         } else {
-            @Suppress("DEPRECATION")
             val networkInfo = connectivityManager.activeNetworkInfo
             networkInfo?.isConnected == true && networkInfo.type == ConnectivityManager.TYPE_WIFI
         }

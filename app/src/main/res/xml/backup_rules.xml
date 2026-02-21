@@ -15,6 +15,9 @@
     <include domain="sharedpref" path="subscription_refresh_prefs.xml" />
     <include domain="sharedpref" path="podcast_filter_prefs.xml" />
     <include domain="sharedpref" path="theme_prefs.xml" />
+    <include domain="sharedpref" path="ui_prefs.xml" />
+    <include domain="sharedpref" path="podcast_last_episode.xml" />
+    <include domain="sharedpref" path="MainActivity.xml" />
     
     <!-- Backup SQLite database -->
     <include domain="database" path="podcast_index.db" />
