@@ -114,12 +114,12 @@ object OPMLParser {
         val isRssLike = type.isEmpty() || type.lowercase(Locale.US) == "rss"
         return if (xmlUrl.isNotEmpty() && isRssLike) {
             Podcast(
-                id = keyName.hashCode().toString(),
-                title = text,
-                description = description,
-                rssUrl = xmlUrl,
-                htmlUrl = htmlUrl,
-                imageUrl = imageUrl,
+                id = keyName.trim().hashCode().toString(),
+                title = text.trim(),
+                description = description.trim(),
+                rssUrl = xmlUrl.trim(),
+                htmlUrl = htmlUrl.trim(),
+                imageUrl = imageUrl.trim(),
                 genres = genres,
                 typicalDurationMins = duration
             )
@@ -201,12 +201,12 @@ object RSSParser {
                             // Only add episodes within the requested window [startIndex, startIndex+maxCount)
                             if (itemIndex >= startIndex && episodes.size < maxCount) {
                                 val episode = Episode(
-                                    id = currentAudioUrl.hashCode().toString(),
-                                    title = currentTitle,
-                                    description = currentDescription,
-                                    audioUrl = currentAudioUrl,
+                                    id = currentAudioUrl.trim().hashCode().toString(),
+                                    title = currentTitle.trim(),
+                                    description = currentDescription.trim(),
+                                    audioUrl = currentAudioUrl.trim(),
                                     imageUrl = "",
-                                    pubDate = currentPubDate,
+                                    pubDate = currentPubDate.trim(),
                                     durationMins = currentDuration,
                                     podcastId = podcastId
                                 )

@@ -309,14 +309,7 @@ class PodcastsFragment : Fragment() {
         } catch (_: Exception) { }
 
         // Observe active search and update hint + edit text when it changes
-        val activeHintView: TextView = view.findViewById(R.id.active_search_hint)
         viewModel.activeSearchQuery.observe(viewLifecycleOwner) { q ->
-            if (!q.isNullOrBlank()) {
-                activeHintView.text = "Active search: '$q' (Reset to clear)"
-                activeHintView.visibility = View.VISIBLE
-            } else {
-                activeHintView.visibility = View.GONE
-            }
 
             // Avoid invalidating the display snapshot when the same query is re-applied programmatically
             val newNorm = normalizeQuery(q)

@@ -89,21 +89,6 @@
                     android:tint="?attr/colorOnSurface" />
             </com.google.android.material.appbar.MaterialToolbar>
 
-            <!-- Active search hint (visible when a persisted search is active) -->
-            <TextView
-                android:id="@+id/active_search_hint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textStyle="italic"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:visibility="gone"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="" />
-
             <!-- Filters container (hidden by default; toggled by the filter button) -->
             <LinearLayout
                 android:id="@+id/filters_container"
