@@ -1,18 +1,21 @@
 # BBC Radio Player
 
-A feature-rich Android app for streaming BBC Radio stations with seamless Android Auto integration, intelligent playback features, and a modern Material Design 3 interface.
+A feature-rich Android app for streaming BBC Radio stations with seamless Android Auto integration, comprehensive podcast support with downloads and subscriptions, intelligent playback features, and a modern Material Design 3 interface.
 
 ## Key Features
 
 ### 🚗 Android Auto Integration
 - **Full MediaBrowserService Integration**: Native Android Auto support with browsable station hierarchy
-- **Organized Station Browser**: Two main categories in Android Auto:
-  - **Favorites**: Quick access to your saved stations
+- **Organized Browser**: Multiple categories in Android Auto:
+  - **Favorites**: Quick access to your saved stations, episodes, and podcasts
   - **All Stations**: Complete catalog of BBC Radio stations
+  - **Saved Episodes**: Your bookmarked podcast episodes
+  - **Subscriptions**: Podcasts you're subscribed to
 - **Rich Metadata Display**: Live show information, episode titles, and artist/track data in your car
 - **Favorite Indicators**: Starred icons (★) show which stations are favorited directly in the Android Auto interface
-- **Auto-Resume Playback**: Optional setting to automatically resume last station when connecting to Android Auto
-- **Seamless Controls**: Full playback control (play, pause, stop, skip, favorite) from your car's head unit
+- **Auto-Resume Playback**: Optional setting to automatically resume last station or podcast when connecting to Android Auto
+- **Seamless Controls**: Full playback control (play, pause, stop, skip, seek, favorite) from your car's head unit
+- **Podcast Playback**: Full podcast support with seekbar, progress tracking, and episode information
 
 ### 📻 Extensive Station Library (80+ Stations)
 Access the complete BBC Radio network, organized into three categories:
@@ -51,7 +54,32 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
 - **Playback resume & smart replay**: Episode progress is persisted; replaying an episode marked as completed starts from 0 but preserves the played flag; progress is periodically saved to minimize writes.
 - **Autoplay next episode**: When an episode ends, the service will try to autoplay the next chronologically newer episode in the same podcast.
 - **Save & subscription management**: Save/bookmark episodes and manage podcast subscriptions; saved episodes and podcast subscriptions are accessible from the Favorites section and exposed to Android Auto browsers.
+- **Per-podcast notifications**: Toggle notifications on/off for individual podcasts with visual indicators
 - **Robust fallbacks**: Episodes are resolved via subscriptions, saved entries, or the local index when auto-resuming (Android Auto) so the correct series/title is displayed even in edge cases.
+- **Automatic episode indexing**: Background indexing system keeps track of new episodes from BBC podcasts with configurable intervals (daily, weekly, bi-weekly, or manual)
+- **Subscription notifications**: Get notified of new episodes with configurable refresh intervals (15 minutes to 24 hours, or disabled)
+
+### 📥 Episode Download Management
+- **Auto-Download Episodes**: Automatically download new episodes from subscribed podcasts
+- **Configurable Download Limits**: Choose to download 1, 2, 3, 5, or 10 latest episodes per podcast
+- **WiFi-Only Downloads**: Option to restrict downloads to WiFi connections to save mobile data
+- **Auto-Delete on Completion**: Optionally delete downloaded episodes after playing to completion to save storage
+- **Batch Management**: Delete all downloaded episodes with one tap
+- **Offline Playback**: Play downloaded episodes without internet connection
+
+### 📜 Playback History
+- **Recent Episodes Tracking**: Automatically tracks your last 20 played podcast episodes
+- **Quick Access**: View your play history in the Favorites section
+- **Progress Display**: See how much of each episode you've listened to
+- **Replay Episodes**: Easily replay episodes from your history
+
+### 🔗 Sharing Features
+- **Share Podcasts**: Share entire podcast series with friends via Android share sheet
+- **Share Episodes**: Share individual episodes with rich metadata
+- **Smart URLs**: Automatically shortened URLs for cleaner sharing (via is.gd)
+- **Cross-Platform**: Non-app users get web player links, app users get deep links
+- **Rich Metadata**: Shared content includes title, description, and artwork
+- **Web Player Integration**: Hosted at GitHub Pages for users without the app
 ### 🎨 Material Design 3 Interface
 - **Modern Purple Theme**: Professional purple color scheme (#6200EE primary)
 - **Light & Dark Modes**: Full support for both light and dark themes with proper contrast ratios
@@ -62,21 +90,38 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
 
 ### 📱 Mobile App Features
 - **Bottom Navigation**: Three main sections - Favorites, All Stations, Settings
+- **Enhanced Favorites Section**:
+  - **Tab-based Navigation**: Switch between Stations, Saved Episodes, Podcasts, and History
+  - **Drag-and-Drop**: Reorder favorite stations with long-press and drag (with haptic feedback)
+  - **Quick Access**: One-tap access to all your favorited content
 - **Categorized Station Browser**: 
   - Tab-based navigation (National, Regions, Local)
   - Swipe gesture support to switch between categories
   - Animated transitions
+- **Podcast Discovery**:
+  - Browse all BBC podcasts
+  - Search functionality
+  - Filter by language (English/all languages)
+  - Subscribe to shows and episodes
+  - Visual indicators for subscribed podcasts
+  - Per-podcast notification toggles
 - **Mini Player**: 
-  - Persistent bottom player showing current station
+  - Persistent bottom player showing current station or episode
   - Quick playback controls (previous, play/pause, next, stop, favorite)
+  - Episode progress bar for podcasts
   - Tap to open full Now Playing screen
   - Auto-scrolling song/show titles
 - **Now Playing Screen**:
   - Large album artwork
-  - Current show name and episode title
+  - Current show name and episode title (radio) or episode details (podcast)
   - Artist and track information
+  - Seekbar for podcast episodes
+  - Playback progress and time remaining
   - Full playback controls
   - Dynamic favorite toggle
+  - Share button for podcasts and episodes
+  - Episode description viewer
+  - Manual mark-as-played button for podcasts
 
 ### ⚙️ Advanced Settings
 - **Audio Quality Options**:
@@ -90,7 +135,22 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
 - **Previous/Next Behavior**: 
   - Skip through all stations (default)
   - Skip only through favorites
-- **Auto-Resume on Android Auto**: Toggle automatic playback when connecting to car
+- **Android Auto Settings**:
+  - **Auto-Resume**: Toggle automatic playback when connecting to Android Auto
+- **Podcast Subscription Settings**:
+  - **Refresh Interval**: Configure how often to check for new episodes (15 min to 24 hours, or disabled)
+  - **Language Filtering**: Option to exclude non-English podcasts from search
+- **Episode Download Settings**:
+  - **Auto-Download**: Enable automatic downloading of new episodes
+  - **Download Limits**: Configure how many recent episodes to keep (1-10)
+  - **WiFi-Only Mode**: Restrict downloads to WiFi connections
+  - **Auto-Delete**: Delete episodes after playing to completion
+- **Podcast Indexing**:
+  - **Background Indexing**: Configure automatic index rebuilding (daily, weekly, bi-weekly, or manual)
+  - **Index Management**: Manual index rebuild and progress tracking
+- **Backup & Restore**:
+  - **Export Settings**: Save all preferences, favorites, subscriptions, and saved episodes to a file
+  - **Import Settings**: Restore from a backup file
 
 ### 🎧 Robust Playback Engine
 - **ExoPlayer Integration**: Industry-standard media player for reliable HLS streaming
@@ -108,21 +168,33 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
 - **ShowInfoFetcher**: Dual-API approach (BBC ESS for schedule, BBC RMS for now playing)
 - **PlaybackStateHelper**: Centralized playback state management with observer pattern
 - **NetworkQualityDetector**: Smart network condition detection for adaptive quality
+- **PodcastsViewModel**: MVVM architecture for podcast data management
+- **IndexStore**: SQLite-based episode indexing for fast podcast search
+- **EpisodeDownloadManager**: Background download manager with progress tracking and retry logic
+- **PlayedHistoryPreference**: Persistent playback history tracking
+- **SubscriptionRefreshScheduler**: WorkManager-based background job for checking new episodes
+- **BackgroundIndexWorker**: Periodic indexing of BBC podcast episodes
+- **ShareUtil**: Cross-platform sharing with URL shortening and deep linking
 - **Custom Views**: ScrollingTextView for auto-scrolling text, SquareImageView for artwork
 - **Theme System**: ThemeManager + ThemePreference for persistent theme selection
 
 ### Data & APIs
 - **BBC ESS API**: Episode schedule and show information
 - **BBC RMS API**: Real-time "now playing" artist/track segments
+- **BBC Sounds RSS**: Podcast feed discovery and episode metadata
 - **HLS Streaming**: High-quality audio via Akamaized CDN (worldwide access)
 - **SharedPreferences**: Persistent storage for favorites, settings, and last played station
+- **SQLite Database**: Local episode index for fast search and filtering
 - **Glide**: Efficient image loading and caching for artwork
+- **WorkManager**: Background task scheduling for downloads and indexing
 
 ### Design Patterns
 - Observer pattern for show metadata updates
-- Repository pattern for station data
+- Repository pattern for station and podcast data
 - Service-oriented architecture for background playback
 - Preference-based configuration management
+- MVVM architecture for UI components
+- Worker pattern for background tasks
 
 ## Material Design 3 Color System
 
@@ -162,6 +234,7 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
 - **ExoPlayer**: 2.18.2+
 - **Glide**: 4.12.0+ for image loading
 - **Coroutines**: For async operations
+- **WorkManager**: For background tasks (episode indexing, subscription checks)
 
 ## Development & Deployment
 
@@ -233,6 +306,10 @@ export PATH="$JAVA_HOME/bin:$PATH"
 - **Error Handling**: Graceful recovery from network errors and stream interruptions
 - **Performance**: Efficient metadata polling aligned with BBC's cache strategy (30s)
 - **Accessibility**: Follows Material Design 3 accessibility guidelines
+- **Background Processing**: WorkManager for reliable background tasks (indexing, downloads, notifications)
+- **Offline Playback**: Downloaded episodes available without internet connection
+- **Storage Management**: Efficient caching and optional auto-deletion of played content
+- **Deep Linking**: Support for app:// scheme for cross-platform sharing
 
 ## License & Attribution
 
@@ -246,20 +323,24 @@ This is an unofficial third-party app for streaming BBC Radio. BBC Radio, BBC So
 
 Contributions are welcome! Areas for potential enhancement:
 - Additional radio networks (other countries)
-- Podcast integration
 - Sleep timer functionality
 - Android Auto custom actions
 - Widget support
 - Chromecast support
+- CarPlay support (if porting to iOS)
 
 ## Changelog
 
-See commit history for detailed changes. Major milestones:
-- **v1.0**: Initial release with Android Auto support
-- **v1.1**: Material Design 3 implementation
-- **v1.2**: Live metadata integration (show names, artist/track)
-- **v1.3**: Adaptive quality streaming
-- **v1.4**: Drag-and-drop favorites reordering
-- **v1.5**: Auto-resume on Android Auto connection
-- **v1.6**: Podcast integration — subscribe/play/save episodes, persistent progress and smart replay, autoplay next episode, improved Android Auto and notification metadata (ensures podcast series name is always shown)
+See commit history for detailed changes. Major releases:
+
+- **v0.10.0** (Latest - Feb 2026): Episode download system with auto-download, WiFi-only mode, configurable limits (1-10 episodes), and auto-delete on completion; comprehensive settings backup and restore
+- **v0.9.7**: APK signing configuration and build improvements
+- **v0.9.6**: GitHub release automation, JDK 21 requirement, audio focus handling improvements, podcast UI enhancements
+- **v0.9.2**: Improved podcast search functionality
+- **v0.9.1**: Podcast search UI improvements
+- **v0.9**: Episode sharing with URL shortening (via is.gd) and web player integration
+- **v0.8**: Subscription notifications with configurable refresh intervals
+- **v0.7**: Playback history tracking (last 20 episodes)
+- **v0.6**: Full BBC Podcasts integration with subscribe/play/save episodes, persistent progress, smart replay, autoplay next episode, and improved Android Auto/notification metadata
+- **v0.5**: First public release with Android Auto support, Material Design 3 interface, 80+ BBC Radio stations, live metadata, adaptive quality streaming, drag-and-drop favorites, and auto-resume on Android Auto connection
 
