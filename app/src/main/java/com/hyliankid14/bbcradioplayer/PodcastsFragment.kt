@@ -41,6 +41,9 @@ class PodcastsFragment : Fragment() {
     private var currentSort: String = "Most popular"
     private var cachedUpdates: Map<String, Long> = emptyMap()
     private var searchQuery = ""
+    private var searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView? = null
+    private var searchInputLayout: com.google.android.material.textfield.TextInputLayout? = null
+    private var saveSearchButton: android.widget.Button? = null
     // Active search state is persisted in the ViewModel while the activity lives
     // Suppress the text watcher when programmatically updating the search EditText
     private var suppressSearchWatcher: Boolean = false
@@ -67,6 +70,12 @@ class PodcastsFragment : Fragment() {
     private var lastActiveQueryNorm: String = ""
 
     private fun currentFilterHash(): Int = (currentFilter.hashCode() * 31) xor currentSort.hashCode()
+
+    private fun updateSaveSearchButtonVisibility() {
+        val active = viewModel.activeSearchQuery.value ?: searchQuery
+        val visible = active.isNotBlank()
+        saveSearchButton?.visibility = if (visible) View.VISIBLE else View.GONE
+    }
 
     private fun bindGenreSpinner(
         genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView,
@@ -228,6 +237,8 @@ class PodcastsFragment : Fragment() {
         val searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.search_podcast_edittext)
         // TextInputLayout that wraps the EditText — used to control the end-icon visibility reliably
         val searchInputLayout = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.search_podcast_text_input)
+        this.searchEditText = searchEditText
+        this.searchInputLayout = searchInputLayout
 
         // Setup search history backing and adapter
         val searchHistory = SearchHistory(requireContext())
@@ -336,12 +347,17 @@ class PodcastsFragment : Fragment() {
                 } catch (_: Exception) { }
                 suppressSearchWatcher = false
             }
+
+            updateSaveSearchButtonVisibility()
         }
 
         val filterButton: android.widget.ImageButton = view.findViewById(R.id.podcasts_filter_button)
         val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_filter_spinner)
         val sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.sort_spinner)
         val resetButton: android.widget.Button = view.findViewById(R.id.reset_filters_button)
+        val saveButton: android.widget.Button = view.findViewById(R.id.save_search_button)
+        saveSearchButton = saveButton
+        updateSaveSearchButtonVisibility()
         val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
         val emptyState: TextView = view.findViewById(R.id.empty_state_text)
         val filtersContainer: View = view.findViewById(R.id.filters_container)
@@ -398,6 +414,7 @@ class PodcastsFragment : Fragment() {
                         searchInputLayout.setEndIconOnClickListener { try { shuffleAndOpenRandomPodcast() } catch (e: Exception) { android.util.Log.w("PodcastsFragment", "Shuffle failed: ${e.message}") } }
                     } catch (_: Exception) {}
 
+                    updateSaveSearchButtonVisibility()
                     return
                 }
 
@@ -406,6 +423,8 @@ class PodcastsFragment : Fragment() {
                 // Clear both in-memory and persisted search cache
                 clearCachedSearchPersisted()
                 viewModel.setActiveSearch(searchQuery)
+
+                updateSaveSearchButtonVisibility()
 
                 // Leading-edge quick update: show title/description matches immediately for snappy UX
                 // while the debounced full search (episodes + FTS) is scheduled.
@@ -558,6 +577,11 @@ class PodcastsFragment : Fragment() {
             viewModel.cachedFilter = currentFilter
             viewModel.cachedSort = "Most popular"
             applyFilters(emptyState, recyclerView)
+            updateSaveSearchButtonVisibility()
+        }
+
+        saveButton.setOnClickListener {
+            showSaveSearchDialog()
         }
 
         // Toggle filters visibility from the search app bar filter button
@@ -1242,6 +1266,115 @@ class PodcastsFragment : Fragment() {
     private fun clearCachedSearchPersisted() {
         viewModel.clearCachedSearch()
         try { SearchCacheStore.clear(requireContext()) } catch (_: Exception) {}
+    }
+
+    private fun showSaveSearchDialog() {
+        val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
+        if (q.isBlank()) return
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_saved_search, null)
+        val nameInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.saved_search_name_input)
+        val notifySwitch = dialogView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.saved_search_notify_switch)
+        val warningText = dialogView.findViewById<TextView>(R.id.saved_search_index_warning)
+
+        nameInput.setText(q)
+        nameInput.setSelection(q.length)
+
+        val indexingDisabled = IndexPreference.getIntervalDays(requireContext()) <= 0
+        warningText.visibility = if (indexingDisabled) View.VISIBLE else View.GONE
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Save Search")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val name = nameInput.text?.toString()?.trim().orEmpty().ifBlank { q }
+                val cached = viewModel.getCachedSearch()
+                val episodeIds = cached?.episodeMatches?.map { it.first.id }?.distinct()?.take(50) ?: emptyList()
+                val saved = SavedSearchesPreference.SavedSearch(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = name,
+                    query = q,
+                    genres = currentFilter.genres.toList(),
+                    minDuration = currentFilter.minDuration,
+                    maxDuration = currentFilter.maxDuration,
+                    sort = currentSort,
+                    notificationsEnabled = notifySwitch.isChecked,
+                    lastSeenEpisodeIds = episodeIds,
+                    createdAt = System.currentTimeMillis()
+                )
+                SavedSearchesPreference.saveSearch(requireContext(), saved)
+
+                Toast.makeText(requireContext(), "Search saved", Toast.LENGTH_SHORT).show()
+                if (indexingDisabled) {
+                    com.google.android.material.snackbar.Snackbar
+                        .make(requireView(), "Indexing is set to Never. Saved searches will not receive new episode results.", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                        .show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.show()
+    }
+
+    fun applySavedSearch(savedSearch: SavedSearchesPreference.SavedSearch, forceMostRecent: Boolean = true) {
+        if (!isAdded) return
+
+        searchJob?.cancel()
+        filterDebounceJob?.cancel()
+        restoreAppendJob?.cancel()
+        usingCachedItemAppend = false
+        usingCachedEpisodePagination = false
+        cachedEpisodeMatchesFull = emptyList()
+        restoringFromCache = false
+        lastDisplaySnapshot = null
+
+        searchQuery = savedSearch.query
+        viewModel.setActiveSearch(savedSearch.query)
+        currentFilter = PodcastFilter(
+            genres = savedSearch.genres.toSet(),
+            minDuration = savedSearch.minDuration,
+            maxDuration = savedSearch.maxDuration,
+            searchQuery = ""
+        )
+        currentSort = if (forceMostRecent) {
+            "Most recent"
+        } else {
+            if (savedSearch.sort.isNotBlank()) savedSearch.sort else "Most popular"
+        }
+        viewModel.cachedFilter = currentFilter
+        viewModel.cachedSort = currentSort
+
+        clearCachedSearchPersisted()
+
+        val editText = searchEditText
+        val inputLayout = searchInputLayout
+        val emptyState = view?.findViewById<TextView>(R.id.empty_state_text)
+        val recyclerView = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+        val genreSpinner = view?.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.genre_filter_spinner)
+        val sortSpinner = view?.findViewById<com.google.android.material.textfield.MaterialAutoCompleteTextView>(R.id.sort_spinner)
+
+        suppressSearchWatcher = true
+        try {
+            editText?.setText(savedSearch.query)
+            if (!savedSearch.query.isBlank()) editText?.setSelection(savedSearch.query.length)
+            try {
+                inputLayout?.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_CLEAR_TEXT
+                inputLayout?.isEndIconVisible = true
+            } catch (_: Exception) { }
+
+            val genreValue = savedSearch.genres.firstOrNull() ?: "All Genres"
+            genreSpinner?.setText(genreValue, false)
+            sortSpinner?.setText(currentSort, false)
+        } finally {
+            suppressSearchWatcher = false
+        }
+
+        updateSaveSearchButtonVisibility()
+
+        if (emptyState != null && recyclerView != null) {
+            applyFilters(emptyState, recyclerView)
+        }
     }
 
     // Progressive search implementation that shows results incrementally:

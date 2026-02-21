@@ -865,26 +865,15 @@ class RadioService : MediaBrowserServiceCompat() {
                                         if (podcast != null) {
                                             val allEpisodes = withContext(Dispatchers.IO) { repo.fetchEpisodes(podcast) }
 
-                                            // Parse publish dates and pick the chronologically next (newer) episode
-                                            fun parseEpoch(s: String?): Long? {
-                                                if (s.isNullOrEmpty()) return null
-                                                return try {
-                                                    val fmt = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", java.util.Locale.US)
-                                                    fmt.parse(s)?.time
-                                                } catch (e: Exception) {
-                                                    null
-                                                }
-                                            }
-
                                             val currentEp = allEpisodes.find { it.id == currentEpisode }
                                             if (currentEp == null) {
                                                 Log.w(TAG, "Current episode not found in feed for autoplay: $currentEpisode")
                                             } else {
-                                                val currentEpoch = parseEpoch(currentEp.pubDate)
+                                                val currentEpoch = EpisodeDateParser.parsePubDateToEpoch(currentEp.pubDate)
                                                 // Build list of episodes with valid epoch greater than currentEpoch
                                                 val candidates = allEpisodes.mapNotNull { ep ->
-                                                    val epEpoch = parseEpoch(ep.pubDate)
-                                                    if (epEpoch != null && currentEpoch != null && epEpoch > currentEpoch) Pair(ep, epEpoch) else null
+                                                    val epEpoch = EpisodeDateParser.parsePubDateToEpoch(ep.pubDate)
+                                                    if (epEpoch > 0L && currentEpoch > 0L && epEpoch > currentEpoch) Pair(ep, epEpoch) else null
                                                 }
                                                 val next = candidates.minByOrNull { it.second }?.first
                                                 if (next != null) {

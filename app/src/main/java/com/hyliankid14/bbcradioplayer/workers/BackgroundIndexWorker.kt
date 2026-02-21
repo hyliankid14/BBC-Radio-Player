@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.*
 import com.hyliankid14.bbcradioplayer.R
+import com.hyliankid14.bbcradioplayer.SavedSearchManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -155,6 +156,10 @@ class BackgroundIndexWorker(
                     }
                 }
             }
+
+            try {
+                SavedSearchManager.checkForUpdates(applicationContext)
+            } catch (_: Exception) { }
 
             Log.d(TAG, "Indexing completed successfully")
             Result.success()

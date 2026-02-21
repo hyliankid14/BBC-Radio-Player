@@ -17,6 +17,7 @@ class IndexAlarmReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 com.hyliankid14.bbcradioplayer.workers.IndexWorker.reindexNewOnly(context) { _, _, _ -> }
+                SavedSearchManager.checkForUpdates(context)
             } catch (_: Exception) {
                 // swallow - this is a best-effort background job
             }

@@ -771,21 +771,12 @@ class NowPlayingActivity : AppCompatActivity() {
 
     // Duplicate of PodcastAdapter.formatEpisodeDate — keep local to avoid touching adapter visibility
     private fun formatEpisodeDate(raw: String): String {
-        val patterns = listOf(
-            "EEE, dd MMM yyyy HH:mm:ss Z",
-            "dd MMM yyyy HH:mm:ss Z",
-            "EEE, dd MMM yyyy"
-        )
-        val parsed: java.util.Date? = patterns.firstNotNullOfOrNull { pattern ->
-            try {
-                java.text.SimpleDateFormat(pattern, java.util.Locale.US).parse(raw)
-            } catch (e: java.text.ParseException) {
-                null
-            }
+        val epoch = EpisodeDateParser.parsePubDateToEpoch(raw)
+        return if (epoch > 0L) {
+            java.text.SimpleDateFormat("EEE, dd MMM yyyy", java.util.Locale.US).format(java.util.Date(epoch))
+        } else {
+            if (raw.contains(":")) raw.substringBefore(":").substringBeforeLast(" ").trim() else raw.trim()
         }
-        return parsed?.let {
-            java.text.SimpleDateFormat("EEE, dd MMM yyyy", java.util.Locale.US).format(it)
-        } ?: (if (raw.contains(":")) raw.substringBefore(":").substringBeforeLast(" ").trim() else raw.trim())
     }
     
     private fun updateFromShow(show: CurrentShow) {

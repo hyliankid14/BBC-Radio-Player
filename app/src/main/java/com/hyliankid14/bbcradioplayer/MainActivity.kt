@@ -86,6 +86,7 @@ class MainActivity : AppCompatActivity() {
     // Track whether a swipe-to-delete ItemTouchHelper has been attached to the Saved Episodes recycler
     private var savedItemTouchHelper: ItemTouchHelper? = null
 
+
     // ItemTouchHelpers to manage swipe-to-delete for History and Subscribed Podcasts
     private var historyItemTouchHelper: ItemTouchHelper? = null
     private var podcastsItemTouchHelper: ItemTouchHelper? = null
@@ -340,12 +341,14 @@ class MainActivity : AppCompatActivity() {
         // Handle any incoming intents that request opening a specific podcast or mode
         handleOpenPodcastIntent(intent)
         handleOpenModeIntent(intent)
+        handleOpenSavedSearchIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleOpenPodcastIntent(intent)
         handleOpenModeIntent(intent)
+        handleOpenSavedSearchIntent(intent)
     }
 
     private fun handleOpenModeIntent(intent: Intent?) {
@@ -356,6 +359,29 @@ class MainActivity : AppCompatActivity() {
             else -> {
                 // Unknown mode - ignore
             }
+        }
+    }
+
+    private fun handleOpenSavedSearchIntent(intent: Intent?) {
+        val searchId = intent?.getStringExtra("open_saved_search_id") ?: return
+        val search = SavedSearchesPreference.getSearchById(this, searchId) ?: return
+        openSavedSearch(search)
+    }
+
+    private fun openSavedSearch(search: SavedSearchesPreference.SavedSearch) {
+        showPodcasts()
+        suppressBottomNavSelection = true
+        try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
+        suppressBottomNavSelection = false
+        try { supportFragmentManager.executePendingTransactions() } catch (_: Exception) { }
+        val existing = supportFragmentManager.findFragmentByTag("podcasts_fragment") as? PodcastsFragment
+        if (existing != null) {
+            existing.applySavedSearch(search)
+            return
+        }
+        fragmentContainer.post {
+            val fragment = supportFragmentManager.findFragmentByTag("podcasts_fragment") as? PodcastsFragment
+            fragment?.applySavedSearch(search)
         }
     }
     
@@ -383,8 +409,11 @@ class MainActivity : AppCompatActivity() {
             if (currentMode != "favorites") {
                 // Only show saved episodes when the Favorites view is active — avoids overlap in other views
                 savedContainer.visibility = View.GONE
+                try { findViewById<View>(R.id.saved_searches_container).visibility = View.GONE } catch (_: Exception) { }
                 return
             }
+
+            refreshSavedSearchesSection()
 
             val savedEntries = SavedEpisodes.getSavedEntries(this)
             val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
@@ -757,6 +786,7 @@ class MainActivity : AppCompatActivity() {
         // Hide subscribed podcasts section (only show in Favorites)
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
         favoritesPodcastsContainer.visibility = View.GONE
+        try { findViewById<View>(R.id.saved_searches_container).visibility = View.GONE } catch (_: Exception) { }
         // Update favourites toggle visibility for this mode
         try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
         
@@ -791,6 +821,7 @@ class MainActivity : AppCompatActivity() {
         val favoritesPodcastsContainer = findViewById<View>(R.id.favorites_podcasts_container)
         val favoritesPodcastsRecycler = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
         val savedContainer = findViewById<View>(R.id.saved_episodes_container)
+        val savedSearchesContainer = findViewById<View>(R.id.saved_searches_container)
         val historyContainer = findViewById<View>(R.id.favorites_history_container)
         // Ensure the favourites toggle group is visible when in Favorites
         try { updateFavoritesToggleVisibility() } catch (_: Exception) { }
@@ -811,21 +842,26 @@ class MainActivity : AppCompatActivity() {
                 it.addView(savedContainer, 2)
             } catch (_: Exception) { /* best-effort */ }
             try {
+                it.removeView(savedSearchesContainer)
+                it.addView(savedSearchesContainer, 3)
+            } catch (_: Exception) { /* best-effort */ }
+            try {
                 it.removeView(historyContainer)
-                it.addView(historyContainer, 3)
+                it.addView(historyContainer, 4)
             } catch (_: Exception) { /* best-effort */ }
         }
 
         // Ensure only the last-accessed favorites group is visible immediately (avoid flicker / defaulting)
         try {
             val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
-            val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
+            val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_searches, R.id.fav_tab_history)
             var initialLastChecked = prefs.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
             if (!candidateIds.contains(initialLastChecked)) initialLastChecked = R.id.fav_tab_stations
 
             stationsList.visibility = if (initialLastChecked == R.id.fav_tab_stations) View.VISIBLE else View.GONE
             favoritesPodcastsContainer.visibility = if (initialLastChecked == R.id.fav_tab_subscribed) View.VISIBLE else View.GONE
             savedContainer.visibility = if (initialLastChecked == R.id.fav_tab_saved) View.VISIBLE else View.GONE
+            savedSearchesContainer.visibility = if (initialLastChecked == R.id.fav_tab_searches) View.VISIBLE else View.GONE
             historyContainer.visibility = if (initialLastChecked == R.id.fav_tab_history) View.VISIBLE else View.GONE
         } catch (_: Exception) { }
 
@@ -844,7 +880,7 @@ class MainActivity : AppCompatActivity() {
 
         // Restore last-selected favorites tab (fall back to Stations)
         val prefs = getPreferences(android.content.Context.MODE_PRIVATE)
-        val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
+        val candidateIds = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_searches, R.id.fav_tab_history)
         var lastChecked = prefs.getInt(LAST_FAV_TAB_KEY, R.id.fav_tab_stations)
         if (!candidateIds.contains(lastChecked)) lastChecked = R.id.fav_tab_stations
         // Ensure UI and section match restored selection
@@ -853,6 +889,7 @@ class MainActivity : AppCompatActivity() {
             R.id.fav_tab_stations -> showFavoritesTab("stations")
             R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
             R.id.fav_tab_saved -> showFavoritesTab("saved")
+            R.id.fav_tab_searches -> showFavoritesTab("searches")
             R.id.fav_tab_history -> showFavoritesTab("history")
         }
 
@@ -876,6 +913,11 @@ class MainActivity : AppCompatActivity() {
             try { prefs.edit().putInt(LAST_FAV_TAB_KEY, R.id.fav_tab_saved).apply() } catch (_: Exception) { }
             updateFavoritesToggleVisuals(R.id.fav_tab_saved)
             showFavoritesTab("saved")
+        }
+        findViewById<com.google.android.material.button.MaterialButton>(R.id.fav_tab_searches).setOnClickListener {
+            try { prefs.edit().putInt(LAST_FAV_TAB_KEY, R.id.fav_tab_searches).apply() } catch (_: Exception) { }
+            updateFavoritesToggleVisuals(R.id.fav_tab_searches)
+            showFavoritesTab("searches")
         }
         findViewById<com.google.android.material.button.MaterialButton>(R.id.fav_tab_history).setOnClickListener {
             try { prefs.edit().putInt(LAST_FAV_TAB_KEY, R.id.fav_tab_history).apply() } catch (_: Exception) { }
@@ -1201,6 +1243,7 @@ class MainActivity : AppCompatActivity() {
                 stationsList.visibility = View.VISIBLE
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                findViewById<View>(R.id.saved_searches_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
                 try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
             }
@@ -1208,6 +1251,7 @@ class MainActivity : AppCompatActivity() {
                 stationsList.visibility = View.GONE
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.VISIBLE
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                findViewById<View>(R.id.saved_searches_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
                 try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
 
@@ -1270,13 +1314,26 @@ class MainActivity : AppCompatActivity() {
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.VISIBLE
                 try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
+                findViewById<View>(R.id.saved_searches_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
                 try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
+                try { refreshSavedEpisodesSection() } catch (_: Exception) { }
+            }
+            "searches" -> {
+                stationsList.visibility = View.GONE
+                findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
+                findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                findViewById<View>(R.id.saved_searches_container).visibility = View.VISIBLE
+                findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
+                try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
+                try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
+                try { refreshSavedSearchesSection() } catch (_: Exception) { }
             }
             "history" -> {
                 stationsList.visibility = View.GONE
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                findViewById<View>(R.id.saved_searches_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.VISIBLE
                 try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
                 // Always refresh the history contents when the tab becomes active
@@ -1561,11 +1618,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateFavoritesToggleVisuals(selectedId: Int) {
-        val ids = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_history)
+        val ids = listOf(R.id.fav_tab_stations, R.id.fav_tab_subscribed, R.id.fav_tab_saved, R.id.fav_tab_searches, R.id.fav_tab_history)
         val labels = mapOf(
             R.id.fav_tab_stations to "Stations",
             R.id.fav_tab_subscribed to "Subscribed",
             R.id.fav_tab_saved to "Saved",
+            R.id.fav_tab_searches to "Searches",
             R.id.fav_tab_history to "History"
         )
         val isTablet = try { resources.getBoolean(R.bool.is_tablet) } catch (_: Exception) { false }
@@ -2191,12 +2249,75 @@ class MainActivity : AppCompatActivity() {
                     R.id.fav_tab_stations -> showFavoritesTab("stations")
                     R.id.fav_tab_subscribed -> showFavoritesTab("subscribed")
                     R.id.fav_tab_saved -> showFavoritesTab("saved")
+                    R.id.fav_tab_searches -> showFavoritesTab("searches")
                     R.id.fav_tab_history -> showFavoritesTab("history")
                 }
                 refreshSavedEpisodesSection()
                 refreshHistorySection()
             }
         } catch (_: Exception) { }
+    }
+
+    private fun refreshSavedSearchesSection() {
+        val recycler = findViewById<RecyclerView>(R.id.saved_searches_recycler)
+        val empty = findViewById<TextView>(R.id.saved_searches_empty)
+
+        val searches = SavedSearchesPreference.getSavedSearches(this)
+        if (recycler.layoutManager == null) {
+            recycler.layoutManager = LinearLayoutManager(this)
+        }
+        recycler.isNestedScrollingEnabled = false
+
+        val adapter = recycler.adapter as? SavedSearchAdapter
+            ?: SavedSearchAdapter(searches.toMutableList(),
+                onSearchClick = { openSavedSearch(it) },
+                onRenameClick = { showSavedSearchEditDialog(it) },
+                onNotifyToggle = { search, enabled ->
+                    SavedSearchesPreference.updateNotifications(this, search.id, enabled)
+                    refreshSavedSearchesSection()
+                },
+                onDeleteClick = { search ->
+                    com.google.android.material.snackbar.Snackbar
+                        .make(findViewById(android.R.id.content), "Delete saved search?", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                        .setAction("Delete") {
+                            SavedSearchesPreference.removeSearch(this, search.id)
+                            refreshSavedSearchesSection()
+                        }
+                        .setAnchorView(findViewById(R.id.saved_searches_container))
+                        .show()
+                }
+            ).also { recycler.adapter = it }
+
+        adapter.updateSearches(searches)
+        val hasItems = (recycler.adapter?.itemCount ?: 0) > 0
+        recycler.visibility = if (hasItems) View.VISIBLE else View.GONE
+        empty.visibility = if (hasItems) View.GONE else View.VISIBLE
+    }
+
+    private fun showSavedSearchEditDialog(search: SavedSearchesPreference.SavedSearch) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_saved_search, null)
+        val nameInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.saved_search_name_input)
+        val notifySwitch = dialogView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.saved_search_notify_switch)
+        val warningText = dialogView.findViewById<TextView>(R.id.saved_search_index_warning)
+
+        nameInput.setText(search.name)
+        nameInput.setSelection(search.name.length)
+        notifySwitch.isChecked = search.notificationsEnabled
+
+        val indexingDisabled = IndexPreference.getIntervalDays(this) <= 0
+        warningText.visibility = if (indexingDisabled) View.VISIBLE else View.GONE
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Edit Saved Search")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val name = nameInput.text?.toString()?.trim().orEmpty().ifBlank { search.query }
+                SavedSearchesPreference.updateSearchName(this, search.id, name)
+                SavedSearchesPreference.updateNotifications(this, search.id, notifySwitch.isChecked)
+                refreshSavedSearchesSection()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
     
     override fun onPause() {
@@ -2616,7 +2737,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "subscription_refresh_prefs", "podcast_filter_prefs", "theme_prefs", "download_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "saved_searches_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "subscription_refresh_prefs", "podcast_filter_prefs", "theme_prefs", "download_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)

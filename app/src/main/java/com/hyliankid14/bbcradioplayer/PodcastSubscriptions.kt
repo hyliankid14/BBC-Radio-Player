@@ -56,8 +56,11 @@ object PodcastSubscriptions {
                 val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
                 if (episodes.isEmpty()) return@launch
                 
-                // Download the latest N episodes if they're not already downloaded
-                val candidates = episodes.take(autoDownloadLimit)
+                // Download the latest N episodes based on publish date.
+                val sortedEpisodes = episodes.sortedByDescending {
+                    EpisodeDateParser.parsePubDateToEpoch(it.pubDate)
+                }
+                val candidates = sortedEpisodes.take(autoDownloadLimit)
                 for (episode in candidates) {
                     if (!DownloadedEpisodes.isDownloaded(context, episode)) {
                         try {

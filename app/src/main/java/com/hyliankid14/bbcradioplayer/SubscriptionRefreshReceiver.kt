@@ -15,53 +15,59 @@ class SubscriptionRefreshReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val subscribedIds = PodcastSubscriptions.getSubscribedIds(context)
-                if (subscribedIds.isEmpty()) return@launch
+                if (subscribedIds.isNotEmpty()) {
+                    val repo = PodcastRepository(context)
+                    val allPodcasts = try { repo.fetchPodcasts(forceRefresh = true) } catch (_: Exception) { emptyList() }
+                    val subscribed = allPodcasts.filter { subscribedIds.contains(it.id) }
+                    val autoDownloadEnabled = DownloadPreferences.isAutoDownloadEnabled(context)
+                    val autoDownloadLimit = DownloadPreferences.getAutoDownloadLimit(context).coerceAtLeast(1)
 
-                val repo = PodcastRepository(context)
-                val allPodcasts = try { repo.fetchPodcasts(forceRefresh = true) } catch (_: Exception) { emptyList() }
-                val subscribed = allPodcasts.filter { subscribedIds.contains(it.id) }
-                val autoDownloadEnabled = DownloadPreferences.isAutoDownloadEnabled(context)
-                val autoDownloadLimit = DownloadPreferences.getAutoDownloadLimit(context).coerceAtLeast(1)
+                    // For each subscribed podcast, fetch episodes and check for new ones
+                    for (podcast in subscribed) {
+                        val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
+                        if (episodes.isEmpty()) continue
 
-                // For each subscribed podcast, fetch episodes and check for new ones
-                for (podcast in subscribed) {
-                    val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
-                    if (episodes.isEmpty()) continue
+                        val sortedEpisodes = episodes.sortedByDescending {
+                            EpisodeDateParser.parsePubDateToEpoch(it.pubDate)
+                        }
 
-                    if (autoDownloadEnabled) {
-                        val candidates = episodes.take(autoDownloadLimit)
-                        for (episode in candidates) {
-                            if (!DownloadedEpisodes.isDownloaded(context, episode)) {
-                                try {
-                                    EpisodeDownloadManager.downloadEpisode(context, episode, podcast.title)
-                                } catch (_: Exception) { }
+                        if (autoDownloadEnabled) {
+                            val candidates = sortedEpisodes.take(autoDownloadLimit)
+                            for (episode in candidates) {
+                                if (!DownloadedEpisodes.isDownloaded(context, episode)) {
+                                    try {
+                                        EpisodeDownloadManager.downloadEpisode(context, episode, podcast.title)
+                                    } catch (_: Exception) { }
+                                }
                             }
                         }
-                    }
 
-                    if (!PodcastSubscriptions.isNotificationsEnabled(context, podcast.id)) continue
+                        if (!PodcastSubscriptions.isNotificationsEnabled(context, podcast.id)) continue
 
-                    // Assume newest episode is first (repository returns newest-first)
-                    val latest = episodes.firstOrNull() ?: continue
-                    val latestId = latest.id
-                    if (latestId.isBlank()) continue
+                        // Use publish date to determine the newest episode.
+                        val latest = sortedEpisodes.firstOrNull() ?: continue
+                        val latestId = latest.id
+                        if (latestId.isBlank()) continue
 
-                    // Track last seen episode per podcast
-                    val prefs = context.getSharedPreferences("podcast_last_episode", Context.MODE_PRIVATE)
-                    val lastSeenId = prefs.getString(podcast.id, null)
+                        // Track last seen episode per podcast
+                        val prefs = context.getSharedPreferences("podcast_last_episode", Context.MODE_PRIVATE)
+                        val lastSeenId = prefs.getString(podcast.id, null)
 
-                    if (lastSeenId == null) {
-                        // First run: seed state without notifying
-                        prefs.edit().putString(podcast.id, latestId).apply()
-                        continue
-                    }
+                        if (lastSeenId == null) {
+                            // First run: seed state without notifying
+                            prefs.edit().putString(podcast.id, latestId).apply()
+                            continue
+                        }
 
-                    if (lastSeenId != latestId) {
-                        val episodeTitle = latest.title.ifBlank { "(Untitled Episode)" }
-                        PodcastEpisodeNotifier.notifyNewEpisode(context, podcast, episodeTitle)
-                        prefs.edit().putString(podcast.id, latestId).apply()
+                        if (lastSeenId != latestId) {
+                            val episodeTitle = latest.title.ifBlank { "(Untitled Episode)" }
+                            PodcastEpisodeNotifier.notifyNewEpisode(context, podcast, episodeTitle)
+                            prefs.edit().putString(podcast.id, latestId).apply()
+                        }
                     }
                 }
+
+                SavedSearchManager.checkForUpdates(context)
             } catch (_: Exception) {
                 // swallow - this is a best-effort background job
             }

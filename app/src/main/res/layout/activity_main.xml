@@ -87,6 +87,23 @@
             android:focusable="true" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/fav_tab_searches"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:text="Searches"
+            app:icon="@drawable/ic_search"
+            app:iconGravity="textStart"
+            app:iconPadding="4dp"
+            app:cornerRadius="100dp"
+            android:importantForAccessibility="yes"
+            android:focusable="true" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/fav_tab_history"
             style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="0dp"
@@ -185,7 +202,7 @@
             </FrameLayout>
 
             <!-- Saved Episodes: remove collapsible header and show as its own card when selected -->
-            <FrameLayout
+            <LinearLayout
                 android:id="@+id/saved_episodes_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -194,7 +211,8 @@
                 android:visibility="gone"
                 android:background="?attr/colorSurface"
                 android:paddingStart="8dp"
-                android:paddingEnd="8dp">
+                android:paddingEnd="8dp"
+                android:orientation="vertical">
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/saved_episodes_recycler"
@@ -206,7 +224,48 @@
                     android:scrollbars="vertical"
                     android:background="?attr/colorSurface" />
 
-            </FrameLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/saved_searches_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone"
+                android:background="?attr/colorSurface"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/saved_searches_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:text="Saved Searches"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <TextView
+                    android:id="@+id/saved_searches_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No saved searches yet"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:visibility="gone"
+                    android:paddingBottom="8dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/saved_searches_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:clipToPadding="true"
+                    android:scrollbars="vertical"
+                    android:background="?attr/colorSurface" />
+            </LinearLayout>
 
             <!-- History: full-width list (no background card) -->
             <FrameLayout

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingVertical="8dp">
+
+    <TextView
+        android:id="@+id/saved_search_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <FrameLayout
+        android:id="@+id/saved_search_notify_button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:foreground="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp">
+
+        <ImageView
+            android:id="@+id/saved_search_notify_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:contentDescription="Toggle notifications"
+            app:tint="?attr/colorOnSurface"
+            android:alpha="1.0" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/saved_search_rename_button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="4dp"
+        android:foreground="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp">
+
+        <ImageView
+            android:id="@+id/saved_search_rename_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:contentDescription="Rename saved search"
+            app:tint="?attr/colorOnSurface"
+            android:alpha="1.0"
+            android:src="@drawable/ic_edit" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/saved_search_delete_button"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="4dp"
+        android:foreground="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp">
+
+        <ImageView
+            android:id="@+id/saved_search_delete_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:contentDescription="Delete saved search"
+            app:tint="?attr/colorOnSurface"
+            android:alpha="1.0"
+            android:src="@drawable/ic_delete" />
+    </FrameLayout>
+</LinearLayout>

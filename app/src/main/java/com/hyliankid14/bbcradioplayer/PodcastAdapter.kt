@@ -11,7 +11,6 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.android.material.button.MaterialButton
-import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -215,29 +214,14 @@ class EpisodeAdapter(
     private val onOpenFull: (Episode) -> Unit
 ) : RecyclerView.Adapter<EpisodeAdapter.EpisodeViewHolder>() {
 
-    private fun parsePubDateToEpoch(raw: String): Long? {
-        val patterns = listOf(
-            "EEE, dd MMM yyyy HH:mm:ss Z",
-            "dd MMM yyyy HH:mm:ss Z",
-            "EEE, dd MMM yyyy"
-        )
-        return patterns.firstNotNullOfOrNull { pattern ->
-            try {
-                SimpleDateFormat(pattern, Locale.US).parse(raw)?.time
-            } catch (e: Exception) {
-                null
-            }
-        }
-    }
-
     fun updateEpisodes(newEpisodes: List<Episode>) {
         // Sort by publication date (most recent first). Unknown dates are treated as epoch 0.
-        episodes = newEpisodes.sortedByDescending { parsePubDateToEpoch(it.pubDate) ?: 0L }
+        episodes = newEpisodes.sortedByDescending { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
         notifyDataSetChanged()
     }
 
     fun addEpisodes(newEpisodes: List<Episode>) {
-        episodes = (episodes + newEpisodes).sortedByDescending { parsePubDateToEpoch(it.pubDate) ?: 0L }
+        episodes = (episodes + newEpisodes).sortedByDescending { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
         notifyDataSetChanged()
     }
 
@@ -371,21 +355,12 @@ class EpisodeAdapter(
         }
 
         private fun formatEpisodeDate(raw: String): String {
-            val patterns = listOf(
-                "EEE, dd MMM yyyy HH:mm:ss Z",
-                "dd MMM yyyy HH:mm:ss Z",
-                "EEE, dd MMM yyyy"
-            )
-            val parsed: Date? = patterns.firstNotNullOfOrNull { pattern ->
-                try {
-                    SimpleDateFormat(pattern, Locale.US).parse(raw)
-                } catch (e: ParseException) {
-                    null
-                }
+            val epoch = EpisodeDateParser.parsePubDateToEpoch(raw)
+            return if (epoch > 0L) {
+                SimpleDateFormat("EEE, dd MMM yyyy", Locale.US).format(Date(epoch))
+            } else {
+                if (raw.contains(":")) raw.substringBefore(":").substringBeforeLast(" ").trim() else raw.trim()
             }
-            return parsed?.let {
-                SimpleDateFormat("EEE, dd MMM yyyy", Locale.US).format(it)
-            } ?: (if (raw.contains(":")) raw.substringBefore(":").substringBeforeLast(" ").trim() else raw.trim())
         }
     }
 }

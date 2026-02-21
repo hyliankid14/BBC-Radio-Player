@@ -36,24 +36,14 @@ class PlayedHistoryAdapter(
 
     private fun formatDate(raw: String): String {
         if (raw.isBlank()) return ""
-        val patterns = listOf(
-            "EEE, dd MMM yyyy HH:mm:ss Z",
-            "dd MMM yyyy HH:mm:ss Z",
-            "EEE, dd MMM yyyy HH",
-            "EEE, dd MMM yyyy",
-            "dd MMM yyyy HH",
-            "dd MMM yyyy"
-        )
-        val parsed: java.util.Date? = patterns.firstNotNullOfOrNull { pattern ->
-            try {
-                java.text.SimpleDateFormat(pattern, java.util.Locale.US).parse(raw)
-            } catch (e: java.text.ParseException) {
-                null
-            }
-        }
+        val epoch = EpisodeDateParser.parsePubDateToEpoch(raw)
         val cleaned = raw.trim().replace(Regex("\\s+(GMT|UTC|UT)", RegexOption.IGNORE_CASE), "").replace(Regex(",\\s+"), ", ")
         val fallback = cleaned.replace(Regex("\\s+\\d{1,2}:\\d{2}(:\\d{2})?"), "").replace(Regex("\\s+\\d{1,2}$"), "").trim()
-        return parsed?.let { java.text.SimpleDateFormat("EEE, dd MMM yyyy", java.util.Locale.US).format(it) } ?: fallback
+        return if (epoch > 0L) {
+            java.text.SimpleDateFormat("EEE, dd MMM yyyy", java.util.Locale.US).format(java.util.Date(epoch))
+        } else {
+            fallback
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
