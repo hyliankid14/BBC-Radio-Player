@@ -7,6 +7,7 @@ import com.hyliankid14.bbcradioplayer.Episode
 import com.hyliankid14.bbcradioplayer.Podcast
 import java.util.*
 import android.util.Log
+import java.text.SimpleDateFormat
 
 /**
  * Lightweight SQLite FTS-backed index for podcasts and episodes.
@@ -25,7 +26,19 @@ class IndexStore private constructor(private val context: Context) {
             }
         }
 
+        private fun isAdvancedFtsQuery(query: String): Boolean {
+            val q = query.trim()
+            if (q.isEmpty()) return false
+            if (q.contains('"') || q.contains('(') || q.contains(')')) return true
+            val upper = q.uppercase(Locale.getDefault())
+            if (upper.contains(" AND ") || upper.contains(" OR ") || upper.contains(" NEAR")) return true
+            // FTS4 uses - prefix for NOT (e.g., "climate -politics")
+            if (q.contains(" -")) return true
+            return q.contains('*') || q.contains(':')
+        }
+
         private fun normalizeQueryForFts(query: String): String {
+            if (isAdvancedFtsQuery(query)) return query.trim()
             // Normalize: strip punctuation, collapse whitespace, lowercase.
             val q = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
                 .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
@@ -87,6 +100,7 @@ class IndexStore private constructor(private val context: Context) {
         db.beginTransaction()
         try {
             val stmt: SQLiteStatement = db.compileStatement("INSERT INTO episode_fts(episodeId, podcastId, title, description) VALUES (?, ?, ?, ?);")
+            val metaStmt: SQLiteStatement = db.compileStatement("INSERT OR REPLACE INTO episode_meta(episodeId, pubDate) VALUES (?, ?);")
             for (e in episodes) {
                 stmt.clearBindings()
                 stmt.bindString(1, e.id)
@@ -105,6 +119,11 @@ class IndexStore private constructor(private val context: Context) {
 
                 stmt.bindString(4, searchBlob)
                 stmt.executeInsert()
+
+                metaStmt.clearBindings()
+                metaStmt.bindString(1, e.id)
+                metaStmt.bindString(2, e.pubDate)
+                metaStmt.executeInsert()
                 inserted++
             }
             db.setTransactionSuccessful()
@@ -133,6 +152,7 @@ class IndexStore private constructor(private val context: Context) {
         // Do a single table wipe up-front, then append in batches.
         val db = helper.writableDatabase
         db.execSQL("DELETE FROM episode_fts;")
+        db.execSQL("DELETE FROM episode_meta;")
 
         var processed = 0
         var idx = 0
@@ -178,6 +198,7 @@ class IndexStore private constructor(private val context: Context) {
     }
 
     private fun buildFtsVariants(query: String): List<String> {
+        if (isAdvancedFtsQuery(query)) return listOf(query.trim())
         // Return a prioritized list of MATCH expressions to try for multi-token queries
         val q = java.text.Normalizer.normalize(query, java.text.Normalizer.Form.NFD)
             .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
@@ -278,6 +299,49 @@ class IndexStore private constructor(private val context: Context) {
         }
 
         return emptyList()
+    }
+
+    @Synchronized
+    fun getLatestEpisodePubDateEpoch(episodeIds: List<String>): Long {
+        if (episodeIds.isEmpty()) return 0L
+        val db = helper.readableDatabase
+        val patterns = listOf(
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy",
+            "dd MMM yyyy"
+        )
+        fun parseEpoch(raw: String?): Long {
+            if (raw.isNullOrBlank()) return 0L
+            for (pattern in patterns) {
+                try {
+                    val t = SimpleDateFormat(pattern, Locale.US).parse(raw)?.time
+                    if (t != null) return t
+                } catch (_: Exception) {
+                }
+            }
+            return 0L
+        }
+
+        var maxEpoch = 0L
+        val chunkSize = 900
+        var index = 0
+        while (index < episodeIds.size) {
+            val end = (index + chunkSize).coerceAtMost(episodeIds.size)
+            val chunk = episodeIds.subList(index, end)
+            val placeholders = chunk.joinToString(",") { "?" }
+            val sql = "SELECT pubDate FROM episode_meta WHERE episodeId IN ($placeholders)"
+            val cursor = db.rawQuery(sql, chunk.toTypedArray())
+            cursor.use {
+                while (it.moveToNext()) {
+                    val epoch = parseEpoch(it.getString(0))
+                    if (epoch > maxEpoch) maxEpoch = epoch
+                }
+            }
+            index = end
+        }
+
+        return maxEpoch
     }
 
     /**

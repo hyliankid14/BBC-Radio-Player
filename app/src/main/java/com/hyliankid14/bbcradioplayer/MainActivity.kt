@@ -48,6 +48,9 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.hyliankid14.bbcradioplayer.PodcastSubscriptions
@@ -103,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     // Track the last visible percent for the episode/index progress bar so we can
     // defensively ignore any stray regressions emitted by background components.
     private var lastSeenIndexPercent: Int = 0
+    private var savedSearchDateRefreshJob: Job? = null
 
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateMiniPlayerFromShow(show) }
@@ -2292,17 +2296,46 @@ class MainActivity : AppCompatActivity() {
         val hasItems = (recycler.adapter?.itemCount ?: 0) > 0
         recycler.visibility = if (hasItems) View.VISIBLE else View.GONE
         empty.visibility = if (hasItems) View.GONE else View.VISIBLE
+
+        maybeRefreshSavedSearchDates(searches, recycler, empty)
+    }
+
+    private fun maybeRefreshSavedSearchDates(
+        searches: List<SavedSearchesPreference.SavedSearch>,
+        recycler: RecyclerView,
+        empty: TextView
+    ) {
+        if (savedSearchDateRefreshJob?.isActive == true) return
+        if (searches.none { it.lastMatchEpoch <= 0L }) return
+
+        savedSearchDateRefreshJob = lifecycleScope.launch(Dispatchers.IO) {
+            SavedSearchManager.refreshLatestMatchDates(this@MainActivity)
+            val updated = SavedSearchesPreference.getSavedSearches(this@MainActivity)
+            withContext(Dispatchers.Main) {
+                val adapter = recycler.adapter as? SavedSearchAdapter
+                adapter?.updateSearches(updated)
+                val hasItems = (adapter?.itemCount ?: 0) > 0
+                recycler.visibility = if (hasItems) View.VISIBLE else View.GONE
+                empty.visibility = if (hasItems) View.GONE else View.VISIBLE
+            }
+        }
     }
 
     private fun showSavedSearchEditDialog(search: SavedSearchesPreference.SavedSearch) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_saved_search, null)
         val nameInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.saved_search_name_input)
+        val queryInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.saved_search_query_input)
+        val queryInfo = dialogView.findViewById<View>(R.id.saved_search_query_info)
         val notifySwitch = dialogView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.saved_search_notify_switch)
         val warningText = dialogView.findViewById<TextView>(R.id.saved_search_index_warning)
 
         nameInput.setText(search.name)
         nameInput.setSelection(search.name.length)
+        queryInput.setText(search.query)
+        queryInput.setSelection(search.query.length)
         notifySwitch.isChecked = search.notificationsEnabled
+
+        queryInfo.setOnClickListener { showSearchOperatorInfo() }
 
         val indexingDisabled = IndexPreference.getIntervalDays(this) <= 0
         warningText.visibility = if (indexingDisabled) View.VISIBLE else View.GONE
@@ -2312,11 +2345,37 @@ class MainActivity : AppCompatActivity() {
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
                 val name = nameInput.text?.toString()?.trim().orEmpty().ifBlank { search.query }
+                val query = queryInput.text?.toString()?.trim().orEmpty().ifBlank { search.query }
                 SavedSearchesPreference.updateSearchName(this, search.id, name)
+                if (query != search.query) {
+                    SavedSearchesPreference.updateSearchQuery(this, search.id, query)
+                }
                 SavedSearchesPreference.updateNotifications(this, search.id, notifySwitch.isChecked)
                 refreshSavedSearchesSection()
             }
             .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showSearchOperatorInfo() {
+        val message = "Operators:\n" +
+            "- AND: both terms must appear\n" +
+            "- OR: either term can appear\n" +
+            "- Minus (-): exclude a term\n" +
+            "- NEAR/x: terms within x words (e.g. NEAR/10)\n" +
+            "- \"phrase\": exact phrase match\n" +
+            "- *: prefix wildcard (e.g. child*)\n\n" +
+            "Examples:\n" +
+            "climate AND politics\n" +
+            "sports OR news\n" +
+            "climate -politics\n" +
+            "climate NEAR/5 change\n" +
+            "\"bbc news\"\n" +
+            "child*"
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Search operators")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
             .show()
     }
     

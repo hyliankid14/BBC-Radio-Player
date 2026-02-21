@@ -6,6 +6,8 @@ import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
+import android.text.format.DateFormat
+import java.util.Date
 
 class SavedSearchAdapter(
     private val items: MutableList<SavedSearchesPreference.SavedSearch>,
@@ -17,6 +19,7 @@ class SavedSearchAdapter(
 
     class SavedSearchViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val title: TextView = itemView.findViewById(R.id.saved_search_title)
+        val latestDate: TextView = itemView.findViewById(R.id.saved_search_latest_date)
         val notifyButton: View = itemView.findViewById(R.id.saved_search_notify_button)
         val notifyBell: ImageView = itemView.findViewById(R.id.saved_search_notify_icon)
         val renameButton: View = itemView.findViewById(R.id.saved_search_rename_button)
@@ -32,6 +35,13 @@ class SavedSearchAdapter(
         val search = items[position]
         holder.title.text = search.name.ifBlank { search.query }
         holder.itemView.setOnClickListener { onSearchClick(search) }
+
+        if (search.lastMatchEpoch > 0L) {
+            val date = DateFormat.getMediumDateFormat(holder.itemView.context).format(Date(search.lastMatchEpoch))
+            holder.latestDate.text = "Latest: $date"
+        } else {
+            holder.latestDate.text = "No matches yet"
+        }
 
         val bellRes = if (search.notificationsEnabled) {
             R.drawable.ic_notifications

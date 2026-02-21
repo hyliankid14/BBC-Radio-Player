@@ -4,13 +4,15 @@ import android.content.Context
 import com.hyliankid14.bbcradioplayer.db.IndexStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 object SavedSearchManager {
     suspend fun checkForUpdates(context: Context) {
         withContext(Dispatchers.IO) {
             try {
                 val searches = SavedSearchesPreference.getSavedSearches(context)
-                    .filter { it.notificationsEnabled && it.query.isNotBlank() }
+                    .filter { it.query.isNotBlank() }
                 if (searches.isEmpty()) return@withContext
 
                 val index = IndexStore.getInstance(context)
@@ -32,7 +34,11 @@ object SavedSearchManager {
 
                     val matches = try { index.searchEpisodes(search.query, 200) } catch (_: Exception) { emptyList() }
                     if (matches.isEmpty()) {
-                        SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, emptyList())
+                        if (search.notificationsEnabled) {
+                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, emptyList(), 0L)
+                        } else {
+                            SavedSearchesPreference.updateLastMatchEpoch(context, search.id, 0L)
+                        }
                         continue
                     }
 
@@ -40,22 +46,102 @@ object SavedSearchManager {
                     val ids = filtered.map { it.episodeId }.distinct().take(50)
 
                     if (ids.isEmpty()) {
-                        SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, emptyList())
+                        if (search.notificationsEnabled) {
+                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, emptyList(), 0L)
+                        } else {
+                            SavedSearchesPreference.updateLastMatchEpoch(context, search.id, 0L)
+                        }
                         continue
                     }
 
-                    val lastSeen = search.lastSeenEpisodeIds.toSet()
-                    val newIds = if (lastSeen.isEmpty()) ids else ids.filterNot { lastSeen.contains(it) }
+                    val latestEpoch = try { index.getLatestEpisodePubDateEpoch(ids) } catch (_: Exception) { 0L }
 
-                    if (newIds.isNotEmpty()) {
-                        val exampleTitle = filtered.firstOrNull { newIds.contains(it.episodeId) }?.title ?: ""
-                        SavedSearchNotifier.notifyNewMatches(context, search, exampleTitle, newIds.size)
+                    if (search.notificationsEnabled) {
+                        val lastSeen = search.lastSeenEpisodeIds.toSet()
+                        val newIds = if (lastSeen.isEmpty()) ids else ids.filterNot { lastSeen.contains(it) }
+
+                        if (newIds.isNotEmpty()) {
+                            val exampleTitle = filtered.firstOrNull { newIds.contains(it.episodeId) }?.title ?: ""
+                            SavedSearchNotifier.notifyNewMatches(context, search, exampleTitle, newIds.size)
+                        }
+
+                        SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, latestEpoch)
+                    } else {
+                        SavedSearchesPreference.updateLastMatchEpoch(context, search.id, latestEpoch)
                     }
-
-                    SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids)
                 }
             } catch (_: Exception) {
                 // best-effort background check
+            }
+        }
+    }
+
+    suspend fun refreshLatestMatchDates(context: Context) {
+        withContext(Dispatchers.IO) {
+            try {
+                val searches = SavedSearchesPreference.getSavedSearches(context)
+                    .filter { it.query.isNotBlank() }
+                if (searches.isEmpty()) return@withContext
+
+                val index = IndexStore.getInstance(context)
+                if (!index.hasAnyEpisodes()) return@withContext
+
+                val repo = PodcastRepository(context)
+                val allPodcasts = try { repo.fetchPodcasts(forceRefresh = false) } catch (_: Exception) { emptyList() }
+                if (allPodcasts.isEmpty()) return@withContext
+
+                val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy", "dd MMM yyyy")
+                fun parseEpoch(raw: String?): Long {
+                    if (raw.isNullOrBlank()) return 0L
+                    for (pattern in patterns) {
+                        try {
+                            val t = SimpleDateFormat(pattern, Locale.US).parse(raw)?.time
+                            if (t != null) return t
+                        } catch (_: Exception) { }
+                    }
+                    return 0L
+                }
+
+                for (search in searches) {
+                    val filter = PodcastFilter(
+                        genres = search.genres.toSet(),
+                        minDuration = search.minDuration,
+                        maxDuration = search.maxDuration,
+                        searchQuery = ""
+                    )
+                    val allowed = repo.filterPodcasts(allPodcasts, filter).map { it.id }.toSet()
+                    if (allowed.isEmpty()) {
+                        SavedSearchesPreference.updateLastMatchEpoch(context, search.id, 0L)
+                        continue
+                    }
+
+                    val matches = try { index.searchEpisodes(search.query, 200) } catch (_: Exception) { emptyList() }
+                    if (matches.isEmpty()) {
+                        SavedSearchesPreference.updateLastMatchEpoch(context, search.id, 0L)
+                        continue
+                    }
+
+                    val filtered = matches.filter { allowed.contains(it.podcastId) }
+                    val ids = filtered.map { it.episodeId }.distinct().take(50)
+                    if (ids.isEmpty()) {
+                        SavedSearchesPreference.updateLastMatchEpoch(context, search.id, 0L)
+                        continue
+                    }
+
+                    var latestEpoch = try { index.getLatestEpisodePubDateEpoch(ids) } catch (_: Exception) { 0L }
+                    if (latestEpoch == 0L) {
+                        for (hit in filtered) {
+                            val cached = repo.getEpisodesFromCache(hit.podcastId) ?: continue
+                            val candidate = cached.firstOrNull { it.id == hit.episodeId } ?: continue
+                            val epoch = parseEpoch(candidate.pubDate)
+                            if (epoch > latestEpoch) latestEpoch = epoch
+                        }
+                    }
+
+                    SavedSearchesPreference.updateLastMatchEpoch(context, search.id, latestEpoch)
+                }
+            } catch (_: Exception) {
+                // best-effort background refresh
             }
         }
     }

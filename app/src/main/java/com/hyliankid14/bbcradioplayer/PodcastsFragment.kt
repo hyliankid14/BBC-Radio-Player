@@ -1274,33 +1274,51 @@ class PodcastsFragment : Fragment() {
 
         val dialogView = layoutInflater.inflate(R.layout.dialog_saved_search, null)
         val nameInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.saved_search_name_input)
+        val queryInput = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.saved_search_query_input)
+        val queryInfo = dialogView.findViewById<View>(R.id.saved_search_query_info)
         val notifySwitch = dialogView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.saved_search_notify_switch)
         val warningText = dialogView.findViewById<TextView>(R.id.saved_search_index_warning)
 
         nameInput.setText(q)
         nameInput.setSelection(q.length)
+        queryInput.setText(q)
+        queryInput.setSelection(q.length)
+        queryInfo.setOnClickListener { showSearchOperatorInfo() }
 
         val indexingDisabled = IndexPreference.getIntervalDays(requireContext()) <= 0
         warningText.visibility = if (indexingDisabled) View.VISIBLE else View.GONE
+
+        val patterns = listOf("EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy", "dd MMM yyyy")
+        fun epochOf(ep: Episode): Long {
+            return patterns.firstNotNullOfOrNull { pattern ->
+                try { java.text.SimpleDateFormat(pattern, java.util.Locale.US).parse(ep.pubDate)?.time } catch (_: Exception) { null }
+            } ?: 0L
+        }
+        val latestMatchEpoch = viewModel.getCachedSearch()?.episodeMatches
+            ?.map { epochOf(it.first) }
+            ?.maxOrNull()
+            ?: 0L
 
         val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Save Search")
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
                 val name = nameInput.text?.toString()?.trim().orEmpty().ifBlank { q }
+                val query = queryInput.text?.toString()?.trim().orEmpty().ifBlank { q }
                 val cached = viewModel.getCachedSearch()
                 val episodeIds = cached?.episodeMatches?.map { it.first.id }?.distinct()?.take(50) ?: emptyList()
                 val saved = SavedSearchesPreference.SavedSearch(
                     id = java.util.UUID.randomUUID().toString(),
                     name = name,
-                    query = q,
+                    query = query,
                     genres = currentFilter.genres.toList(),
                     minDuration = currentFilter.minDuration,
                     maxDuration = currentFilter.maxDuration,
                     sort = currentSort,
                     notificationsEnabled = notifySwitch.isChecked,
                     lastSeenEpisodeIds = episodeIds,
-                    createdAt = System.currentTimeMillis()
+                    createdAt = System.currentTimeMillis(),
+                    lastMatchEpoch = latestMatchEpoch
                 )
                 SavedSearchesPreference.saveSearch(requireContext(), saved)
 
@@ -1315,6 +1333,28 @@ class PodcastsFragment : Fragment() {
             .create()
 
         dialog.show()
+    }
+
+    private fun showSearchOperatorInfo() {
+        val message = "Operators:\n" +
+            "- AND: both terms must appear\n" +
+            "- OR: either term can appear\n" +
+            "- Minus (-): exclude a term\n" +
+            "- NEAR/x: terms within x words (e.g. NEAR/10)\n" +
+            "- \"phrase\": exact phrase match\n" +
+            "- *: prefix wildcard (e.g. child*)\n\n" +
+            "Examples:\n" +
+            "climate AND politics\n" +
+            "sports OR news\n" +
+            "climate -politics\n" +
+            "climate NEAR/5 change\n" +
+            "\"bbc news\"\n" +
+            "child*"
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Search operators")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     fun applySavedSearch(savedSearch: SavedSearchesPreference.SavedSearch, forceMostRecent: Boolean = true) {

@@ -71,9 +71,21 @@ class PodcastRepository(private val context: Context) {
 
     // Public helper so other classes can check normalized phrase/token-AND matches using repository logic
     fun textMatchesNormalized(text: String, query: String): Boolean {
+        if (isAdvancedQuery(query)) return true
         val textLower = text.lowercase(Locale.getDefault())
         val queryLower = query.lowercase(Locale.getDefault())
         return containsPhraseOrAllTokens(textLower, queryLower)
+    }
+
+    private fun isAdvancedQuery(query: String): Boolean {
+        val q = query.trim()
+        if (q.isEmpty()) return false
+        if (q.contains('"') || q.contains('(') || q.contains(')')) return true
+        val upper = q.uppercase(Locale.getDefault())
+        if (upper.contains(" AND ") || upper.contains(" OR ") || upper.contains(" NEAR")) return true
+        // FTS4 uses - prefix for NOT (e.g., "climate -politics")
+        if (q.contains(" -")) return true
+        return q.contains('*') || q.contains(':')
     }
 
     fun podcastMatches(podcast: Podcast, queryLower: String): Boolean {

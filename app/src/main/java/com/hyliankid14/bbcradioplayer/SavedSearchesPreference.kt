@@ -18,7 +18,8 @@ object SavedSearchesPreference {
         val sort: String,
         val notificationsEnabled: Boolean,
         val lastSeenEpisodeIds: List<String>,
-        val createdAt: Long
+        val createdAt: Long,
+        val lastMatchEpoch: Long
     )
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -63,6 +64,20 @@ object SavedSearchesPreference {
     }
 
     @Synchronized
+    fun updateSearchQuery(context: Context, id: String, query: String) {
+        val list = getSavedSearches(context).toMutableList()
+        val idx = list.indexOfFirst { it.id == id }
+        if (idx == -1) return
+        val existing = list[idx]
+        list[idx] = existing.copy(
+            query = query,
+            lastSeenEpisodeIds = emptyList(),
+            lastMatchEpoch = 0L
+        )
+        persist(context, list)
+    }
+
+    @Synchronized
     fun updateNotifications(context: Context, id: String, enabled: Boolean) {
         val list = getSavedSearches(context).toMutableList()
         val idx = list.indexOfFirst { it.id == id }
@@ -73,12 +88,26 @@ object SavedSearchesPreference {
     }
 
     @Synchronized
-    fun updateLastSeenEpisodeIds(context: Context, id: String, ids: List<String>) {
+    fun updateLastSeenEpisodeIds(context: Context, id: String, ids: List<String>, lastMatchEpoch: Long? = null) {
         val list = getSavedSearches(context).toMutableList()
         val idx = list.indexOfFirst { it.id == id }
         if (idx == -1) return
         val existing = list[idx]
-        list[idx] = existing.copy(lastSeenEpisodeIds = ids)
+        list[idx] = if (lastMatchEpoch == null) {
+            existing.copy(lastSeenEpisodeIds = ids)
+        } else {
+            existing.copy(lastSeenEpisodeIds = ids, lastMatchEpoch = lastMatchEpoch)
+        }
+        persist(context, list)
+    }
+
+    @Synchronized
+    fun updateLastMatchEpoch(context: Context, id: String, lastMatchEpoch: Long) {
+        val list = getSavedSearches(context).toMutableList()
+        val idx = list.indexOfFirst { it.id == id }
+        if (idx == -1) return
+        val existing = list[idx]
+        list[idx] = existing.copy(lastMatchEpoch = lastMatchEpoch)
         persist(context, list)
     }
 
@@ -104,6 +133,7 @@ object SavedSearchesPreference {
         obj.put("sort", search.sort)
         obj.put("notificationsEnabled", search.notificationsEnabled)
         obj.put("createdAt", search.createdAt)
+        obj.put("lastMatchEpoch", search.lastMatchEpoch)
 
         val genresArr = JSONArray()
         search.genres.forEach { genresArr.put(it) }
@@ -143,7 +173,8 @@ object SavedSearchesPreference {
             sort = obj.optString("sort", "Most popular"),
             notificationsEnabled = obj.optBoolean("notificationsEnabled", false),
             lastSeenEpisodeIds = episodes,
-            createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+            createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
+            lastMatchEpoch = obj.optLong("lastMatchEpoch", 0L)
         )
     }
 }
