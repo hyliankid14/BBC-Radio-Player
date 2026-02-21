@@ -87,6 +87,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private val SUBTITLE_CYCLE_MS: Long = 6_000L // slow cycle (6s) — adjust if needed
 
     private var notificationHadProgress: Boolean = false
+    private var isStopped: Boolean = false
     // Track last-saved progress per episode to avoid excessive writes
     private val lastSavedProgress = mutableMapOf<String, Long>()
     private val serviceScope = CoroutineScope(Dispatchers.Main)
@@ -943,6 +944,14 @@ class RadioService : MediaBrowserServiceCompat() {
     }
 
     private fun startForegroundNotification() {
+        if (isStopped || currentStationId.isBlank()) {
+            try {
+                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.cancel(NOTIFICATION_ID)
+            } catch (_: Exception) { }
+            return
+        }
+
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -1084,6 +1093,10 @@ class RadioService : MediaBrowserServiceCompat() {
         val isPlayingSnapshot = PlaybackStateHelper.getIsPlaying()
         Thread {
             try {
+                if (isStopped || currentStationId.isBlank()) {
+                    return@Thread
+                }
+
                 // Use image_url from API if available and valid, otherwise fall back to station logo
                 var imageUrl: String = when {
                     !currentShowInfo.imageUrl.isNullOrEmpty() && currentShowInfo.imageUrl?.startsWith("http") == true -> currentShowInfo.imageUrl!!
@@ -1344,6 +1357,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     }
 
     private fun playStation(stationId: String) {
+        isStopped = false
         val station = StationRepository.getStations().firstOrNull { it.id == stationId }
         if (station == null) {
             Log.w(TAG, "Unknown station: $stationId")
@@ -1880,8 +1894,13 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     }
 
     private fun stopPlayback() {
+        isStopped = true
         player?.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(NOTIFICATION_ID)
+        } catch (_: Exception) { }
         notificationHadProgress = false
         updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
         
@@ -1897,6 +1916,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         // Update global playback state
         PlaybackStateHelper.setCurrentStation(null)
         PlaybackStateHelper.setCurrentEpisodeId(null)
+        PlaybackStateHelper.setCurrentMediaUri(null)
         PlaybackStateHelper.setIsPlaying(false)
         currentPodcastId = null
         matchedPodcast = null
@@ -1904,6 +1924,16 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         matchPodcastJob = null
         lastMatchKey = null
         matchedPodcast = null
+        currentStationId = ""
+        currentStationTitle = ""
+        currentStationLogo = ""
+        currentShowName = ""
+        currentShowTitle = ""
+        currentEpisodeTitle = ""
+        currentShowInfo = CurrentShow("BBC Radio")
+        currentArtworkBitmap = null
+        currentArtworkUri = null
+        lastSongSignature = null
         
         Log.d(TAG, "Playback stopped")
     }
@@ -1972,6 +2002,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     
     private fun playPodcastEpisode(episode: Episode, intent: Intent?) {
         try {
+            isStopped = false
             // Create a synthetic station to drive the existing mini/full player UI
             val podcastTitle = intent?.getStringExtra(EXTRA_PODCAST_TITLE) ?: "Podcast"
             val podcastImage = intent?.getStringExtra(EXTRA_PODCAST_IMAGE) ?: episode.imageUrl
@@ -2229,6 +2260,11 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     // Update just the notification with the current podcast progress (no network fetch)
     private fun updateNotificationProgressOnly() {
         try {
+            if (isStopped || currentStationId.isBlank()) {
+                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.cancel(NOTIFICATION_ID)
+                return
+            }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val isPlayingSnapshot = PlaybackStateHelper.getIsPlaying()
 

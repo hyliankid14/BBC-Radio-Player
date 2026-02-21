@@ -1225,6 +1225,11 @@ class MainActivity : AppCompatActivity() {
                         val podcasts = all.filter { ids.contains(it.id) }
                         val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(podcasts) } } catch (e: Exception) { emptyMap<String, Long>() }
                         val sorted = podcasts.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
+                        val newSet = sorted.filter { p ->
+                            val latest = updates[p.id] ?: 0L
+                            val lastPlayed = PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
+                            latest > lastPlayed
+                        }.map { it.id }.toSet()
                         runOnUiThread {
                             val rv = try { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler) } catch (_: Exception) { null }
                             rv?.layoutManager = LinearLayoutManager(this@MainActivity)
@@ -1254,7 +1259,7 @@ class MainActivity : AppCompatActivity() {
                             }, highlightSubscribed = true, showSubscribedIcon = false)
                             rv?.adapter = podcastAdapter
                             podcastAdapter.updatePodcasts(sorted)
-                            podcastAdapter.updateNewEpisodes(sorted.map { it.id }.toSet())
+                            podcastAdapter.updateNewEpisodes(newSet)
                             rv?.visibility = View.VISIBLE
                         }
                     } catch (_: Exception) { }
