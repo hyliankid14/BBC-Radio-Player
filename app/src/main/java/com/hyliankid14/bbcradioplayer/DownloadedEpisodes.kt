@@ -55,7 +55,8 @@ object DownloadedEpisodes {
         val podcastId: String,
         val podcastTitle: String,
         val downloadedAtMs: Long,
-        val fileSizeBytes: Long
+        val fileSizeBytes: Long,
+        val isAutoDownloaded: Boolean
     )
 
     fun getDownloadedEntries(context: Context): List<Entry> {
@@ -76,7 +77,8 @@ object DownloadedEpisodes {
                     podcastId = j.optString("podcastId", ""),
                     podcastTitle = j.optString("podcastTitle", ""),
                     downloadedAtMs = j.optLong("downloadedAtMs", 0L),
-                    fileSizeBytes = j.optLong("fileSizeBytes", 0L)
+                    fileSizeBytes = j.optLong("fileSizeBytes", 0L),
+                    isAutoDownloaded = j.optBoolean("isAutoDownloaded", false)
                 )
                 list.add(e)
             } catch (_: Exception) {}
@@ -124,11 +126,19 @@ object DownloadedEpisodes {
             podcastId = episode.podcastId,
             podcastTitle = "",
             downloadedAtMs = fallbackFile.lastModified(),
-            fileSizeBytes = fallbackFile.length()
+            fileSizeBytes = fallbackFile.length(),
+            isAutoDownloaded = false
         )
     }
 
-    fun addDownloaded(context: Context, episode: Episode, localFilePath: String, fileSizeBytes: Long, podcastTitle: String? = null) {
+    fun addDownloaded(
+        context: Context,
+        episode: Episode,
+        localFilePath: String,
+        fileSizeBytes: Long,
+        podcastTitle: String? = null,
+        isAutoDownloaded: Boolean = false
+    ) {
         val current = prefs(context).getStringSet(KEY_DOWNLOADED_SET, emptySet())?.toMutableSet() ?: mutableSetOf()
         
         // Remove existing entry if present
@@ -153,6 +163,7 @@ object DownloadedEpisodes {
         j.put("podcastTitle", podcastTitle ?: "")
         j.put("downloadedAtMs", System.currentTimeMillis())
         j.put("fileSizeBytes", fileSizeBytes)
+        j.put("isAutoDownloaded", isAutoDownloaded)
         
         current.add(j.toString())
         prefs(context).edit().putStringSet(KEY_DOWNLOADED_SET, current).apply()
@@ -181,7 +192,8 @@ object DownloadedEpisodes {
                     podcastId = j.optString("podcastId", ""),
                     podcastTitle = j.optString("podcastTitle", ""),
                     downloadedAtMs = j.optLong("downloadedAtMs", 0L),
-                    fileSizeBytes = j.optLong("fileSizeBytes", 0L)
+                    fileSizeBytes = j.optLong("fileSizeBytes", 0L),
+                    isAutoDownloaded = j.optBoolean("isAutoDownloaded", false)
                 )
             } catch (_: Exception) {}
             

@@ -36,7 +36,7 @@ class SubscriptionRefreshReceiver : BroadcastReceiver() {
                             for (episode in candidates) {
                                 if (!DownloadedEpisodes.isDownloaded(context, episode)) {
                                     try {
-                                        EpisodeDownloadManager.downloadEpisode(context, episode, podcast.title)
+                                        EpisodeDownloadManager.downloadEpisode(context, episode, podcast.title, isAutoDownload = true)
                                     } catch (_: Exception) { }
                                 }
                             }

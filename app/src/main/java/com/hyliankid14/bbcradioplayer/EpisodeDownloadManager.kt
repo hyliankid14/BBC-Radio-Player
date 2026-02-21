@@ -76,6 +76,7 @@ object EpisodeDownloadManager {
                         val json = org.json.JSONObject(jsonStr)
                         val episode = jsonToEpisode(json.getJSONObject("episode"))
                         val podcastTitle = json.optString("podcastTitle", "")
+                        val autoDownload = json.optBoolean("autoDownload", false)
                         val pendingPath = json.optString("localPath", "")
 
                         // Prefer a concrete file path when available; fallback to DownloadManager URI ref.
@@ -97,7 +98,12 @@ object EpisodeDownloadManager {
                             else -> 0L
                         }
 
-                        DownloadedEpisodes.addDownloaded(context, episode, localRef, fileSize, podcastTitle)
+                        DownloadedEpisodes.addDownloaded(context, episode, localRef, fileSize, podcastTitle, autoDownload)
+
+                        if (autoDownload) {
+                            val limit = DownloadPreferences.getAutoDownloadLimit(context).coerceAtLeast(1)
+                            pruneDownloadsForPodcastToLimit(context, episode.podcastId, limit)
+                        }
 
                         prefs.edit().remove(pendingKey).apply()
                         prefs.edit().remove(KEY_PREFIX_DOWNLOAD_ID + episodeId).apply()
@@ -136,7 +142,7 @@ object EpisodeDownloadManager {
      * Start downloading an episode.
      * Returns true if download started successfully, false otherwise.
      */
-    fun downloadEpisode(context: Context, episode: Episode, podcastTitle: String?): Boolean {
+    fun downloadEpisode(context: Context, episode: Episode, podcastTitle: String?, isAutoDownload: Boolean = false): Boolean {
         if (episode.audioUrl.isBlank()) {
             Toast.makeText(context, "Episode audio URL not available", Toast.LENGTH_SHORT).show()
             return false
@@ -197,6 +203,7 @@ object EpisodeDownloadManager {
                     put("episode", episodeToJson(episode))
                     put("podcastTitle", podcastTitle ?: "")
                     put("localPath", destinationUri.path ?: "")
+                    put("autoDownload", isAutoDownload)
                 }.toString().toByteArray(),
                 android.util.Base64.DEFAULT
             )
@@ -260,6 +267,24 @@ object EpisodeDownloadManager {
         
         DownloadedEpisodes.removeAll(context)
         Toast.makeText(context, "Deleted $deletedCount episode(s)", Toast.LENGTH_SHORT).show()
+    }
+
+    fun pruneDownloadsForPodcastToLimit(context: Context, podcastId: String, limit: Int) {
+        if (podcastId.isBlank()) return
+        val max = limit.coerceAtLeast(1)
+        val entries = DownloadedEpisodes.getDownloadedEpisodesForPodcast(context, podcastId)
+        val autoEntries = entries.filter { it.isAutoDownloaded }
+        if (autoEntries.size <= max) return
+        val sorted = autoEntries.sortedWith(
+            compareByDescending<DownloadedEpisodes.Entry> { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+                .thenByDescending { it.downloadedAtMs }
+        )
+        val keepIds = sorted.take(max).map { it.id }.toSet()
+        for (entry in autoEntries) {
+            if (!keepIds.contains(entry.id)) {
+                deleteDownload(context, entry.id, showToast = false)
+            }
+        }
     }
 
     /**
