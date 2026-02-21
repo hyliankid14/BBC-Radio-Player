@@ -44,12 +44,6 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_more"
-                    android:contentDescription="Open" />
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -85,12 +79,6 @@
                     android:text="Audio Quality"
                     android:textSize="16sp"
                     android:textStyle="bold" />
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_more"
-                    android:contentDescription="Open" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -128,12 +116,6 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_more"
-                    android:contentDescription="Open" />
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -169,12 +151,6 @@
                     android:text="Playback Settings"
                     android:textSize="16sp"
                     android:textStyle="bold" />
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_more"
-                    android:contentDescription="Open" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -212,12 +188,6 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_more"
-                    android:contentDescription="Open" />
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -254,12 +224,6 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_more"
-                    android:contentDescription="Open" />
-
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -295,12 +259,6 @@
                     android:text="Backup &amp; Restore"
                     android:textSize="16sp"
                     android:textStyle="bold" />
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_more"
-                    android:contentDescription="Open" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
