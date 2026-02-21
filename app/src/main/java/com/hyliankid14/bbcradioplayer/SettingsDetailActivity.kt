@@ -245,8 +245,13 @@ class SettingsDetailActivity : AppCompatActivity() {
             autoDownloadCheckbox.isChecked = DownloadPreferences.isAutoDownloadEnabled(this)
             autoDownloadCheckbox.setOnCheckedChangeListener { _, isChecked ->
                 DownloadPreferences.setAutoDownloadEnabled(this, isChecked)
-                val msg = if (isChecked) "Auto-download enabled" else "Auto-download disabled"
-                android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()
+                if (isChecked) {
+                    // When enabling auto-download, immediately trigger downloads for all existing subscriptions
+                    PodcastSubscriptions.triggerAutoDownloadForAllSubscriptions(this)
+                    android.widget.Toast.makeText(this, "Auto-download enabled - checking subscribed podcasts...", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.widget.Toast.makeText(this, "Auto-download disabled", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
 
             // Initialize download limit spinner

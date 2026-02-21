@@ -1,9 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <!-- Backup SharedPreferences -->
+    <!-- Backup all SharedPreferences -->
     <include domain="sharedpref" path="favorites_prefs.xml" />
     <include domain="sharedpref" path="podcast_subscriptions.xml" />
     <include domain="sharedpref" path="playback_prefs.xml" />
     <include domain="sharedpref" path="scrolling_prefs.xml" />
     <include domain="sharedpref" path="saved_episodes_prefs.xml" />
+    <include domain="sharedpref" path="played_episodes_prefs.xml" />
+    <include domain="sharedpref" path="played_history_prefs.xml" />
+    <include domain="sharedpref" path="download_prefs.xml" />
+    <include domain="sharedpref" path="download_manager_prefs.xml" />
+    <include domain="sharedpref" path="downloaded_episodes_prefs.xml" />
+    <include domain="sharedpref" path="index_prefs.xml" />
+    <include domain="sharedpref" path="subscription_refresh_prefs.xml" />
+    <include domain="sharedpref" path="podcast_filter_prefs.xml" />
+    <include domain="sharedpref" path="theme_prefs.xml" />
+    
+    <!-- Backup SQLite database -->
+    <include domain="database" path="podcast_index.db" />
+    <include domain="database" path="podcast_index.db-shm" />
+    <include domain="database" path="podcast_index.db-wal" />
+    
+    <!-- Backup downloaded episode files -->
+    <include domain="external" path="." />
 </full-backup-content>

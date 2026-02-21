@@ -1,6 +1,9 @@
 package com.hyliankid14.bbcradioplayer
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 object PodcastSubscriptions {
     private const val PREFS_NAME = "podcast_subscriptions"
@@ -19,7 +22,8 @@ object PodcastSubscriptions {
 
     fun toggleSubscription(context: Context, podcastId: String) {
         val current = getSubscribedIds(context).toMutableSet()
-        if (current.contains(podcastId)) {
+        val wasSubscribed = current.contains(podcastId)
+        if (wasSubscribed) {
             current.remove(podcastId)
             // Also remove notification preference when unsubscribing
             setNotificationsEnabled(context, podcastId, false)
@@ -27,8 +31,66 @@ object PodcastSubscriptions {
             current.add(podcastId)
             // Notifications remain disabled until the user opts in
             setNotificationsEnabled(context, podcastId, false)
+            
+            // If auto-download is enabled, immediately download latest episodes
+            if (DownloadPreferences.isAutoDownloadEnabled(context)) {
+                triggerAutoDownloadForPodcast(context, podcastId)
+            }
         }
         prefs(context).edit().putStringSet(KEY_SUBSCRIBED_IDS, current).apply()
+    }
+
+    /**
+     * Immediately downloads the latest episodes for a subscribed podcast if auto-download is enabled.
+     * This runs in the background and handles errors silently.
+     */
+    private fun triggerAutoDownloadForPodcast(context: Context, podcastId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val autoDownloadLimit = DownloadPreferences.getAutoDownloadLimit(context).coerceAtLeast(1)
+                val repo = PodcastRepository(context)
+                
+                // Fetch the podcast and its episodes
+                val allPodcasts = try { repo.fetchPodcasts(forceRefresh = false) } catch (_: Exception) { emptyList() }
+                val podcast = allPodcasts.find { it.id == podcastId } ?: return@launch
+                val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
+                if (episodes.isEmpty()) return@launch
+                
+                // Download the latest N episodes if they're not already downloaded
+                val candidates = episodes.take(autoDownloadLimit)
+                for (episode in candidates) {
+                    if (!DownloadedEpisodes.isDownloaded(context, episode)) {
+                        try {
+                            EpisodeDownloadManager.downloadEpisode(context, episode, podcast.title)
+                        } catch (_: Exception) { }
+                    }
+                }
+            } catch (_: Exception) {
+                // Silently handle errors - this is a best-effort operation
+            }
+        }
+    }
+
+    /**
+     * Trigger auto-download for all existing subscribed podcasts.
+     * This is useful when the user enables auto-download for the first time
+     * or when they want to catch up on all their subscriptions.
+     */
+    fun triggerAutoDownloadForAllSubscriptions(context: Context) {
+        if (!DownloadPreferences.isAutoDownloadEnabled(context)) return
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val subscribedIds = getSubscribedIds(context)
+                if (subscribedIds.isEmpty()) return@launch
+                
+                for (podcastId in subscribedIds) {
+                    triggerAutoDownloadForPodcast(context, podcastId)
+                }
+            } catch (_: Exception) {
+                // Silently handle errors - this is a best-effort operation
+            }
+        }
     }
 
     fun isNotificationsEnabled(context: Context, podcastId: String): Boolean {
