@@ -136,7 +136,7 @@
             android:src="@drawable/ic_downloaded"
             android:visibility="gone"
             android:contentDescription="Downloaded episode"
-            android:tint="?attr/colorPrimary" />
+            app:tint="?attr/colorPrimary" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

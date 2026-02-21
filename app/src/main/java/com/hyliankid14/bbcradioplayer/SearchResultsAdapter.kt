@@ -190,7 +190,7 @@ class SearchResultsAdapter(
             durationView?.text = durText
 
             // Show download icon if episode is downloaded
-            if (DownloadedEpisodes.isDownloaded(itemView.context, episode.id)) {
+            if (DownloadedEpisodes.isDownloaded(itemView.context, episode)) {
                 downloadIcon?.visibility = View.VISIBLE
             } else {
                 downloadIcon?.visibility = View.GONE

@@ -31,6 +31,107 @@ object EpisodeDownloadManager {
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    fun handleSystemDownloadComplete(context: Context, intent: Intent) {
+        if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+
+        val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+        if (downloadId == -1L) return
+
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val allPrefs = prefs.all
+        var episodeId: String? = null
+
+        for ((key, value) in allPrefs) {
+            if (key.startsWith(KEY_PREFIX_DOWNLOAD_ID) && value == downloadId) {
+                episodeId = key.removePrefix(KEY_PREFIX_DOWNLOAD_ID)
+                break
+            }
+        }
+
+        if (episodeId == null) {
+            Log.w(TAG, "Download completed but episode ID not found")
+            return
+        }
+
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        val cursor = downloadManager.query(query)
+
+        if (cursor.moveToFirst()) {
+            val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+            val status = cursor.getInt(statusIndex)
+
+            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+                val localUri = if (uriIndex >= 0) cursor.getString(uriIndex) else null
+                val sizeIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                val reportedSize = if (sizeIndex >= 0) cursor.getLong(sizeIndex) else 0L
+
+                val pendingKey = "pending_$episodeId"
+                val pendingData = prefs.getString(pendingKey, null)
+
+                if (pendingData != null) {
+                    try {
+                        val jsonStr = String(android.util.Base64.decode(pendingData, android.util.Base64.DEFAULT))
+                        val json = org.json.JSONObject(jsonStr)
+                        val episode = jsonToEpisode(json.getJSONObject("episode"))
+                        val podcastTitle = json.optString("podcastTitle", "")
+                        val pendingPath = json.optString("localPath", "")
+
+                        // Prefer a concrete file path when available; fallback to DownloadManager URI ref.
+                        val localRef = when {
+                            pendingPath.isNotBlank() && File(pendingPath).exists() -> pendingPath
+                            !localUri.isNullOrBlank() -> localUri
+                            pendingPath.isNotBlank() -> pendingPath
+                            else -> ""
+                        }
+
+                        if (localRef.isBlank()) {
+                            throw IllegalStateException("Unable to resolve downloaded file location")
+                        }
+
+                        val fileSize = when {
+                            reportedSize > 0 -> reportedSize
+                            localRef.startsWith("file://") -> File(Uri.parse(localRef).path ?: "").takeIf { it.exists() }?.length() ?: 0L
+                            localRef.startsWith("/") -> File(localRef).takeIf { it.exists() }?.length() ?: 0L
+                            else -> 0L
+                        }
+
+                        DownloadedEpisodes.addDownloaded(context, episode, localRef, fileSize, podcastTitle)
+
+                        prefs.edit().remove(pendingKey).apply()
+                        prefs.edit().remove(KEY_PREFIX_DOWNLOAD_ID + episodeId).apply()
+
+                        val broadcastIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                            putExtra(EXTRA_EPISODE_ID, episodeId)
+                            putExtra(EXTRA_SUCCESS, true)
+                        }
+                        context.sendBroadcast(broadcastIntent)
+
+                        Log.d(TAG, "Episode downloaded successfully: ${episode.title} to $localRef")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to process completed download", e)
+                    }
+                }
+            } else {
+                val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
+                val reason = if (reasonIndex >= 0) cursor.getInt(reasonIndex) else -1
+                Log.e(TAG, "Download failed for episode $episodeId, reason: $reason")
+
+                val pendingKey = "pending_$episodeId"
+                prefs.edit().remove(pendingKey).apply()
+                prefs.edit().remove(KEY_PREFIX_DOWNLOAD_ID + episodeId).apply()
+
+                val broadcastIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                    putExtra(EXTRA_EPISODE_ID, episodeId)
+                    putExtra(EXTRA_SUCCESS, false)
+                }
+                context.sendBroadcast(broadcastIntent)
+            }
+        }
+        cursor.close()
+    }
+
     /**
      * Start downloading an episode.
      * Returns true if download started successfully, false otherwise.
@@ -42,7 +143,7 @@ object EpisodeDownloadManager {
         }
 
         // Check if already downloaded
-        if (DownloadedEpisodes.isDownloaded(context, episode.id)) {
+        if (DownloadedEpisodes.isDownloaded(context, episode)) {
             Toast.makeText(context, "Episode already downloaded", Toast.LENGTH_SHORT).show()
             return false
         }
@@ -85,6 +186,11 @@ object EpisodeDownloadManager {
             }
 
             val downloadId = downloadManager.enqueue(request)
+
+            // Auto-save episodes when downloading so they appear in Saved Episodes.
+            if (!SavedEpisodes.isSaved(context, episode.id)) {
+                SavedEpisodes.toggleSaved(context, episode, podcastTitle)
+            }
             
             // Store download ID mapped to episode ID
             prefs(context).edit().putLong(KEY_PREFIX_DOWNLOAD_ID + episode.id, downloadId).apply()
@@ -113,19 +219,27 @@ object EpisodeDownloadManager {
     /**
      * Delete a downloaded episode file and remove from downloaded list.
      */
-    fun deleteDownload(context: Context, episodeId: String): Boolean {
+    fun deleteDownload(context: Context, episodeId: String, showToast: Boolean = true): Boolean {
         val entry = DownloadedEpisodes.removeDownloaded(context, episodeId)
         if (entry != null) {
             try {
-                val file = File(entry.localFilePath)
-                if (file.exists()) {
-                    file.delete()
+                val localRef = entry.localFilePath
+                if (localRef.startsWith("content://") || localRef.startsWith("file://")) {
+                    try {
+                        val uri = Uri.parse(localRef)
+                        context.contentResolver.delete(uri, null, null)
+                    } catch (_: Exception) { }
+                } else {
+                    val file = File(localRef)
+                    if (file.exists()) {
+                        file.delete()
+                    }
                 }
-                Toast.makeText(context, "Download deleted", Toast.LENGTH_SHORT).show()
+                if (showToast) Toast.makeText(context, "Download deleted", Toast.LENGTH_SHORT).show()
                 return true
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to delete download", e)
-                Toast.makeText(context, "Failed to delete download", Toast.LENGTH_SHORT).show()
+                if (showToast) Toast.makeText(context, "Failed to delete download", Toast.LENGTH_SHORT).show()
             }
         }
         return false
@@ -206,90 +320,7 @@ object EpisodeDownloadManager {
      */
     class DownloadCompleteReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
-
-            val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-            if (downloadId == -1L) return
-
-            // Find which episode this download belongs to
-            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val allPrefs = prefs.all
-            var episodeId: String? = null
-            
-            for ((key, value) in allPrefs) {
-                if (key.startsWith(KEY_PREFIX_DOWNLOAD_ID) && value == downloadId) {
-                    episodeId = key.removePrefix(KEY_PREFIX_DOWNLOAD_ID)
-                    break
-                }
-            }
-
-            if (episodeId == null) {
-                Log.w(TAG, "Download completed but episode ID not found")
-                return
-            }
-
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val query = DownloadManager.Query().setFilterById(downloadId)
-            val cursor = downloadManager.query(query)
-
-            if (cursor.moveToFirst()) {
-                val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
-                val status = cursor.getInt(statusIndex)
-
-                if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                    // Download successful, add to downloaded episodes
-                    val pendingKey = "pending_$episodeId"
-                    val pendingData = prefs.getString(pendingKey, null)
-                    
-                    if (pendingData != null) {
-                        try {
-                            val jsonStr = String(android.util.Base64.decode(pendingData, android.util.Base64.DEFAULT))
-                            val json = org.json.JSONObject(jsonStr)
-                            val episode = jsonToEpisode(json.getJSONObject("episode"))
-                            val podcastTitle = json.optString("podcastTitle", "")
-                            val localPath = json.optString("localPath", "")
-                            
-                            val file = File(localPath)
-                            val fileSize = if (file.exists()) file.length() else 0L
-                            
-                            DownloadedEpisodes.addDownloaded(context, episode, localPath, fileSize, podcastTitle)
-                            
-                            // Clean up pending data
-                            prefs.edit().remove(pendingKey).apply()
-                            prefs.edit().remove(KEY_PREFIX_DOWNLOAD_ID + episodeId).apply()
-                            
-                            // Send broadcast
-                            val broadcastIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
-                                putExtra(EXTRA_EPISODE_ID, episodeId)
-                                putExtra(EXTRA_SUCCESS, true)
-                            }
-                            context.sendBroadcast(broadcastIntent)
-                            
-                            Log.d(TAG, "Episode downloaded successfully: ${episode.title}")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to process completed download", e)
-                        }
-                    }
-                } else {
-                    // Download failed
-                    val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
-                    val reason = if (reasonIndex >= 0) cursor.getInt(reasonIndex) else -1
-                    Log.e(TAG, "Download failed for episode $episodeId, reason: $reason")
-                    
-                    // Clean up
-                    val pendingKey = "pending_$episodeId"
-                    prefs.edit().remove(pendingKey).apply()
-                    prefs.edit().remove(KEY_PREFIX_DOWNLOAD_ID + episodeId).apply()
-                    
-                    // Send broadcast
-                    val broadcastIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
-                        putExtra(EXTRA_EPISODE_ID, episodeId)
-                        putExtra(EXTRA_SUCCESS, false)
-                    }
-                    context.sendBroadcast(broadcastIntent)
-                }
-            }
-            cursor.close()
+            handleSystemDownloadComplete(context, intent)
         }
     }
 }

@@ -355,7 +355,7 @@ class EpisodeAdapter(
             durationView.text = "${episode.durationMins} min"
 
             // Show download icon if episode is downloaded
-            if (DownloadedEpisodes.isDownloaded(itemView.context, episode.id)) {
+            if (DownloadedEpisodes.isDownloaded(itemView.context, episode)) {
                 downloadIcon?.visibility = View.VISIBLE
             } else {
                 downloadIcon?.visibility = View.GONE

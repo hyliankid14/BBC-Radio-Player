@@ -63,6 +63,20 @@ class NowPlayingActivity : AppCompatActivity() {
         runOnUiThread { updateFromShow(show) }
     }
 
+    // BroadcastReceiver to refresh menu when download completes
+    private val downloadCompleteReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            try {
+                val episodeId = intent?.getStringExtra(EpisodeDownloadManager.EXTRA_EPISODE_ID)
+                val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
+                // If the completed download is for the currently playing episode, refresh the menu
+                if (episodeId == currentEpisodeId) {
+                    runOnUiThread { invalidateOptionsMenu() }
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
     private fun findMatchingPodcastAsync(station: Station?, show: CurrentShow, generation: Int) {
         // Cancel any previous job for finding an open podcast match
         openPodcastJob?.cancel()
@@ -363,11 +377,25 @@ class NowPlayingActivity : AppCompatActivity() {
         super.onResume()
         startPlaybackStateUpdates()
         updateUI()
+        
+        // Register download complete receiver
+        try {
+            registerReceiver(
+                downloadCompleteReceiver,
+                android.content.IntentFilter(EpisodeDownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                android.content.Context.RECEIVER_NOT_EXPORTED
+            )
+        } catch (_: Exception) {}
     }
 
     override fun onPause() {
         super.onPause()
         stopPlaybackStateUpdates()
+        
+        // Unregister download complete receiver
+        try {
+            unregisterReceiver(downloadCompleteReceiver)
+        } catch (_: Exception) {}
     }
 
     override fun onDestroy() {

@@ -123,7 +123,7 @@ class PlayedHistoryAdapter(
         }
 
         // Show download icon if episode is downloaded
-        if (DownloadedEpisodes.isDownloaded(holder.itemView.context, episode.id)) {
+        if (DownloadedEpisodes.isDownloaded(holder.itemView.context, episode)) {
             holder.downloadIcon?.visibility = View.VISIBLE
         } else {
             holder.downloadIcon?.visibility = View.GONE

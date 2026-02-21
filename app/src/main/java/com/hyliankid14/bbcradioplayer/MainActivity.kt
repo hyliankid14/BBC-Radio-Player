@@ -73,7 +73,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var createDocumentLauncher: ActivityResultLauncher<String>
     private lateinit var openDocumentLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
-    private lateinit var downloadCompleteReceiver: EpisodeDownloadManager.DownloadCompleteReceiver
     // May be absent in some builds; make nullable and handle safely
     private var filterButtonsContainer: View? = null
     private lateinit var tabLayout: TabLayout
@@ -413,6 +412,7 @@ class MainActivity : AppCompatActivity() {
                     startActivity(intent)
                 }, onRemoveSaved = { id ->
                     SavedEpisodes.remove(this, id)
+                    EpisodeDownloadManager.deleteDownload(this, id, showToast = false)
                     val updated = SavedEpisodes.getSavedEntries(this)
                     savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
                 })
@@ -432,6 +432,7 @@ class MainActivity : AppCompatActivity() {
 
                                 // Remove saved entry and refresh adapter immediately
                                 SavedEpisodes.remove(this@MainActivity, removedEntry.id)
+                                EpisodeDownloadManager.deleteDownload(this@MainActivity, removedEntry.id, showToast = false)
                                 val updated = SavedEpisodes.getSavedEntries(this@MainActivity)
                                 savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
 
@@ -1168,6 +1169,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // BroadcastReceiver to refresh UI when an episode download completes
+    private val downloadCompleteReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            try {
+                val success = intent?.getBooleanExtra(EpisodeDownloadManager.EXTRA_SUCCESS, false) ?: false
+                if (success) {
+                    runOnUiThread {
+                        // Refresh saved episodes section if visible
+                        try { refreshSavedEpisodesSection() } catch (_: Exception) { }
+                        // Refresh history section if visible
+                        try { refreshHistorySection() } catch (_: Exception) { }
+                        // Refresh podcasts section if visible
+                        try {
+                            val rv = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
+                            rv?.adapter?.notifyDataSetChanged()
+                        } catch (_: Exception) { }
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
     /**
      * Show the requested Favorites sub-tab. Extracted to class level so it can be called from
      * lifecycle methods (onResume) and other places outside the original local scope.
@@ -1265,6 +1288,9 @@ class MainActivity : AppCompatActivity() {
         try {
             registerReceiver(historyChangedReceiver, android.content.IntentFilter(PlayedHistoryPreference.ACTION_HISTORY_CHANGED))
         } catch (_: Exception) {}
+        try {
+            registerReceiver(downloadCompleteReceiver, android.content.IntentFilter(EpisodeDownloadManager.ACTION_DOWNLOAD_COMPLETE))
+        } catch (_: Exception) {}
     }
 
 
@@ -1276,6 +1302,9 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
         try {
             unregisterReceiver(historyChangedReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(downloadCompleteReceiver)
         } catch (_: Exception) {}
     }
 
@@ -2444,14 +2473,6 @@ class MainActivity : AppCompatActivity() {
         PlaybackStateHelper.onShowChange(showChangeListener)
         startPlaybackStateUpdates()
         
-        // Register download complete receiver
-        downloadCompleteReceiver = EpisodeDownloadManager.DownloadCompleteReceiver()
-        registerReceiver(
-            downloadCompleteReceiver,
-            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-            Context.RECEIVER_NOT_EXPORTED
-        )
-        
         // Clear show cache and refresh the current view to prevent stale show names
         refreshCurrentView()
         // Ensure swipe navigation is active if we're in All Stations (defensive restore)
@@ -2494,13 +2515,6 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         PlaybackStateHelper.removeShowChangeListener(showChangeListener)
         stopPlaybackStateUpdates()
-        
-        // Unregister download complete receiver
-        try {
-            unregisterReceiver(downloadCompleteReceiver)
-        } catch (e: Exception) {
-            // Receiver may not be registered
-        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -2914,7 +2928,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "subscription_refresh_prefs", "podcast_filter_prefs", "theme_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "subscription_refresh_prefs", "podcast_filter_prefs", "theme_prefs", "download_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)
@@ -2950,6 +2964,12 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (name == "podcast_filter_prefs") {
                     if (!obj.has("exclude_non_english")) obj.put("exclude_non_english", PodcastFilterPreference.excludeNonEnglish(this))
+                }
+                if (name == "download_prefs") {
+                    if (!obj.has("auto_download_enabled")) obj.put("auto_download_enabled", DownloadPreferences.isAutoDownloadEnabled(this))
+                    if (!obj.has("auto_download_limit")) obj.put("auto_download_limit", DownloadPreferences.getAutoDownloadLimit(this))
+                    if (!obj.has("download_on_wifi_only")) obj.put("download_on_wifi_only", DownloadPreferences.isDownloadOnWifiOnly(this))
+                    if (!obj.has("delete_on_played")) obj.put("delete_on_played", DownloadPreferences.isDeleteOnPlayed(this))
                 }
                 // Ensure notification preferences are explicitly included for podcast subscriptions
                 if (name == "podcast_subscriptions") {
@@ -3129,6 +3149,48 @@ class MainActivity : AppCompatActivity() {
                             } catch (_: Exception) {}
                             try { refreshCurrentView() } catch (_: Exception) {}
                         }
+                    }
+                }
+            } catch (e: Exception) { /* Ignore */ }
+
+            try {
+                if (root.has("download_prefs")) {
+                    val dp = root.getJSONObject("download_prefs")
+                    if (dp.has("auto_download_enabled")) {
+                        val enabled = dp.optBoolean("auto_download_enabled", false)
+                        DownloadPreferences.setAutoDownloadEnabled(this, enabled)
+                    }
+                    if (dp.has("auto_download_limit")) {
+                        val limit = dp.optInt("auto_download_limit", 1)
+                        DownloadPreferences.setAutoDownloadLimit(this, limit)
+                    }
+                    if (dp.has("download_on_wifi_only")) {
+                        val wifiOnly = dp.optBoolean("download_on_wifi_only", true)
+                        DownloadPreferences.setDownloadOnWifiOnly(this, wifiOnly)
+                    }
+                    if (dp.has("delete_on_played")) {
+                        val deleteOnPlayed = dp.optBoolean("delete_on_played", false)
+                        DownloadPreferences.setDeleteOnPlayed(this, deleteOnPlayed)
+                    }
+                    // Update UI to reflect imported settings
+                    runOnUiThread {
+                        try {
+                            val autoDownloadCheckbox: android.widget.CheckBox? = findViewById(R.id.auto_download_checkbox)
+                            autoDownloadCheckbox?.isChecked = DownloadPreferences.isAutoDownloadEnabled(this)
+                            
+                            val autoDownloadLimitSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView? = findViewById(R.id.auto_download_limit_spinner)
+                            val limitOptions = arrayOf("Latest episode", "Latest 2 episodes", "Latest 3 episodes", "Latest 5 episodes", "Latest 10 episodes")
+                            val limitValues = intArrayOf(1, 2, 3, 5, 10)
+                            val savedLimit = DownloadPreferences.getAutoDownloadLimit(this)
+                            val limitPos = limitValues.indexOf(savedLimit).takeIf { it >= 0 } ?: 0
+                            autoDownloadLimitSpinner?.setText(limitOptions[limitPos], false)
+                            
+                            val wifiOnlyCheckbox: android.widget.CheckBox? = findViewById(R.id.wifi_only_download_checkbox)
+                            wifiOnlyCheckbox?.isChecked = DownloadPreferences.isDownloadOnWifiOnly(this)
+                            
+                            val deleteOnPlayedCheckbox: android.widget.CheckBox? = findViewById(R.id.delete_on_played_checkbox)
+                            deleteOnPlayedCheckbox?.isChecked = DownloadPreferences.isDeleteOnPlayed(this)
+                        } catch (_: Exception) {}
                     }
                 }
             } catch (e: Exception) { /* Ignore */ }

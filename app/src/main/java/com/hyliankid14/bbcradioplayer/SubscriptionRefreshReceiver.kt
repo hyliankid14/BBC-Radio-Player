@@ -20,13 +20,26 @@ class SubscriptionRefreshReceiver : BroadcastReceiver() {
                 val repo = PodcastRepository(context)
                 val allPodcasts = try { repo.fetchPodcasts(forceRefresh = true) } catch (_: Exception) { emptyList() }
                 val subscribed = allPodcasts.filter { subscribedIds.contains(it.id) }
+                val autoDownloadEnabled = DownloadPreferences.isAutoDownloadEnabled(context)
+                val autoDownloadLimit = DownloadPreferences.getAutoDownloadLimit(context).coerceAtLeast(1)
 
                 // For each subscribed podcast, fetch episodes and check for new ones
                 for (podcast in subscribed) {
-                    if (!PodcastSubscriptions.isNotificationsEnabled(context, podcast.id)) continue
-
                     val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
                     if (episodes.isEmpty()) continue
+
+                    if (autoDownloadEnabled) {
+                        val candidates = episodes.take(autoDownloadLimit)
+                        for (episode in candidates) {
+                            if (!DownloadedEpisodes.isDownloaded(context, episode)) {
+                                try {
+                                    EpisodeDownloadManager.downloadEpisode(context, episode, podcast.title)
+                                } catch (_: Exception) { }
+                            }
+                        }
+                    }
+
+                    if (!PodcastSubscriptions.isNotificationsEnabled(context, podcast.id)) continue
 
                     // Assume newest episode is first (repository returns newest-first)
                     val latest = episodes.firstOrNull() ?: continue

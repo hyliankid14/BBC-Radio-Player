@@ -2034,8 +2034,22 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             ensurePlayer()
             requestAudioFocus()
 
+            // Use downloaded URI/file reference when available, otherwise use remote URL.
+            val playbackUri = try {
+                val downloadedEntry = DownloadedEpisodes.getDownloadedEntry(this, episode)
+                val localRef = downloadedEntry?.localFilePath
+                when {
+                    localRef.isNullOrBlank() -> android.net.Uri.parse(episode.audioUrl)
+                    localRef.startsWith("content://") || localRef.startsWith("file://") || localRef.startsWith("http") -> android.net.Uri.parse(localRef)
+                    else -> android.net.Uri.fromFile(java.io.File(localRef))
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error checking for downloaded episode, using remote URL: ${e.message}")
+                android.net.Uri.parse(episode.audioUrl)
+            }
+
             val mediaItem = ExoMediaItem.Builder()
-                .setUri(episode.audioUrl)
+                .setUri(playbackUri)
                 .setMediaMetadata(
                     MediaMetadata.Builder()
                         .setTitle(episode.title)
@@ -2047,7 +2061,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 setMediaItem(mediaItem)
                 prepare()
                 // Record the actual playback URI so other components (save logic) can prefer it over any preview URL
-                PlaybackStateHelper.setCurrentMediaUri(episode.audioUrl)
+                PlaybackStateHelper.setCurrentMediaUri(playbackUri.toString())
 
                 // If we have a saved progress position, decide whether to resume or restart.
                 // Requirement: replaying an episode that was already played to completion should start from 0.
