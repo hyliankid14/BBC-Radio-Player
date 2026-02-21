@@ -21,7 +21,5 @@ Thumbs.db
 /artifacts/
 /main
 
-# Script build artifacts (but keep the scripts themselves)
-/scripts/bin/
-/scripts/debs/
-/scripts/sysroot/
+# Scripts folder (contains deployment scripts, not needed in version control)
+/scripts/
