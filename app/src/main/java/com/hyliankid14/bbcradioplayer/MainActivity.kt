@@ -2362,6 +2362,7 @@ class MainActivity : AppCompatActivity() {
             val autoDownloadCheckbox: android.widget.CheckBox = findViewById(R.id.auto_download_checkbox)
             val autoDownloadLimitSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = findViewById(R.id.auto_download_limit_spinner)
             val wifiOnlyCheckbox: android.widget.CheckBox = findViewById(R.id.wifi_only_download_checkbox)
+            val deleteOnPlayedCheckbox: android.widget.CheckBox = findViewById(R.id.delete_on_played_checkbox)
             val deleteAllButton: Button = findViewById(R.id.delete_all_downloads_button)
 
             // Initialize auto-download enabled checkbox
@@ -2393,6 +2394,14 @@ class MainActivity : AppCompatActivity() {
             wifiOnlyCheckbox.setOnCheckedChangeListener { _, isChecked ->
                 DownloadPreferences.setDownloadOnWifiOnly(this, isChecked)
                 val msg = if (isChecked) "Downloads will use WiFi only" else "Downloads can use mobile data"
+                android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()
+            }
+
+            // Initialize delete-on-played checkbox
+            deleteOnPlayedCheckbox.isChecked = DownloadPreferences.isDeleteOnPlayed(this)
+            deleteOnPlayedCheckbox.setOnCheckedChangeListener { _, isChecked ->
+                DownloadPreferences.setDeleteOnPlayed(this, isChecked)
+                val msg = if (isChecked) "Downloaded episodes will be deleted after completion" else "Downloaded episodes will be kept after playing"
                 android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()
             }
 

@@ -2391,6 +2391,16 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 } catch (_: Exception) { null }
                 PlayedEpisodesPreference.markPlayedWithMeta(this, episode.id, episode.podcastId, epoch)
                 android.util.Log.d(TAG, "Marked episode as played (95% reached): ${episode.id}")
+                
+                // Auto-delete downloaded episode if setting is enabled
+                try {
+                    if (DownloadPreferences.isDeleteOnPlayed(this) && DownloadedEpisodes.isDownloaded(this, episode.id)) {
+                        EpisodeDownloadManager.deleteDownload(this, episode.id)
+                        android.util.Log.d(TAG, "Auto-deleted downloaded episode after completion: ${episode.id}")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to auto-delete downloaded episode: ${e.message}")
+                }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error in checkAndMarkEpisodePlayed: ${e.message}")
