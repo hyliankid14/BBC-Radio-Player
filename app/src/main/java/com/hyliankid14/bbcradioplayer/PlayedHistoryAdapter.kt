@@ -25,6 +25,7 @@ class PlayedHistoryAdapter(
         val duration: TextView? = view.findViewById(R.id.episode_duration)
         val progressBar: ProgressBar = view.findViewById(R.id.episode_progress_bar)
         val playedIcon: TextView? = view.findViewById(R.id.episode_played_icon)
+        val downloadIcon: ImageView? = view.findViewById(R.id.episode_download_icon)
         val play: View? = view.findViewById(R.id.episode_play_icon)
     }
 
@@ -118,6 +119,13 @@ class PlayedHistoryAdapter(
             // Defensive: don't let indicator rendering crash the list
             holder.progressBar.visibility = View.GONE
             holder.playedIcon?.visibility = View.GONE
+        }
+
+        // Show download icon if episode is downloaded
+        if (DownloadedEpisodes.isDownloaded(holder.itemView.context, episode.id)) {
+            holder.downloadIcon?.visibility = View.VISIBLE
+        } else {
+            holder.downloadIcon?.visibility = View.GONE
         }
 
         holder.play?.setOnClickListener { onPlayEpisode(episode, e.podcastTitle, e.imageUrl) }

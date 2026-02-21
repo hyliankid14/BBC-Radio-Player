@@ -165,6 +165,7 @@ class SearchResultsAdapter(
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val playButton: View? = itemView.findViewById(R.id.episode_play_icon)
         private val durationView: TextView? = itemView.findViewById(R.id.episode_duration)
+        private val downloadIcon: ImageView? = itemView.findViewById(R.id.episode_download_icon)
 
         fun bind(episode: Episode, podcast: Podcast) {
             titleView.text = episode.title
@@ -187,6 +188,13 @@ class SearchResultsAdapter(
                 else -> "…"
             }
             durationView?.text = durText
+
+            // Show download icon if episode is downloaded
+            if (DownloadedEpisodes.isDownloaded(itemView.context, episode.id)) {
+                downloadIcon?.visibility = View.VISIBLE
+            } else {
+                downloadIcon?.visibility = View.GONE
+            }
 
             // Disable play affordance when we don't have an audio URL yet
             val canPlay = episode.audioUrl.isNotEmpty()

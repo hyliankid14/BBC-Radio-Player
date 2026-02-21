@@ -266,6 +266,7 @@ class EpisodeAdapter(
         private val durationView: TextView = itemView.findViewById(R.id.episode_duration)
         private val playButton: MaterialButton = itemView.findViewById(R.id.episode_play_icon)
         private val playedIcon: TextView? = itemView.findViewById(R.id.episode_played_icon)
+        private val downloadIcon: ImageView? = itemView.findViewById(R.id.episode_download_icon)
         private var isExpanded = false
         private val collapsedLines = 2
 
@@ -352,6 +353,13 @@ class EpisodeAdapter(
             // Remove timestamp from date - just show date portion
             dateView.text = formatEpisodeDate(episode.pubDate)
             durationView.text = "${episode.durationMins} min"
+
+            // Show download icon if episode is downloaded
+            if (DownloadedEpisodes.isDownloaded(itemView.context, episode.id)) {
+                downloadIcon?.visibility = View.VISIBLE
+            } else {
+                downloadIcon?.visibility = View.GONE
+            }
 
             // Hide podcast subtitle for per-podcast lists (reduces vertical gaps when absent)
             podcastTitleView?.visibility = View.GONE

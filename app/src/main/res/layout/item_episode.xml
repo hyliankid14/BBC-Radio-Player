@@ -127,6 +127,16 @@
             android:textStyle="bold"
             android:visibility="gone"
             android:contentDescription="Played status" />
+
+        <ImageView
+            android:id="@+id/episode_download_icon"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_downloaded"
+            android:visibility="gone"
+            android:contentDescription="Downloaded episode"
+            android:tint="?attr/colorPrimary" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -937,6 +937,16 @@ class NowPlayingActivity : AppCompatActivity() {
                 } else {
                     markItem.isVisible = false
                 }
+
+                // Download / Delete download: show only when we have an episode
+                val downloadItem = menu.findItem(R.id.action_download)
+                if (!episodeId.isNullOrEmpty()) {
+                    downloadItem.isVisible = true
+                    val downloaded = DownloadedEpisodes.isDownloaded(this, episodeId)
+                    downloadItem.title = if (downloaded) "Delete download" else "Download episode"
+                } else {
+                    downloadItem.isVisible = false
+                }
             } catch (e: Exception) {
                 android.util.Log.w("NowPlayingActivity", "onPrepareOptionsMenu failed: ${'$'}{e.message}")
             }
@@ -1022,6 +1032,38 @@ class NowPlayingActivity : AppCompatActivity() {
                                     .show()
                             }
                             updateUI()
+                            invalidateOptionsMenu()
+                        }
+                        return true
+                    }
+
+                    R.id.action_download -> {
+                        val episodeId = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
+                        if (!episodeId.isNullOrEmpty()) {
+                            if (DownloadedEpisodes.isDownloaded(this, episodeId)) {
+                                // Delete download
+                                EpisodeDownloadManager.deleteDownload(this, episodeId)
+                            } else {
+                                // Download episode
+                                val episode = previewEpisodeProp ?: run {
+                                    Episode(
+                                        id = episodeId,
+                                        title = episodeTitle.text?.toString() ?: "Episode",
+                                        description = fullDescriptionHtml.ifEmpty { showName.text?.toString() ?: "" },
+                                        audioUrl = PlaybackStateHelper.getCurrentMediaUri() ?: "",
+                                        imageUrl = lastArtworkUrl ?: "",
+                                        pubDate = releaseDateView.text?.toString() ?: "",
+                                        durationMins = 0,
+                                        podcastId = ""
+                                    )
+                                }
+                                
+                                val podcastTitle = supportActionBar?.title?.toString() 
+                                    ?: showName.text?.toString() 
+                                    ?: "Podcast"
+                                
+                                EpisodeDownloadManager.downloadEpisode(this, episode, podcastTitle)
+                            }
                             invalidateOptionsMenu()
                         }
                         return true

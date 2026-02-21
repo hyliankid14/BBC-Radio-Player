@@ -1,7 +1,10 @@
 package com.hyliankid14.bbcradioplayer
 
 import android.Manifest
+import android.app.DownloadManager
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Build
@@ -70,6 +73,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var createDocumentLauncher: ActivityResultLauncher<String>
     private lateinit var openDocumentLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var downloadCompleteReceiver: EpisodeDownloadManager.DownloadCompleteReceiver
     // May be absent in some builds; make nullable and handle safely
     private var filterButtonsContainer: View? = null
     private lateinit var tabLayout: TabLayout
@@ -2353,6 +2357,65 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) {}
         } catch (_: Exception) {}
 
+        // Setup download settings
+        try {
+            val autoDownloadCheckbox: android.widget.CheckBox = findViewById(R.id.auto_download_checkbox)
+            val autoDownloadLimitSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = findViewById(R.id.auto_download_limit_spinner)
+            val wifiOnlyCheckbox: android.widget.CheckBox = findViewById(R.id.wifi_only_download_checkbox)
+            val deleteAllButton: Button = findViewById(R.id.delete_all_downloads_button)
+
+            // Initialize auto-download enabled checkbox
+            autoDownloadCheckbox.isChecked = DownloadPreferences.isAutoDownloadEnabled(this)
+            autoDownloadCheckbox.setOnCheckedChangeListener { _, isChecked ->
+                DownloadPreferences.setAutoDownloadEnabled(this, isChecked)
+                val msg = if (isChecked) "Auto-download enabled" else "Auto-download disabled"
+                android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()
+            }
+
+            // Initialize download limit spinner
+            val limitOptions = arrayOf("Latest episode", "Latest 2 episodes", "Latest 3 episodes", "Latest 5 episodes", "Latest 10 episodes")
+            val limitValues = intArrayOf(1, 2, 3, 5, 10)
+            val limitAdapter = android.widget.ArrayAdapter(this, R.layout.spinner_dropdown_item, limitOptions)
+            autoDownloadLimitSpinner.setAdapter(limitAdapter)
+
+            val savedLimit = DownloadPreferences.getAutoDownloadLimit(this)
+            val limitPos = limitValues.indexOf(savedLimit).takeIf { it >= 0 } ?: 0
+            autoDownloadLimitSpinner.setText(limitOptions[limitPos], false)
+
+            autoDownloadLimitSpinner.setOnItemClickListener { _, _, position, _ ->
+                val limit = limitValues[position]
+                DownloadPreferences.setAutoDownloadLimit(this, limit)
+                android.widget.Toast.makeText(this, "Auto-download limit: ${limitOptions[position]}", android.widget.Toast.LENGTH_SHORT).show()
+            }
+
+            // Initialize WiFi-only checkbox
+            wifiOnlyCheckbox.isChecked = DownloadPreferences.isDownloadOnWifiOnly(this)
+            wifiOnlyCheckbox.setOnCheckedChangeListener { _, isChecked ->
+                DownloadPreferences.setDownloadOnWifiOnly(this, isChecked)
+                val msg = if (isChecked) "Downloads will use WiFi only" else "Downloads can use mobile data"
+                android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()
+            }
+
+            // Delete all downloads button
+            deleteAllButton.setOnClickListener {
+                val downloadCount = DownloadedEpisodes.getDownloadedEntries(this).size
+                if (downloadCount == 0) {
+                    android.widget.Toast.makeText(this, "No downloads to delete", android.widget.Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                // Show confirmation dialog
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Delete All Downloads")
+                    .setMessage("Delete all $downloadCount downloaded episode(s)?")
+                    .setPositiveButton("Delete") { _, _ ->
+                        EpisodeDownloadManager.deleteAllDownloads(this)
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+        } catch (_: Exception) {}
+
 
         // Periodic background indexing may be scheduled by the app in future; manual trigger available above.
         android.util.Log.d("MainActivity", "Indexing controls wired up")
@@ -2371,6 +2434,14 @@ class MainActivity : AppCompatActivity() {
         // Restore view when returning from settings
         PlaybackStateHelper.onShowChange(showChangeListener)
         startPlaybackStateUpdates()
+        
+        // Register download complete receiver
+        downloadCompleteReceiver = EpisodeDownloadManager.DownloadCompleteReceiver()
+        registerReceiver(
+            downloadCompleteReceiver,
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+            Context.RECEIVER_NOT_EXPORTED
+        )
         
         // Clear show cache and refresh the current view to prevent stale show names
         refreshCurrentView()
@@ -2414,6 +2485,13 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         PlaybackStateHelper.removeShowChangeListener(showChangeListener)
         stopPlaybackStateUpdates()
+        
+        // Unregister download complete receiver
+        try {
+            unregisterReceiver(downloadCompleteReceiver)
+        } catch (e: Exception) {
+            // Receiver may not be registered
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
