@@ -49,6 +49,8 @@ class NowPlayingActivity : AppCompatActivity() {
     private var openPodcastJob: kotlinx.coroutines.Job? = null
     private var openPodcastGeneration: Int = 0
     private var lastOpenPodcastStationId: String? = null
+    // Store the episode currently being played to preserve scrubber visibility during initial playback
+    private var playingEpisode: Episode? = null
 
     // When true the activity is showing a preview episode passed via intent and should not be
     // overwritten by subsequent playback state updates until playback starts.
@@ -426,6 +428,10 @@ class NowPlayingActivity : AppCompatActivity() {
             matchedPodcast = null
             findViewById<MaterialButton?>(R.id.now_playing_open_podcast)?.visibility = View.GONE
             lastOpenPodcastStationId = null
+            // Clear stored episode if we've switched stations
+            if (playingEpisode?.podcastId != station?.id?.removePrefix("podcast_")) {
+                playingEpisode = null
+            }
         }
 
         // Only update the main UI when we have a valid station; otherwise hide controls
@@ -481,6 +487,8 @@ class NowPlayingActivity : AppCompatActivity() {
                 }
             } else {
                 // Radio: show name plus subtitle/song metadata
+                // Clear stored episode since we're not playing a podcast
+                playingEpisode = null
                 showName.visibility = android.view.View.VISIBLE
                 showName.text = show.title.ifEmpty { "BBC Radio" }
                 // Ensure the action bar shows the radio station name
@@ -578,10 +586,14 @@ class NowPlayingActivity : AppCompatActivity() {
         } else {
             progressGroup.visibility = android.view.View.GONE
             seekBar.visibility = android.view.View.GONE
+            // Clear stored episode when not playing a podcast
+            playingEpisode = null
         }
     }
 
     private fun showPreviewEpisode(episode: Episode, podcastTitle: String?, podcastImage: String?) {
+        // Clear any stored episode when showing a new preview
+        playingEpisode = null
         // Ensure action bar shows the podcast name while previewing
         supportActionBar?.title = podcastTitle ?: supportActionBar?.title
         // Display podcast title or provided podcastTitle
@@ -677,10 +689,15 @@ class NowPlayingActivity : AppCompatActivity() {
             supportActionBar?.title?.let { putExtra(RadioService.EXTRA_PODCAST_TITLE, it.toString()) }
         }
         startService(intent)
+        // Store the episode being played so updateProgressUi() can use its duration immediately
+        // before the service updates the playback state (avoids scrubber flicker)
+        playingEpisode = episode
         // Exit preview mode and allow normal updates to take over
         isPreviewMode = false
         previewEpisodeProp = null
-        updateUI()
+        // Do NOT call updateUI() immediately — let the 500ms polling timer update the UI once
+        // the service has provided the episode duration. Calling updateUI() now would hide the
+        // scrubber because the service hasn't updated the playback state yet.
     }
 
     private fun updateProgressUi() {
@@ -688,7 +705,16 @@ class NowPlayingActivity : AppCompatActivity() {
         val isPodcast = station?.id?.startsWith("podcast_") == true
         val showProgress = PlaybackStateHelper.getCurrentShow()
         val pos = showProgress.segmentStartMs ?: 0L
-        val dur = showProgress.segmentDurationMs ?: 0L
+        var dur = showProgress.segmentDurationMs ?: 0L
+
+        // If the service hasn't updated the duration yet but we just started playing an episode,
+        // use the stored episode's duration to prevent scrubber flicker
+        if (dur <= 0 && isPodcast && playingEpisode != null && playingEpisode?.podcastId == station?.id?.removePrefix("podcast_")) {
+            dur = (playingEpisode?.durationMins ?: 0) * 60_000L
+        } else if (dur > 0 && playingEpisode != null) {
+            // Service has now provided the duration, clear the stored episode reference
+            playingEpisode = null
+        }
 
         if (isPodcast && dur > 0) {
             progressGroup.visibility = android.view.View.VISIBLE
