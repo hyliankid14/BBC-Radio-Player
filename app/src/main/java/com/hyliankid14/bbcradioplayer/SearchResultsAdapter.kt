@@ -147,7 +147,7 @@ class SearchResultsAdapter(
 
         fun bind(podcast: Podcast) {
             titleView.text = podcast.title
-            descriptionView.text = podcast.description.take(100)
+            descriptionView.text = podcast.description
 
             if (podcast.imageUrl.isNotEmpty()) {
                 Glide.with(itemView.context).load(podcast.imageUrl).into(imageView)

@@ -152,7 +152,7 @@ class PodcastAdapter(
         fun bind(podcast: Podcast) {
             currentPodcast = podcast
             titleView.text = podcast.title
-            descriptionView.text = podcast.description.take(100)
+            descriptionView.text = podcast.description
             genresView.text = podcast.genres.take(2).joinToString(", ")
 
             if (podcast.imageUrl.isNotEmpty()) {
