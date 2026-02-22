@@ -99,8 +99,9 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
   - Swipe gesture support to switch between categories
   - Animated transitions
 - **Podcast Discovery**:
-  - Browse all BBC podcasts
-  - Search functionality
+  - Browse all BBC podcasts with full descriptions
+  - Search functionality with advanced query support
+  - Saved searches for quick access to your favorite queries
   - Filter by language (English/all languages)
   - Subscribe to shows and episodes
   - Visual indicators for subscribed podcasts
@@ -115,12 +116,12 @@ All BBC Local Radio stations across England and the Channel Islands (Berkshire, 
   - Large album artwork
   - Current show name and episode title (radio) or episode details (podcast)
   - Artist and track information
-  - Seekbar for podcast episodes
+  - Seekbar for podcast episodes with persistent visibility state
   - Playback progress and time remaining
   - Full playback controls
   - Dynamic favorite toggle
   - Share button for podcasts and episodes
-  - Episode description viewer
+  - Episode description viewer with full podcast/episode descriptions
   - Manual mark-as-played button for podcasts
 
 ### ⚙️ Advanced Settings
@@ -333,7 +334,8 @@ Contributions are welcome! Areas for potential enhancement:
 
 See commit history for detailed changes. Major releases:
 
-- **v0.10.0** (Latest - Feb 2026): Episode download system with auto-download, WiFi-only mode, configurable limits (1-10 episodes), and auto-delete on completion; comprehensive settings backup and restore
+- **v0.11.0** (Latest - Feb 2026): Saved searches with advanced query support and notifications; full podcast descriptions display in UI; improved scrubber visibility preservation for playback; enhanced playback control with stopped state management
+- **v0.10.0**: Episode download system with auto-download, WiFi-only mode, configurable limits (1-10 episodes), and auto-delete on completion; comprehensive settings backup and restore
 - **v0.9.7**: APK signing configuration and build improvements
 - **v0.9.6**: GitHub release automation, JDK 21 requirement, audio focus handling improvements, podcast UI enhancements
 - **v0.9.2**: Improved podcast search functionality
