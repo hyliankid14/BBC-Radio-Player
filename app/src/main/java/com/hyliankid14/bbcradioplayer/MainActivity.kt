@@ -2169,9 +2169,9 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
         
-        findViewById<com.google.android.material.card.MaterialCardView>(R.id.settings_audio_quality_card)?.setOnClickListener {
+        findViewById<com.google.android.material.card.MaterialCardView>(R.id.settings_playback_card)?.setOnClickListener {
             val intent = Intent(this, SettingsDetailActivity::class.java).apply {
-                putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_AUDIO_QUALITY)
+                putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_PLAYBACK)
             }
             startActivity(intent)
         }
@@ -2179,13 +2179,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<com.google.android.material.card.MaterialCardView>(R.id.settings_android_auto_card)?.setOnClickListener {
             val intent = Intent(this, SettingsDetailActivity::class.java).apply {
                 putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_ANDROID_AUTO)
-            }
-            startActivity(intent)
-        }
-        
-        findViewById<com.google.android.material.card.MaterialCardView>(R.id.settings_playback_card)?.setOnClickListener {
-            val intent = Intent(this, SettingsDetailActivity::class.java).apply {
-                putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_PLAYBACK)
             }
             startActivity(intent)
         }

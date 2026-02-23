@@ -17,7 +17,6 @@ class SettingsDetailActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_SECTION = "section"
         const val SECTION_THEME = "theme"
-        const val SECTION_AUDIO_QUALITY = "audio_quality"
         const val SECTION_ANDROID_AUTO = "android_auto"
         const val SECTION_PLAYBACK = "playback"
         const val SECTION_SUBSCRIPTIONS = "subscriptions"
@@ -40,10 +39,6 @@ class SettingsDetailActivity : AppCompatActivity() {
             SECTION_THEME -> {
                 setContentView(R.layout.settings_theme)
                 setupThemeSettings()
-            }
-            SECTION_AUDIO_QUALITY -> {
-                setContentView(R.layout.settings_audio_quality)
-                setupAudioQualitySettings()
             }
             SECTION_ANDROID_AUTO -> {
                 setContentView(R.layout.settings_android_auto)
@@ -112,7 +107,17 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupAudioQualitySettings() {
+    private fun setupAndroidAutoSettings() {
+        val autoResumeAndroidAutoCheckbox: android.widget.CheckBox = findViewById(R.id.auto_resume_android_auto_checkbox)
+        
+        autoResumeAndroidAutoCheckbox.isChecked = PlaybackPreference.isAutoResumeAndroidAutoEnabled(this)
+        autoResumeAndroidAutoCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            PlaybackPreference.setAutoResumeAndroidAuto(this, isChecked)
+        }
+    }
+
+    private fun setupPlaybackSettings() {
+        // Setup Audio Quality settings
         val qualityGroup: RadioGroup = findViewById(R.id.quality_radio_group)
         val autoQualityCheckbox: android.widget.CheckBox = findViewById(R.id.auto_quality_checkbox)
         
@@ -165,18 +170,8 @@ class SettingsDetailActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    private fun setupAndroidAutoSettings() {
-        val autoResumeAndroidAutoCheckbox: android.widget.CheckBox = findViewById(R.id.auto_resume_android_auto_checkbox)
         
-        autoResumeAndroidAutoCheckbox.isChecked = PlaybackPreference.isAutoResumeAndroidAutoEnabled(this)
-        autoResumeAndroidAutoCheckbox.setOnCheckedChangeListener { _, isChecked ->
-            PlaybackPreference.setAutoResumeAndroidAuto(this, isChecked)
-        }
-    }
-
-    private fun setupPlaybackSettings() {
+        // Setup Playback Mode settings
         val scrollingModeGroup: RadioGroup = findViewById(R.id.scrolling_mode_radio_group)
         
         // Set current scrolling mode selection
