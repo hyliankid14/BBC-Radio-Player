@@ -14,7 +14,9 @@ data class CurrentShow(
     val startTime: String? = null,
     val endTime: String? = null,
     val segmentStartMs: Long? = null,
-    val segmentDurationMs: Long? = null
+    val segmentDurationMs: Long? = null,
+    val nextShowTitle: String? = null, // Next upcoming show name
+    val nextShowStartTimeMs: Long? = null // When the next show starts (milliseconds since epoch)
 ) {
     // Format the full subtitle as "primary - secondary - tertiary"
     fun getFormattedTitle(): String {
@@ -116,7 +118,9 @@ object ShowInfoFetcher {
                 startTime = scheduleShow.startTime,
                 endTime = scheduleShow.endTime,
                 segmentStartMs = segmentStartMs,
-                segmentDurationMs = segmentDurationMs
+                segmentDurationMs = segmentDurationMs,
+                nextShowTitle = scheduleShow.nextShowTitle,
+                nextShowStartTimeMs = scheduleShow.nextShowStartTimeMs
             )
             
         } catch (e: Exception) {
@@ -257,6 +261,7 @@ object ShowInfoFetcher {
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
             sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
             
+            var currentShow: CurrentShow? = null
             var nextShow: CurrentShow? = null
             var nextShowStart: Long = Long.MAX_VALUE
             
@@ -272,55 +277,45 @@ object ShowInfoFetcher {
                         val start = sdf.parse(startStr)?.time ?: continue
                         val end = sdf.parse(endStr)?.time ?: continue
                         
-                        if (now in start until end) {
-                            val brand = item.optJSONObject("brand")
-                            val episode = item.optJSONObject("episode")
-                            
-                            val brandTitle = brand?.optString("title")
-                            val episodeTitle = episode?.optString("title")
-                            
-                            val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
-                            val episodeTitleString = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
-                            
-                            // Extract image from episode or brand
-                            val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
-                            val imageTemplate = imageObj?.optString("template_url")
-                            var imageUrl: String? = null
-                            if (!imageTemplate.isNullOrEmpty()) {
-                                imageUrl = imageTemplate.replace("{recipe}", "640x640")
-                            }
-                            
-                            Log.d(TAG, "Found current ESS show: $title (episode: $episodeTitleString), imageUrl=$imageUrl")
-                            return CurrentShow(title = title, episodeTitle = episodeTitleString, imageUrl = imageUrl)
+                        val brand = item.optJSONObject("brand")
+                        val episode = item.optJSONObject("episode")
+                        
+                        val brandTitle = brand?.optString("title")
+                        val episodeTitle = episode?.optString("title")
+                        
+                        val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
+                        val episodeTitleString = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
+                        
+                        // Extract image from episode or brand
+                        val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
+                        val imageTemplate = imageObj?.optString("template_url")
+                        var imageUrl: String? = null
+                        if (!imageTemplate.isNullOrEmpty()) {
+                            imageUrl = imageTemplate.replace("{recipe}", "640x640")
                         }
                         
-                        // Track the next upcoming show (in case no current show is found)
+                        if (now in start until end) {
+                            Log.d(TAG, "Found current ESS show: $title (episode: $episodeTitleString), imageUrl=$imageUrl")
+                            currentShow = CurrentShow(title = title, episodeTitle = episodeTitleString, imageUrl = imageUrl)
+                        }
+                        
+                        // Track the next upcoming show
                         if (start > now && start < nextShowStart) {
-                            val brand = item.optJSONObject("brand")
-                            val episode = item.optJSONObject("episode")
-                            
-                            val brandTitle = brand?.optString("title")
-                            val episodeTitle = episode?.optString("title")
-                            
-                            val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: "BBC Radio"
-                            val episodeTitleString = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
-                            
-                            // Extract image from episode or brand
-                            val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
-                            val imageTemplate = imageObj?.optString("template_url")
-                            var imageUrl: String? = null
-                            if (!imageTemplate.isNullOrEmpty()) {
-                                imageUrl = imageTemplate.replace("{recipe}", "640x640")
-                            }
-                            
                             nextShowStart = start
-                            nextShow = CurrentShow(title = title, episodeTitle = episodeTitleString, imageUrl = imageUrl)
+                            nextShow = CurrentShow(title = title, episodeTitle = episodeTitleString, imageUrl = imageUrl, nextShowStartTimeMs = start)
                         }
                     } catch (e: java.text.ParseException) {
                         Log.w(TAG, "Date parse error: ${e.message}")
                         continue
                     }
                 }
+            }
+            
+            // Return current show with next show info if available
+            if (currentShow != null) {
+                val result = currentShow.copy(nextShowTitle = nextShow?.title, nextShowStartTimeMs = nextShow?.nextShowStartTimeMs)
+                Log.d(TAG, "Returning current show: ${result.title} with next show: ${result.nextShowTitle}")
+                return result
             }
             
             // If no current show found but there's an upcoming show, use that

@@ -32,6 +32,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var rootLayout: androidx.constraintlayout.widget.ConstraintLayout
     private lateinit var toolbar: com.google.android.material.appbar.MaterialToolbar
     private lateinit var showName: TextView
+    private lateinit var nextShowView: TextView
     private lateinit var episodeTitle: TextView
     private lateinit var artistTrack: TextView
     private lateinit var releaseDateView: TextView
@@ -136,6 +137,7 @@ class NowPlayingActivity : AppCompatActivity() {
         rootLayout = findViewById(R.id.root)
         stationArtwork = findViewById(R.id.now_playing_artwork)
         showName = findViewById(R.id.now_playing_show_name)
+        nextShowView = findViewById(R.id.now_playing_next_show)
         episodeTitle = findViewById(R.id.now_playing_episode_title)
         artistTrack = findViewById(R.id.now_playing_artist_track)
         releaseDateView = findViewById(R.id.now_playing_release_date)
@@ -472,6 +474,7 @@ class NowPlayingActivity : AppCompatActivity() {
             if (isPodcast) {
                 // Podcasts: action bar already shows podcast name; hide duplicate header
                 showName.visibility = android.view.View.GONE
+                nextShowView.visibility = android.view.View.GONE
 
                 val episodeHeading = show.episodeTitle?.takeIf { it.isNotEmpty() } ?: show.title
                 if (!episodeHeading.isNullOrEmpty()) {
@@ -535,6 +538,17 @@ class NowPlayingActivity : AppCompatActivity() {
                     episodeTitle.visibility = android.view.View.VISIBLE
                 } else {
                     episodeTitle.visibility = android.view.View.GONE
+                }
+
+                // Display next show information if available
+                if (!show.nextShowTitle.isNullOrBlank() && show.nextShowStartTimeMs != null) {
+                    val nextShowTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).apply {
+                        timeZone = java.util.TimeZone.getDefault()
+                    }.format(java.util.Date(show.nextShowStartTimeMs))
+                    nextShowView.text = "Next: ${show.nextShowTitle} at $nextShowTime"
+                    nextShowView.visibility = android.view.View.VISIBLE
+                } else {
+                    nextShowView.visibility = android.view.View.GONE
                 }
 
                 // Per product request: never show the smaller subtitle line for live radio —
@@ -936,6 +950,17 @@ class NowPlayingActivity : AppCompatActivity() {
                 episodeTitle.visibility = android.view.View.VISIBLE
             } else {
                 episodeTitle.visibility = android.view.View.GONE
+            }
+
+            // Display next show information if available
+            if (!show.nextShowTitle.isNullOrBlank() && show.nextShowStartTimeMs != null) {
+                val nextShowTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).apply {
+                    timeZone = java.util.TimeZone.getDefault()
+                }.format(java.util.Date(show.nextShowStartTimeMs))
+                nextShowView.text = "Next: ${show.nextShowTitle} at $nextShowTime"
+                nextShowView.visibility = android.view.View.VISIBLE
+            } else {
+                nextShowView.visibility = android.view.View.GONE
             }
 
             // Per product request: do not show the smaller subtitle line for live radio
@@ -1437,15 +1462,17 @@ class NowPlayingActivity : AppCompatActivity() {
                         } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                             // Legacy API (Android 6-10)
                             @Suppress("DEPRECATION")
-                            val decorView = window.decorView
-                            if (isDarkMode) {
-                                // Dark mode: use light icons
-                                decorView.systemUiVisibility = decorView.systemUiVisibility and 
-                                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
-                            } else {
-                                // Light mode: use dark icons
-                                decorView.systemUiVisibility = decorView.systemUiVisibility or 
-                                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                            run {
+                                val decorView = window.decorView
+                                if (isDarkMode) {
+                                    // Dark mode: use light icons
+                                    decorView.systemUiVisibility = decorView.systemUiVisibility and 
+                                        android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                                } else {
+                                    // Light mode: use dark icons
+                                    decorView.systemUiVisibility = decorView.systemUiVisibility or 
+                                        android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                                }
                             }
                         }
                     }
