@@ -9,7 +9,7 @@
         android:id="@+id/podcasts_title_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurfaceContainer"
+        android:background="?attr/colorSurface"
         android:fitsSystemWindows="true"
         app:title="Podcasts"
         app:titleTextColor="?attr/colorOnSurface"
