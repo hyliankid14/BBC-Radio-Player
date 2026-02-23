@@ -77,11 +77,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center"
+            android:gravity="space_evenly"
             style="@style/MiniPlayerControlsLayout"
-            android:layout_marginTop="6dp"
-            android:layout_marginStart="@dimen/mini_player_controls_margin_horizontal"
-            android:layout_marginEnd="@dimen/mini_player_controls_margin_horizontal">
+            android:layout_marginTop="6dp">
 
             <!-- Stop Button -->
             <ImageButton
