@@ -24,3 +24,5 @@ Thumbs.db
 # Scripts folder (contains deployment scripts, not needed in version control)
 /scripts/
 test.db
+ANALYTICS_IMPLEMENTATION_GUIDE.md
+FDROID_SUBMISSION_ANALYSIS.md

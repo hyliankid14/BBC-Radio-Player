@@ -126,7 +126,7 @@ Study your backup rules to ensure no sensitive data is backed up:
 - `@xml/data_extraction_rules`
 Need to verify these don't include credentials or API keys
 
----
+----
 
 ## 📋 PRE-SUBMISSION CHECKLIST
 
