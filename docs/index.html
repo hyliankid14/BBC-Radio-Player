@@ -480,11 +480,11 @@
                         </div>
 
                         <div class="button-group">
+                            <button class="button button-secondary" onclick="player.openGithub()">
+                                🛠️ Download App
+                            </button>
                             <button class="button button-secondary" onclick="player.openRSSFeed('${this.escapeHtml(podcast.rssUrl)}')">
                                 📡 Subscribe via RSS
-                            </button>
-                            <button class="button button-secondary" onclick="player.searchPodcast('${this.escapeHtml(podcast.title)}')">
-                                🔍 Find on Spotify
                             </button>
                         </div>
 
@@ -580,8 +580,9 @@
             }
 
             openInApp(type) {
-                const path = window.location.pathname;
-                const match = path.match(/\/(p|e)\/([^\/]+)/);
+                // The share page uses hash-based routing (#/p/id or #/e/id)
+                const hash = window.location.hash;
+                const match = hash.match(/#\/(p|e)\/([^\/?]+)/);
                 if (!match) return;
 
                 const [, , id] = match;
@@ -643,6 +644,12 @@
 
             openRSSFeed(rssUrl) {
                 window.open(rssUrl, '_blank');
+            }
+
+            /// Opens GitHub page where the app can be downloaded or viewed
+            openGithub() {
+                // replace with your actual repo/releases URL if different
+                window.open('https://github.com/hyliankid14/bbc-radio-player/releases', '_blank');
             }
 
             searchPodcast(title) {
