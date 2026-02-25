@@ -86,6 +86,7 @@ function summarizeExtractively(text) {
     // Score sentences based on important content
     const scoredSentences = sentences.map((sentence, index) => {
         const sentenceWords = sentence.toLowerCase().match(/\b\w+\b/g) || [];
+        const wordCount = sentenceWords.length;
         const importantWords = sentenceWords.filter(w => w.length > 3 && !stopWords.has(w));
         
         // Score based on frequency of important words
@@ -93,46 +94,55 @@ function summarizeExtractively(text) {
             return sum + (wordFreq[word] || 0);
         }, 0);
         
-        // Normalize by sentence length to favor concise sentences
-        const lengthPenalty = sentenceWords.length > 15 ? 0.7 : 1.0;
+        // Strong preference for concise sentences (10-15 words is ideal)
+        let lengthScore = 1.0;
+        if (wordCount <= 15) {
+            lengthScore = 2.0; // Boost short sentences
+        } else if (wordCount <= 20) {
+            lengthScore = 1.2;
+        } else {
+            lengthScore = 0.5; // Penalize long sentences
+        }
         
-        // Strong preference for first sentence (usually contains main topic)
-        const positionBonus = index === 0 ? 3.0 : (index === 1 ? 1.5 : 0.5);
+        // Moderate preference for first few sentences
+        const positionBonus = index === 0 ? 1.5 : (index === 1 ? 1.2 : 1.0);
         
-        const score = (freqScore / Math.max(importantWords.length, 1)) * lengthPenalty + positionBonus;
+        const score = (freqScore / Math.max(importantWords.length, 1)) * lengthScore * positionBonus;
         
         return {
             text: sentence.trim(),
             score: score,
             index,
-            wordCount: sentenceWords.length
+            wordCount: wordCount
         };
     });
     
-    // Sort by score
+    // Sort by score (best first)
     scoredSentences.sort((a, b) => b.score - a.score);
     
-    // Build summary from top sentences, respecting word limit
-    let summary = '';
-    let wordCount = 0;
+    // Build summary by selecting best sentences that fit in 30 words
     const maxWords = 30;
+    let selectedSentences = [];
+    let totalWords = 0;
     
+    // Try to fit multiple high-scoring sentences
     for (const sent of scoredSentences) {
-        if (wordCount + sent.wordCount <= maxWords) {
-            summary += (summary ? ' ' : '') + sent.text + '.';
-            wordCount += sent.wordCount;
-        } else if (wordCount < maxWords) {
-            // Add partial sentence if we have room
-            const remainingWords = maxWords - wordCount;
-            const words = sent.text.split(/\s+/);
-            summary += (summary ? ' ' : '') + words.slice(0, remainingWords).join(' ') + '...';
-            break;
-        } else {
-            break;
+        if (totalWords + sent.wordCount <= maxWords) {
+            selectedSentences.push(sent);
+            totalWords += sent.wordCount;
         }
     }
     
-    return summary || limitToWords(sentences[0], 30);
+    // If we didn't select anything (all sentences too long), take the best one and truncate
+    if (selectedSentences.length === 0) {
+        return limitToWords(scoredSentences[0].text, maxWords);
+    }
+    
+    // Re-sort selected sentences by original position for coherent flow
+    selectedSentences.sort((a, b) => a.index - b.index);
+    
+    // Combine sentences
+    return selectedSentences.map(s => s.text).join('. ') + '.';
 }
 
 /**
