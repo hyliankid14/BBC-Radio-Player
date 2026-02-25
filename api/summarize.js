@@ -73,7 +73,7 @@ async function summarizeWithTogetherAI(text) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'meta-llama/Meta-Llama-3-8B-Instruct-Turbo',
+                model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
                 prompt: prompt,
                 max_tokens: 100,
                 temperature: 0.7,
