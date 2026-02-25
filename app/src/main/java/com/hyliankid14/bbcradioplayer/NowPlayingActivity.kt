@@ -6,7 +6,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.widget.ImageView
-import android.widget.SeekBar
+import com.google.android.material.slider.Slider
 import android.widget.TextView
 import android.text.method.ScrollingMovementMethod
 import androidx.appcompat.app.AppCompatActivity
@@ -42,7 +42,8 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var playPauseButton: MaterialButton
     private lateinit var nextButton: MaterialButton
     private lateinit var favoriteButton: MaterialButton
-    private lateinit var seekBar: SeekBar
+    private lateinit var openPodcastButton: MaterialButton
+    private lateinit var seekBar: Slider
     private lateinit var progressGroup: android.view.View
     private lateinit var elapsedView: TextView
     private lateinit var remainingView: TextView
@@ -63,6 +64,10 @@ class NowPlayingActivity : AppCompatActivity() {
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
+    private var currentButtonOutlineColor: Int = android.graphics.Color.TRANSPARENT
+    private var currentPlayPauseButtonColor: Int = android.graphics.Color.TRANSPARENT
+    private var currentIconColor: Int = android.graphics.Color.WHITE
+    private var currentIsLightBackground: Boolean = false
     // Store raw HTML for the full description so the dialog can render the complete content
     private var fullDescriptionHtml: String = ""
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
@@ -147,6 +152,7 @@ class NowPlayingActivity : AppCompatActivity() {
         playPauseButton = findViewById(R.id.now_playing_play_pause)
         nextButton = findViewById(R.id.now_playing_next)
         favoriteButton = findViewById(R.id.now_playing_favorite)
+        openPodcastButton = findViewById(R.id.now_playing_open_podcast)
         progressGroup = findViewById(R.id.podcast_progress_group)
         seekBar = findViewById(R.id.playback_seekbar)
         elapsedView = findViewById(R.id.playback_elapsed)
@@ -191,21 +197,23 @@ class NowPlayingActivity : AppCompatActivity() {
         }
 
 
-        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    val show = PlaybackStateHelper.getCurrentShow()
-                    val duration = show.segmentDurationMs ?: return
-                    if (duration <= 0) return
-                    val newPos = (duration * (progress / seekBar!!.max.toDouble())).toLong()
-                    sendSeekTo(newPos)
-                }
+        seekBar.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                val show = PlaybackStateHelper.getCurrentShow()
+                val duration = show.segmentDurationMs ?: return@addOnChangeListener
+                if (duration <= 0) return@addOnChangeListener
+                val newPos = (duration * value).toLong()
+                sendSeekTo(newPos)
             }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+        }
+        
+        // Format slider label to show time instead of decimal value
+        seekBar.setLabelFormatter { value ->
+            val show = PlaybackStateHelper.getCurrentShow()
+            val duration = show.segmentDurationMs ?: return@setLabelFormatter "0:00"
+            val timeMs = (duration * value).toLong()
+            formatTime(timeMs)
+        }
 
         // Register listener for show changes
         PlaybackStateHelper.onShowChange(showChangeListener)
@@ -617,8 +625,6 @@ class NowPlayingActivity : AppCompatActivity() {
             if (isPodcast && !currentEpisodeId.isNullOrEmpty()) {
                 val saved = SavedEpisodes.isSaved(this, currentEpisodeId)
                 favoriteButton.icon = ContextCompat.getDrawable(this, if (saved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
-                favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-                favoriteButton.setBackgroundColor(if (saved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
             } else {
                 val isFavorited = if (isPodcast) {
                     PodcastSubscriptions.isSubscribed(this, podcastId)
@@ -626,8 +632,7 @@ class NowPlayingActivity : AppCompatActivity() {
                     FavoritesPreference.isFavorite(this, station.id)
                 }
                 favoriteButton.icon = ContextCompat.getDrawable(this, if (isFavorited) R.drawable.ic_star_filled else R.drawable.ic_star_outline)
-                favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-                favoriteButton.setBackgroundColor(if (isFavorited) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
+                // Note: background color is applied in extractAndApplyDominantColor() to avoid flashing with hardcoded theme colors
             }
         } else {
             progressGroup.visibility = android.view.View.GONE
@@ -714,8 +719,6 @@ class NowPlayingActivity : AppCompatActivity() {
         try {
             val saved = SavedEpisodes.isSaved(this, episode.id)
             favoriteButton.icon = ContextCompat.getDrawable(this, if (saved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
-            favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-            favoriteButton.setBackgroundColor(if (saved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
         } catch (_: Exception) {}
 
         // Show scrubber controls if episode has a duration so user can see progress
@@ -724,7 +727,7 @@ class NowPlayingActivity : AppCompatActivity() {
             progressGroup.visibility = android.view.View.VISIBLE
             seekBar.visibility = android.view.View.VISIBLE
             // Initialize scrubber to start (not playing)
-            seekBar.progress = 0
+            seekBar.value = 0f
             seekBar.isEnabled = false
             elapsedView.text = "0:00"
             remainingView.text = "-${formatTime(durMs)}"
@@ -779,7 +782,7 @@ class NowPlayingActivity : AppCompatActivity() {
             progressGroup.visibility = android.view.View.VISIBLE
             seekBar.visibility = android.view.View.VISIBLE
             val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
-            seekBar.progress = (ratio * seekBar.max).toInt()
+            seekBar.value = ratio.toFloat()
             elapsedView.text = formatTime(pos)
             remainingView.text = "-${formatTime((dur - pos).coerceAtLeast(0))}"
             seekBar.isEnabled = true
@@ -1301,6 +1304,43 @@ class NowPlayingActivity : AppCompatActivity() {
         updateUI()
     }
 
+    private fun updateFavoriteButtonBackground() {
+        val station = PlaybackStateHelper.getCurrentStation()
+        val isPodcast = station?.id?.startsWith("podcast_") == true
+        val episodeIdInPlayback = PlaybackStateHelper.getCurrentEpisodeId()
+        val episodeId = previewEpisodeProp?.id ?: episodeIdInPlayback ?: currentShownEpisodeId
+        
+        val playPauseColorStateList = android.content.res.ColorStateList.valueOf(currentPlayPauseButtonColor)
+        val whiteColorStateList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+        val iconColorStateList = android.content.res.ColorStateList.valueOf(currentIconColor)
+        
+        // For episodes being played/previewed, show bookmark styling
+        if (!episodeId.isNullOrEmpty()) {
+            val isSaved = SavedEpisodes.isSaved(this, episodeId)
+            if (isSaved) {
+                // Saved: use same filled circle style as play/pause button
+                favoriteButton.backgroundTintList = playPauseColorStateList
+                favoriteButton.iconTint = if (currentIsLightBackground) whiteColorStateList else iconColorStateList
+            } else {
+                // Not saved: transparent background with colored icon
+                favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(currentButtonOutlineColor)
+            }
+        } else if (!isPodcast && station != null) {
+            // Radio station favorite styling - match bookmark button behavior
+            val isFavorited = FavoritesPreference.isFavorite(this, station.id)
+            if (isFavorited) {
+                // Favorited: use same filled circle style as play/pause button
+                favoriteButton.backgroundTintList = playPauseColorStateList
+                favoriteButton.iconTint = if (currentIsLightBackground) whiteColorStateList else iconColorStateList
+            } else {
+                // Not favorited: transparent background with colored icon
+                favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(currentButtonOutlineColor)
+            }
+        }
+    }
+
     private fun toggleFavorite() {
         // Prefer episode-save (bookmark) whenever an episode is in context (playing or preview).
         val station = PlaybackStateHelper.getCurrentStation()
@@ -1328,8 +1368,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 .show()
             // Immediately reflect saved state in the UI (bookmark icon)
             favoriteButton.icon = ContextCompat.getDrawable(this, if (nowSaved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
-            favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-            favoriteButton.setBackgroundColor(if (nowSaved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
+            updateFavoriteButtonBackground()
             updateUI()
             return
         }
@@ -1347,6 +1386,8 @@ class NowPlayingActivity : AppCompatActivity() {
                     .show()
             } else {
                 FavoritesPreference.toggleFavorite(this, station.id)
+                // Update the favorite button background styling immediately
+                updateFavoriteButtonBackground()
             }
             updateUI()
             return
@@ -1361,8 +1402,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 .setAnchorView(findViewById(R.id.playback_controls))
                 .show()
             favoriteButton.icon = ContextCompat.getDrawable(this, if (nowSaved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_outline)
-            favoriteButton.iconTint = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.md_theme_primary))
-            favoriteButton.setBackgroundColor(if (nowSaved) ContextCompat.getColor(this, R.color.md_theme_primaryContainer) else android.graphics.Color.TRANSPARENT)
+            updateFavoriteButtonBackground()
         }
     }
 
@@ -1446,11 +1486,134 @@ class NowPlayingActivity : AppCompatActivity() {
                         android.graphics.Color.rgb(red, green, blue)
                     }
                     
+                    // Calculate luminance of the subtle background color to determine button styling
+                    val r = ((subtleColor shr 16) and 0xFF) / 255f
+                    val g = ((subtleColor shr 8) and 0xFF) / 255f
+                    val b = (subtleColor and 0xFF) / 255f
+                    val luminance = 0.299 * r + 0.587 * g + 0.114 * b
+                    
+                    // Determine if background is light or dark
+                    val isLightBackground = luminance > 0.5f
+                    
+                    // For regular buttons: use a color that contrasts with the background
+                    val buttonOutlineColor = if (isLightBackground) {
+                        // Light background: use darker saturated color
+                        val buttonRed = ((dominantColor shr 16) and 0xFF) * 0.7f
+                        val buttonGreen = ((dominantColor shr 8) and 0xFF) * 0.7f
+                        val buttonBlue = (dominantColor and 0xFF) * 0.7f
+                        android.graphics.Color.rgb(buttonRed.toInt(), buttonGreen.toInt(), buttonBlue.toInt())
+                    } else {
+                        // Dark background: use light color (lighter version of dominant)
+                        val buttonRed = (((dominantColor shr 16) and 0xFF) + 255) / 2
+                        val buttonGreen = (((dominantColor shr 8) and 0xFF) + 255) / 2
+                        val buttonBlue = ((dominantColor and 0xFF) + 255) / 2
+                        android.graphics.Color.rgb(buttonRed, buttonGreen, buttonBlue)
+                    }
+                    
+                    // For the play/pause button: use a slightly lighter/different tint for subtle distinction
+                    val playPauseButtonColor = if (isLightBackground) {
+                        // Light background: use a lighter tint of the dominant color for play/pause
+                        val buttonRed = ((dominantColor shr 16) and 0xFF) * 0.8f
+                        val buttonGreen = ((dominantColor shr 8) and 0xFF) * 0.8f
+                        val buttonBlue = (dominantColor and 0xFF) * 0.8f
+                        android.graphics.Color.rgb(buttonRed.toInt(), buttonGreen.toInt(), buttonBlue.toInt())
+                    } else {
+                        // Dark background: use a slightly lighter tint
+                        val buttonRed = (((dominantColor shr 16) and 0xFF) * 0.5f + 255 * 0.5f).toInt()
+                        val buttonGreen = (((dominantColor shr 8) and 0xFF) * 0.5f + 255 * 0.5f).toInt()
+                        val buttonBlue = ((dominantColor and 0xFF) * 0.5f + 255 * 0.5f).toInt()
+                        android.graphics.Color.rgb(buttonRed, buttonGreen, buttonBlue)
+                    }
+                    
+                    // Determine icon color: light icons on dark backgrounds, dark on light
+                    val iconColor = if (isLightBackground) {
+                        // Light background: use dark/saturated color for visibility
+                        val iconRed = ((dominantColor shr 16) and 0xFF) 
+                        val iconGreen = ((dominantColor shr 8) and 0xFF) 
+                        val iconBlue = (dominantColor and 0xFF)
+                        android.graphics.Color.rgb(iconRed, iconGreen, iconBlue)
+                    } else {
+                        // Dark background: use white for visibility
+                        android.graphics.Color.WHITE
+                    }
+                    
+                    // Store button colors for use in updateFavoriteButtonBackground()
+                    currentButtonOutlineColor = buttonOutlineColor
+                    currentPlayPauseButtonColor = playPauseButtonColor
+                    currentIconColor = iconColor
+                    currentIsLightBackground = isLightBackground
+                    
                     // Apply the background color to root layout, toolbar, and status bar
                     runOnUiThread {
                         rootLayout.setBackgroundColor(subtleColor)
                         toolbar.setBackgroundColor(subtleColor)
                         window.statusBarColor = subtleColor
+                        
+                        // Apply dynamic colors to icon buttons (outline style)
+                        val outlineButtonColorStateList = android.content.res.ColorStateList.valueOf(buttonOutlineColor)
+                        val playPauseButtonColorStateList = android.content.res.ColorStateList.valueOf(playPauseButtonColor)
+                        val iconColorStateList = android.content.res.ColorStateList.valueOf(iconColor)
+                        val whiteColorStateList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+                        
+                        stopButton.backgroundTintList = outlineButtonColorStateList
+                        stopButton.iconTint = whiteColorStateList
+                        previousButton.backgroundTintList = outlineButtonColorStateList
+                        previousButton.iconTint = whiteColorStateList
+                        nextButton.backgroundTintList = outlineButtonColorStateList
+                        nextButton.iconTint = whiteColorStateList
+                        favoriteButton.backgroundTintList = outlineButtonColorStateList
+                        favoriteButton.iconTint = iconColorStateList
+                        openPodcastButton.backgroundTintList = outlineButtonColorStateList
+                        
+                        // Apply visual distinction for favorited items (radio stations and saved episodes)
+                        val station = PlaybackStateHelper.getCurrentStation()
+                        val isPodcast = station?.id?.startsWith("podcast_") == true
+                        val episodeIdInPlayback = PlaybackStateHelper.getCurrentEpisodeId()
+                        val episodeId = previewEpisodeProp?.id ?: episodeIdInPlayback ?: currentShownEpisodeId
+                        
+                        // Check for saved episodes first
+                        if (!episodeId.isNullOrEmpty()) {
+                            val isSaved = SavedEpisodes.isSaved(this@NowPlayingActivity, episodeId)
+                            if (isSaved) {
+                                // Saved: use same filled circle style as play/pause button
+                                favoriteButton.backgroundTintList = playPauseButtonColorStateList
+                                favoriteButton.iconTint = if (isLightBackground) whiteColorStateList else iconColorStateList
+                            } else {
+                                // Not saved: transparent background with colored icon
+                                favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+                                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(buttonOutlineColor)
+                            }
+                        } else if (!isPodcast && station != null) {
+                            // Radio station favorite styling - match bookmark button behavior
+                            val isFavorited = FavoritesPreference.isFavorite(this@NowPlayingActivity, station.id)
+                            if (isFavorited) {
+                                // Favorited: use same filled circle style as play/pause button
+                                favoriteButton.backgroundTintList = playPauseButtonColorStateList
+                                favoriteButton.iconTint = if (isLightBackground) whiteColorStateList else iconColorStateList
+                            } else {
+                                // Not favorited: transparent background with colored icon
+                                favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+                                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(buttonOutlineColor)
+                            }
+                        }
+                        
+                        // Play/pause button uses a slightly different fill color for subtle distinction
+                        playPauseButton.backgroundTintList = playPauseButtonColorStateList
+                        playPauseButton.iconTint = if (isLightBackground) whiteColorStateList else iconColorStateList
+                        
+                        // Apply dynamic colors to slider
+                        seekBar.trackActiveTintList = iconColorStateList
+                        seekBar.thumbTintList = iconColorStateList
+                        
+                        // For inactive track, use a semi-transparent version of the icon color
+                        val inactiveColor = android.graphics.Color.argb(
+                            76, // ~30% opacity
+                            android.graphics.Color.red(iconColor),
+                            android.graphics.Color.green(iconColor),
+                            android.graphics.Color.blue(iconColor)
+                        )
+                        seekBar.trackInactiveTintList = android.content.res.ColorStateList.valueOf(inactiveColor)
+                        seekBar.haloTintList = android.content.res.ColorStateList.valueOf(inactiveColor)
                         
                         // Set status bar icons to be dark in light mode, light in dark mode
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {

@@ -2542,7 +2542,7 @@ class MainActivity : AppCompatActivity() {
                     miniPlayerFavorite.setImageResource(R.drawable.ic_bookmark)
                     miniPlayerFavorite.setColorFilter(ContextCompat.getColor(this, R.color.favorite_star_color))
                 } else {
-                    miniPlayerFavorite.setImageResource(R.drawable.ic_bookmark_outline)
+                    miniPlayerFavorite.setImageResource(R.drawable.ic_bookmark_outline_stroked)
                     miniPlayerFavorite.clearColorFilter()
                 }
             } else {
@@ -2555,7 +2555,7 @@ class MainActivity : AppCompatActivity() {
                     miniPlayerFavorite.setImageResource(R.drawable.ic_star_filled)
                     miniPlayerFavorite.setColorFilter(ContextCompat.getColor(this, R.color.favorite_star_color))
                 } else {
-                    miniPlayerFavorite.setImageResource(R.drawable.ic_star_outline)
+                    miniPlayerFavorite.setImageResource(R.drawable.ic_star_outline_stroked)
                     miniPlayerFavorite.clearColorFilter()
                 }
             }
