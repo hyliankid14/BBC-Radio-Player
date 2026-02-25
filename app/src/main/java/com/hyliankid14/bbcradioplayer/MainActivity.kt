@@ -343,6 +343,7 @@ class MainActivity : AppCompatActivity() {
         startPlaybackStateUpdates()
 
         // Handle any incoming intents that request opening a specific podcast or mode
+        handleDeepLinkIntent(intent)
         handleOpenPodcastIntent(intent)
         handleOpenModeIntent(intent)
         handleOpenSavedSearchIntent(intent)
@@ -350,9 +351,67 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleDeepLinkIntent(intent)
         handleOpenPodcastIntent(intent)
         handleOpenModeIntent(intent)
         handleOpenSavedSearchIntent(intent)
+    }
+
+    private fun handleDeepLinkIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+
+        try {
+            when {
+                uri.scheme == "app" && uri.host == "podcast" -> {
+                    val podcastId = uri.pathSegments.firstOrNull()?.let(Uri::decode) ?: return
+                    handleOpenPodcastIntent(Intent().putExtra("open_podcast_id", podcastId))
+                }
+
+                uri.scheme == "app" && uri.host == "episode" -> {
+                    val episodeId = uri.pathSegments.firstOrNull()?.let(Uri::decode).orEmpty()
+                    val title = uri.getQueryParameter("title") ?: "Shared Episode"
+                    val description = uri.getQueryParameter("desc") ?: ""
+                    val audioUrl = uri.getQueryParameter("audio") ?: ""
+                    val imageUrl = uri.getQueryParameter("img") ?: ""
+                    val pubDate = uri.getQueryParameter("date") ?: ""
+                    val durationMins = uri.getQueryParameter("duration")?.toIntOrNull() ?: 0
+                    val podcastTitle = uri.getQueryParameter("podcast") ?: "BBC Radio Player"
+                    val podcastId = uri.getQueryParameter("podcastId") ?: ""
+
+                    if (audioUrl.isEmpty()) {
+                        android.util.Log.w("MainActivity", "Episode deep link missing audio URL; cannot open episode directly")
+                        return
+                    }
+
+                    val safeEpisodeId = when {
+                        episodeId.isNotEmpty() -> episodeId
+                        audioUrl.isNotEmpty() -> audioUrl
+                        else -> title
+                    }
+
+                    val episode = Episode(
+                        id = safeEpisodeId,
+                        title = title,
+                        description = description,
+                        audioUrl = audioUrl,
+                        imageUrl = imageUrl,
+                        pubDate = pubDate,
+                        durationMins = durationMins,
+                        podcastId = podcastId
+                    )
+
+                    val openIntent = Intent(this, NowPlayingActivity::class.java).apply {
+                        putExtra("preview_episode", episode)
+                        putExtra("preview_use_play_ui", true)
+                        putExtra("preview_podcast_title", podcastTitle)
+                        putExtra("preview_podcast_image", imageUrl)
+                    }
+                    startActivity(openIntent)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Failed to handle deep link: ${e.message}")
+        }
     }
 
     private fun handleOpenModeIntent(intent: Intent?) {

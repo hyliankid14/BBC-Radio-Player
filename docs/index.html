@@ -585,16 +585,48 @@
                 const match = hash.match(/#\/(p|e)\/([^\/?]+)/);
                 if (!match) return;
 
-                const [, , id] = match;
-                const deepLink = `app://${type === 'podcast' ? 'podcast' : 'episode'}/${id}`;
+                const [, routeType, rawId] = match;
+                const contentType = routeType === 'p' ? 'podcast' : 'episode';
+                const id = decodeURIComponent(rawId || '');
+                const appHost = contentType === 'podcast' ? 'podcast' : 'episode';
 
-                // Try to open the deep link
+                const params = new URLSearchParams();
+                if (contentType === 'episode' && this.currentContent) {
+                    if (this.currentContent.title) params.set('title', this.currentContent.title);
+                    if (this.currentContent.description) params.set('desc', this.currentContent.description);
+                    if (this.currentContent.podcastTitle) params.set('podcast', this.currentContent.podcastTitle);
+                    if (this.currentContent.audioUrl) params.set('audio', this.currentContent.audioUrl);
+                    if (this.currentContent.imageUrl) params.set('img', this.currentContent.imageUrl);
+                    if (this.currentContent.pubDate) params.set('date', this.currentContent.pubDate);
+                    if (this.currentContent.durationMins) params.set('duration', String(this.currentContent.durationMins));
+                }
+
+                const query = params.toString();
+                const path = `/${encodeURIComponent(id)}`;
+                const customSchemeUrl = `app://${appHost}${path}${query ? `?${query}` : ''}`;
+
+                const isAndroid = /Android/i.test(navigator.userAgent || '');
+                const packageName = 'com.hyliankid14.bbcradioplayer';
+                const deepLink = isAndroid
+                    ? `intent://${appHost}${path}${query ? `?${query}` : ''}#Intent;scheme=app;package=${packageName};end`
+                    : customSchemeUrl;
+
+                let appOpened = false;
+                const onVisibilityChange = () => {
+                    if (document.visibilityState === 'hidden') {
+                        appOpened = true;
+                    }
+                };
+                document.addEventListener('visibilitychange', onVisibilityChange);
+
                 window.location.href = deepLink;
 
-                // Fallback: show a message after a delay
                 setTimeout(() => {
-                    alert('Could not open the app. Make sure BBC Radio Player is installed.');
-                }, 500);
+                    document.removeEventListener('visibilitychange', onVisibilityChange);
+                    if (!appOpened) {
+                        alert('Could not open the app. Make sure BBC Radio Player is installed.');
+                    }
+                }, 1200);
             }
 
             async copyShareLink(type) {
