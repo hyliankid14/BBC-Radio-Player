@@ -26,3 +26,9 @@ Thumbs.db
 test.db
 ANALYTICS_IMPLEMENTATION_GUIDE.md
 FDROID_SUBMISSION_ANALYSIS.md
+IMPLEMENTATION_SUMMARY.md
+ANALYTICS_SETUP_GUIDE.md
+
+# Python cache artifacts
+__pycache__/
+*.pyc

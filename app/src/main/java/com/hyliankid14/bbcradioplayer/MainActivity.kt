@@ -107,6 +107,7 @@ class MainActivity : AppCompatActivity() {
     // defensively ignore any stray regressions emitted by background components.
     private var lastSeenIndexPercent: Int = 0
     private var savedSearchDateRefreshJob: Job? = null
+    private lateinit var analytics: PrivacyAnalytics
 
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateMiniPlayerFromShow(show) }
@@ -298,6 +299,17 @@ class MainActivity : AppCompatActivity() {
 
         // Setup settings controls
         setupSettings()
+        
+        // Initialize analytics
+        analytics = PrivacyAnalytics(this)
+        
+        // Show opt-in dialog on first run
+        if (analytics.shouldShowOptInDialog()) {
+            lifecycleScope.launch {
+                kotlinx.coroutines.delay(1000)
+                AnalyticsOptInDialog.show(this@MainActivity, analytics)
+            }
+        }
         
         // Mini player views
         miniPlayer = findViewById(R.id.mini_player)
@@ -2331,6 +2343,13 @@ class MainActivity : AppCompatActivity() {
         findViewById<com.google.android.material.card.MaterialCardView>(R.id.settings_backup_card)?.setOnClickListener {
             val intent = Intent(this, SettingsDetailActivity::class.java).apply {
                 putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_BACKUP)
+            }
+            startActivity(intent)
+        }
+        
+        findViewById<com.google.android.material.card.MaterialCardView>(R.id.settings_privacy_card)?.setOnClickListener {
+            val intent = Intent(this, SettingsDetailActivity::class.java).apply {
+                putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_PRIVACY)
             }
             startActivity(intent)
         }

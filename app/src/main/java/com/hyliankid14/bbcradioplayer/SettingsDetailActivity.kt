@@ -22,6 +22,7 @@ class SettingsDetailActivity : AppCompatActivity() {
         const val SECTION_SUBSCRIPTIONS = "subscriptions"
         const val SECTION_INDEXING = "indexing"
         const val SECTION_BACKUP = "backup"
+        const val SECTION_PRIVACY = "privacy"
     }
 
     private lateinit var createDocumentLauncher: ActivityResultLauncher<String>
@@ -60,6 +61,10 @@ class SettingsDetailActivity : AppCompatActivity() {
                 setContentView(R.layout.settings_backup)
                 setupBackupSettings()
             }
+            SECTION_PRIVACY -> {
+                setContentView(R.layout.settings_privacy)
+                setupPrivacySettings()
+            }
         }
         
         // Set up the toolbar as the action bar
@@ -78,6 +83,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             SECTION_SUBSCRIPTIONS -> "Subscriptions"
             SECTION_INDEXING -> "Indexing"
             SECTION_BACKUP -> "Backup"
+            SECTION_PRIVACY -> "Privacy"
             else -> "Settings"
         }
         supportActionBar?.apply {
@@ -628,5 +634,61 @@ class SettingsDetailActivity : AppCompatActivity() {
             android.util.Log.e("SettingsDetailActivity", "Failed to import preferences", e)
             false
         }
+    }
+    
+    private fun setupPrivacySettings() {
+        try {
+            val analyticsSwitch: androidx.appcompat.widget.SwitchCompat = findViewById(R.id.analytics_switch)
+            val privacyPolicyButton: Button = findViewById(R.id.privacy_policy_button)
+            val analytics = PrivacyAnalytics(this)
+            
+            // Set initial switch state
+            analyticsSwitch.isChecked = analytics.isEnabled()
+            
+            // Handle switch state changes
+            analyticsSwitch.setOnCheckedChangeListener { _, isChecked ->
+                analytics.setEnabled(isChecked)
+                
+                val message = if (isChecked) {
+                    "Thanks for helping improve the app!"
+                } else {
+                    "Analytics disabled. No data will be shared."
+                }
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+            }
+            
+            // Privacy policy button
+            privacyPolicyButton.setOnClickListener {
+                showPrivacyPolicy()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SettingsDetailActivity", "Error setting up privacy settings", e)
+        }
+    }
+    
+    private fun showPrivacyPolicy() {
+        val privacyPolicyText = """BBC Radio Player Analytics Privacy Policy
+            
+When you enable analytics:
+• We collect station, podcast, and episode play events
+• We collect the date (not time) and app version
+• Data is sent over HTTPS to our server
+• Server immediately discards IP addresses
+• No user identifiers are collected or stored
+• Data is anonymous and only used for popularity trends
+            
+When you disable analytics:
+• No data is collected or sent
+• You can disable it anytime
+            
+We never sell or share your data with third parties.
+            
+Source code: github.com/shaivure/Android-Auto-Radio-Player""".trimIndent()
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Privacy Policy")
+            .setMessage(privacyPolicyText)
+            .setPositiveButton("OK", null)
+            .show()
     }
 }
