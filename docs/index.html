@@ -408,6 +408,7 @@
                         title: params.get('title') || 'Shared Episode',
                         description: params.get('desc') || 'This episode was shared with you from the BBC Radio Player app.',
                         podcastTitle: params.get('podcast') || 'BBC Radio Player',
+                        podcastId: params.get('podcastId') || '',
                         imageUrl: params.get('img') || null,
                         audioUrl: params.get('audio') || null,
                         pubDate: params.get('date') || '',
@@ -595,6 +596,7 @@
                     if (this.currentContent.title) params.set('title', this.currentContent.title);
                     if (this.currentContent.description) params.set('desc', this.currentContent.description);
                     if (this.currentContent.podcastTitle) params.set('podcast', this.currentContent.podcastTitle);
+                    if (this.currentContent.podcastId) params.set('podcastId', this.currentContent.podcastId);
                     if (this.currentContent.audioUrl) params.set('audio', this.currentContent.audioUrl);
                     if (this.currentContent.imageUrl) params.set('img', this.currentContent.imageUrl);
                     if (this.currentContent.pubDate) params.set('date', this.currentContent.pubDate);
@@ -655,6 +657,7 @@
                 if (content.imageUrl) params.set('img', content.imageUrl);
                 if (content.rssUrl) params.set('rss', content.rssUrl);
                 if (content.podcastTitle) params.set('podcast', content.podcastTitle);
+                if (content.podcastId) params.set('podcastId', content.podcastId);
                 if (content.audioUrl) params.set('audio', content.audioUrl);
                 if (content.pubDate) params.set('date', content.pubDate);
                 if (content.durationMins) params.set('duration', content.durationMins);

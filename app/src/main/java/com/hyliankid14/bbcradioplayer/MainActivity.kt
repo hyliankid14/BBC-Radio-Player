@@ -383,30 +383,90 @@ class MainActivity : AppCompatActivity() {
                         return
                     }
 
-                    val safeEpisodeId = when {
-                        episodeId.isNotEmpty() -> episodeId
-                        audioUrl.isNotEmpty() -> audioUrl
-                        else -> title
-                    }
+                    Thread {
+                        var resolvedPodcastTitle = podcastTitle
+                        var resolvedPodcastId = podcastId
+                        var resolvedPodcastImage = imageUrl
 
-                    val episode = Episode(
-                        id = safeEpisodeId,
-                        title = title,
-                        description = description,
-                        audioUrl = audioUrl,
-                        imageUrl = imageUrl,
-                        pubDate = pubDate,
-                        durationMins = durationMins,
-                        podcastId = podcastId
-                    )
+                        var resolvedTitle = title
+                        var resolvedDescription = description
+                        var resolvedAudioUrl = audioUrl
+                        var resolvedEpisodeImage = imageUrl
+                        var resolvedPubDate = pubDate
+                        var resolvedDurationMins = durationMins
 
-                    val openIntent = Intent(this, NowPlayingActivity::class.java).apply {
-                        putExtra("preview_episode", episode)
-                        putExtra("preview_use_play_ui", true)
-                        putExtra("preview_podcast_title", podcastTitle)
-                        putExtra("preview_podcast_image", imageUrl)
-                    }
-                    startActivity(openIntent)
+                        try {
+                            val repo = PodcastRepository(this)
+                            val allPodcasts = try {
+                                kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) }
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+
+                            val matchedPodcast = when {
+                                podcastId.isNotEmpty() -> allPodcasts.find { it.id == podcastId }
+                                podcastTitle.isNotEmpty() -> allPodcasts.find { it.title.equals(podcastTitle, ignoreCase = true) }
+                                else -> null
+                            }
+
+                            if (matchedPodcast != null) {
+                                resolvedPodcastTitle = matchedPodcast.title
+                                if (resolvedPodcastId.isEmpty()) resolvedPodcastId = matchedPodcast.id
+                                if (resolvedPodcastImage.isEmpty()) resolvedPodcastImage = matchedPodcast.imageUrl
+
+                                val episodes = try {
+                                    kotlinx.coroutines.runBlocking { repo.fetchEpisodesIfNeeded(matchedPodcast) }
+                                } catch (_: Exception) {
+                                    emptyList()
+                                }
+
+                                val matchedEpisode = episodes.firstOrNull { episode ->
+                                    (episodeId.isNotEmpty() && episode.id == episodeId) ||
+                                    (audioUrl.isNotEmpty() && episode.audioUrl == audioUrl) ||
+                                    (title.isNotEmpty() && episode.title.equals(title, ignoreCase = true))
+                                }
+
+                                if (matchedEpisode != null) {
+                                    resolvedTitle = matchedEpisode.title
+                                    resolvedDescription = matchedEpisode.description
+                                    resolvedAudioUrl = matchedEpisode.audioUrl
+                                    resolvedEpisodeImage = matchedEpisode.imageUrl.takeIf { it.isNotEmpty() } ?: resolvedEpisodeImage
+                                    resolvedPubDate = matchedEpisode.pubDate
+                                    resolvedDurationMins = matchedEpisode.durationMins
+                                    if (resolvedPodcastId.isEmpty()) resolvedPodcastId = matchedEpisode.podcastId
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("MainActivity", "Could not enrich episode deep link details: ${e.message}")
+                        }
+
+                        val safeEpisodeId = when {
+                            episodeId.isNotEmpty() -> episodeId
+                            resolvedAudioUrl.isNotEmpty() -> resolvedAudioUrl
+                            else -> resolvedTitle
+                        }
+
+                        val episode = Episode(
+                            id = safeEpisodeId,
+                            title = resolvedTitle,
+                            description = resolvedDescription,
+                            audioUrl = resolvedAudioUrl,
+                            imageUrl = resolvedEpisodeImage,
+                            pubDate = resolvedPubDate,
+                            durationMins = resolvedDurationMins,
+                            podcastId = resolvedPodcastId
+                        )
+
+                        runOnUiThread {
+                            val openIntent = Intent(this, NowPlayingActivity::class.java).apply {
+                                putExtra("preview_episode", episode)
+                                putExtra("preview_use_play_ui", true)
+                                putExtra("preview_podcast_title", resolvedPodcastTitle)
+                                putExtra("preview_podcast_image", resolvedPodcastImage)
+                            }
+                            startActivity(openIntent)
+                        }
+                    }.start()
                 }
             }
         } catch (e: Exception) {

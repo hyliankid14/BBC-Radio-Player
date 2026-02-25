@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
 
@@ -28,25 +29,26 @@ object ShareUtil {
      * Non-app users will be directed to the web player.
      */
     fun sharePodcast(context: Context, podcast: Podcast) {
-        val encodedTitle = Uri.encode(podcast.title)
-        val encodedDesc = Uri.encode(stripHtmlTags(podcast.description).take(200))
-        val encodedImage = Uri.encode(podcast.imageUrl)
-        val encodedRss = Uri.encode(podcast.rssUrl)
-        val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&rss=$encodedRss"
-        
         val shareTitle = podcast.title
         val handler = Handler(Looper.getMainLooper())
+        val cleanDesc = stripHtmlTags(podcast.description)
         
         // Shorten URL on background thread
         Thread {
             try {
+                val summaryDesc = summarizeTextWithAI(cleanDesc)
+
+                val encodedTitle = Uri.encode(podcast.title)
+                val encodedDesc = Uri.encode(summaryDesc)
+                val encodedImage = Uri.encode(podcast.imageUrl)
+                val encodedRss = Uri.encode(podcast.rssUrl)
+                val webUrl = "$WEB_BASE_URL/#/p/${podcast.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&rss=$encodedRss"
+
                 val shortUrl = shortenUrl(webUrl)
-                val cleanDesc = stripHtmlTags(podcast.description)
                 val shareMessage = buildString {
                     append("Check out \"${podcast.title}\"")
-                    if (cleanDesc.isNotEmpty()) {
-                        append(" - ${cleanDesc.take(100)}")
-                        if (cleanDesc.length > 100) append("...")
+                    if (summaryDesc.isNotEmpty()) {
+                        append(" - $summaryDesc")
                     }
                     append("\n\n")
                     append(shortUrl)
@@ -74,31 +76,33 @@ object ShareUtil {
      * Non-app users will be directed to the web player showing this episode.
      */
     fun shareEpisode(context: Context, episode: Episode, podcastTitle: String) {
-        val encodedTitle = Uri.encode(episode.title)
-        val encodedDesc = Uri.encode(stripHtmlTags(episode.description).take(200))
-        val encodedImage = Uri.encode(episode.imageUrl)
-        val encodedPodcast = Uri.encode(podcastTitle)
-        val encodedAudio = Uri.encode(episode.audioUrl)
-        val encodedDate = Uri.encode(episode.pubDate.toString())
-        val encodedDuration = Uri.encode(episode.durationMins.toString())
-        val webUrl = "$WEB_BASE_URL/#/e/${episode.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&podcast=$encodedPodcast&audio=$encodedAudio&date=$encodedDate&duration=$encodedDuration"
-        
         val shareTitle = episode.title
         val handler = Handler(Looper.getMainLooper())
+        val cleanDesc = stripHtmlTags(episode.description)
         
         // Shorten URL on background thread
         Thread {
             try {
+                val summaryDesc = summarizeTextWithAI(cleanDesc)
+
+                val encodedTitle = Uri.encode(episode.title)
+                val encodedDesc = Uri.encode(summaryDesc)
+                val encodedImage = Uri.encode(episode.imageUrl)
+                val encodedPodcast = Uri.encode(podcastTitle)
+                val encodedPodcastId = Uri.encode(episode.podcastId)
+                val encodedAudio = Uri.encode(episode.audioUrl)
+                val encodedDate = Uri.encode(episode.pubDate)
+                val encodedDuration = Uri.encode(episode.durationMins.toString())
+                val webUrl = "$WEB_BASE_URL/#/e/${episode.id}?title=$encodedTitle&desc=$encodedDesc&img=$encodedImage&podcast=$encodedPodcast&podcastId=$encodedPodcastId&audio=$encodedAudio&date=$encodedDate&duration=$encodedDuration"
+
                 val shortUrl = shortenUrl(webUrl)
-                val cleanDesc = stripHtmlTags(episode.description)
                 val shareMessage = buildString {
                     append("Listen to \"${episode.title}\"")
                     if (podcastTitle.isNotEmpty()) {
                         append(" from $podcastTitle")
                     }
-                    if (cleanDesc.isNotEmpty()) {
-                        append(" - ${cleanDesc.take(100)}")
-                        if (cleanDesc.length > 100) append("...")
+                    if (summaryDesc.isNotEmpty()) {
+                        append(" - $summaryDesc")
                     }
                     append("\n\n")
                     append(shortUrl)
@@ -185,6 +189,58 @@ object ShareUtil {
             .replace(Regex("&nbsp;"), " ")
             .replace(Regex("\n+"), " ")
             .trim()
+    }
+
+    private fun summarizeTextWithAI(text: String): String {
+        if (text.isBlank()) return ""
+        val plain = text.replace(Regex("\\s+"), " ").trim()
+
+        return try {
+            val payload = JSONObject().apply {
+                put("inputs", plain.take(4000))
+                put("parameters", JSONObject().apply {
+                    put("max_length", 60)
+                    put("min_length", 20)
+                    put("do_sample", false)
+                })
+            }
+
+            val connection = (URL("https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6").openConnection() as java.net.HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 6000
+                readTimeout = 10000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("User-Agent", "BBC Radio Player/1.0")
+            }
+
+            connection.outputStream.use { out ->
+                out.write(payload.toString().toByteArray(Charsets.UTF_8))
+            }
+
+            val responseText = (if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                .orEmpty()
+
+            val summary = try {
+                val arr = org.json.JSONArray(responseText)
+                arr.optJSONObject(0)?.optString("summary_text", "").orEmpty()
+            } catch (_: Exception) {
+                JSONObject(responseText).optString("summary_text", "")
+            }
+
+            if (summary.isNotBlank()) limitToWords(summary, 30) else limitToWords(plain, 30)
+        } catch (e: Exception) {
+            android.util.Log.w("ShareUtil", "AI summary unavailable, using fallback: ${e.message}")
+            limitToWords(plain, 30)
+        }
+    }
+
+    private fun limitToWords(text: String, maxWords: Int): String {
+        val words = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (words.size <= maxWords) return words.joinToString(" ")
+        return words.take(maxWords).joinToString(" ") + "..."
     }
     
     /**
