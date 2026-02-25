@@ -60,8 +60,20 @@ export default async function handler(req, res) {
 function summarizeExtractively(text) {
     const cleanText = text.substring(0, 2000).trim();
     
-    // Split into sentences
-    const sentences = cleanText.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    // Split into sentences more intelligently
+    // Only split on period/exclamation/question mark when followed by space and capital letter, or at text end
+    // This avoids splitting on email addresses (text@domain.co.uk) or decimals (3.14)
+    const sentenceRegex = /(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])$/g;
+    let sentences = cleanText.split(sentenceRegex)
+        .filter(s => s.trim().length > 10)
+        .map(s => s.trim());
+    
+    // Fallback: if regex split fails, use simple split
+    if (sentences.length === 0 || sentences.length === 1 && sentences[0] === cleanText) {
+        sentences = cleanText.split(/[.!?]+/)
+            .filter(s => s.trim().length > 10)
+            .map(s => s.trim());
+    }
     
     if (sentences.length === 0) {
         return limitToWords(cleanText, 50);
