@@ -732,9 +732,10 @@
 
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 6000);
+                    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-                    const prompt = `Summarize the following podcast description in about 30 words. Keep key details and return plain text only.\n\n${plainText}`;
+                    // Optimized: shorter prompt and text for faster response
+                    const prompt = `Summarize in 30 words: ${plainText.substring(0, 2000)}`;
                     const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}`, {
                         method: 'GET',
                         signal: controller.signal
@@ -743,8 +744,8 @@
                     clearTimeout(timeoutId);
 
                     const summary = await response.text();
-                    if (summary && typeof summary === 'string') {
-                        return this.limitToWords(summary, 30);
+                    if (summary && typeof summary === 'string' && summary.length < 500) {
+                        return this.limitToWords(summary.trim(), 30);
                     }
                 } catch (err) {
                     console.warn('Keyless AI shortening unavailable, using local fallback:', err?.message || err);
