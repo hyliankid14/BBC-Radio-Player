@@ -88,6 +88,12 @@ class RadioService : MediaBrowserServiceCompat() {
 
     // Delayed analytics tracking for stations (only count after 10s of playback)
     private var stationAnalyticsRunnable: Runnable? = null
+    private var stationAnalyticsPending: Boolean = false
+    private var stationAnalyticsScheduled: Boolean = false
+    // Delayed analytics tracking for episodes (only count after 10s of playback)
+    private var episodeAnalyticsRunnable: Runnable? = null
+    private var episodeAnalyticsPending: Boolean = false
+    private var episodeAnalyticsScheduled: Boolean = false
 
     private var notificationHadProgress: Boolean = false
     private var isStopped: Boolean = false
@@ -855,6 +861,26 @@ class RadioService : MediaBrowserServiceCompat() {
                             else -> {}
                         }
 
+                        if (state == PlaybackStateCompat.STATE_PLAYING) {
+                            if (stationAnalyticsPending && !stationAnalyticsScheduled && stationAnalyticsRunnable != null) {
+                                handler.postDelayed(stationAnalyticsRunnable!!, 10_000L)
+                                stationAnalyticsScheduled = true
+                            }
+                            if (episodeAnalyticsPending && !episodeAnalyticsScheduled && episodeAnalyticsRunnable != null) {
+                                handler.postDelayed(episodeAnalyticsRunnable!!, 10_000L)
+                                episodeAnalyticsScheduled = true
+                            }
+                        } else if (state == PlaybackStateCompat.STATE_PAUSED || state == PlaybackStateCompat.STATE_STOPPED) {
+                            if (stationAnalyticsScheduled) {
+                                stationAnalyticsRunnable?.let { handler.removeCallbacks(it) }
+                                stationAnalyticsScheduled = false
+                            }
+                            if (episodeAnalyticsScheduled) {
+                                episodeAnalyticsRunnable?.let { handler.removeCallbacks(it) }
+                                episodeAnalyticsScheduled = false
+                            }
+                        }
+
                         // If playback ended for a podcast episode, attempt to autoplay next episode in the same podcast
                         if (playbackState == Player.STATE_ENDED && currentStationId.startsWith("podcast_")) {
                             val currentEpisode = PlaybackStateHelper.getCurrentEpisodeId()
@@ -1356,16 +1382,25 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             return
         }
 
-        // Cancel any pending station analytics from previous playback
-        stationAnalyticsRunnable?.let { handler.removeCallbacks(it) }
-        
-        // Schedule station analytics to fire after 10 seconds of continuous playback
+        // Cancel any pending analytics from previous playback
+        stationAnalyticsRunnable?.let { handler.removeCallbacks(it); stationAnalyticsRunnable = null }
+        episodeAnalyticsRunnable?.let { handler.removeCallbacks(it); episodeAnalyticsRunnable = null }
+        stationAnalyticsPending = false
+        stationAnalyticsScheduled = false
+        episodeAnalyticsPending = false
+        episodeAnalyticsScheduled = false
+
+        // Prepare station analytics to fire after 10 seconds of continuous playback
         stationAnalyticsRunnable = Runnable {
             serviceScope.launch(Dispatchers.IO) {
                 PrivacyAnalytics(this@RadioService).trackStationPlay(station.id, station.title)
             }
+            stationAnalyticsPending = false
+            stationAnalyticsScheduled = false
+            stationAnalyticsRunnable = null
         }
-        handler.postDelayed(stationAnalyticsRunnable!!, 10_000L)
+        stationAnalyticsPending = true
+        stationAnalyticsScheduled = false
 
         PlaybackPreference.setLastStationId(this, station.id)
         
@@ -1916,8 +1951,13 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         // Cancel show refresh
         showInfoRefreshRunnable?.let { handler.removeCallbacks(it) }
         podcastProgressRunnable?.let { handler.removeCallbacks(it) }
-        // Cancel pending station analytics (user stopped before 10s threshold)
+        // Cancel pending analytics (user stopped before 10s threshold)
         stationAnalyticsRunnable?.let { handler.removeCallbacks(it); stationAnalyticsRunnable = null }
+        episodeAnalyticsRunnable?.let { handler.removeCallbacks(it); episodeAnalyticsRunnable = null }
+        stationAnalyticsPending = false
+        stationAnalyticsScheduled = false
+        episodeAnalyticsPending = false
+        episodeAnalyticsScheduled = false
         // Stop subtitle cycler
         subtitleCycleRunnable?.let { handler.removeCallbacks(it); subtitleCycleRunnable = null; isSubtitleCycling = false }
         // Cancel any pending delayed Now Playing update
@@ -2014,6 +2054,14 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     private fun playPodcastEpisode(episode: Episode, intent: Intent?) {
         try {
             isStopped = false
+
+            // Cancel any pending analytics from previous playback
+            stationAnalyticsRunnable?.let { handler.removeCallbacks(it); stationAnalyticsRunnable = null }
+            episodeAnalyticsRunnable?.let { handler.removeCallbacks(it); episodeAnalyticsRunnable = null }
+            stationAnalyticsPending = false
+            stationAnalyticsScheduled = false
+            episodeAnalyticsPending = false
+            episodeAnalyticsScheduled = false
 
             // Create a synthetic station to drive the existing mini/full player UI
             val podcastTitle = intent?.getStringExtra(EXTRA_PODCAST_TITLE) ?: "Podcast"
@@ -2144,12 +2192,24 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 } else {
                     // Ensure we seek to start explicitly when resumePos == 0 so playback origin is deterministic
                     seekTo(0L)
-                    
-                    // Track episode play analytics only when starting from beginning (first play or replay)
-                    serviceScope.launch(Dispatchers.IO) {
-                        val analytics = PrivacyAnalytics(this@RadioService)
-                        analytics.trackEpisodePlay(episode.podcastId, episode.id, episode.title, podcastTitle)
+
+                    // Cancel any pending episode analytics before scheduling a new one
+                    episodeAnalyticsRunnable?.let { handler.removeCallbacks(it); episodeAnalyticsRunnable = null }
+                    episodeAnalyticsPending = false
+                    episodeAnalyticsScheduled = false
+
+                    // Track episode play analytics only after 10s of playback from the start
+                    episodeAnalyticsRunnable = Runnable {
+                        serviceScope.launch(Dispatchers.IO) {
+                            val analytics = PrivacyAnalytics(this@RadioService)
+                            analytics.trackEpisodePlay(episode.podcastId, episode.id, episode.title, podcastTitle)
+                        }
+                        episodeAnalyticsPending = false
+                        episodeAnalyticsScheduled = false
+                        episodeAnalyticsRunnable = null
                     }
+                    episodeAnalyticsPending = true
+                    episodeAnalyticsScheduled = false
                 }
             }
             // Ensure MediaSession metadata contains the podcast artwork URI immediately so UI/mini-player
@@ -2584,8 +2644,13 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     }
 
     override fun onDestroy() {
-        // Cancel any pending station analytics
+        // Cancel any pending analytics
         stationAnalyticsRunnable?.let { handler.removeCallbacks(it); stationAnalyticsRunnable = null }
+        episodeAnalyticsRunnable?.let { handler.removeCallbacks(it); episodeAnalyticsRunnable = null }
+        stationAnalyticsPending = false
+        stationAnalyticsScheduled = false
+        episodeAnalyticsPending = false
+        episodeAnalyticsScheduled = false
         
         player?.release()
         mediaSession.release()

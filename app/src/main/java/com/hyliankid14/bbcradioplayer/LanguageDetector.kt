@@ -17,7 +17,7 @@ object LanguageDetector {
     // In-memory cache for fast checks; persisted cache lives in SharedPreferences to survive restarts.
     private val memoryCache: MutableMap<String, Pair<Boolean, Long>> = mutableMapOf()
     private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
-    private const val PREFS_NAME = "language_detector_cache"
+    private const val PREFS_NAME = "language_detector_cache_v2"
 
     fun isLikelyEnglish(text: String?): Boolean {
         if (text.isNullOrBlank()) return false
@@ -81,7 +81,7 @@ object LanguageDetector {
                 val votes = nonEmptySamples.map { isLikelyEnglish(it) }
                 val yes = votes.count { it }
                 val ratio = yes.toDouble() / votes.size.toDouble()
-                val result = ratio >= 0.6
+                val result = ratio >= 0.5
                 Log.d("LanguageDetector", "Heuristic sample vote for key=$key -> yes=$yes total=${votes.size} ratio=$ratio english=$result")
                 putCachedResult(context, key, result)
                 return result
@@ -91,7 +91,7 @@ object LanguageDetector {
         }
 
         // Final fallback to the original title+description heuristic
-        val final = isLikelyEnglish(heading)
+        val final = if (heading.length < 20) true else isLikelyEnglish(heading)
         putCachedResult(context, key, final)
         return final
     }
