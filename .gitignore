@@ -33,3 +33,4 @@ ANALYTICS_SETUP_GUIDE.md
 __pycache__/
 *.pyc
 /api/analytics.db
+api/analytics.db
