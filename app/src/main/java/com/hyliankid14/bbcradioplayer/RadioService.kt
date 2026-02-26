@@ -1702,6 +1702,11 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     }
     
     private fun updateMediaMetadata(artworkBitmap: android.graphics.Bitmap? = null, artworkUri: String? = null) {
+        // Return early if playback is stopped to prevent queued notification updates
+        if (isStopped || currentStationId.isBlank()) {
+            return
+        }
+
         // Keep artwork sticky across metadata refreshes. Some OEM media UIs only show art
         // if a bitmap is present in the MediaSession metadata.
         // Prefer the latest now-playing artwork URL (RMS) when available.
