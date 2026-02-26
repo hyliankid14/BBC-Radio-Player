@@ -592,7 +592,8 @@ def index():
         """
         return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
     except Exception as e:
-        return f"Error: {e}", 500
+        print(f"Error rendering dashboard: {e}", file=sys.stderr)
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 if __name__ == '__main__':
