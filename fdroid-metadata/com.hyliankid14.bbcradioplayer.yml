@@ -1,0 +1,33 @@
+Categories:
+  - Multimedia
+License: GPL-3.0-or-later
+WebSite: https://github.com/hyliankid14/BBC-Radio-Player
+SourceCode: https://github.com/hyliankid14/BBC-Radio-Player
+IssueTracker: https://github.com/hyliankid14/BBC-Radio-Player/issues
+
+AutoName: BBC Radio Player
+Summary: Unofficial BBC Radio and podcast player
+Description: |
+  Unofficial Android client for BBC Radio and BBC podcasts.
+
+  Features include live radio playback, podcast browsing and subscription,
+  background index refresh, Android Auto compatible media browsing,
+  episode progress tracking, and offline playback for downloaded episodes.
+
+RepoType: git
+Repo: https://github.com/hyliankid14/BBC-Radio-Player.git
+
+Builds:
+  - versionName: 0.12.0
+    versionCode: 18
+    commit: master
+    subdir: .
+    gradle:
+      - yes
+    prebuild: |
+      sed -i '/com.google.mlkit:language-id/d' app/build.gradle || true
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.12.0
+CurrentVersionCode: 18

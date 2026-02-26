@@ -37,3 +37,5 @@ __pycache__/
 api/analytics.db
 api/analytics.db.backup
 release.jks
+*.jks
+*.keystore

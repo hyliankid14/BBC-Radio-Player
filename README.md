@@ -74,7 +74,20 @@ timers, widgets, CarPlay ports, or support for other radio networks.
 
 ## License
 
+This project is licensed under the GNU General Public License v3.0.
+See [LICENSE](LICENSE).
+
 Unofficial third‑party app. BBC and station trademarks are owned by the British
 Broadcasting Corporation. Streams use public BBC APIs. No affiliation or
 endorsement intended.
+
+## F-Droid build notes
+
+- No Google Mobile Services (GMS) metadata is required in the manifest.
+- The app builds without proprietary ML Kit dependencies.
+- Standard F-Droid build command:
+
+```bash
+./gradlew assembleRelease
+```
 

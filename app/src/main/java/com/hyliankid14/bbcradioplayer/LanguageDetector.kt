@@ -3,15 +3,10 @@ package com.hyliankid14.bbcradioplayer
 import android.content.Context
 import android.util.Log
 import android.util.Xml
-import com.google.mlkit.nl.languageid.LanguageIdentification
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
 import java.net.URL
-import kotlin.coroutines.resume
 
 object LanguageDetector {
     // A small set of common English stopwords used to help detect English language text.
@@ -69,23 +64,7 @@ object LanguageDetector {
         // Quick heuristic using title+description first (cheap)
         val heading = listOfNotNull(podcast.title, podcast.description).joinToString(" ")
 
-        // Try ML Kit on the heading text if present
-        if (heading.isNotBlank()) {
-            try {
-                val ml = detectLanguageWithMlKit(heading)
-                if (ml != null) {
-                    val lang = ml.trim().lowercase()
-                    val result = lang.startsWith("en")
-                    Log.d("LanguageDetector", "ML Kit detected '$lang' for podcast key=$key -> english=$result")
-                    putCachedResult(context, key, result)
-                    return result
-                }
-            } catch (e: Exception) {
-                Log.w("LanguageDetector", "ML Kit detection failed for heading: ${e.message}")
-            }
-        }
-
-        // Short/ambiguous heading: sample RSS channel language and a few item texts
+        // Prefer RSS channel language when available, then sample item text heuristics.
         try {
             val (rssLang, samples) = fetchRssLanguageAndSamples(podcast.rssUrl)
             if (rssLang != null) {
@@ -98,27 +77,12 @@ object LanguageDetector {
 
             val nonEmptySamples = samples.filter { it.isNotBlank() }
             if (nonEmptySamples.isNotEmpty()) {
-                // Try ML Kit on a few samples in parallel
-                val sampleResults = coroutineScope {
-                    nonEmptySamples.take(6).map { s -> async { detectLanguageWithMlKit(s) } }
-                        .map { it.await() }
-                }
-
-                val detected = sampleResults.filterNotNull()
-                if (detected.isNotEmpty()) {
-                    val yes = detected.count { it.lowercase().startsWith("en") }
-                    val ratio = yes.toDouble() / detected.size.toDouble()
-                    val result = ratio >= 0.6
-                    putCachedResult(context, key, result)
-                    return result
-                }
-
-                // Fall back to the token/stopword heuristic if ML Kit was inconclusive
+                // Heuristic vote across sampled RSS entries
                 val votes = nonEmptySamples.map { isLikelyEnglish(it) }
                 val yes = votes.count { it }
                 val ratio = yes.toDouble() / votes.size.toDouble()
                 val result = ratio >= 0.6
-                Log.d("LanguageDetector", "ML Kit sample vote for key=$key -> yes=$yes total=${detected.size} ratio=$ratio english=$result")
+                Log.d("LanguageDetector", "Heuristic sample vote for key=$key -> yes=$yes total=${votes.size} ratio=$ratio english=$result")
                 putCachedResult(context, key, result)
                 return result
             }
@@ -130,21 +94,6 @@ object LanguageDetector {
         val final = isLikelyEnglish(heading)
         putCachedResult(context, key, final)
         return final
-    }
-
-    private suspend fun detectLanguageWithMlKit(text: String): String? {
-        if (text.isBlank()) return null
-        return try {
-            val id = LanguageIdentification.getClient()
-            suspendCancellableCoroutine<String?> { cont ->
-                id.identifyLanguage(text)
-                    .addOnSuccessListener { lang -> if (cont.isActive) cont.resume(if (lang == "und") null else lang) }
-                    .addOnFailureListener { _ -> if (cont.isActive) cont.resume(null) }
-            }
-        } catch (e: Exception) {
-            Log.w("LanguageDetector", "ML Kit identify failed: ${e.message}")
-            null
-        }
     }
 
     private suspend fun fetchRssLanguageAndSamples(rssUrl: String): Pair<String?, List<String>> = withContext(Dispatchers.IO) {

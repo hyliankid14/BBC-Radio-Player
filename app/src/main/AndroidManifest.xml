@@ -19,14 +19,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:usesCleartextTraffic="false">
 
-        <meta-data
-            android:name="com.google.android.gms.car.application"
-            android:resource="@xml/automotive_app_desc" />
-
-        <meta-data
-            android:name="com.google.android.backup.api_key"
-            android:value="AEdPqrMQQqCf4X2O9hXN0jEbO/Bc04b2Yb1e6n8Qlbb+2lNMO6lR4xQDWZQ6bnEV" />
-
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

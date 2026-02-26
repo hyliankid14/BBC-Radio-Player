@@ -25,8 +25,6 @@
         <include domain="database" path="podcast_index.db-shm" />
         <include domain="database" path="podcast_index.db-wal" />
         
-        <!-- Backup downloaded episode files -->
-        <include domain="external" path="." />
     </cloud-backup>
     
     <device-transfer>
@@ -53,6 +51,5 @@
         <include domain="database" path="podcast_index.db-shm" />
         <include domain="database" path="podcast_index.db-wal" />
         
-        <include domain="external" path="." />
     </device-transfer>
 </data-extraction-rules>

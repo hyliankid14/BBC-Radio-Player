@@ -24,6 +24,4 @@
     <include domain="database" path="podcast_index.db-shm" />
     <include domain="database" path="podcast_index.db-wal" />
     
-    <!-- Backup downloaded episode files -->
-    <include domain="external" path="." />
 </full-backup-content>
