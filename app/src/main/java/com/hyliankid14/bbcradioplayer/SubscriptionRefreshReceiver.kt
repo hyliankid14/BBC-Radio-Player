@@ -9,8 +9,12 @@ import kotlinx.coroutines.launch
 
 class SubscriptionRefreshReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        val pendingResult = goAsync()
         val minutes = SubscriptionRefreshPreference.getIntervalMinutes(context)
-        if (minutes <= 0) return
+        if (minutes <= 0) {
+            pendingResult.finish()
+            return
+        }
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -70,6 +74,8 @@ class SubscriptionRefreshReceiver : BroadcastReceiver() {
                 SavedSearchManager.checkForUpdates(context)
             } catch (_: Exception) {
                 // swallow - this is a best-effort background job
+            } finally {
+                pendingResult.finish()
             }
         }
     }

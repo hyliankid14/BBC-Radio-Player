@@ -73,6 +73,14 @@ class NowPlayingActivity : AppCompatActivity() {
     private val showChangeListener: (CurrentShow) -> Unit = { show ->
         runOnUiThread { updateFromShow(show) }
     }
+    private val podcastCacheLock = Any()
+    private var cachedPodcasts: List<Podcast>? = null
+    private var cachedPodcastsAtMs: Long = 0L
+    private var lastMatchStationId: String? = null
+    private var lastMatchShowTitle: String? = null
+    private var lastMatchAttemptMs: Long = 0L
+    private val MATCH_MIN_INTERVAL_MS = 5_000L
+    private val PODCAST_CACHE_TTL_MS = 5 * 60_000L
 
     // BroadcastReceiver to refresh menu when download completes
     private val downloadCompleteReceiver = object : android.content.BroadcastReceiver() {
@@ -97,7 +105,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 if (station == null || station.id.startsWith("podcast_") || show.title.isBlank()) return@launch
 
                 val repo = PodcastRepository(this@NowPlayingActivity)
-                val podcasts = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+                val podcasts = getCachedPodcasts(repo)
                 val queries = listOfNotNull(
                     show.title.takeIf { it.isNotEmpty() },
                     show.episodeTitle?.takeIf { it.isNotEmpty() },
@@ -127,6 +135,23 @@ class NowPlayingActivity : AppCompatActivity() {
                 android.util.Log.w("NowPlayingActivity", "Failed to find matching podcast: ${e.message}")
             }
         }
+    }
+
+    private suspend fun getCachedPodcasts(repo: PodcastRepository): List<Podcast> {
+        val now = System.currentTimeMillis()
+        synchronized(podcastCacheLock) {
+            val cached = cachedPodcasts
+            if (cached != null && (now - cachedPodcastsAtMs) <= PODCAST_CACHE_TTL_MS) {
+                return cached
+            }
+        }
+
+        val fetched = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
+        synchronized(podcastCacheLock) {
+            cachedPodcasts = fetched
+            cachedPodcastsAtMs = now
+        }
+        return fetched
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -476,8 +501,19 @@ class NowPlayingActivity : AppCompatActivity() {
         if (station != null) {
             // Only attempt to find matches for radio stations (not podcasts) and when there's a show title
             if (!isPodcast && show.title.isNotBlank()) {
-                openPodcastGeneration += 1
-                findMatchingPodcastAsync(station, show, openPodcastGeneration)
+                val now = System.currentTimeMillis()
+                val stationId = station.id
+                val showTitle = show.title
+                val shouldMatch = stationId != lastMatchStationId ||
+                    !showTitle.equals(lastMatchShowTitle, ignoreCase = true) ||
+                    (now - lastMatchAttemptMs) > MATCH_MIN_INTERVAL_MS
+                if (shouldMatch) {
+                    lastMatchStationId = stationId
+                    lastMatchShowTitle = showTitle
+                    lastMatchAttemptMs = now
+                    openPodcastGeneration += 1
+                    findMatchingPodcastAsync(station, show, openPodcastGeneration)
+                }
             }
             if (isPodcast) {
                 // Podcasts: action bar already shows podcast name; hide duplicate header

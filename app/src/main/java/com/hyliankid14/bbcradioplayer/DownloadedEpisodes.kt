@@ -12,6 +12,13 @@ import java.io.File
 object DownloadedEpisodes {
     private const val PREFS_NAME = "downloaded_episodes_prefs"
     private const val KEY_DOWNLOADED_SET = "downloaded_set"
+    private const val CACHE_MAX_AGE_MS = 60_000L
+
+    private val cacheLock = Any()
+    @Volatile private var cachedEntries: List<Entry>? = null
+    @Volatile private var cachedSetHash: Int? = null
+    @Volatile private var cachedSetSize: Int = -1
+    @Volatile private var cachedAtMs: Long = 0L
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -61,30 +68,45 @@ object DownloadedEpisodes {
 
     fun getDownloadedEntries(context: Context): List<Entry> {
         val set = prefs(context).getStringSet(KEY_DOWNLOADED_SET, emptySet()) ?: emptySet()
-        val list = mutableListOf<Entry>()
-        for (s in set) {
-            try {
-                val j = JSONObject(s)
-                val e = Entry(
-                    id = j.getString("id"),
-                    title = j.optString("title", ""),
-                    description = j.optString("description", ""),
-                    imageUrl = j.optString("imageUrl", ""),
-                    audioUrl = j.optString("audioUrl", ""),
-                    localFilePath = j.optString("localFilePath", ""),
-                    pubDate = j.optString("pubDate", ""),
-                    durationMins = j.optInt("durationMins", 0),
-                    podcastId = j.optString("podcastId", ""),
-                    podcastTitle = j.optString("podcastTitle", ""),
-                    downloadedAtMs = j.optLong("downloadedAtMs", 0L),
-                    fileSizeBytes = j.optLong("fileSizeBytes", 0L),
-                    isAutoDownloaded = j.optBoolean("isAutoDownloaded", false)
-                )
-                list.add(e)
-            } catch (_: Exception) {}
+        val now = System.currentTimeMillis()
+        val setHash = computeSetHash(set)
+
+        synchronized(cacheLock) {
+            val cached = cachedEntries
+            if (cached != null && cachedSetHash == setHash && cachedSetSize == set.size && (now - cachedAtMs) <= CACHE_MAX_AGE_MS) {
+                return cached
+            }
+
+            val list = mutableListOf<Entry>()
+            for (s in set) {
+                try {
+                    val j = JSONObject(s)
+                    val e = Entry(
+                        id = j.getString("id"),
+                        title = j.optString("title", ""),
+                        description = j.optString("description", ""),
+                        imageUrl = j.optString("imageUrl", ""),
+                        audioUrl = j.optString("audioUrl", ""),
+                        localFilePath = j.optString("localFilePath", ""),
+                        pubDate = j.optString("pubDate", ""),
+                        durationMins = j.optInt("durationMins", 0),
+                        podcastId = j.optString("podcastId", ""),
+                        podcastTitle = j.optString("podcastTitle", ""),
+                        downloadedAtMs = j.optLong("downloadedAtMs", 0L),
+                        fileSizeBytes = j.optLong("fileSizeBytes", 0L),
+                        isAutoDownloaded = j.optBoolean("isAutoDownloaded", false)
+                    )
+                    list.add(e)
+                } catch (_: Exception) {}
+            }
+
+            val sorted = list.sortedByDescending { it.downloadedAtMs }
+            cachedEntries = sorted
+            cachedSetHash = setHash
+            cachedSetSize = set.size
+            cachedAtMs = now
+            return sorted
         }
-        // Return in reverse chronological order
-        return list.sortedByDescending { it.downloadedAtMs }
     }
 
     fun isDownloaded(context: Context, episodeId: String): Boolean {
@@ -167,6 +189,7 @@ object DownloadedEpisodes {
         
         current.add(j.toString())
         prefs(context).edit().putStringSet(KEY_DOWNLOADED_SET, current).apply()
+        invalidateCache()
     }
 
     fun removeDownloaded(context: Context, episodeId: String): Entry? {
@@ -199,12 +222,14 @@ object DownloadedEpisodes {
             
             current.remove(existing)
             prefs(context).edit().putStringSet(KEY_DOWNLOADED_SET, current).apply()
+            invalidateCache()
         }
         return entry
     }
 
     fun removeAll(context: Context) {
         prefs(context).edit().putStringSet(KEY_DOWNLOADED_SET, emptySet()).apply()
+        invalidateCache()
     }
 
     fun getDownloadedEpisodesForPodcast(context: Context, podcastId: String): List<Entry> {
@@ -213,5 +238,22 @@ object DownloadedEpisodes {
 
     fun getTotalDownloadedSize(context: Context): Long {
         return getDownloadedEntries(context).sumOf { it.fileSizeBytes }
+    }
+
+    private fun invalidateCache() {
+        synchronized(cacheLock) {
+            cachedEntries = null
+            cachedSetHash = null
+            cachedSetSize = -1
+            cachedAtMs = 0L
+        }
+    }
+
+    private fun computeSetHash(set: Set<String>): Int {
+        var hash = 1
+        for (s in set) {
+            hash = 31 * hash + s.hashCode()
+        }
+        return hash
     }
 }
