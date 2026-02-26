@@ -24,14 +24,15 @@ object LanguageDetector {
         "это", "как", "для", "что", "или", "это", // ru
         "的", "了", "在", "是", "我", "你", // zh
         "の", "に", "は", "を", "です", // ja
-        "이", "가", "은", "는", "을", "를" // ko
+        "이", "가", "은", "는", "을", "를", // ko
+        "yr", "yn", "ac", "mae", "newyddion", "cymru", "peldroed" // cy
     )
     private val knownEnglishLanguageCodes = setOf("en", "en-gb", "en-us", "en-au", "en-ca", "eng")
 
     // In-memory cache for fast checks; persisted cache lives in SharedPreferences to survive restarts.
     private val memoryCache: MutableMap<String, Pair<Boolean, Long>> = mutableMapOf()
     private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
-    private const val PREFS_NAME = "language_detector_cache_v3"
+    private const val PREFS_NAME = "language_detector_cache_v4"
 
     fun isLikelyEnglish(text: String?): Boolean {
         if (text.isNullOrBlank()) return false
@@ -72,8 +73,7 @@ object LanguageDetector {
         return (latinRatio >= 0.75 && stopwordRatio >= 0.08) || (latinRatio >= 0.92 && stopwordRatio >= 0.05) || stopwordRatio >= 0.14
     }
 
-    // Use ML Kit when available (on-device) for stronger detection. This is suspend and intended to be called
-    // from a coroutine context so we can make network/ML calls without blocking.
+    // Fully FOSS language detection using RSS language, script checks and text heuristics.
     suspend fun isPodcastEnglish(context: Context, podcast: Podcast): Boolean {
         // Fast check: if cached recently, honour the cached result
         val key = podcast.rssUrl.ifEmpty { podcast.htmlUrl }
@@ -83,24 +83,42 @@ object LanguageDetector {
         // Quick heuristic using title+description first (cheap)
         val heading = listOfNotNull(podcast.title, podcast.description).joinToString(" ")
 
-        // Prefer RSS channel language when available, then sample item text heuristics.
+        // RSS language is only a hint; validate with sample/script evidence.
         try {
             val (rssLang, samples) = fetchRssLanguageAndSamples(podcast.rssUrl)
+            val signalText = buildString {
+                append(heading)
+                if (samples.isNotEmpty()) {
+                    append(' ')
+                    append(samples.joinToString(" "))
+                }
+            }
+
+            if (hasStrongNonLatinSignal(signalText)) {
+                putCachedResult(context, key, false)
+                return false
+            }
+
             if (rssLang != null) {
                 val lang = rssLang.trim().lowercase()
-                val result = knownEnglishLanguageCodes.contains(lang) || lang.startsWith("en-")
-                Log.d("LanguageDetector", "RSS <language>='$lang' for podcast key=$key -> english=$result")
-                putCachedResult(context, key, result)
-                return result
+                val isEnglishTag = knownEnglishLanguageCodes.contains(lang) || lang.startsWith("en-")
+                if (!isEnglishTag) {
+                    Log.d("LanguageDetector", "RSS <language>='$lang' for podcast key=$key -> english=false")
+                    putCachedResult(context, key, false)
+                    return false
+                }
             }
 
             val nonEmptySamples = samples.filter { it.isNotBlank() }
             if (nonEmptySamples.isNotEmpty()) {
                 // Heuristic vote across sampled RSS entries
-                val votes = nonEmptySamples.map { isLikelyEnglish(it) }
+                val votes = nonEmptySamples.map { sample ->
+                    !hasStrongNonLatinSignal(sample) && isLikelyEnglish(sample)
+                }
                 val yes = votes.count { it }
                 val ratio = yes.toDouble() / votes.size.toDouble()
-                val result = yes >= 2 && ratio >= 0.67
+                val requiredYes = if (votes.size <= 2) votes.size else kotlin.math.ceil(votes.size * 0.67).toInt()
+                val result = yes >= requiredYes
                 Log.d("LanguageDetector", "Heuristic sample vote for key=$key -> yes=$yes total=${votes.size} ratio=$ratio english=$result")
                 putCachedResult(context, key, result)
                 return result
@@ -109,10 +127,19 @@ object LanguageDetector {
             Log.w("LanguageDetector", "RSS language/sample detection failed for ${podcast.rssUrl}: ${e.message}")
         }
 
-        // Final fallback to the original title+description heuristic
-        val final = isLikelyEnglish(heading)
+        // Final fallback: conservative to avoid letting non-English feeds through when exclude is enabled.
+        val final = heading.length >= 20 && !hasStrongNonLatinSignal(heading) && isLikelyEnglish(heading)
         putCachedResult(context, key, final)
         return final
+    }
+
+    private fun hasStrongNonLatinSignal(text: String): Boolean {
+        if (text.isBlank()) return false
+        val letters = text.filter { it.isLetter() }
+        if (letters.length < 8) return false
+        val nonLatin = letters.count { Character.UnicodeScript.of(it.code) != Character.UnicodeScript.LATIN }
+        val ratio = nonLatin.toDouble() / letters.length.toDouble()
+        return ratio >= 0.25
     }
 
     private suspend fun fetchRssLanguageAndSamples(rssUrl: String): Pair<String?, List<String>> = withContext(Dispatchers.IO) {
@@ -143,7 +170,7 @@ object LanguageDetector {
                 var foundLang: String? = null
                 var itemsSeen = 0
 
-                while (eventType != XmlPullParser.END_DOCUMENT && (foundLang == null && itemsSeen < 6)) {
+                while (eventType != XmlPullParser.END_DOCUMENT && itemsSeen < 6) {
                     when (eventType) {
                         XmlPullParser.START_TAG -> {
                             when (parser.name.lowercase()) {
@@ -157,6 +184,7 @@ object LanguageDetector {
                                 "title" -> if (inItem && parser.next() == XmlPullParser.TEXT) title = parser.text
                                 "description" -> if (inItem && parser.next() == XmlPullParser.TEXT) description = parser.text
                                 "encoded" -> if (inItem && parser.next() == XmlPullParser.TEXT) description = parser.text
+                                "content:encoded" -> if (inItem && parser.next() == XmlPullParser.TEXT) description = parser.text
                             }
                         }
                         XmlPullParser.END_TAG -> {
