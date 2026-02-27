@@ -53,7 +53,8 @@ Open the project in Android Studio (2023.2+), or use the CI deploy script
 - Kotlin 1.9 or later
 - ExoPlayer 2.18+, Material 3 Components, WorkManager for background tasks
 
-## Changelog- **v1.0.1** (Feb 2026): major release with stability improvements and bug fixes
+## Changelog
+- **v1.0.1** (Feb 2026): major release with stability improvements and bug fixes
 - **v0.12.0**: added next-show info, intelligent color theming, refactored date handling and indexing, improved playback options, UI tweaks
 
 - **v0.11.0**: saved searches, full podcast descriptions, playback
