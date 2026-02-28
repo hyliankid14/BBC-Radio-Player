@@ -18,14 +18,14 @@ RepoType: git
 Repo: https://github.com/hyliankid14/BBC-Radio-Player.git
 
 Builds:
-  - versionName: 1.0.7
-    versionCode: 26
-    commit: v1.0.7
-    subdir: .
+  - versionName: 1.0.8
+    versionCode: 27
+    commit: v1.0.8
+    subdir: app
     gradle:
-      - yes
+      - fdroid
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.7
-CurrentVersionCode: 26
+CurrentVersion: 1.0.8
+CurrentVersionCode: 27
