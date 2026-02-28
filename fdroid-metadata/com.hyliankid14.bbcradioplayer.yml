@@ -54,8 +54,8 @@ Builds:
     prebuild: |
       sed -i '/com.google.mlkit:language-id/d' app/build.gradle || trueAutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.6
-CurrentVersionCode: 25
+CurrentVersion: 1.0.7
+CurrentVersionCode: 26
   - versionName: 1.0.5
     versionCode: 24
     commit: v1.0.5
@@ -67,6 +67,14 @@ CurrentVersionCode: 25
   - versionName: 1.0.6
     versionCode: 25
     commit: v1.0.6
+    subdir: .
+    gradle:
+      - yes
+    prebuild: |
+      sed -i '/com.google.mlkit:language-id/d' app/build.gradle || true
+  - versionName: 1.0.7
+    versionCode: 26
+    commit: v1.0.7
     subdir: .
     gradle:
       - yes
