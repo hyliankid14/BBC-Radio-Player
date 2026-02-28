@@ -557,7 +557,10 @@ class MainActivity : AppCompatActivity() {
             val empty = findViewById<TextView>(R.id.favorite_stations_empty)
             val hasItems = FavoritesPreference.getFavorites(this).isNotEmpty()
             val stationsTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_stations))
-            stationsList.visibility = if (stationsTabActive && hasItems) View.VISIBLE else View.GONE
+            // Only control stationsList visibility when in favorites mode to avoid hiding All Stations view
+            if (currentMode == "favorites") {
+                stationsList.visibility = if (stationsTabActive && hasItems) View.VISIBLE else View.GONE
+            }
             empty.visibility = if (stationsTabActive && !hasItems) View.VISIBLE else View.GONE
         } catch (_: Exception) { }
     }
@@ -950,6 +953,8 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer?.visibility = View.VISIBLE
         settingsContainer.visibility = View.GONE
+        // Hide favorites empty state message (only relevant in Favourites view)
+        try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
         // Ensure action bar reflects the section and clear any podcast-specific up affordance
         supportActionBar?.apply {
             show()
