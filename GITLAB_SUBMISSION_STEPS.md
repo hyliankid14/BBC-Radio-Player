@@ -90,7 +90,7 @@ Before starting, you should have:
 2. In the **Commit message (optional)** field below it, copy and paste:
    ```
    Adds BBC Radio Player - A feature-rich Android app for streaming
-   80+ BBC Radio stations with Android Auto integration and podcast
+   80+ BBC Radio stations with podcast
    support.
    
    - GPL-3.0 licensed
@@ -149,7 +149,7 @@ Before starting, you should have:
    **App Details:**
    - Package: com.hyliankid14.bbcradioplayer
    - License: GPL-3.0-or-later
-   - Source: https://github.com/hyliankid/Android-Auto-Radio-Player
+   - Source: https://github.com/hyliankid14/BBC-Radio-Player
    - Current version: 1.0.7 (versionCode 26)
 
    **F-Droid Compliance:**
@@ -162,10 +162,10 @@ Before starting, you should have:
 
    **Features:**
    - 80+ BBC Radio stations (National, Regional, Local)
-   - Android Auto integration via standard MediaBrowserService
+   - Standard MediaBrowserService support
    - Podcast support with downloads and subscriptions
    - Material Design 3 interface with light/dark modes
-   - Favorites management with drag-and-drop reordering
+   - Favourites management with drag-and-drop reordering
 
    **Notes:**
    - Requires internet for streaming BBC Radio content
@@ -184,33 +184,33 @@ Before starting, you should have:
 
 ## METADATA CONTENT
 
-**Copy everything below and paste into the file editor in STEP 5**
+⚠️ **IMPORTANT:** Copy ONLY the content below (WITHOUT the triple backticks or "Categories:" label). Start your copy from the "C" in "Categories".
 
-```yaml
+**Copy everything from here to the end (line by line):**
+
 Categories:
   - Multimedia
 License: GPL-3.0-or-later
 AuthorName: shaivure
-AuthorWebSite: https://github.com/shaivure
-SourceCode: https://github.com/shaivure/Android-Auto-Radio-Player
-IssueTracker: https://github.com/shaivure/Android-Auto-Radio-Player/issues
-Changelog: https://github.com/shaivure/Android-Auto-Radio-Player/releases
+AuthorWebSite: https://github.com/hyliankid14
+SourceCode: https://github.com/hyliankid14/BBC-Radio-Player
+IssueTracker: https://github.com/hyliankid14/BBC-Radio-Player/issues
+Changelog: https://github.com/hyliankid14/BBC-Radio-Player/releases
 
 AutoName: BBC Radio Player
-Summary: Stream 80+ BBC Radio stations with Android Auto support
+Summary: Stream 80+ BBC Radio stations with podcast support
 
 Description: |-
-  A feature-rich Android app for streaming BBC Radio stations with seamless
-  Android Auto integration, comprehensive podcast support with downloads and
-  subscriptions, intelligent playback features, and a modern Material Design 3
-  interface.
+  A feature-rich Android app for streaming BBC Radio stations with
+  comprehensive podcast support with downloads and subscriptions,
+  intelligent playback features, and a modern Material Design 3 interface.
 
   Features:
-  • Full Android Auto MediaBrowserService integration
+  • Standard MediaBrowserService integration
   • 80+ BBC Radio stations across the UK (National, Regional, Local)
   • Podcast support with subscriptions and downloads
   • Episode download management with WiFi-only option
-  • Favorites management with drag-and-drop reordering
+  • Favourites management with drag-and-drop reordering
   • Live metadata and show information
   • Material Design 3 with light and dark themes
   • No tracking, no ads, completely free and open source
@@ -225,7 +225,7 @@ Description: |-
   Note: Requires internet connection to stream BBC Radio content.
 
 RepoType: git
-Repo: https://github.com/shaivure/Android-Auto-Radio-Player.git
+Repo: https://github.com/hyliankid14/BBC-Radio-Player.git
 
 Builds:
   - versionName: 1.0.7
@@ -239,13 +239,99 @@ AutoUpdateMode: Version
 UpdateCheckMode: Tags
 CurrentVersion: 1.0.7
 CurrentVersionCode: 26
-```
+
+---
+
+## 🔧 How to Fix the Failed Build
+
+Your GitLab CI jobs failed because your metadata file includes markdown formatting characters.
+
+### The Problem
+
+You accidentally included these at the start and end of the file:
+- ` ```yaml` (triple backticks with "yaml") at the start
+- ` ``` ` (triple backticks) at the end
+
+These are markdown syntax used for display in this guide, **NOT part of the YAML file content**.
+
+### The Solution
+
+Go to GitLab and **edit the file** `metadata/com.hyliankid14.bbcradioplayer.yml`:
+
+1. Click on the file in GitLab
+2. Click the **Edit** button (pencil icon)
+3. **Delete the first line** if it says ` ```yaml `
+4. **Delete the last line** if it's just ` ``` `
+5. The file should start directly with `Categories:` and end with `CurrentVersionCode: 26`
+6. Click **Commit changes**
+
+---
+
+## 📋 Correct Copy-Paste Template
+
+Use this format instead. **Start copying from the "C" in "Categories":**
+
+START COPYING HERE (line 1):
+
+Categories:
+  - Multimedia
+License: GPL-3.0-or-later
+AuthorName: shaivure
+AuthorWebSite: https://github.com/hyliankid14
+SourceCode: https://github.com/hyliankid14/BBC-Radio-Player
+IssueTracker: https://github.com/hyliankid14/BBC-Radio-Player/issues
+Changelog: https://github.com/hyliankid14/BBC-Radio-Player/releases
+
+AutoName: BBC Radio Player
+Summary: Stream 80+ BBC Radio stations with podcast support
+
+Description: |-
+  A feature-rich Android app for streaming BBC Radio stations with
+  comprehensive podcast support with downloads and subscriptions,
+  intelligent playback features, and a modern Material Design 3 interface.
+
+  Features:
+  • Standard MediaBrowserService integration
+  • 80+ BBC Radio stations across the UK (National, Regional, Local)
+  • Podcast support with subscriptions and downloads
+  • Episode download management with WiFi-only option
+  • Favourites management with drag-and-drop reordering
+  • Live metadata and show information
+  • Material Design 3 with light and dark themes
+  • No tracking, no ads, completely free and open source
+
+  Privacy:
+  • No user tracking
+  • No analytics by default
+  • No Google Play Services in F-Droid build
+  • No advertisements
+  • Complete source code transparency
+
+  Note: Requires internet connection to stream BBC Radio content.
+
+RepoType: git
+Repo: https://github.com/hyliankid14/BBC-Radio-Player.git
+
+Builds:
+  - versionName: 1.0.7
+    versionCode: 26
+    commit: v1.0.7
+    subdir: app
+    gradle:
+      - fdroid
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 1.0.7
+CurrentVersionCode: 26
+
+STOP COPYING HERE ✅
 
 ---
 
 ## ✅ After Submission
 
-Once you click **Create merge request**, F-Droid's system will:
+F-Droid's system will automatically:
 
 1. **Immediately:** Validate the metadata file
 2. **Within 2-6 hours:** Trigger CI build
