@@ -172,6 +172,15 @@
                     android:scrollbars="vertical"
                     android:background="?attr/colorSurface" />
 
+                <TextView
+                    android:id="@+id/favorite_stations_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No favorite stations yet"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:visibility="gone"
+                    android:padding="16dp" />
+
             </LinearLayout>
 
             <!-- Favorites toggle group moved to top under the app bar -->
@@ -200,6 +209,15 @@
                     android:clipToPadding="true"
                     android:scrollbars="vertical"
                     android:background="?attr/colorSurface" />
+
+                <TextView
+                    android:id="@+id/favorites_podcasts_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No subscribed podcasts yet"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:visibility="gone"
+                    android:padding="8dp" />
             </FrameLayout>
 
             <!-- Saved Episodes: remove collapsible header and show as its own card when selected -->
@@ -224,6 +242,15 @@
                     android:clipToPadding="true"
                     android:scrollbars="vertical"
                     android:background="?attr/colorSurface" />
+
+                <TextView
+                    android:id="@+id/saved_episodes_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No saved episodes yet"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:visibility="gone"
+                    android:paddingBottom="8dp" />
 
             </LinearLayout>
 
@@ -289,6 +316,15 @@
                     android:clipToPadding="true"
                     android:scrollbars="vertical"
                     android:background="?attr/colorSurface" />
+
+                <TextView
+                    android:id="@+id/favorites_history_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="No history yet"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:visibility="gone"
+                    android:padding="8dp" />
 
             </FrameLayout>
 

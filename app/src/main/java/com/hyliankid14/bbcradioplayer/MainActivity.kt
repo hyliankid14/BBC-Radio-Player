@@ -552,13 +552,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun refreshFavoriteStationsEmptyState() {
+        try {
+            val empty = findViewById<TextView>(R.id.favorite_stations_empty)
+            val hasItems = FavoritesPreference.getFavorites(this).isNotEmpty()
+            val stationsTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_stations))
+            stationsList.visibility = if (stationsTabActive && hasItems) View.VISIBLE else View.GONE
+            empty.visibility = if (stationsTabActive && !hasItems) View.VISIBLE else View.GONE
+        } catch (_: Exception) { }
+    }
+
     // Refresh the Saved Episodes UI card and adapter (called after import or when saved episodes change)
     private fun refreshSavedEpisodesSection() {
         try {
             val savedContainer = findViewById<View>(R.id.saved_episodes_container)
+            val savedEmpty = findViewById<TextView>(R.id.saved_episodes_empty)
             if (currentMode != "favorites") {
                 // Only show saved episodes when the Favorites view is active — avoids overlap in other views
                 savedContainer.visibility = View.GONE
+                savedEmpty.visibility = View.GONE
                 try { findViewById<View>(R.id.saved_searches_container).visibility = View.GONE } catch (_: Exception) { }
                 return
             }
@@ -572,6 +584,7 @@ class MainActivity : AppCompatActivity() {
             if (savedEntries.isNotEmpty()) {
                 savedRecycler.layoutManager = LinearLayoutManager(this)
                 savedRecycler.isNestedScrollingEnabled = false
+                savedEmpty.visibility = View.GONE
                 val savedAdapter = SavedEpisodesAdapter(this, savedEntries, onPlayEpisode = { episode, podcastTitle, podcastImage ->
                     val intent = android.content.Intent(this, RadioService::class.java).apply {
                         action = RadioService.ACTION_PLAY_PODCAST_EPISODE
@@ -722,15 +735,20 @@ class MainActivity : AppCompatActivity() {
                 val savedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved))
                 if (savedTabActive) {
                     savedRecycler.visibility = View.VISIBLE
+                    savedEmpty.visibility = View.GONE
                     savedContainer.visibility = View.VISIBLE
                 } else {
                     // Keep the container hidden by default; the Saved tab will reveal it when selected
                     savedRecycler.visibility = View.GONE
+                    savedEmpty.visibility = View.GONE
                     savedContainer.visibility = View.GONE
                 }
             } else {
                 savedRecycler.adapter = null
-                savedContainer.visibility = View.GONE
+                val savedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved))
+                savedRecycler.visibility = View.GONE
+                savedEmpty.visibility = if (savedTabActive) View.VISIBLE else View.GONE
+                savedContainer.visibility = if (savedTabActive) View.VISIBLE else View.GONE
             }
         } catch (e: Exception) {
             // Swallow — UI refresh should never crash the app
@@ -742,8 +760,10 @@ class MainActivity : AppCompatActivity() {
     private fun refreshHistorySection() {
         try {
             val historyContainer = findViewById<View>(R.id.favorites_history_container)
+            val historyEmpty = findViewById<TextView>(R.id.favorites_history_empty)
             if (currentMode != "favorites") {
                 historyContainer.visibility = View.GONE
+                historyEmpty.visibility = View.GONE
                 return
             }
 
@@ -756,6 +776,7 @@ class MainActivity : AppCompatActivity() {
             if (historyEntries.isNotEmpty()) {
                 historyRecycler.layoutManager = LinearLayoutManager(this)
                 historyRecycler.isNestedScrollingEnabled = false
+                historyEmpty.visibility = View.GONE
                 val adapter = (historyRecycler.adapter as? PlayedHistoryAdapter) ?: PlayedHistoryAdapter(
                     this,
                     historyEntries,
@@ -876,16 +897,20 @@ class MainActivity : AppCompatActivity() {
 
                 if (historyTabActive) {
                     historyRecycler.visibility = View.VISIBLE
+                    historyEmpty.visibility = View.GONE
                     historyContainer.visibility = View.VISIBLE
                     try { historyRecycler.scrollToPosition(0) } catch (_: Exception) { }
                 } else {
                     // Keep the UI hidden when another Favorites sub-tab is active
                     historyRecycler.visibility = View.GONE
+                    historyEmpty.visibility = View.GONE
                     historyContainer.visibility = View.GONE
                 }
             } else {
                 historyRecycler.adapter = null
-                historyContainer.visibility = View.GONE
+                historyRecycler.visibility = View.GONE
+                historyEmpty.visibility = if (historyTabActive) View.VISIBLE else View.GONE
+                historyContainer.visibility = if (historyTabActive) View.VISIBLE else View.GONE
             }
         } catch (e: Exception) {
             android.util.Log.w("MainActivity", "refreshHistorySection failed: ${e.message}")
@@ -1019,12 +1044,13 @@ class MainActivity : AppCompatActivity() {
         val adapter = FavoritesAdapter(this, stations, { stationId ->
             playStation(stationId)
         }, { _ ->
-            // Do nothing to prevent list jump
+            refreshFavoriteStationsEmptyState()
         }, {
             // Save the new order when changed
             FavoritesPreference.saveFavoritesOrder(this, stations.map { it.id })
         })
         stationsList.adapter = adapter
+        refreshFavoriteStationsEmptyState()
 
         // Wire favorites tab group to show/hide the four sub-views — implementation moved to class-level `showFavoritesTab` to allow reuse from other lifecycle methods.
 
@@ -1390,19 +1416,25 @@ class MainActivity : AppCompatActivity() {
     private fun showFavoritesTab(tab: String) {
         when (tab) {
             "stations" -> {
-                stationsList.visibility = View.VISIBLE
+                refreshFavoriteStationsEmptyState()
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.saved_episodes_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_searches_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorites_history_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
             }
             "subscribed" -> {
                 stationsList.visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.VISIBLE
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.saved_episodes_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_searches_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorites_history_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
 
                 // Refresh subscribed podcasts list asynchronously
@@ -1410,7 +1442,14 @@ class MainActivity : AppCompatActivity() {
                     try {
                         val ids = PodcastSubscriptions.getSubscribedIds(this@MainActivity)
                         if (ids.isEmpty()) {
-                            runOnUiThread { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler).adapter = null }
+                            runOnUiThread {
+                                val rv = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
+                                val empty = findViewById<TextView>(R.id.favorites_podcasts_empty)
+                                rv.adapter = null
+                                rv.visibility = View.GONE
+                                empty.visibility = View.VISIBLE
+                                findViewById<View>(R.id.favorites_podcasts_container).visibility = View.VISIBLE
+                            }
                             return@Thread
                         }
 
@@ -1454,6 +1493,7 @@ class MainActivity : AppCompatActivity() {
                             rv?.adapter = podcastAdapter
                             podcastAdapter.updatePodcasts(sorted)
                             podcastAdapter.updateNewEpisodes(newSet)
+                            findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE
                             rv?.visibility = View.VISIBLE
                         }
                     } catch (_: Exception) { }
@@ -1461,28 +1501,38 @@ class MainActivity : AppCompatActivity() {
             }
             "saved" -> {
                 stationsList.visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.VISIBLE
                 try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_searches_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorites_history_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
                 try { refreshSavedEpisodesSection() } catch (_: Exception) { }
             }
             "searches" -> {
                 stationsList.visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.saved_episodes_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_searches_container).visibility = View.VISIBLE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorites_history_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.GONE } catch (_: Exception) { }
                 try { refreshSavedSearchesSection() } catch (_: Exception) { }
             }
             "history" -> {
                 stationsList.visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
+                try { findViewById<TextView>(R.id.saved_episodes_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_searches_container).visibility = View.GONE
                 findViewById<View>(R.id.favorites_history_container).visibility = View.VISIBLE
                 try { findViewById<RecyclerView>(R.id.favorites_history_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
