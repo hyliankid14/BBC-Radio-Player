@@ -11,7 +11,7 @@ Description: |
   Unofficial Android client for BBC Radio and BBC podcasts.
 
   Features include live radio playback, podcast browsing and subscription,
-  background index refresh, Android Auto compatible media browsing,
+  background index refresh, media browsing and controls,
   episode progress tracking, and offline playback for downloaded episodes.
 
 RepoType: git
