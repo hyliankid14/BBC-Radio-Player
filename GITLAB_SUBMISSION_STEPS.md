@@ -150,7 +150,7 @@ Before starting, you should have:
    - Package: com.hyliankid14.bbcradioplayer
    - License: GPL-3.0-or-later
    - Source: https://github.com/hyliankid14/BBC-Radio-Player
-   - Current version: 1.0.7 (versionCode 26)
+   - Current version: 1.0.8 (versionCode 27)
 
    **F-Droid Compliance:**
    ✅ FOSS licensed (GPL-3.0-or-later)
@@ -228,17 +228,17 @@ RepoType: git
 Repo: https://github.com/hyliankid14/BBC-Radio-Player.git
 
 Builds:
-  - versionName: 1.0.7
-    versionCode: 26
-    commit: v1.0.7
+  - versionName: 1.0.8
+    versionCode: 27
+    commit: v1.0.8
     subdir: app
     gradle:
       - fdroid
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.7
-CurrentVersionCode: 26
+CurrentVersion: 1.0.8
+CurrentVersionCode: 27
 
 ---
 
@@ -313,17 +313,17 @@ RepoType: git
 Repo: https://github.com/hyliankid14/BBC-Radio-Player.git
 
 Builds:
-  - versionName: 1.0.7
-    versionCode: 26
-    commit: v1.0.7
+  - versionName: 1.0.8
+    versionCode: 27
+    commit: v1.0.8
     subdir: app
     gradle:
       - fdroid
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.7
-CurrentVersionCode: 26
+CurrentVersion: 1.0.8
+CurrentVersionCode: 27
 
 STOP COPYING HERE ✅
 
