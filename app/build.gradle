@@ -24,6 +24,20 @@ android {
         versionName = "1.0.7"
     }
 
+    flavorDimensions "distribution"
+
+    productFlavors {
+        fdroid {
+            dimension "distribution"
+            // F-Droid variant: clean, no Google-specific metadata or dependencies
+        }
+
+        play {
+            dimension "distribution"
+            // Google Play variant: includes Google-specific optimizations
+        }
+    }
+
     signingConfigs {
         release {
             if (hasReleaseSigning) {
