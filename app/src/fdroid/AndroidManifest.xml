@@ -7,8 +7,5 @@
     It does NOT include Google-specific metadata like the GMS car application
     declaration, keeping the app clean and free of proprietary dependencies
     as required by F-Droid's inclusion policy.
-    
-    Android Auto functionality still works through the standard
-    MediaBrowserService interface defined in the main manifest.
     -->
 </manifest>
