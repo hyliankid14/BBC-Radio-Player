@@ -5,55 +5,60 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <group
-        android:pivotX="54"
-        android:pivotY="54"
-        android:scaleX="0.64"
-        android:scaleY="0.64"
-        android:translateX="0"
-        android:translateY="-2">
+    <!-- Device body with rounded corners -->
+    <path
+        android:fillColor="#E6E8EB"
+        android:pathData="M34,30 L74,30 C78,30 82,34 82,38 L82,70 C82,74 78,78 74,78 L34,78 C30,78 26,74 26,70 L26,38 C26,34 30,30 34,30 Z" />
 
-        <!-- subtle shadow -->
-        <path
-            android:fillColor="#000000"
-            android:fillAlpha="0.12"
-            android:pathData="M18,26 Q12,26 12,32 V88 Q12,94 18,94 H90 Q96,94 96,88 V32 Q96,26 90,26 H18 Z" />
+    <!-- Device bezel shadow on top -->
+    <path
+        android:fillColor="#D0D4D9"
+        android:pathData="M34,30 L74,30 C78,30 82,34 82,38 L82,40 C82,35 78,32 74,32 L34,32 C30,32 26,35 26,40 L26,38 C26,34 30,30 34,30 Z" />
 
-        <!-- radio body -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M18,24 Q10,24 10,32 V86 Q10,94 18,94 H90 Q98,94 98,86 V32 Q98,24 90,24 H18 Z" />
+    <!-- Screen background (dark navy) -->
+    <path
+        android:fillColor="#26344A"
+        android:pathData="M37,35 L71,35 C72.7,35 74,36.3 74,38 L74,54 C74,55.7 72.7,57 71,57 L37,57 C35.3,57 34,55.7 34,54 L34,38 C34,36.3 35.3,35 37,35 Z" />
 
-        <!-- inner bevel -->
-        <path
-            android:fillColor="#F2F2F2"
-            android:pathData="M21,27 Q15,27 15,33 V85 Q15,91 21,91 H87 Q93,91 93,85 V33 Q93,27 87,27 H21 Z" />
+    <!-- Screen highlight/shine -->
+    <path
+        android:fillColor="#1F2A38"
+        android:pathData="M37,35 L71,35 C72.7,35 74,36.3 74,38 L74,39.5 C74,37 72,36 71,36 L37,36 C36,36 34,37 34,39.5 L34,38 C34,36.3 35.3,35 37,35 Z" />
 
-        <!-- screen -->
-        <path
-            android:fillColor="#000000"
-            android:pathData="M28,36 L80,36 Q83,36 83,39 L83,64 Q83,67 80,67 L28,67 Q25,67 25,64 L25,39 Q25,36 28,36 Z" />
+    <!-- Equalizer bars - Left side (light blue) -->
+    <path android:fillColor="#5DADE2" android:pathData="M38,52 h2.8 v2.5 h-2.8 Z M38,48.7 h2.8 v2.5 h-2.8 Z M38,45.4 h2.8 v2.5 h-2.8 Z M38,42.1 h2.8 v2.5 h-2.8 Z M41.8,52 h2.8 v2.5 h-2.8 Z M41.8,48.7 h2.8 v2.5 h-2.8 Z M41.8,45.4 h2.8 v2.5 h-2.8 Z M41.8,42.1 h2.8 v2.5 h-2.8 Z M41.8,38.8 h2.8 v2.5 h-2.8 Z M45.6,52 h2.8 v2.5 h-2.8 Z M45.6,48.7 h2.8 v2.5 h-2.8 Z M45.6,45.4 h2.8 v2.5 h-2.8 Z M45.6,42.1 h2.8 v2.5 h-2.8 Z M45.6,38.8 h2.8 v2.5 h-2.8 Z M45.6,35.5 h2.8 v2.5 h-2.8 Z M49.4,52 h2.8 v2.5 h-2.8 Z M49.4,48.7 h2.8 v2.5 h-2.8 Z M49.4,45.4 h2.8 v2.5 h-2.8 Z M49.4,42.1 h2.8 v2.5 h-2.8 Z M53.2,52 h2.8 v2.5 h-2.8 Z M53.2,48.7 h2.8 v2.5 h-2.8 Z M53.2,45.4 h2.8 v2.5 h-2.8 Z M57,52 h2.8 v2.5 h-2.8 Z M57,48.7 h2.8 v2.5 h-2.8 Z M57,45.4 h2.8 v2.5 h-2.8 Z M57,42.1 h2.8 v2.5 h-2.8 Z" />
 
-        <!-- waveform bars (match reference: small->tall->small) -->
-        <path android:fillColor="#00C853" android:pathData="M34,62H37V64H34Z" />
-        <path android:fillColor="#00C853" android:pathData="M39,58H42V64H39Z" />
-        <path android:fillColor="#00C853" android:pathData="M44,54H47V64H44Z" />
-        <path android:fillColor="#00C853" android:pathData="M49,48H52V64H49Z" />
-        <path android:fillColor="#00C853" android:pathData="M54,44H57V64H54Z" />
-        <path android:fillColor="#00C853" android:pathData="M59,48H62V64H59Z" />
-        <path android:fillColor="#00C853" android:pathData="M64,54H67V64H64Z" />
-        <path android:fillColor="#00C853" android:pathData="M69,58H72V64H69Z" />
-        <path android:fillColor="#00C853" android:pathData="M74,62H77V64H74Z" />
+    <!-- Separator bar (orange) -->
+    <path android:fillColor="#FFA500" android:pathData="M60.8,35 h2.8 v22 h-2.8 Z" />
 
-        <!-- dials (prominent, symmetric) -->
-        <!-- left dial ring -->
-        <path android:fillColor="#6B6B6B" android:pathData="M40,80 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
-        <path android:fillColor="#FFFFFF" android:pathData="M40,80 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
-        <path android:fillColor="#6200EE" android:pathData="M39,74H41V79H39Z" />
+    <!-- Equalizer bars - Right side (darker blue) -->
+    <path android:fillColor="#2E5B8A" android:pathData="M64.6,52 h2.8 v2.5 h-2.8 Z M64.6,48.7 h2.8 v2.5 h-2.8 Z M64.6,45.4 h2.8 v2.5 h-2.8 Z M68.4,52 h2.8 v2.5 h-2.8 Z M68.4,48.7 h2.8 v2.5 h-2.8 Z M68.4,45.4 h2.8 v2.5 h-2.8 Z M68.4,42.1 h2.8 v2.5 h-2.8 Z M68.4,38.8 h2.8 v2.5 h-2.8 Z" />
 
-        <!-- right dial ring -->
-        <path android:fillColor="#6B6B6B" android:pathData="M68,80 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0" />
-        <path android:fillColor="#FFFFFF" android:pathData="M68,80 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0" />
-        <path android:fillColor="#6200EE" android:pathData="M67,74H69V79H67Z" />
-    </group>
+    <!-- Control section divider lines -->
+    <path android:fillColor="#8B95A3" android:pathData="M50,63.5 h8 a1,1 0 0,1 0,2 h-8 a1,1 0 0,1 0,-2 Z M50,66.5 h8 a1,1 0 0,1 0,2 h-8 a1,1 0 0,1 0,-2 Z M50,69.5 h8 a1,1 0 0,1 0,2 h-8 a1,1 0 0,1 0,-2 Z" />
+
+    <!-- Left knob - outer ring -->
+    <path android:fillColor="#5A6B7A" android:pathData="M39,59.5 A8,8 0 1,0 39,75.5 A8,8 0 1,0 39,59.5 Z" />
+
+    <!-- Left knob shadow -->
+    <path android:fillColor="#3D4A5C" android:pathData="M39.7,61.7 A6.5,6.5 0 1,0 39.7,74.7 A6.5,6.5 0 1,0 39.7,61.7 Z" />
+
+    <!-- Left knob - inner surface -->
+    <path android:fillColor="#6E7F8E" android:pathData="M39,61 A6.5,6.5 0 1,0 39,74 A6.5,6.5 0 1,0 39,61 Z" />
+
+    <!-- Left knob indicator -->
+    <path android:fillColor="#FFFFFF" android:pathData="M38.2,62.3 a0.8,0.8 0 0,1 1.6,0 v2.4 a0.8,0.8 0 0,1 -1.6,0 Z" />
+
+    <!-- Right knob - outer ring -->
+    <path android:fillColor="#5A6B7A" android:pathData="M69,59.5 A8,8 0 1,0 69,75.5 A8,8 0 1,0 69,59.5 Z" />
+
+    <!-- Right knob shadow -->
+    <path android:fillColor="#3D4A5C" android:pathData="M69.7,61.7 A6.5,6.5 0 1,0 69.7,74.7 A6.5,6.5 0 1,0 69.7,61.7 Z" />
+
+    <!-- Right knob - inner surface -->
+    <path android:fillColor="#6E7F8E" android:pathData="M69,61 A6.5,6.5 0 1,0 69,74 A6.5,6.5 0 1,0 69,61 Z" />
+
+    <!-- Right knob indicator -->
+    <path android:fillColor="#FFFFFF" android:pathData="M68.2,62.3 a0.8,0.8 0 0,1 1.6,0 v2.4 a0.8,0.8 0 0,1 -1.6,0 Z" />
+
 </vector>
