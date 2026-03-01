@@ -126,8 +126,14 @@ class PodcastsFragment : Fragment() {
             usingCachedItemAppend = false
             restoringFromCache = false
             val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
+            android.util.Log.d("PodcastsFragment", "Sort spinner listener: selected='$selected', currentSort='$currentSort'")
+            if (selected == currentSort) {
+                android.util.Log.d("PodcastsFragment", "Sort order unchanged, skipping applyFilters")
+                return@setOnItemClickListener
+            }
             currentSort = selected
             viewModel.cachedSort = currentSort
+            android.util.Log.d("PodcastsFragment", "Sort changed to: $currentSort, calling applyFilters")
             // Re-apply sort against any existing cached search (do NOT clear cache here).
             applyFilters(emptyState, recyclerView)
         }
@@ -813,6 +819,10 @@ class PodcastsFragment : Fragment() {
         // a fresh one for the new query — prevents old results from persisting when
         // switching between saved searches.
         searchAdapter = null
+        // Clear cached search items and persisted search to force rebuilding with fresh sort order
+        viewModel.cachedSearchItems = null
+        clearCachedSearchPersisted()
+        android.util.Log.d("PodcastsFragment", "applyFilters called with sort='$currentSort'")
         simplifiedApplyFilters(emptyState, recyclerView)
         return
     }
@@ -1562,6 +1572,32 @@ class PodcastsFragment : Fragment() {
                 descProgressBar?.visibility = View.GONE
                 descStatusIcon?.visibility = View.VISIBLE
                 
+                // Apply sort order to podcast matches
+                android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: applying sort order '$currentSort' to titleMatches=${titleMatches.size} descMatches=${descMatches.size}")
+                val sortedTitleMatches = withContext(Dispatchers.Default) {
+                    when (currentSort) {
+                        "Most popular" -> titleMatches.sortedWith(
+                            compareBy<Podcast> { getPopularRank(it) }
+                                .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
+                        )
+                        "Most recent" -> titleMatches.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
+                        "Alphabetical (A-Z)" -> titleMatches.sortedBy { it.title }
+                        else -> titleMatches
+                    }
+                }
+                
+                val sortedDescMatches = withContext(Dispatchers.Default) {
+                    when (currentSort) {
+                        "Most popular" -> descMatches.sortedWith(
+                            compareBy<Podcast> { getPopularRank(it) }
+                                .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
+                        )
+                        "Most recent" -> descMatches.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
+                        "Alphabetical (A-Z)" -> descMatches.sortedBy { it.title }
+                        else -> descMatches
+                    }
+                }
+                
                 // Set up episode search status
                 if (hasIndexedEpisodes) {
                     // Episodes are indexed, show progress spinner
@@ -1576,15 +1612,19 @@ class PodcastsFragment : Fragment() {
                 }
                 
                 // Show podcast matches immediately (before episode indexing)
-                val podcastMatches = (titleMatches + descMatches).distinctBy { it.id }
+                val podcastMatches = (sortedTitleMatches + sortedDescMatches).distinctBy { it.id }
+                android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: sorted results - titleMatches=${sortedTitleMatches.size} descMatches=${sortedDescMatches.size} combined=${podcastMatches.size}")
+                if (sortedTitleMatches.isNotEmpty()) {
+                    android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: First 3 title matches: ${sortedTitleMatches.take(3).map { it.title }}")
+                }
                 if (podcastMatches.isNotEmpty() && isActive) {
                     if (generation != searchGeneration) return@launch
                     // Initialize search adapter with podcast-only results
                     if (searchAdapter == null) {
                         searchAdapter = SearchResultsAdapter(
                             context = requireContext(),
-                            titleMatches = titleMatches,
-                            descMatches = descMatches,
+                            titleMatches = sortedTitleMatches,
+                            descMatches = sortedDescMatches,
                             episodeMatches = emptyList(),
                             onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                             onPlayEpisode = { ep -> playEpisode(ep) },
@@ -1603,8 +1643,8 @@ class PodcastsFragment : Fragment() {
                     persistCachedSearch(
                         PodcastsViewModel.SearchCache(
                             query = q,
-                            titleMatches = titleMatches,
-                            descMatches = descMatches,
+                            titleMatches = sortedTitleMatches,
+                            descMatches = sortedDescMatches,
                             episodeMatches = emptyList(),
                             isComplete = quickComplete
                         )
@@ -1663,11 +1703,13 @@ class PodcastsFragment : Fragment() {
                                 android.util.Log.w("PodcastsFragment", "IndexStore unavailable (quick): ${e.message}")
                             }
                             // Apply filters so stubs from excluded podcasts don't appear.
-                            eps.filter { (_, pod) ->
+                            val filtered = eps.filter { (_, pod) ->
                                 repository.filterPodcasts(listOf(pod), currentFilter).isNotEmpty()
                             }.filter { (ep, _) ->
                                 ep.durationMins in currentFilter.minDuration..currentFilter.maxDuration
                             }
+                            // Sort episodes according to current sort preference
+                            sortEpisodeMatches(filtered)
                         }
                     } else emptyList()
 
@@ -1676,12 +1718,13 @@ class PodcastsFragment : Fragment() {
                     // Paint the quick batch immediately — no waiting for the full 400.
                     episodesProgressBar?.visibility = View.GONE
                     episodesCheckIcon?.visibility = View.VISIBLE
+                    android.util.Log.d("PodcastsFragment", "Quick episode batch: ${quickEps.size} episodes sorted by '$currentSort'")
 
                     if (searchAdapter == null) {
                         searchAdapter = SearchResultsAdapter(
                             context = requireContext(),
-                            titleMatches = titleMatches,
-                            descMatches = descMatches,
+                            titleMatches = sortedTitleMatches,
+                            descMatches = sortedDescMatches,
                             episodeMatches = quickEps,
                             onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                             onPlayEpisode = { ep -> playEpisode(ep) },
@@ -1788,29 +1831,9 @@ class PodcastsFragment : Fragment() {
                             ep.durationMins in currentFilter.minDuration..currentFilter.maxDuration
                         }
 
-                        // Sort if requested; FTS order is already pubEpoch DESC.
-                        val episodes: List<Pair<Episode, Podcast>> = if (currentSort == "Most recent") {
-                            epsFiltered
-                        } else {
-                            val epochMap: Map<String, Long> = epsFiltered.associate { (ep, _) ->
-                                ep.id to com.hyliankid14.bbcradioplayer.db.IndexStore.parsePubEpoch(ep.pubDate)
-                            }
-                            val cmp = Comparator<Pair<Episode, Podcast>> { a, b ->
-                                when (currentSort) {
-                                    "Alphabetical (A-Z)" -> {
-                                        val c = a.first.title.compareTo(b.first.title, ignoreCase = true)
-                                        if (c != 0) return@Comparator c
-                                        return@Comparator a.second.title.compareTo(b.second.title, ignoreCase = true)
-                                    }
-                                    else -> {
-                                        val c = getPopularRank(a.second).compareTo(getPopularRank(b.second))
-                                        if (c != 0) return@Comparator c
-                                        return@Comparator (epochMap[b.first.id] ?: 0L).compareTo(epochMap[a.first.id] ?: 0L)
-                                    }
-                                }
-                            }
-                            epsFiltered.sortedWith(cmp)
-                        }
+                        // Sort episodes according to current sort preference
+                        val episodes: List<Pair<Episode, Podcast>> = sortEpisodeMatches(epsFiltered)
+                        android.util.Log.d("PodcastsFragment", "Full episode batch: ${episodes.size} episodes sorted by '$currentSort'")
 
                         withContext(Dispatchers.Main) {
                             if (!isActive || fullLoadGen != searchGeneration) return@withContext
@@ -1820,19 +1843,28 @@ class PodcastsFragment : Fragment() {
                             val newEps = episodes.filter { it.first.id !in seenIds }
 
                             // Build the canonical merged list in sorted order.
-                            val mergedAll: List<Pair<Episode, Podcast>> = if (currentSort == "Most recent") {
-                                // Full FTS result set is already the authoritative sorted list;
-                                // quickEps are just the head prefix of it.
-                                episodes
-                            } else {
-                                // Sorted view — might reorder relative to quick batch.
-                                episodes
-                            }
+                            val mergedAll: List<Pair<Episode, Podcast>> = episodes
 
-                            // Append episodes not yet visible up to INITIAL_EPISODE_DISPLAY_LIMIT.
-                            val toAppendNow = newEps.take(INITIAL_EPISODE_DISPLAY_LIMIT - quickEps.size)
-                            if (toAppendNow.isNotEmpty()) {
-                                searchAdapter?.appendEpisodeMatches(toAppendNow)
+                            // For "Most recent" sort, quickEps is a prefix of the full sorted list,
+                            // so we can just append new episodes. For other sorts (alphabetical, popular),
+                            // the full sorted list may have a completely different order, so we need to
+                            // rebuild the episode section entirely.
+                            if (currentSort == "Most recent") {
+                                // Append episodes not yet visible up to INITIAL_EPISODE_DISPLAY_LIMIT.
+                                val toAppendNow = newEps.take(INITIAL_EPISODE_DISPLAY_LIMIT - quickEps.size)
+                                if (toAppendNow.isNotEmpty()) {
+                                    searchAdapter?.appendEpisodeMatches(toAppendNow)
+                                }
+                            } else {
+                                // For alphabetical or popularity sort, replace the entire episode list
+                                // with the properly sorted full results to avoid showing two separate
+                                // sorted segments (quick batch + new episodes appended).
+                                val initialBatchToDisplay = mergedAll.take(INITIAL_EPISODE_DISPLAY_LIMIT)
+                                if (initialBatchToDisplay.size > quickEps.size) {
+                                    // Only update if we have more episodes to show
+                                    searchAdapter?.updateEpisodeMatches(initialBatchToDisplay)
+                                    android.util.Log.d("PodcastsFragment", "Replaced episode list with ${initialBatchToDisplay.size} sorted episodes (sort='$currentSort')")
+                                }
                             }
 
                             // Wire remaining results into scroll-pagination.
@@ -1900,8 +1932,8 @@ class PodcastsFragment : Fragment() {
                                         persistCachedSearch(
                                             PodcastsViewModel.SearchCache(
                                                 query = q,
-                                                titleMatches = titleMatches,
-                                                descMatches = descMatches,
+                                                titleMatches = sortedTitleMatches,
+                                                descMatches = sortedDescMatches,
                                                 episodeMatches = enrichedEpisodes,
                                                 isComplete = true
                                             )
@@ -1913,8 +1945,8 @@ class PodcastsFragment : Fragment() {
                                 persistCachedSearch(
                                     PodcastsViewModel.SearchCache(
                                         query = q,
-                                        titleMatches = titleMatches,
-                                        descMatches = descMatches,
+                                        titleMatches = sortedTitleMatches,
+                                        descMatches = sortedDescMatches,
                                         episodeMatches = episodes,
                                         isComplete = true
                                     )
@@ -1932,6 +1964,25 @@ class PodcastsFragment : Fragment() {
                 }
                 showSpinnerJob?.cancel()
                 loadingView?.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun sortEpisodeMatches(episodes: List<Pair<Episode, Podcast>>): List<Pair<Episode, Podcast>> {
+        return when (currentSort) {
+            "Most recent" -> episodes
+            "Alphabetical (A-Z)" -> episodes.sortedWith(
+                compareBy<Pair<Episode, Podcast>>({ it.first.title }, { it.second.title })
+            )
+            else -> {
+                // Most popular: sort by podcast popularity, then by episode pub date
+                val epochMap: Map<String, Long> = episodes.associate { (ep, _) ->
+                    ep.id to com.hyliankid14.bbcradioplayer.db.IndexStore.parsePubEpoch(ep.pubDate)
+                }
+                episodes.sortedWith(
+                    compareBy<Pair<Episode, Podcast>> { getPopularRank(it.second) }
+                        .thenByDescending { epochMap[it.first.id] ?: 0L }
+                )
             }
         }
     }
