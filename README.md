@@ -6,6 +6,32 @@ interface with useful features for listeners.
 ## 📥 Download
 
 **[Get the latest release](https://github.com/hyliankid14/bbc-radio-player/releases)** - Download APK for your device
+
+## 📸 Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/Screenshot_20260301_221020_BBC Radio Player.jpg" width="180" alt="Favorites - Dark Mode" />
+  <img src="docs/screenshots/Screenshot_20260301_221037_BBC Radio Player.jpg" width="180" alt="All Stations - Light Mode" />
+  <img src="docs/screenshots/Screenshot_20260301_221048_BBC Radio Player.jpg" width="180" alt="Podcasts Browser" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/Screenshot_20260301_225106_BBC Radio Player.jpg" width="180" alt="Podcast Search" />
+  <img src="docs/screenshots/Screenshot_20260301_225120_BBC Radio Player.jpg" width="180" alt="Settings" />
+  <img src="docs/screenshots/Screenshot_20260301_225144_BBC Radio Player.jpg" width="180" alt="Favorite Episodes" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/Screenshot_20260301_225421_BBC Radio Player.jpg" width="180" alt="Podcast Subscriptions - Light Mode" />
+  <img src="docs/screenshots/Screenshot_20260301_230842_BBC Radio Player.jpg" width="180" alt="Screen 8" />
+  <img src="docs/screenshots/Screenshot_20260301_230901_BBC Radio Player.jpg" width="180" alt="Screen 9" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/Screenshot_20260301_232642_BBC Radio Player.jpg" width="180" alt="Screen 10" />
+  <img src="docs/screenshots/Screenshot_20260301_232649_BBC Radio Player.jpg" width="180" alt="Screen 11" />
+</p>
+
 ## Features
 
 ### Radio & Android Auto
