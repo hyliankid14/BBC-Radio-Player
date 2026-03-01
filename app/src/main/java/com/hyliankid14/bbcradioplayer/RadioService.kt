@@ -659,6 +659,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         MediaDescriptionCompat.Builder()
                             .setMediaId(MEDIA_ID_FAVORITES)
                             .setTitle("Favourites")
+                            .setIconUri(Uri.parse("android.resource://${packageName}/${R.drawable.ic_star_outline}"))
                             .build(),
                         MediaItem.FLAG_BROWSABLE
                     ))
@@ -668,6 +669,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         MediaDescriptionCompat.Builder()
                             .setMediaId(MEDIA_ID_ALL_STATIONS)
                             .setTitle("All Stations")
+                            .setIconUri(Uri.parse("android.resource://${packageName}/${R.drawable.ic_list}"))
                             .build(),
                         MediaItem.FLAG_BROWSABLE
                     ))
@@ -676,6 +678,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         MediaDescriptionCompat.Builder()
                             .setMediaId(MEDIA_ID_PODCASTS)
                             .setTitle("Podcasts")
+                            .setIconUri(Uri.parse("android.resource://${packageName}/${R.drawable.ic_podcast}"))
                             .build(),
                         MediaItem.FLAG_BROWSABLE
                     ))
