@@ -128,6 +128,7 @@ class RadioService : MediaBrowserServiceCompat() {
         const val EXTRA_PODCAST_TITLE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_TITLE"
         const val EXTRA_PODCAST_IMAGE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_IMAGE"
         const val EXTRA_SEEK_POSITION = "com.hyliankid14.bbcradioplayer.EXTRA_SEEK_POSITION"
+        const val EXTRA_SEEK_FRACTION = "com.hyliankid14.bbcradioplayer.EXTRA_SEEK_FRACTION"
         const val EXTRA_SEEK_DELTA = "com.hyliankid14.bbcradioplayer.EXTRA_SEEK_DELTA"
         private const val TAG = "RadioService"
         private const val CHANNEL_ID = "radio_playback"
@@ -2180,7 +2181,14 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     Unit
                 }
                 ACTION_SEEK_TO -> {
-                    val pos = it.getLongExtra(EXTRA_SEEK_POSITION, 0L)
+                    val requestedPos = it.getLongExtra(EXTRA_SEEK_POSITION, 0L)
+                    val requestedFraction = it.getFloatExtra(EXTRA_SEEK_FRACTION, -1f)
+                    val playerDuration = player?.duration ?: -1L
+                    val pos = if (requestedFraction in 0f..1f && playerDuration > 0L) {
+                        (playerDuration * requestedFraction).toLong()
+                    } else {
+                        requestedPos
+                    }
                     seekToPosition(pos)
                 }
                 ACTION_SEEK_DELTA -> {

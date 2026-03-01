@@ -1,10 +1,10 @@
 package com.hyliankid14.bbcradioplayer
 
 import android.net.Uri
+import com.google.android.exoplayer2.C
 import com.google.android.exoplayer2.upstream.DataSource
 import com.google.android.exoplayer2.upstream.DataSpec
 import com.google.android.exoplayer2.upstream.HttpDataSource
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -25,22 +25,44 @@ class SecureHttpDataSource : DataSource.Factory {
         private var inputStream: InputStream? = null
         private var uri: Uri? = null
         private var responseCode: Int = -1
-        private var opened = false
+        private val requestProperties = mutableMapOf<String, String>()
 
         override fun open(dataSpec: DataSpec): Long {
             // Start with the requested URL, upgraded to HTTPS
             var currentUrl = dataSpec.uri.toString().replace("http://", "https://")
             var redirectCount = 0
             val maxRedirects = 20
+            val position = dataSpec.position.coerceAtLeast(0L)
+            val length = dataSpec.length
+
+            val rangeHeader = when {
+                position > 0L && length != C.LENGTH_UNSET.toLong() -> {
+                    val end = (position + length - 1L).coerceAtLeast(position)
+                    "bytes=${position}-${end}"
+                }
+                position > 0L -> "bytes=${position}-"
+                length != C.LENGTH_UNSET.toLong() -> "bytes=0-${length - 1L}"
+                else -> null
+            }
 
             while (redirectCount < maxRedirects) {
                 val url = URL(currentUrl)
+                val headersSnapshot = synchronized(requestProperties) { requestProperties.toMap() }
                 connection = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
+                    requestMethod = when (dataSpec.httpMethod) {
+                        DataSpec.HTTP_METHOD_HEAD -> "HEAD"
+                        DataSpec.HTTP_METHOD_POST -> "POST"
+                        else -> "GET"
+                    }
                     connectTimeout = 15000
                     readTimeout = 15000
                     instanceFollowRedirects = false // Handle redirects manually
                     setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+                    setRequestProperty("Accept-Encoding", "identity")
+                    rangeHeader?.let { setRequestProperty("Range", it) }
+                    for ((name, value) in headersSnapshot) {
+                        setRequestProperty(name, value)
+                    }
                 }
 
                 val responseCode = connection!!.responseCode
@@ -68,7 +90,8 @@ class SecureHttpDataSource : DataSource.Factory {
                 }
 
                 // Not a redirect - check if successful
-                if (responseCode != HttpURLConnection.HTTP_OK) {
+                val accepted = responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_PARTIAL
+                if (!accepted) {
                     connection!!.disconnect()
                     throw HttpDataSource.HttpDataSourceException(
                         dataSpec,
@@ -79,10 +102,20 @@ class SecureHttpDataSource : DataSource.Factory {
                 // Success - save the final URI and open stream
                 uri = Uri.parse(currentUrl)
                 inputStream = connection!!.inputStream
-                opened = true
-                
-                val contentLength = connection!!.contentLength.toLong()
-                return if (contentLength >= 0) contentLength else -1L
+
+                // If server ignored our Range header and returned 200, manually skip to requested offset.
+                if (responseCode == HttpURLConnection.HTTP_OK && position > 0L) {
+                    skipFully(inputStream!!, position)
+                }
+
+                val contentLength = connection!!.contentLengthLong
+                return when {
+                    length != C.LENGTH_UNSET.toLong() -> length
+                    responseCode == HttpURLConnection.HTTP_OK && position > 0L && contentLength > 0L ->
+                        (contentLength - position).coerceAtLeast(0L)
+                    contentLength >= 0L -> contentLength
+                    else -> C.LENGTH_UNSET.toLong()
+                }
             }
 
             throw IOException("Too many redirects")
@@ -97,7 +130,6 @@ class SecureHttpDataSource : DataSource.Factory {
             connection?.disconnect()
             inputStream = null
             connection = null
-            opened = false
         }
 
         override fun getUri(): Uri? = uri
@@ -110,10 +142,30 @@ class SecureHttpDataSource : DataSource.Factory {
 
         override fun addTransferListener(transferListener: com.google.android.exoplayer2.upstream.TransferListener) {}
 
-        override fun setRequestProperty(name: String, value: String) {}
+        override fun setRequestProperty(name: String, value: String) {
+            synchronized(requestProperties) { requestProperties[name] = value }
+        }
        
-        override fun clearRequestProperty(name: String) {}
+        override fun clearRequestProperty(name: String) {
+            synchronized(requestProperties) { requestProperties.remove(name) }
+        }
         
-        override fun clearAllRequestProperties() {}
+        override fun clearAllRequestProperties() {
+            synchronized(requestProperties) { requestProperties.clear() }
+        }
+
+        private fun skipFully(stream: InputStream, bytesToSkip: Long) {
+            var remaining = bytesToSkip
+            while (remaining > 0L) {
+                val skipped = stream.skip(remaining)
+                if (skipped > 0L) {
+                    remaining -= skipped
+                    continue
+                }
+                val one = stream.read()
+                if (one == -1) throw IOException("Unexpected EOF whilst skipping to offset")
+                remaining--
+            }
+        }
     }
 }

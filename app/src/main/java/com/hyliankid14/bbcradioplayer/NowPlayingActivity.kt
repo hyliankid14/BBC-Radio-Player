@@ -61,6 +61,7 @@ class NowPlayingActivity : AppCompatActivity() {
     // overwritten by subsequent playback state updates until playback starts.
     private var isPreviewMode = false
     private var previewEpisodeProp: Episode? = null
+    private var isSeekBarDragging = false
     
     private var updateTimer: Thread? = null
     private var lastArtworkUrl: String? = null
@@ -222,14 +223,25 @@ class NowPlayingActivity : AppCompatActivity() {
         }
 
 
-        seekBar.addOnChangeListener { _, value, fromUser ->
-            if (fromUser) {
-                val show = PlaybackStateHelper.getCurrentShow()
-                val duration = show.segmentDurationMs ?: return@addOnChangeListener
-                if (duration <= 0) return@addOnChangeListener
-                val newPos = (duration * value).toLong()
-                sendSeekTo(newPos)
+        seekBar.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: Slider) {
+                isSeekBarDragging = true
             }
+
+            override fun onStopTrackingTouch(slider: Slider) {
+                isSeekBarDragging = false
+                // Send seek command only when user releases the slider
+                val show = PlaybackStateHelper.getCurrentShow()
+                val duration = show.segmentDurationMs ?: return
+                if (duration <= 0) return
+                val newPos = (duration * slider.value).toLong()
+                sendSeekTo(newPos, slider.value)
+            }
+        })
+        
+        // No longer send seek in addOnChangeListener - only when user releases slider
+        seekBar.addOnChangeListener { _, _, fromUser ->
+            // Just track that the value changed; seek happens on touch release
         }
         
         // Format slider label to show time instead of decimal value
@@ -817,8 +829,11 @@ class NowPlayingActivity : AppCompatActivity() {
         if (isPodcast && dur > 0) {
             progressGroup.visibility = android.view.View.VISIBLE
             seekBar.visibility = android.view.View.VISIBLE
-            val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
-            seekBar.value = ratio.toFloat()
+            // Skip updating seek bar position when user is actively dragging, to prevent it jumping back
+            if (!isSeekBarDragging) {
+                val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
+                seekBar.value = ratio.toFloat()
+            }
             elapsedView.text = formatTime(pos)
             remainingView.text = "-${formatTime((dur - pos).coerceAtLeast(0))}"
             seekBar.isEnabled = true
@@ -831,10 +846,11 @@ class NowPlayingActivity : AppCompatActivity() {
         updateMarkPlayedButtonState()
     }
 
-    private fun sendSeekTo(positionMs: Long) {
+    private fun sendSeekTo(positionMs: Long, positionFraction: Float? = null) {
         val intent = Intent(this, RadioService::class.java).apply {
             action = RadioService.ACTION_SEEK_TO
             putExtra(RadioService.EXTRA_SEEK_POSITION, positionMs)
+            positionFraction?.let { putExtra(RadioService.EXTRA_SEEK_FRACTION, it.coerceIn(0f, 1f)) }
         }
         startService(intent)
     }
