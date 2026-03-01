@@ -3,7 +3,7 @@
     <item
         android:id="@+id/navigation_favorites"
         android:enabled="true"
-        android:icon="@drawable/ic_favorite_border"
+        android:icon="@drawable/ic_star_outline"
         android:title="Favourites" />
     <item
         android:id="@+id/navigation_list"
