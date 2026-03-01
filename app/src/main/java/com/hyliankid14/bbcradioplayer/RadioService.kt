@@ -146,6 +146,7 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val MEDIA_ID_FAVORITES = "favorites"
         private const val MEDIA_ID_ALL_STATIONS = "all_stations"
         private const val MEDIA_ID_PODCASTS = "podcasts"
+        private const val MEDIA_ID_PODCASTS_DOWNLOADED = "podcasts_downloaded"
         private const val ANDROID_AUTO_CLIENT_HINT = "gearhead"
         private const val AUTO_RECONNECT_REFRESH_COOLDOWN_MS = 5_000L
     }
@@ -262,7 +263,17 @@ class RadioService : MediaBrowserServiceCompat() {
                                             }
                                             playPodcastEpisode(savedEp, playIntent)
                                         } else {
-                                            Log.w(TAG, "Episode not found for id: $episodeId")
+                                            // Fallback: try downloaded episodes (supports offline playback)
+                                            val d = DownloadedEpisodes.getDownloadedEntry(this@RadioService, episodeId)
+                                            if (d != null) {
+                                                val playIntent = android.content.Intent().apply {
+                                                    putExtra(EXTRA_PODCAST_TITLE, d.podcastTitle)
+                                                    putExtra(EXTRA_PODCAST_IMAGE, d.imageUrl)
+                                                }
+                                                playPodcastEpisode(downloadedEntryToEpisode(d), playIntent)
+                                            } else {
+                                                Log.w(TAG, "Episode not found for id: $episodeId")
+                                            }
                                         }
                                     } catch (e: Exception) {
                                         Log.e(TAG, "Error searching saved episodes for id: $episodeId", e)
@@ -559,37 +570,47 @@ class RadioService : MediaBrowserServiceCompat() {
                                                 }
                                                 playPodcastEpisode(savedEp, playIntent)
                                             } else {
-                                                // Final fallback: try the local FTS index to map episodeId -> podcastId,
-                                                // then fetch that podcast's episodes (covers episodes played via search/one-off plays)
-                                                try {
-                                                    val ef = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this@RadioService).findEpisodeById(episodeId)
-                                                    if (ef != null) {
-                                                        Log.d(TAG, "Found episode in local index (podcast=${ef.podcastId}), attempting to fetch parent podcast episodes")
-                                                        // Limit remote work to a short timeout to avoid blocking reconnect
-                                                        val allPods = withContext(Dispatchers.IO) {
-                                                            withTimeoutOrNull(5000L) { repo.fetchPodcasts(false) }
-                                                        } ?: emptyList()
-                                                        val parent = allPods.find { it.id == ef.podcastId }
-                                                        if (parent != null) {
-                                                            val eps = try { withContext(Dispatchers.IO) { repo.fetchEpisodes(parent) } } catch (_: Exception) { emptyList() }
-                                                            val ep = eps.find { it.id == episodeId }
-                                                            if (ep != null) {
-                                                                val playIntent = Intent().apply {
-                                                                    putExtra(EXTRA_PODCAST_TITLE, parent.title)
-                                                                    putExtra(EXTRA_PODCAST_IMAGE, parent.imageUrl)
+                                                // Fallback: try downloaded episodes (supports offline playback)
+                                                val d = DownloadedEpisodes.getDownloadedEntry(this@RadioService, episodeId)
+                                                if (d != null) {
+                                                    val playIntent = Intent().apply {
+                                                        putExtra(EXTRA_PODCAST_TITLE, d.podcastTitle)
+                                                        putExtra(EXTRA_PODCAST_IMAGE, d.imageUrl)
+                                                    }
+                                                    playPodcastEpisode(downloadedEntryToEpisode(d), playIntent)
+                                                } else {
+                                                    // Final fallback: try the local FTS index to map episodeId -> podcastId,
+                                                    // then fetch that podcast's episodes (covers episodes played via search/one-off plays)
+                                                    try {
+                                                        val ef = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this@RadioService).findEpisodeById(episodeId)
+                                                        if (ef != null) {
+                                                            Log.d(TAG, "Found episode in local index (podcast=${ef.podcastId}), attempting to fetch parent podcast episodes")
+                                                            // Limit remote work to a short timeout to avoid blocking reconnect
+                                                            val allPods = withContext(Dispatchers.IO) {
+                                                                withTimeoutOrNull(5000L) { repo.fetchPodcasts(false) }
+                                                            } ?: emptyList()
+                                                            val parent = allPods.find { it.id == ef.podcastId }
+                                                            if (parent != null) {
+                                                                val eps = try { withContext(Dispatchers.IO) { repo.fetchEpisodes(parent) } } catch (_: Exception) { emptyList() }
+                                                                val ep = eps.find { it.id == episodeId }
+                                                                if (ep != null) {
+                                                                    val playIntent = Intent().apply {
+                                                                        putExtra(EXTRA_PODCAST_TITLE, parent.title)
+                                                                        putExtra(EXTRA_PODCAST_IMAGE, parent.imageUrl)
+                                                                    }
+                                                                    playPodcastEpisode(ep, playIntent)
+                                                                } else {
+                                                                    Log.w(TAG, "Indexed episode found but remote fetch didn't return the audio URL for id: $episodeId")
                                                                 }
-                                                                playPodcastEpisode(ep, playIntent)
                                                             } else {
-                                                                Log.w(TAG, "Indexed episode found but remote fetch didn't return the audio URL for id: $episodeId")
+                                                                Log.w(TAG, "Indexed episode references unknown podcast id: ${ef.podcastId}")
                                                             }
                                                         } else {
-                                                            Log.w(TAG, "Indexed episode references unknown podcast id: ${ef.podcastId}")
+                                                            Log.w(TAG, "Episode not found for id: $episodeId")
                                                         }
-                                                    } else {
-                                                        Log.w(TAG, "Episode not found for id: $episodeId")
+                                                    } catch (e: Exception) {
+                                                        Log.e(TAG, "Error resolving episode via index for id: $episodeId", e)
                                                     }
-                                                } catch (e: Exception) {
-                                                    Log.e(TAG, "Error resolving episode via index for id: $episodeId", e)
                                                 }
                                             }
                                         } catch (e: Exception) {
@@ -680,10 +701,11 @@ class RadioService : MediaBrowserServiceCompat() {
                     result.sendResult(itemsWithShowInfo)
                 }
                 MEDIA_ID_PODCASTS -> {
-                    // Present three folders: Subscribed Podcasts, Saved Episodes, and History
+                    // Present four folders: Subscribed Podcasts, Saved Episodes, Downloaded Episodes, and History
                     val itemsPodcasts = mutableListOf<MediaItem>()
                     itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_subscribed").setTitle("Subscribed Podcasts").build(), MediaItem.FLAG_BROWSABLE))
                     itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_saved_episodes").setTitle("Saved Episodes").build(), MediaItem.FLAG_BROWSABLE))
+                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId(MEDIA_ID_PODCASTS_DOWNLOADED).setTitle("Downloaded Episodes").build(), MediaItem.FLAG_BROWSABLE))
                     itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_history").setTitle("History").build(), MediaItem.FLAG_BROWSABLE))
                     result.sendResult(itemsPodcasts)
                 }
@@ -697,26 +719,57 @@ class RadioService : MediaBrowserServiceCompat() {
                                 val repo = PodcastRepository(this@RadioService)
                                 val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                                 val podcasts = all.filter { subscribed.contains(it.id) }
-                                // Fetch cached latest update epochs and sort subscribed podcasts by newest update first
-                                val updates = withContext(Dispatchers.IO) { repo.fetchLatestUpdates(podcasts) }
-                                val sorted = podcasts.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
-                                val itemsPodcasts = sorted.map { p ->
-                                    val subtitle = if ((updates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@RadioService, p.id)) "New" else ""
-                                    MediaItem(
-                                        MediaDescriptionCompat.Builder()
-                                            .setMediaId("podcast_${p.id}")
-                                            .setTitle(p.title)
-                                            .setSubtitle(subtitle)
-                                            .setIconUri(android.net.Uri.parse(p.imageUrl))
-                                            .build(),
-                                        MediaItem.FLAG_BROWSABLE
-                                    )
+                                if (podcasts.isNotEmpty()) {
+                                    // Fetch cached latest update epochs and sort subscribed podcasts by newest update first
+                                    val updates = withContext(Dispatchers.IO) { repo.fetchLatestUpdates(podcasts) }
+                                    val sorted = podcasts.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
+                                    val itemsPodcasts = sorted.map { p ->
+                                        val subtitle = if ((updates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@RadioService, p.id)) "New" else ""
+                                        MediaItem(
+                                            MediaDescriptionCompat.Builder()
+                                                .setMediaId("podcast_${p.id}")
+                                                .setTitle(p.title)
+                                                .setSubtitle(subtitle)
+                                                .setIconUri(android.net.Uri.parse(p.imageUrl))
+                                                .build(),
+                                            MediaItem.FLAG_BROWSABLE
+                                        )
+                                    }
+                                    result.sendResult(itemsPodcasts)
+                                } else {
+                                    // Offline fallback: show subscribed podcasts that have downloaded episodes
+                                    result.sendResult(buildOfflineSubscribedPodcastFallback(subscribed))
                                 }
-                                result.sendResult(itemsPodcasts)
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error loading podcasts for Android Auto", e)
-                                result.sendResult(emptyList())
+                                // Offline fallback: show subscribed podcasts derived from downloaded episodes
+                                try {
+                                    result.sendResult(buildOfflineSubscribedPodcastFallback(subscribed))
+                                } catch (ex: Exception) {
+                                    Log.e(TAG, "Error loading offline fallback for subscribed podcasts", ex)
+                                    result.sendResult(emptyList())
+                                }
                             }
+                        }
+                    } else if (parentId == MEDIA_ID_PODCASTS_DOWNLOADED) {
+                        try {
+                            val downloaded = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
+                            val downloadedItems = downloaded.map { d ->
+                                val subtitle = if (d.podcastTitle.isNotBlank()) d.podcastTitle else ""
+                                MediaItem(
+                                    MediaDescriptionCompat.Builder()
+                                        .setMediaId("podcast_episode_${d.id}")
+                                        .setTitle(d.title)
+                                        .setSubtitle(subtitle)
+                                        .setIconUri(android.net.Uri.parse(d.imageUrl))
+                                        .build(),
+                                    MediaItem.FLAG_PLAYABLE
+                                )
+                            }
+                            result.sendResult(downloadedItems)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error loading downloaded episodes for Android Auto", e)
+                            result.sendResult(emptyList())
                         }
                     } else if (parentId == "podcasts_history") {
                         try {
@@ -781,32 +834,68 @@ class RadioService : MediaBrowserServiceCompat() {
                             if (podcast != null) {
                                 // Fetch only requested page
                                 val eps = withContext(Dispatchers.IO) { repo.fetchEpisodesPaged(podcast, startIndex, pageCount) }
-                                val itemsEpisodes = eps.map { ep ->
-                                    val played = PlayedEpisodesPreference.isPlayed(this@RadioService, ep.id)
-                                    val progress = PlayedEpisodesPreference.getProgress(this@RadioService, ep.id)
-                                    val subtitle = when {
-                                        played -> "Played"
-                                        progress > 0L -> "In progress"
-                                        else -> ""
+                                if (eps.isNotEmpty()) {
+                                    val downloadedIds = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
+                                        .map { it.id }.toSet()
+                                    val itemsEpisodes = eps.map { ep ->
+                                        val played = PlayedEpisodesPreference.isPlayed(this@RadioService, ep.id)
+                                        val progress = PlayedEpisodesPreference.getProgress(this@RadioService, ep.id)
+                                        val isDownloaded = ep.id in downloadedIds
+                                        val subtitle = when {
+                                            isDownloaded && played -> "Downloaded • Played"
+                                            isDownloaded && progress > 0L -> "Downloaded • In progress"
+                                            isDownloaded -> "Downloaded"
+                                            played -> "Played"
+                                            progress > 0L -> "In progress"
+                                            else -> ""
+                                        }
+                                        MediaItem(
+                                            MediaDescriptionCompat.Builder()
+                                                // Include start/count for paging when offering the parent as children if clients re-request ranges
+                                                .setMediaId("podcast_episode_${ep.id}")
+                                                .setTitle(ep.title)
+                                                .setSubtitle(subtitle)
+                                                .setIconUri(android.net.Uri.parse(ep.imageUrl))
+                                                .build(),
+                                            MediaItem.FLAG_PLAYABLE
+                                        )
                                     }
-                                    MediaItem(
-                                        MediaDescriptionCompat.Builder()
-                                            // Include start/count for paging when offering the parent as children if clients re-request ranges
-                                            .setMediaId("podcast_episode_${ep.id}")
-                                            .setTitle(ep.title)
-                                            .setSubtitle(subtitle)
-                                            .setIconUri(android.net.Uri.parse(ep.imageUrl))
-                                            .build(),
-                                        MediaItem.FLAG_PLAYABLE
-                                    )
+                                    result.sendResult(itemsEpisodes)
+                                } else {
+                                    // Offline fallback: show downloaded episodes for this podcast
+                                    val downloadedEps = DownloadedEpisodes.getDownloadedEpisodesForPodcast(this@RadioService, podcastId)
+                                    if (downloadedEps.isNotEmpty()) {
+                                        val fallbackItems = downloadedEps.map { d -> downloadedEntryToMediaItem(d) }
+                                        result.sendResult(fallbackItems)
+                                    } else {
+                                        result.sendResult(emptyList())
+                                    }
                                 }
-                                result.sendResult(itemsEpisodes)
                             } else {
-                                result.sendResult(null)
+                                // Podcast not found in cache (possibly offline); show downloaded episodes if available
+                                val downloadedEps = DownloadedEpisodes.getDownloadedEpisodesForPodcast(this@RadioService, podcastId)
+                                if (downloadedEps.isNotEmpty()) {
+                                    val fallbackItems = downloadedEps.map { d -> downloadedEntryToMediaItem(d) }
+                                    result.sendResult(fallbackItems)
+                                } else {
+                                    result.sendResult(null)
+                                }
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error loading episodes for podcast $podcastId", e)
-                            result.sendResult(null)
+                            // Offline fallback: show downloaded episodes for this podcast
+                            try {
+                                val downloadedEps = DownloadedEpisodes.getDownloadedEpisodesForPodcast(this@RadioService, podcastId)
+                                if (downloadedEps.isNotEmpty()) {
+                                    val fallbackItems = downloadedEps.map { d -> downloadedEntryToMediaItem(d) }
+                                    result.sendResult(fallbackItems)
+                                } else {
+                                    result.sendResult(null)
+                                }
+                            } catch (ex: Exception) {
+                                Log.e(TAG, "Error loading offline fallback for podcast $podcastId", ex)
+                                result.sendResult(null)
+                            }
                         }
                     } else {
                         Log.d(TAG, "Unknown parentId: $parentId")
@@ -829,6 +918,54 @@ class RadioService : MediaBrowserServiceCompat() {
                 .build(),
             MediaItem.FLAG_PLAYABLE
         )
+    }
+
+    private fun downloadedEntryToEpisode(d: DownloadedEpisodes.Entry): Episode = Episode(
+        id = d.id,
+        title = d.title,
+        description = d.description,
+        audioUrl = d.audioUrl,
+        imageUrl = d.imageUrl,
+        pubDate = d.pubDate,
+        durationMins = d.durationMins,
+        podcastId = d.podcastId
+    )
+
+    private fun downloadedEntryToMediaItem(d: DownloadedEpisodes.Entry): MediaItem {
+        val played = PlayedEpisodesPreference.isPlayed(this, d.id)
+        val progress = PlayedEpisodesPreference.getProgress(this, d.id)
+        val subtitle = when {
+            played -> "Downloaded • Played"
+            progress > 0L -> "Downloaded • In progress"
+            else -> "Downloaded"
+        }
+        return MediaItem(
+            MediaDescriptionCompat.Builder()
+                .setMediaId("podcast_episode_${d.id}")
+                .setTitle(d.title)
+                .setSubtitle(subtitle)
+                .setIconUri(android.net.Uri.parse(d.imageUrl))
+                .build(),
+            MediaItem.FLAG_PLAYABLE
+        )
+    }
+
+    private fun buildOfflineSubscribedPodcastFallback(subscribed: Set<String>): List<MediaItem> {
+        val downloaded = DownloadedEpisodes.getDownloadedEntries(this)
+        val downloadedPodcastIds = downloaded.map { it.podcastId }.distinct()
+            .filter { subscribed.contains(it) }
+        return downloadedPodcastIds.map { podcastId ->
+            val sample = downloaded.first { it.podcastId == podcastId }
+            MediaItem(
+                MediaDescriptionCompat.Builder()
+                    .setMediaId("podcast_${podcastId}")
+                    .setTitle(sample.podcastTitle.ifBlank { podcastId })
+                    .setSubtitle("Available offline")
+                    .setIconUri(android.net.Uri.parse(sample.imageUrl))
+                    .build(),
+                MediaItem.FLAG_BROWSABLE
+            )
+        }
     }
 
     private fun ensurePlayer() {
