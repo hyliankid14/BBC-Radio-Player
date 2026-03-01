@@ -20,8 +20,8 @@ android {
         applicationId = "com.hyliankid14.bbcradioplayer"
         minSdk = 21
         targetSdk = 34
-        versionCode = 28
-        versionName = "1.0.9"
+        versionCode = 29
+        versionName = "1.0.10"
     }
 
     flavorDimensions "distribution"
