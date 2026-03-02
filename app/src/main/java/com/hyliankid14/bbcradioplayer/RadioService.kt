@@ -12,6 +12,8 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.MediaBrowserServiceCompat
 import android.support.v4.media.MediaBrowserCompat
@@ -19,6 +21,8 @@ import android.support.v4.media.MediaBrowserCompat.MediaItem
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.PlaybackException
@@ -660,7 +664,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         MediaDescriptionCompat.Builder()
                             .setMediaId(MEDIA_ID_FAVORITES)
                             .setTitle("Favourites")
-                            .setIconUri(Uri.parse("android.resource://${packageName}/${R.drawable.ic_star_outline}"))
+                            .setIconBitmap(loadDrawableAsBitmap(R.drawable.ic_star_outline))
                             .build(),
                         MediaItem.FLAG_BROWSABLE
                     ))
@@ -670,7 +674,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         MediaDescriptionCompat.Builder()
                             .setMediaId(MEDIA_ID_ALL_STATIONS)
                             .setTitle("All Stations")
-                            .setIconUri(Uri.parse("android.resource://${packageName}/${R.drawable.ic_list}"))
+                            .setIconBitmap(loadDrawableAsBitmap(R.drawable.ic_list))
                             .build(),
                         MediaItem.FLAG_BROWSABLE
                     ))
@@ -679,7 +683,7 @@ class RadioService : MediaBrowserServiceCompat() {
                         MediaDescriptionCompat.Builder()
                             .setMediaId(MEDIA_ID_PODCASTS)
                             .setTitle("Podcasts")
-                            .setIconUri(Uri.parse("android.resource://${packageName}/${R.drawable.ic_podcast}"))
+                            .setIconBitmap(loadDrawableAsBitmap(R.drawable.ic_podcast))
                             .build(),
                         MediaItem.FLAG_BROWSABLE
                     ))
@@ -908,6 +912,24 @@ class RadioService : MediaBrowserServiceCompat() {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Convert a vector drawable resource to a bitmap for use in Android Auto navigation icons.
+     * Android Auto's Media Browser API requires bitmap icons rather than vector drawables.
+     */
+    private fun loadDrawableAsBitmap(drawableResId: Int, sizePixels: Int = 128): Bitmap? {
+        return try {
+            val drawable = AppCompatResources.getDrawable(this, drawableResId) ?: return null
+            val bitmap = Bitmap.createBitmap(sizePixels, sizePixels, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            drawable.setBounds(0, 0, sizePixels, sizePixels)
+            drawable.draw(canvas)
+            bitmap
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load drawable as bitmap: ${e.message}")
+            null
         }
     }
 
