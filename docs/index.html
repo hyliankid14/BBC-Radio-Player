@@ -442,6 +442,127 @@
             border-width: 1px;
         }
 
+        .webapp-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #f8f8f8;
+            border: 1px solid #e8e8e8;
+        }
+
+        .webapp-title {
+            font-size: 18px;
+            color: #333;
+            font-weight: 700;
+        }
+
+        .webapp-subtitle {
+            font-size: 12px;
+            color: #777;
+            margin-top: 2px;
+        }
+
+        .webapp-categories {
+            display: flex;
+            gap: 8px;
+            margin: 16px 0;
+            flex-wrap: wrap;
+        }
+
+        .webapp-tab {
+            border: 1px solid #d6d6d6;
+            background: #f5f5f5;
+            color: #444;
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .webapp-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .station-list {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .station-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            border: 1px solid #e6e6e6;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .station-row-art {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            object-fit: cover;
+            background: #f2f2f2;
+            flex-shrink: 0;
+        }
+
+        .station-row-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .station-row-title {
+            font-size: 15px;
+            color: #333;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .station-row-subtitle {
+            font-size: 12px;
+            color: #777;
+            margin-top: 2px;
+        }
+
+        .station-row-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .station-icon-button {
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            border: 1px solid #dcdcdc;
+            background: #f7f7f7;
+            color: #333;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+        }
+
+        .station-icon-button.play {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+
         @media (max-width: 600px) {
             .header {
                 padding: 30px 20px;
@@ -535,17 +656,42 @@
             }
         };
 
+        const STATION_LOGO_BASE = 'https://sounds.files.bbci.co.uk/3.11.1/services';
+        const makeStation = (id, title, serviceId, category = 'LOCAL', logoServiceId = serviceId) => ({
+            id,
+            title,
+            serviceId,
+            category,
+            logoUrl: `${STATION_LOGO_BASE}/${logoServiceId}/blocks-colour-black_600x600.png`
+        });
+
         const LIVE_RADIO_STATIONS = [
-            { id: 'radio1', title: 'BBC Radio 1', serviceId: 'bbc_radio_one' },
-            { id: '1xtra', title: 'BBC Radio 1Xtra', serviceId: 'bbc_1xtra' },
-            { id: 'radio2', title: 'BBC Radio 2', serviceId: 'bbc_radio_two' },
-            { id: 'radio3', title: 'BBC Radio 3', serviceId: 'bbc_radio_three' },
-            { id: 'radio4', title: 'BBC Radio 4', serviceId: 'bbc_radio_fourfm' },
-            { id: 'radio4extra', title: 'BBC Radio 4 Extra', serviceId: 'bbc_radio_four_extra' },
-            { id: 'radio5live', title: 'BBC Radio 5 Live', serviceId: 'bbc_radio_five_live' },
-            { id: 'radio6', title: 'BBC Radio 6 Music', serviceId: 'bbc_6music' },
-            { id: 'worldservice', title: 'BBC World Service', serviceId: 'bbc_world_service' },
-            { id: 'asiannetwork', title: 'BBC Asian Network', serviceId: 'bbc_asian_network' }
+            makeStation('radio1', 'BBC Radio 1', 'bbc_radio_one', 'NATIONAL'),
+            makeStation('1xtra', 'BBC Radio 1Xtra', 'bbc_1xtra', 'NATIONAL'),
+            makeStation('radio1dance', 'BBC Radio 1 Dance', 'bbc_radio_one_dance', 'NATIONAL'),
+            makeStation('radio2', 'BBC Radio 2', 'bbc_radio_two', 'NATIONAL'),
+            makeStation('radio3', 'BBC Radio 3', 'bbc_radio_three', 'NATIONAL'),
+            makeStation('radio4', 'BBC Radio 4', 'bbc_radio_fourfm', 'NATIONAL'),
+            makeStation('radio4extra', 'BBC Radio 4 Extra', 'bbc_radio_four_extra', 'NATIONAL'),
+            makeStation('radio5live', 'BBC Radio 5 Live', 'bbc_radio_five_live', 'NATIONAL'),
+            makeStation('radio6', 'BBC Radio 6 Music', 'bbc_6music', 'NATIONAL'),
+            makeStation('worldservice', 'BBC World Service', 'bbc_world_service', 'NATIONAL'),
+            makeStation('asiannetwork', 'BBC Asian Network', 'bbc_asian_network', 'NATIONAL'),
+
+            makeStation('radiocymru', 'BBC Radio Cymru', 'bbc_radio_cymru', 'REGIONS'),
+            makeStation('radioscotland', 'BBC Radio Scotland', 'bbc_radio_scotland_fm', 'REGIONS'),
+            makeStation('radioulster', 'BBC Radio Ulster', 'bbc_radio_ulster', 'REGIONS'),
+            makeStation('radiowales', 'BBC Radio Wales', 'bbc_radio_wales_fm', 'REGIONS'),
+            makeStation('radiowalesextra', 'BBC Radio Wales Extra', 'bbc_radio_wales_am', 'REGIONS'),
+
+            makeStation('radiolondon', 'BBC Radio London', 'bbc_london', 'LOCAL', 'bbc_london'),
+            makeStation('radiomanchester', 'BBC Radio Manchester', 'bbc_radio_manchester', 'LOCAL'),
+            makeStation('radiomerseyside', 'BBC Radio Merseyside', 'bbc_radio_merseyside', 'LOCAL'),
+            makeStation('radionewcastle', 'BBC Radio Newcastle', 'bbc_radio_newcastle', 'LOCAL'),
+            makeStation('radionorfolk', 'BBC Radio Norfolk', 'bbc_radio_norfolk', 'LOCAL'),
+            makeStation('radiosheffield', 'BBC Radio Sheffield', 'bbc_radio_sheffield', 'LOCAL'),
+            makeStation('radiowestmidlands', 'BBC Radio West Midlands', 'bbc_wm', 'LOCAL', 'bbc_wm'),
+            makeStation('radioyork', 'BBC Radio York', 'bbc_radio_york', 'LOCAL')
         ];
 
         class PodcastPlayer {
@@ -562,6 +708,7 @@
                 this.radioStations = LIVE_RADIO_STATIONS;
                 this.favoriteStationsOrder = this.loadFavoriteStationsOrder();
                 this.currentRadioStationId = this.favoriteStationsOrder[0] || this.radioStations[0]?.id || null;
+                this.currentStationCategory = 'NATIONAL';
                 this.currentRadioObjectUrl = null;
                 this.hlsPlayer = null;
                 this.init();
@@ -669,6 +816,7 @@
             }
 
             init() {
+                window.addEventListener('hashchange', () => this.parseUrl());
                 this.parseUrl();
             }
 
@@ -865,19 +1013,33 @@
                 }
 
                 this.currentRadioStationId = stationId;
+                this.currentStationCategory = station.category || this.currentStationCategory;
                 this.renderLiveRadioSection();
                 this.setLiveRadioSource(station, true);
             }
 
-            renderStationCards(stations) {
+            setStationCategory(category) {
+                this.currentStationCategory = category;
+                this.renderLiveRadioSection();
+            }
+
+            openWebApp() {
+                window.location.hash = '#/webapp';
+            }
+
+            renderStationRows(stations) {
                 return stations.map(station => {
                     const favouriteIcon = this.isFavoriteStation(station.id) ? '⭐' : '☆';
                     return `
-                        <div class="station-card">
-                            <div class="station-title">${this.escapeHtml(station.title)}</div>
-                            <div class="station-actions">
-                                <button class="button button-primary" onclick="player.playRadioStation('${this.escapeHtml(station.id)}')">▶️ Play</button>
-                                <button class="button button-secondary" onclick="player.toggleFavoriteStation('${this.escapeHtml(station.id)}')">${favouriteIcon} Favourite</button>
+                        <div class="station-row">
+                            <img class="station-row-art" src="${this.escapeHtml(station.logoUrl)}" alt="${this.escapeHtml(station.title)}" onerror="this.style.display='none'">
+                            <div class="station-row-info">
+                                <div class="station-row-title">${this.escapeHtml(station.title)}</div>
+                                <div class="station-row-subtitle">${this.escapeHtml(station.category)}</div>
+                            </div>
+                            <div class="station-row-actions">
+                                <button class="station-icon-button" onclick="player.toggleFavoriteStation('${this.escapeHtml(station.id)}')" aria-label="Toggle favourite">${favouriteIcon}</button>
+                                <button class="station-icon-button play" onclick="player.playRadioStation('${this.escapeHtml(station.id)}')" aria-label="Play station">▶</button>
                             </div>
                         </div>
                     `;
@@ -894,8 +1056,6 @@
                     .map(id => this.getStationById(id))
                     .filter(Boolean);
 
-                const otherStations = this.radioStations.filter(station => !this.isFavoriteStation(station.id));
-
                 const selectedStation = this.getStationById(this.currentRadioStationId)
                     || favoriteStations[0]
                     || this.radioStations[0]
@@ -908,10 +1068,24 @@
 
                 this.currentRadioStationId = selectedStation.id;
 
+                const categoryLabels = {
+                    NATIONAL: 'National',
+                    REGIONS: 'Regions',
+                    LOCAL: 'Local'
+                };
+                const filteredStations = this.radioStations.filter(station => station.category === this.currentStationCategory);
+                const categories = ['NATIONAL', 'REGIONS', 'LOCAL'];
+
                 section.innerHTML = `
                     <div class="radio-section">
-                        <h3>📻 Live Radio</h3>
-                        <p class="radio-subtitle">Play live BBC stations and save your favourites on this device.</p>
+                        <div class="webapp-toolbar">
+                            <button class="button button-secondary" onclick="window.location.hash = '#/'">← Home</button>
+                            <div>
+                                <div class="webapp-title">BBC Radio Web App</div>
+                                <div class="webapp-subtitle">Live stations, favourites, and category browsing</div>
+                            </div>
+                            <button class="button button-secondary" onclick="player.installPwa()">Install</button>
+                        </div>
 
                         <div class="radio-player-box">
                             <div class="radio-now-playing">Now playing: ${this.escapeHtml(selectedStation.title)}</div>
@@ -919,13 +1093,19 @@
                             <div id="radio-status" class="duration-info">Preparing stream...</div>
                         </div>
 
+                        <div class="webapp-categories">
+                            ${categories.map(category => `
+                                <button class="webapp-tab ${this.currentStationCategory === category ? 'active' : ''}" onclick="player.setStationCategory('${category}')">${categoryLabels[category]}</button>
+                            `).join('')}
+                        </div>
+
                         ${favoriteStations.length ? `
                             <h3>⭐ Favourites</h3>
-                            <div class="station-grid">${this.renderStationCards(favoriteStations)}</div>
+                            <div class="station-list">${this.renderStationRows(favoriteStations)}</div>
                         ` : ''}
 
-                        <h3 style="margin-top: 18px;">🎙️ Stations</h3>
-                        <div class="station-grid">${this.renderStationCards(otherStations)}</div>
+                        <h3 style="margin-top: 18px;">🎙️ ${categoryLabels[this.currentStationCategory]} Stations</h3>
+                        <div class="station-list">${this.renderStationRows(filteredStations)}</div>
                     </div>
                 `;
 
@@ -946,9 +1126,13 @@
             }
 
             parseUrl() {
-                // Parse hash-based routing: /#/p/id or /#/e/id
                 const hash = window.location.hash;
-                // Match type and id, stopping at ? for query params
+
+                if (hash.startsWith('#/webapp') || hash.startsWith('#/app')) {
+                    this.showWebAppPage();
+                    return;
+                }
+
                 const match = hash.match(/#\/(p|e)\/([^\/?]+)/);
 
                 if (!match) {
@@ -958,6 +1142,21 @@
 
                 const [, type, id] = match;
                 this.loadContent(type, id);
+            }
+
+            showWebAppPage() {
+                const app = document.getElementById('app');
+                app.innerHTML = `
+                    <div class="header">
+                        <h1>🎙️ BBC Radio Player</h1>
+                        <p>Live Radio Web App</p>
+                    </div>
+                    <div class="content">
+                        <div id="live-radio-section"></div>
+                    </div>
+                `;
+
+                this.renderLiveRadioSection();
             }
 
             async loadContent(type, id) {
@@ -1729,6 +1928,9 @@
                         </div>
 
                         <div class="button-group" style="flex-direction: column;">
+                            <button class="button button-primary" onclick="player.openWebApp()">
+                                🌐 Open Web App
+                            </button>
                             <button class="button button-secondary" onclick="player.installPwa()">
                                 📲 Install Web App
                             </button>
@@ -1749,8 +1951,6 @@
                             </p>
                         </div>
 
-                        <div id="live-radio-section"></div>
-
                         <div class="publication-info" style="justify-content: center; flex-direction: column; text-align: center; margin-top: 40px;">
                             <p style="font-size: 12px; color: #999; margin-bottom: 8px;">
                                 Unofficial third-party app. BBC and station trademarks are owned by the British Broadcasting Corporation.
@@ -1761,8 +1961,6 @@
                         </div>
                     </div>
                 `;
-
-                this.renderLiveRadioSection();
             }
 
             escapeHtml(text) {
