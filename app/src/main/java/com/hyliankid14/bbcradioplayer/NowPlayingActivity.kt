@@ -1372,11 +1372,11 @@ class NowPlayingActivity : AppCompatActivity() {
             if (isSaved) {
                 // Saved: use same filled circle style as play/pause button
                 favoriteButton.backgroundTintList = playPauseColorStateList
-                favoriteButton.iconTint = if (currentIsLightBackground) whiteColorStateList else iconColorStateList
+                favoriteButton.iconTint = null
             } else {
                 // Not saved: transparent background with colored icon
                 favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(currentButtonOutlineColor)
+                favoriteButton.iconTint = null
             }
         } else if (!isPodcast && station != null) {
             // Radio station favorite styling - match bookmark button behavior
@@ -1384,11 +1384,11 @@ class NowPlayingActivity : AppCompatActivity() {
             if (isFavorited) {
                 // Favorited: use same filled circle style as play/pause button
                 favoriteButton.backgroundTintList = playPauseColorStateList
-                favoriteButton.iconTint = if (currentIsLightBackground) whiteColorStateList else iconColorStateList
+                favoriteButton.iconTint = null
             } else {
                 // Not favorited: transparent background with colored icon
                 favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(currentButtonOutlineColor)
+                favoriteButton.iconTint = null
             }
         }
     }
@@ -1608,13 +1608,13 @@ class NowPlayingActivity : AppCompatActivity() {
                         val whiteColorStateList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
                         
                         stopButton.backgroundTintList = outlineButtonColorStateList
-                        stopButton.iconTint = whiteColorStateList
+                        stopButton.iconTint = null
                         previousButton.backgroundTintList = outlineButtonColorStateList
-                        previousButton.iconTint = whiteColorStateList
+                        previousButton.iconTint = null
                         nextButton.backgroundTintList = outlineButtonColorStateList
-                        nextButton.iconTint = whiteColorStateList
+                        nextButton.iconTint = null
                         favoriteButton.backgroundTintList = outlineButtonColorStateList
-                        favoriteButton.iconTint = iconColorStateList
+                        favoriteButton.iconTint = null
                         openPodcastButton.backgroundTintList = outlineButtonColorStateList
                         
                         // Apply visual distinction for favorited items (radio stations and saved episodes)
@@ -1629,11 +1629,11 @@ class NowPlayingActivity : AppCompatActivity() {
                             if (isSaved) {
                                 // Saved: use same filled circle style as play/pause button
                                 favoriteButton.backgroundTintList = playPauseButtonColorStateList
-                                favoriteButton.iconTint = if (isLightBackground) whiteColorStateList else iconColorStateList
+                                favoriteButton.iconTint = null
                             } else {
                                 // Not saved: transparent background with colored icon
                                 favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(buttonOutlineColor)
+                                favoriteButton.iconTint = null
                             }
                         } else if (!isPodcast && station != null) {
                             // Radio station favorite styling - match bookmark button behavior
@@ -1641,17 +1641,17 @@ class NowPlayingActivity : AppCompatActivity() {
                             if (isFavorited) {
                                 // Favorited: use same filled circle style as play/pause button
                                 favoriteButton.backgroundTintList = playPauseButtonColorStateList
-                                favoriteButton.iconTint = if (isLightBackground) whiteColorStateList else iconColorStateList
+                                favoriteButton.iconTint = null
                             } else {
                                 // Not favorited: transparent background with colored icon
                                 favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(buttonOutlineColor)
+                                favoriteButton.iconTint = null
                             }
                         }
                         
                         // Play/pause button uses a slightly different fill color for subtle distinction
                         playPauseButton.backgroundTintList = playPauseButtonColorStateList
-                        playPauseButton.iconTint = if (isLightBackground) whiteColorStateList else iconColorStateList
+                        playPauseButton.iconTint = null
                         
                         // Apply dynamic colors to slider
                         seekBar.trackActiveTintList = iconColorStateList
