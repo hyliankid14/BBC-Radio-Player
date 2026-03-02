@@ -561,6 +561,7 @@
                 this.radioStations = LIVE_RADIO_STATIONS;
                 this.favoriteStationsOrder = this.loadFavoriteStationsOrder();
                 this.currentRadioStationId = this.favoriteStationsOrder[0] || this.radioStations[0]?.id || null;
+                this.currentRadioObjectUrl = null;
                 this.init();
                 this.initCookieBanner();
                 this.initPwa();
@@ -725,6 +726,83 @@
                 return `${this.streamBase}?station=${encodeURIComponent(serviceId)}&bitrate=${bitrate}`;
             }
 
+            setRadioStatus(message) {
+                const status = document.getElementById('radio-status');
+                if (status) {
+                    status.textContent = message;
+                }
+            }
+
+            async resolveStationPlayableUrl(serviceId, highQuality = true) {
+                const stationUrl = this.buildStationStreamUrl(serviceId, highQuality);
+                const endpoints = [
+                    stationUrl,
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(stationUrl)}`
+                ];
+
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch(endpoint, { cache: 'no-store' });
+                        if (!response.ok) {
+                            continue;
+                        }
+
+                        const text = (await response.text()).trim();
+                        if (!text) {
+                            continue;
+                        }
+
+                        if (text.includes('#EXTM3U')) {
+                            const rewritten = text.replace(/http:\/\//gi, 'https://');
+                            const blob = new Blob([rewritten], { type: 'application/vnd.apple.mpegurl' });
+                            return URL.createObjectURL(blob);
+                        }
+
+                        if (text.startsWith('http://') || text.startsWith('https://')) {
+                            return text.replace(/^http:\/\//i, 'https://');
+                        }
+                    } catch (error) {
+                        console.debug('Playlist resolve failed:', endpoint, error?.message || error);
+                    }
+                }
+
+                return stationUrl;
+            }
+
+            async setLiveRadioSource(station, shouldAutoplay = false) {
+                const audio = document.getElementById('live-radio-player');
+                if (!audio || !station) {
+                    return;
+                }
+
+                this.setRadioStatus('Resolving stream...');
+
+                try {
+                    const resolvedUrl = await this.resolveStationPlayableUrl(station.serviceId, true);
+
+                    if (this.currentRadioObjectUrl) {
+                        URL.revokeObjectURL(this.currentRadioObjectUrl);
+                        this.currentRadioObjectUrl = null;
+                    }
+                    if (resolvedUrl.startsWith('blob:')) {
+                        this.currentRadioObjectUrl = resolvedUrl;
+                    }
+
+                    audio.src = resolvedUrl;
+                    audio.load();
+                    this.setRadioStatus(`Ready: ${station.title}`);
+
+                    if (shouldAutoplay) {
+                        audio.play().catch(() => {
+                            this.setRadioStatus('Tap play to start audio.');
+                        });
+                    }
+                } catch (error) {
+                    this.setRadioStatus('Unable to load stream. Please try another station.');
+                    console.debug('Unable to set live radio source:', error?.message || error);
+                }
+            }
+
             toggleFavoriteStation(stationId) {
                 if (this.isFavoriteStation(stationId)) {
                     this.favoriteStationsOrder = this.favoriteStationsOrder.filter(id => id !== stationId);
@@ -749,15 +827,7 @@
 
                 this.currentRadioStationId = stationId;
                 this.renderLiveRadioSection();
-
-                setTimeout(() => {
-                    const audio = document.getElementById('live-radio-player');
-                    if (audio) {
-                        audio.play().catch(() => {
-                            console.debug('Autoplay blocked until user interacts with player controls.');
-                        });
-                    }
-                }, 50);
+                this.setLiveRadioSource(station, true);
             }
 
             renderStationCards(stations) {
@@ -806,11 +876,8 @@
 
                         <div class="radio-player-box">
                             <div class="radio-now-playing">Now playing: ${this.escapeHtml(selectedStation.title)}</div>
-                            <audio id="live-radio-player" controls class="audio-player">
-                                <source src="${this.escapeHtml(this.buildStationStreamUrl(selectedStation.serviceId, true))}" type="application/x-mpegURL">
-                                <source src="${this.escapeHtml(this.buildStationStreamUrl(selectedStation.serviceId, false))}" type="application/x-mpegURL">
-                                Your browser does not support the audio element.
-                            </audio>
+                            <audio id="live-radio-player" controls class="audio-player"></audio>
+                            <div id="radio-status" class="duration-info">Preparing stream...</div>
                         </div>
 
                         ${favoriteStations.length ? `
@@ -835,6 +902,8 @@
                         }
                     });
                 }
+
+                this.setLiveRadioSource(selectedStation, false);
             }
 
             parseUrl() {
