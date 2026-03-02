@@ -1014,8 +1014,7 @@
 
                 this.currentRadioStationId = stationId;
                 this.currentStationCategory = station.category || this.currentStationCategory;
-                this.renderLiveRadioSection();
-                this.setLiveRadioSource(station, true);
+                this.renderLiveRadioSection({ autoplay: true });
             }
 
             setStationCategory(category) {
@@ -1046,7 +1045,8 @@
                 }).join('');
             }
 
-            renderLiveRadioSection() {
+            renderLiveRadioSection(options = {}) {
+                const { autoplay = false } = options;
                 const section = document.getElementById('live-radio-section');
                 if (!section) {
                     return;
@@ -1122,7 +1122,7 @@
                     });
                 }
 
-                this.setLiveRadioSource(selectedStation, false);
+                this.setLiveRadioSource(selectedStation, autoplay);
             }
 
             parseUrl() {
@@ -1928,18 +1928,15 @@
                         </div>
 
                         <div class="button-group" style="flex-direction: column;">
-                            <button class="button button-primary" onclick="player.openWebApp()">
-                                🌐 Open Web App
-                            </button>
-                            <button class="button button-secondary" onclick="player.installPwa()">
-                                📲 Install Web App
-                            </button>
                             <a href="https://github.com/hyliankid14/bbc-radio-player/releases" class="button button-primary" target="_blank">
                                 📥 Download Latest Release
                             </a>
                             <a href="https://github.com/hyliankid14/bbc-radio-player" class="button button-secondary" target="_blank">
                                 🔗 View on GitHub
                             </a>
+                            <button class="button button-secondary" onclick="player.openWebApp()">
+                                🌐 Open Web App
+                            </button>
                         </div>
 
                         <div style="background: #f0f0f0; border-radius: 12px; padding: 20px; margin-top: 30px; text-align: center;">
