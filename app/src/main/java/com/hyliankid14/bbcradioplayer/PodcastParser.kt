@@ -44,7 +44,7 @@ object OPMLParser {
 
     fun fetchAndParseOPML(url: String): List<Podcast> {
         return try {
-            // Force HTTPS to prevent cleartext traffic issues
+            // BBC OPML works fine with HTTPS scheduling
             var redirectUrl = url.replace("http://", "https://")
             var redirects = 0
             while (redirects < 5) {
@@ -68,7 +68,7 @@ object OPMLParser {
                 ) {
                     val location = connection.getHeaderField("Location") ?: break
                     redirectUrl = URL(currentUrl, location).toString()
-                    // Force all redirects to HTTPS to prevent cleartext traffic
+                    // Ensure all redirects use HTTPS
                     redirectUrl = redirectUrl.replace("http://", "https://")
                     redirects++
                     continue
@@ -203,7 +203,7 @@ object RSSParser {
                                     id = currentAudioUrl.trim().hashCode().toString(),
                                     title = currentTitle.trim(),
                                     description = currentDescription.trim(),
-                                    audioUrl = currentAudioUrl.trim().replace("http://", "https://"),
+                                    audioUrl = currentAudioUrl.trim(),
                                     imageUrl = "",
                                     pubDate = currentPubDate.trim(),
                                     durationMins = currentDuration,
@@ -229,7 +229,7 @@ object RSSParser {
 
     fun fetchAndParseRSS(url: String, podcastId: String, startIndex: Int, maxCount: Int): List<Episode> {
         return try {
-            // Force HTTPS to prevent cleartext traffic issues
+            // BBC RSS feeds work fine with HTTPS
             val secureUrl = url.replace("http://", "https://")
             val connection = (URL(secureUrl).openConnection() as java.net.HttpURLConnection).apply {
                 instanceFollowRedirects = true

@@ -1215,30 +1215,58 @@ class NowPlayingActivity : AppCompatActivity() {
                         val episodeId = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
                         if (!episodeId.isNullOrEmpty()) {
                             if (DownloadedEpisodes.isDownloaded(this, episodeId)) {
-                                // Delete download
                                 EpisodeDownloadManager.deleteDownload(this, episodeId)
+                                invalidateOptionsMenu()
                             } else {
-                                // Download episode
-                                val episode = previewEpisodeProp ?: run {
+                                val stationPodcastId = PlaybackStateHelper.getCurrentStation()?.id?.removePrefix("podcast_")
+                                val fallbackEpisode = previewEpisodeProp ?: run {
                                     Episode(
                                         id = episodeId,
                                         title = episodeTitle.text?.toString() ?: "Episode",
                                         description = fullDescriptionHtml.ifEmpty { showName.text?.toString() ?: "" },
-                                        audioUrl = PlaybackStateHelper.getCurrentMediaUri() ?: "",
+                                        audioUrl = playingEpisode?.audioUrl ?: (PlaybackStateHelper.getCurrentMediaUri() ?: ""),
                                         imageUrl = lastArtworkUrl ?: "",
                                         pubDate = releaseDateView.text?.toString() ?: "",
                                         durationMins = 0,
-                                        podcastId = ""
+                                        podcastId = stationPodcastId ?: ""
                                     )
                                 }
-                                
-                                val podcastTitle = supportActionBar?.title?.toString() 
-                                    ?: showName.text?.toString() 
+
+                                val podcastTitle = supportActionBar?.title?.toString()
+                                    ?: showName.text?.toString()
                                     ?: "Podcast"
-                                
-                                EpisodeDownloadManager.downloadEpisode(this, episode, podcastTitle)
+
+                                Thread {
+                                    var resolvedEpisode = fallbackEpisode
+                                    try {
+                                        val pid = resolvedEpisode.podcastId
+                                        if (pid.isNotBlank()) {
+                                            val repo = PodcastRepository(this)
+                                            val podcast = kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) }
+                                                .firstOrNull { it.id == pid }
+                                            if (podcast != null) {
+                                                val episodes = RSSParser.fetchAndParseRSS(podcast.rssUrl, podcast.id)
+                                                val byId = episodes.firstOrNull { it.id == episodeId }
+                                                if (byId != null) {
+                                                    resolvedEpisode = byId
+                                                } else {
+                                                    val title = fallbackEpisode.title.trim()
+                                                    if (title.isNotBlank()) {
+                                                        episodes.firstOrNull { it.title.equals(title, ignoreCase = true) }?.let { matched ->
+                                                            resolvedEpisode = matched
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } catch (_: Exception) { }
+
+                                    runOnUiThread {
+                                        EpisodeDownloadManager.downloadEpisode(this, resolvedEpisode, podcastTitle)
+                                        invalidateOptionsMenu()
+                                    }
+                                }.start()
                             }
-                            invalidateOptionsMenu()
                         }
                         return true
                     }

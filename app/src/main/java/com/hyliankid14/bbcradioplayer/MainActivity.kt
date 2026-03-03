@@ -1437,6 +1437,15 @@ class MainActivity : AppCompatActivity() {
                             rv?.adapter?.notifyDataSetChanged()
                         } catch (_: Exception) { }
                     }
+                } else {
+                    val reason = intent?.getStringExtra(EpisodeDownloadManager.EXTRA_FAILURE_REASON)
+                    if (!reason.isNullOrBlank()) {
+                        runOnUiThread {
+                            try {
+                                android.widget.Toast.makeText(this@MainActivity, "Download failed: $reason", android.widget.Toast.LENGTH_LONG).show()
+                            } catch (_: Exception) { }
+                        }
+                    }
                 }
             } catch (_: Exception) { }
         }
