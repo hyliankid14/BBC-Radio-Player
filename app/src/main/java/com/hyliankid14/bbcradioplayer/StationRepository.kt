@@ -10,9 +10,11 @@ data class Station(
     val title: String,
     val serviceId: String,
     val logoUrl: String,
+    val directStreamUrl: String? = null,
     val category: StationCategory = StationCategory.LOCAL
 ) {
     fun getUri(highQuality: Boolean): String {
+        directStreamUrl?.let { return it }
         val bitrate = if (highQuality) HQ_BITRATE else LQ_BITRATE
         return "$STREAM_BASE?station=$serviceId&bitrate=$bitrate"
     }
@@ -30,12 +32,14 @@ object StationRepository {
         title: String,
         serviceId: String,
         logoServiceId: String = serviceId,
+        directStreamUrl: String? = null,
         category: StationCategory = StationCategory.LOCAL
     ): Station = Station(
         id = id,
         title = title,
         serviceId = serviceId,
         logoUrl = "$LOGO_BASE/$logoServiceId/blocks-colour-black_600x600.png",
+        directStreamUrl = directStreamUrl,
         category = category
     )
 
@@ -50,7 +54,34 @@ object StationRepository {
         station("radio3unwind", "BBC Radio 3 Unwind", "bbc_radio_three_unwind", category = StationCategory.NATIONAL),
         station("radio4", "BBC Radio 4", "bbc_radio_fourfm", category = StationCategory.NATIONAL),
         station("radio4extra", "BBC Radio 4 Extra", "bbc_radio_four_extra", category = StationCategory.NATIONAL),
-        station("radio5live", "BBC Radio 5 Live", "bbc_radio_five_live", category = StationCategory.NATIONAL),
+        station(
+            "radio5live",
+            "BBC Radio 5 Live",
+            "bbc_radio_five_live",
+            directStreamUrl = "https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/uk/audio_syndication_high_sbr_v1/ak/bbc_radio_five_live.m3u8",
+            category = StationCategory.NATIONAL
+        ),
+        station(
+            "radio5livesportsextra",
+            "BBC Radio 5 Live Sports Extra",
+            "bbc_radio_five_live_sports_extra",
+            directStreamUrl = "https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/uk/audio_syndication_high_sbr_v1/ak/bbc_radio_five_live_sports_extra.m3u8",
+            category = StationCategory.NATIONAL
+        ),
+        station(
+            "radio5livesportsextra2",
+            "BBC Radio 5 Sports Extra 2",
+            "bbc_radio_five_sports_extra_2",
+            directStreamUrl = "https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/uk/audio_syndication_high_sbr_v1/ak/bbc_radio_five_sports_extra_2.m3u8",
+            category = StationCategory.NATIONAL
+        ),
+        station(
+            "radio5livesportsextra3",
+            "BBC Radio 5 Sports Extra 3",
+            "bbc_radio_five_sports_extra_3",
+            directStreamUrl = "https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/uk/audio_syndication_high_sbr_v1/ak/bbc_radio_five_sports_extra_3.m3u8",
+            category = StationCategory.NATIONAL
+        ),
         station("radio6", "BBC Radio 6 Music", "bbc_6music", category = StationCategory.NATIONAL),
         station("worldservice", "BBC World Service", "bbc_world_service", category = StationCategory.NATIONAL),
         station("asiannetwork", "BBC Asian Network", "bbc_asian_network", category = StationCategory.NATIONAL),
