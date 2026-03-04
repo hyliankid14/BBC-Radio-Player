@@ -9,6 +9,20 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+fun getDisplayVersion(context: Context): String {
+    return try {
+        val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
+        if (android.util.Log::class.java.simpleName == "DEBUG" || 
+            context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+            "debug-$version"
+        } else {
+            version
+        }
+    } catch (e: Exception) {
+        "Unknown"
+    }
+}
+
 data class ReleaseInfo(
     val tagName: String,
     val versionName: String,
@@ -42,13 +56,15 @@ class UpdateChecker(private val context: Context) {
      */
     suspend fun checkForUpdate(): ReleaseInfo? = withContext(Dispatchers.IO) {
         try {
-            val currentVersion = try {
+            val fullVersionString = try {
                 context.packageManager.getPackageInfo(context.packageName, 0).versionName
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to get app version", e)
                 return@withContext null
             }
-            Log.d(TAG, "Checking for updates. Current version: $currentVersion")
+            // Strip debug prefix for version comparison
+            val currentVersion = fullVersionString.removePrefix("debug-")
+            Log.d(TAG, "Checking for updates. Current version: $currentVersion (display: $fullVersionString)")
             
             val releaseInfo = fetchLatestRelease() ?: return@withContext null
             

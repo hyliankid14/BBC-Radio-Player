@@ -20,7 +20,12 @@ object UpdateDialog {
         onDismiss: () -> Unit = {}
     ) {
         val currentVersion = try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
+            if (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+                "debug-$version"
+            } else {
+                version
+            }
         } catch (e: Exception) {
             "Unknown"
         }

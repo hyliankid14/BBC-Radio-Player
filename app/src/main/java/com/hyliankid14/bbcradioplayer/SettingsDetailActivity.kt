@@ -752,9 +752,14 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
             
             val updateChecker = UpdateChecker(this)
             
-            // Display current version
+            // Display current version (with debug- prefix if debuggable)
             val currentVersion = try {
-                packageManager.getPackageInfo(packageName, 0).versionName
+                val version = packageManager.getPackageInfo(packageName, 0).versionName ?: "Unknown"
+                if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+                    "debug-$version"
+                } else {
+                    version
+                }
             } catch (e: Exception) {
                 "Unknown"
             }
