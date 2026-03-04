@@ -45,6 +45,7 @@
     <string name="alarm_station_label">Station</string>
     <string name="alarm_station_hint">Select a station</string>
     <string name="alarm_volume_ramp_label">Progressive radio volume (slowly gets louder)</string>
+    <string name="alarm_manual_volume_label">Manual alarm volume (1-10)</string>
     <string name="alarm_notification_channel">Alarm</string>
     <string name="alarm_trigger_title">Alarm</string>
     <string name="alarm_snooze_button">Snooze (10 min)</string>

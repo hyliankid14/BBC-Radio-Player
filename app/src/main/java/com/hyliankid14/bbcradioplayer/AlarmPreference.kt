@@ -10,6 +10,7 @@ object AlarmPreference {
     private const val KEY_DAYS_OF_WEEK = "alarm_days_of_week"
     private const val KEY_STATION_ID = "alarm_station_id"
     private const val KEY_ENABLE_VOLUME_RAMP = "alarm_enable_volume_ramp"
+    private const val KEY_MANUAL_VOLUME = "alarm_manual_volume"
 
     // Days of week bitmask: bit 0 = Sunday, bit 1 = Monday, ..., bit 6 = Saturday
     const val DAY_SUNDAY = 1 shl 0
@@ -97,5 +98,15 @@ object AlarmPreference {
     fun setVolumeRampEnabled(context: Context, enabled: Boolean) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putBoolean(KEY_ENABLE_VOLUME_RAMP, enabled).apply()
+    }
+
+    fun getManualVolume(context: Context): Int {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getInt(KEY_MANUAL_VOLUME, 5)
+    }
+
+    fun setManualVolume(context: Context, volume: Int) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putInt(KEY_MANUAL_VOLUME, volume).apply()
     }
 }

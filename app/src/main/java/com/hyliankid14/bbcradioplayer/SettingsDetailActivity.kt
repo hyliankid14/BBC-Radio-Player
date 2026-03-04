@@ -757,6 +757,9 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
             val alarmStationSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = findViewById(R.id.alarm_station_spinner)
             val alarmVolumeRampCheckbox: android.widget.CheckBox = findViewById(R.id.alarm_volume_ramp_checkbox)
             val alarmPermissionStatus: TextView = findViewById(R.id.alarm_permission_status)
+            val alarmManualVolumeContainer: android.view.View = findViewById(R.id.alarm_manual_volume_container)
+            val alarmManualVolumeSlider: com.google.android.material.slider.Slider = findViewById(R.id.alarm_manual_volume_slider)
+            val alarmManualVolumeValue: TextView = findViewById(R.id.alarm_manual_volume_value)
             
             // Day checkboxes
             val daySunday: android.widget.CheckBox = findViewById(R.id.alarm_day_sunday)
@@ -830,6 +833,20 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
             // Load volume ramp state
             alarmVolumeRampCheckbox.isChecked = AlarmPreference.isVolumeRampEnabled(this)
             
+            // Load and setup manual volume slider
+            val manualVolume = AlarmPreference.getManualVolume(this)
+            alarmManualVolumeSlider.value = manualVolume.toFloat()
+            alarmManualVolumeValue.text = manualVolume.toString()
+            
+            // Enable/disable manual volume slider based on volume ramp state
+            val updateSliderEnabledState = {
+                val isVolumeRampEnabled = alarmVolumeRampCheckbox.isChecked
+                alarmManualVolumeContainer.isEnabled = !isVolumeRampEnabled
+                alarmManualVolumeSlider.isEnabled = !isVolumeRampEnabled
+                alarmManualVolumeSlider.alpha = if (isVolumeRampEnabled) 0.5f else 1.0f
+            }
+            updateSliderEnabledState()
+            
             // Update permission status display
             if (!hasExactAlarmPermission) {
                 alarmPermissionStatus.visibility = android.view.View.VISIBLE
@@ -845,6 +862,7 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
                     dayCheckboxes,
                     alarmStationSpinner,
                     alarmVolumeRampCheckbox,
+                    alarmManualVolumeSlider,
                     stations,
                     hasExactAlarmPermission,
                     alarmPermissionStatus
@@ -859,6 +877,7 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
                     dayCheckboxes,
                     alarmStationSpinner,
                     alarmVolumeRampCheckbox,
+                    alarmManualVolumeSlider,
                     stations,
                     hasExactAlarmPermission,
                     alarmPermissionStatus
@@ -873,6 +892,7 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
                     dayCheckboxes,
                     alarmStationSpinner,
                     alarmVolumeRampCheckbox,
+                    alarmManualVolumeSlider,
                     stations,
                     hasExactAlarmPermission,
                     alarmPermissionStatus
@@ -887,6 +907,7 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
                     dayCheckboxes,
                     alarmStationSpinner,
                     alarmVolumeRampCheckbox,
+                    alarmManualVolumeSlider,
                     stations,
                     hasExactAlarmPermission,
                     alarmPermissionStatus
@@ -902,6 +923,7 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
                         dayCheckboxes,
                         alarmStationSpinner,
                         alarmVolumeRampCheckbox,
+                        alarmManualVolumeSlider,
                         stations,
                         hasExactAlarmPermission,
                         alarmPermissionStatus
@@ -910,6 +932,7 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
             }
             
             alarmVolumeRampCheckbox.setOnCheckedChangeListener { _, _ ->
+                updateSliderEnabledState()
                 saveAlarmSettings(
                     alarmEnabledSwitch.isChecked,
                     alarmHourSpinner,
@@ -917,6 +940,23 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
                     dayCheckboxes,
                     alarmStationSpinner,
                     alarmVolumeRampCheckbox,
+                    alarmManualVolumeSlider,
+                    stations,
+                    hasExactAlarmPermission,
+                    alarmPermissionStatus
+                )
+            }
+            
+            alarmManualVolumeSlider.addOnChangeListener { _, value, _ ->
+                alarmManualVolumeValue.text = value.toInt().toString()
+                saveAlarmSettings(
+                    alarmEnabledSwitch.isChecked,
+                    alarmHourSpinner,
+                    alarmMinuteSpinner,
+                    dayCheckboxes,
+                    alarmStationSpinner,
+                    alarmVolumeRampCheckbox,
+                    alarmManualVolumeSlider,
                     stations,
                     hasExactAlarmPermission,
                     alarmPermissionStatus
@@ -935,6 +975,7 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
         dayCheckboxes: List<Pair<android.widget.CheckBox, Int>>,
         stationSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView,
         volumeRampCheckbox: android.widget.CheckBox,
+        manualVolumeSlider: com.google.android.material.slider.Slider,
         stations: List<Station>,
         hasExactAlarmPermission: Boolean,
         permissionStatus: TextView
@@ -959,6 +1000,7 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
             AlarmPreference.setMinute(this, minute)
             AlarmPreference.setStationId(this, stationId)
             AlarmPreference.setVolumeRampEnabled(this, volumeRampCheckbox.isChecked)
+            AlarmPreference.setManualVolume(this, manualVolumeSlider.value.toInt())
             
             // Update day selections
             for ((checkbox, dayBit) in dayCheckboxes) {

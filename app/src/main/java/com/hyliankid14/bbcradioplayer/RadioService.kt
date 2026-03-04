@@ -131,6 +131,7 @@ class RadioService : MediaBrowserServiceCompat() {
         const val ACTION_SEEK_DELTA = "com.hyliankid14.bbcradioplayer.ACTION_SEEK_DELTA"
         const val EXTRA_STATION_ID = "com.hyliankid14.bbcradioplayer.EXTRA_STATION_ID"
         const val EXTRA_ALARM_VOLUME_RAMP = "com.hyliankid14.bbcradioplayer.EXTRA_ALARM_VOLUME_RAMP"
+        const val EXTRA_ALARM_MANUAL_VOLUME = "com.hyliankid14.bbcradioplayer.EXTRA_ALARM_MANUAL_VOLUME"
         const val EXTRA_EPISODE = "com.hyliankid14.bbcradioplayer.EXTRA_EPISODE"
         const val EXTRA_PODCAST_ID = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_ID"
         const val EXTRA_PODCAST_TITLE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_TITLE"
@@ -2165,8 +2166,17 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         Log.d(TAG, "Playback stopped")
     }
 
-    private fun startAlarmPlaybackVolumeRamp() {
+    private fun startAlarmPlaybackVolumeRamp(targetVolume: Float = 1.0f) {
         stopAlarmPlaybackVolumeRamp()
+
+        // Set system volume to maximum for progressive ramp
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+        audioManager.setStreamVolume(
+            android.media.AudioManager.STREAM_MUSIC,
+            maxVolume,
+            0 // No flags (silent change)
+        )
 
         val totalSteps = 60
         val stepDelayMs = 1_000L
@@ -2188,7 +2198,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     return
                 }
 
-                val volume = (step.toFloat() / totalSteps.toFloat()).coerceIn(0.0f, 1.0f)
+                val volume = (step.toFloat() / totalSteps.toFloat() * targetVolume).coerceIn(0.0f, 1.0f)
                 currentPlayer.volume = volume
                 waitAttempts = 0
 
@@ -2208,6 +2218,50 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         player?.volume = 1.0f
     }
 
+    private fun setAlarmManualVolume(volumeLevel: Float) {
+        stopAlarmPlaybackVolumeRamp()
+        
+        // Also set system volume based on the manual volume level
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+        val targetSystemVolume = (maxVolume * volumeLevel).toInt().coerceIn(1, maxVolume)
+        
+        Log.d(TAG, "setAlarmManualVolume: volumeLevel=$volumeLevel, maxVolume=$maxVolume, targetSystemVolume=$targetSystemVolume")
+        
+        audioManager.setStreamVolume(
+            android.media.AudioManager.STREAM_MUSIC,
+            targetSystemVolume,
+            0 // No flags (silent change)
+        )
+        
+        var waitAttempts = 0
+        val maxWaitAttempts = 120
+        val checkDelayMs = 500L
+        
+        alarmVolumeRampRunnable = object : Runnable {
+            override fun run() {
+                val currentPlayer = player
+                if (currentPlayer == null || !currentPlayer.isPlaying || currentStationId.isEmpty()) {
+                    if (waitAttempts < maxWaitAttempts) {
+                        waitAttempts += 1
+                        handler.postDelayed(this, checkDelayMs)
+                    } else {
+                        stopAlarmPlaybackVolumeRamp()
+                    }
+                    return
+                }
+                
+                // Player is ready, set the ExoPlayer volume to max since we're controlling via system volume
+                currentPlayer.volume = 1.0f
+                Log.d(TAG, "setAlarmManualVolume: ExoPlayer volume set to 1.0f")
+                // Clear the runnable since we're done
+                alarmVolumeRampRunnable = null
+            }
+        }
+        
+        handler.post(alarmVolumeRampRunnable!!)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand - action: ${intent?.action}")
         intent?.let {
@@ -2215,10 +2269,18 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 ACTION_PLAY_STATION -> {
                     val id = it.getStringExtra(EXTRA_STATION_ID)
                     val shouldRamp = it.getBooleanExtra(EXTRA_ALARM_VOLUME_RAMP, false)
+                    val manualVolume = it.getIntExtra(EXTRA_ALARM_MANUAL_VOLUME, -1)
+                    Log.d(TAG, "ACTION_PLAY_STATION: id=$id, shouldRamp=$shouldRamp, manualVolume=$manualVolume")
                     id?.let { stationId ->
                         playStation(stationId)
                         if (shouldRamp) {
-                            startAlarmPlaybackVolumeRamp()
+                            Log.d(TAG, "Starting alarm volume ramp")
+                            startAlarmPlaybackVolumeRamp(1.0f)
+                        } else if (manualVolume > 0) {
+                            // Set manual volume after player is ready
+                            val volumeLevel = manualVolume / 10.0f
+                            Log.d(TAG, "Setting manual alarm volume: $manualVolume -> $volumeLevel")
+                            setAlarmManualVolume(volumeLevel)
                         } else {
                             stopAlarmPlaybackVolumeRamp()
                         }

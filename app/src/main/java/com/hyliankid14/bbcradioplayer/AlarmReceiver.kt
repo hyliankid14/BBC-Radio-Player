@@ -33,6 +33,7 @@ class AlarmReceiver : BroadcastReceiver() {
             action = RadioService.ACTION_PLAY_STATION
             putExtra(RadioService.EXTRA_STATION_ID, stationId)
             putExtra(RadioService.EXTRA_ALARM_VOLUME_RAMP, AlarmPreference.isVolumeRampEnabled(context))
+            putExtra(RadioService.EXTRA_ALARM_MANUAL_VOLUME, AlarmPreference.getManualVolume(context))
         }
 
         // Use startForegroundService on Android 12+ for better reliability

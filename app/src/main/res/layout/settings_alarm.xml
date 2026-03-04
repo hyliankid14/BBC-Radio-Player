@@ -263,6 +263,49 @@
                     android:padding="12dp" />
             </LinearLayout>
 
+            <!-- Manual Volume Slider -->
+            <LinearLayout
+                android:id="@+id/alarm_manual_volume_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="16dp"
+                android:enabled="false">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/alarm_manual_volume_label"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/alarm_manual_volume_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="5"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/alarm_manual_volume_slider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:valueFrom="1"
+                    android:valueTo="10"
+                    android:stepSize="1"
+                    android:value="5" />
+            </LinearLayout>
+
             <!-- Permission Status / Error Message -->
             <TextView
                 android:id="@+id/alarm_permission_status"

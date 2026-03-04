@@ -2,12 +2,13 @@ package com.hyliankid14.bbcradioplayer
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.ApplicationInfo
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import android.util.Log
 import java.util.TimeZone
 
 class PrivacyAnalytics(private val context: Context) {
@@ -140,12 +141,12 @@ class PrivacyAnalytics(private val context: Context) {
     
     private fun getAppVersion(): String {
         return try {
-            val versionName = context.packageManager.getPackageInfo(context.packageName, 0).versionName
-            // Append "-debug" suffix for debug builds to distinguish test data in analytics
-            if (BuildConfig.DEBUG) {
-                "$versionName-debug"
+            val version = context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            // Add "debug-" prefix for debug builds (matches Settings > About display)
+            if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+                "debug-$version"
             } else {
-                versionName
+                version
             }
         } catch (e: Exception) {
             "unknown"
