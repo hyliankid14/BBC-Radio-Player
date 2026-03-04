@@ -44,7 +44,8 @@ class UpdateChecker(private val context: Context) {
         
         private const val GITHUB_API_LATEST_RELEASE = 
             "https://api.github.com/repos/hyliankid14/bbc-radio-player/releases/latest"
-        private const val CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L // 24 hours
+        // Reduced to 15 minutes for testing; can be changed to 24 hours in production
+        private const val CHECK_INTERVAL_MS = 15 * 60 * 1000L // 15 minutes
     }
     
     private val prefs: SharedPreferences = 
@@ -171,15 +172,24 @@ class UpdateChecker(private val context: Context) {
             val newParts = newVersion.split(".").mapNotNull { it.toIntOrNull() }
             val currentParts = currentVersion.split(".").mapNotNull { it.toIntOrNull() }
             
+            Log.d(TAG, "Comparing versions: new=$newVersion ($newParts) vs current=$currentVersion ($currentParts)")
+            
             for (i in 0 until maxOf(newParts.size, currentParts.size)) {
                 val newPart = newParts.getOrNull(i) ?: 0
                 val currentPart = currentParts.getOrNull(i) ?: 0
                 
                 when {
-                    newPart > currentPart -> return true
-                    newPart < currentPart -> return false
+                    newPart > currentPart -> {
+                        Log.d(TAG, "New version is newer at position $i: $newPart > $currentPart")
+                        return true
+                    }
+                    newPart < currentPart -> {
+                        Log.d(TAG, "Current version is newer at position $i: $newPart < $currentPart")
+                        return false
+                    }
                 }
             }
+            Log.d(TAG, "Versions are equal")
             false
         } catch (e: Exception) {
             Log.w(TAG, "Failed to compare versions", e)

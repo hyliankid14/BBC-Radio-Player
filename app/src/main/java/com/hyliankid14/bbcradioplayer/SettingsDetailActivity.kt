@@ -1111,6 +1111,18 @@ Source code: github.com/hyliankid14/BBC-Radio-Player""".trimIndent()
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubReleasesUrl))
                 startActivity(intent)
             }
+            
+            // Long-click to clear update cache (for testing)
+            checkUpdatesButton.setOnLongClickListener {
+                updateChecker.clearCachedInfo()
+                updateLastCheckTime(lastCheckedText, updateChecker)
+                android.widget.Toast.makeText(
+                    this,
+                    "Update cache cleared. Try checking again.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                true
+            }
         } catch (e: Exception) {
             android.util.Log.e("SettingsDetailActivity", "Error setting up about settings", e)
         }

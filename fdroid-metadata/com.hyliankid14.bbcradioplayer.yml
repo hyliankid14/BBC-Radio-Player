@@ -27,12 +27,12 @@ Builds:
 
   - versionName: 1.2.0
     versionCode: 33
-    commit: v1.2.0
-    subdir: .
+    commit: f9c37954d53e3dde11095fba906cab1c2139ba4a
+    subdir: app
     gradle:
-      - yes
-    prebuild: |
-      sed -i '/com.google.mlkit:language-id/d' app/build.gradle || trueAutoUpdateMode: Version
+      - fdroid
+
+AutoUpdateMode: Version
 UpdateCheckMode: Tags
 CurrentVersion: 1.2.0
 CurrentVersionCode: 33
