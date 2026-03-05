@@ -1,0 +1,49 @@
+package com.hyliankid14.bbcradioplayer
+
+import android.appwidget.AppWidgetManager
+import android.content.Intent
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+
+class WidgetConfigActivity : AppCompatActivity() {
+    private var appWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_widget_config)
+
+        setResult(RESULT_CANCELED)
+
+        appWidgetId = intent?.extras?.getInt(
+            AppWidgetManager.EXTRA_APPWIDGET_ID,
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+
+        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
+            finish()
+            return
+        }
+
+        val recyclerView = findViewById<RecyclerView>(R.id.widget_station_list)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = WidgetStationPickerAdapter(
+            context = this,
+            items = WidgetStationPickerAdapter.buildItems()
+        ) { stationId ->
+            onStationSelected(stationId)
+        }
+    }
+
+    private fun onStationSelected(stationId: String) {
+        WidgetPreference.setStationForWidget(this, appWidgetId, stationId)
+        WidgetUpdateHelper.updateAllWidgets(this)
+
+        val result = Intent().apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+        }
+        setResult(RESULT_OK, result)
+        finish()
+    }
+}

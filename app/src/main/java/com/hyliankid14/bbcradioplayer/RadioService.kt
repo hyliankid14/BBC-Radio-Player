@@ -1280,6 +1280,8 @@ class RadioService : MediaBrowserServiceCompat() {
         if (currentStationLogo.isNotEmpty()) {
             loadStationLogoAndUpdateNotification()
         }
+
+        WidgetUpdateHelper.updateAllWidgets(this)
     }
 
     private fun loadStationLogoAndUpdateNotification() {
@@ -1471,6 +1473,8 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     notificationManager.notify(NOTIFICATION_ID, updatedNotification)
                     Log.d(TAG, "Updated notification with artwork from: $finalUrl")
+
+                    WidgetUpdateHelper.updateAllWidgets(this)
                     
                     // Update MediaSession metadata with the bitmap AND the correct URI
                     updateMediaMetadata(bitmap, finalUrl)
@@ -1482,6 +1486,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                          currentArtworkBitmap = null
                          currentArtworkUri = finalUrl
                          updateMediaMetadata(null, finalUrl)
+                         WidgetUpdateHelper.updateAllWidgets(this)
                     }
                 }
             } catch (e: Exception) {
@@ -2162,6 +2167,8 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         currentArtworkBitmap = null
         currentArtworkUri = null
         lastSongSignature = null
+
+        WidgetUpdateHelper.updateAllWidgets(this)
         
         Log.d(TAG, "Playback stopped")
     }

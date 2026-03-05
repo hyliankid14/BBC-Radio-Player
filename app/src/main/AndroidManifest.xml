@@ -68,6 +68,18 @@
                 android:value=".MainActivity" />
         </activity>
 
+        <activity
+            android:name=".WidgetConfigActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AndroidAutoRadioPlayer">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".RadioService"
             android:exported="true"
@@ -114,6 +126,66 @@
 
         <receiver android:name=".AlarmSnoozeReceiver" android:exported="false" />
         <receiver android:name=".AlarmDismissReceiver" android:exported="false" />
+
+        <receiver
+            android:name=".StationWidgetSmallProvider"
+            android:exported="false"
+            android:label="@string/widget_label_small">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_small" />
+        </receiver>
+
+        <receiver
+            android:name=".StationWidgetMediumProvider"
+            android:exported="false"
+            android:label="@string/widget_label_medium">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_medium" />
+        </receiver>
+
+        <receiver
+            android:name=".StationWidgetMediumSquareProvider"
+            android:exported="false"
+            android:label="@string/widget_label_medium_square">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_medium_square" />
+        </receiver>
+
+        <receiver
+            android:name=".StationWidgetLargeProvider"
+            android:exported="false"
+            android:label="@string/widget_label_large">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_large" />
+        </receiver>
+
+        <receiver
+            android:name=".StationWidgetXLargeProvider"
+            android:exported="false"
+            android:label="@string/widget_label_xlarge">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_xlarge" />
+        </receiver>
 
         <!-- FileProvider for sharing files (APK updates) -->
         <provider

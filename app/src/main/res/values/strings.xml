@@ -62,6 +62,18 @@
     <string name="day_friday">Fri</string>
     <string name="day_saturday">Sat</string>
 
+    <string name="widget_config_title">Select a station for this widget</string>
+    <string name="widget_tap_to_play">Tap to play</string>
+    <string name="widget_live">Live now</string>
+    <string name="widget_station_artwork">Station artwork</string>
+    <string name="widget_play_pause">Play or pause station</string>
+    <string name="widget_stop">Stop playback</string>
+    <string name="widget_label_small">BBC Radio Widget (Small)</string>
+    <string name="widget_label_medium">BBC Radio Widget (Medium)</string>
+    <string name="widget_label_medium_square">BBC Radio Widget (Medium Square)</string>
+    <string name="widget_label_large">BBC Radio Widget (Large)</string>
+    <string name="widget_label_xlarge">BBC Radio Widget (Extra Large)</string>
+
     <!-- Hour and Minute Arrays -->
     <string-array name="hour_options">
         <item>00</item>
