@@ -6,7 +6,7 @@ described at https://f-droid.org/en/docs/All_About_Descriptions_Graphics_and_Scr
 ## Structure
 
 ```
-fdroid-metadata/
+metadata/
 ├── com.hyliankid14.bbcradioplayer.yml          # App metadata / build recipe
 └── com.hyliankid14.bbcradioplayer/
     └── en-US/
