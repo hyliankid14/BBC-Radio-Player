@@ -7,139 +7,208 @@ import com.hyliankid14.bbcradioplayer.db.PodcastFts
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Client for the remote podcast index server (hosted alongside the analytics server).
+ * Client for the remote podcast index.
  *
- * Responsibilities:
- *  - Push podcast and episode data to the server so it can maintain a central FTS index.
- *  - Query the server for podcast/episode search results so the device does not need to
- *    build or maintain a large local SQLite index.
+ * Primary source — GitHub Pages static index:
+ *   A nightly GitHub Actions workflow runs `api/build_index.py` and commits
+ *   `docs/podcast-index.json` to the repository.  This file is served from
+ *   GitHub Pages at [GITHUB_PAGES_INDEX_URL].  The app downloads it at most
+ *   once per [INDEX_CACHE_TTL_MS], caches it on disk, and uses it to populate
+ *   the local SQLite FTS index.  All searches then run locally — zero traffic
+ *   to the home server per search.
  *
- * All network calls are synchronous (no coroutines) — callers must dispatch to IO threads.
- * The server URL is derived from the same host as [PrivacyAnalytics.ANALYTICS_ENDPOINT].
+ * Fallback — home server query endpoints:
+ *   If the static index is unavailable, [searchPodcasts] / [searchEpisodes]
+ *   fall back to querying the Flask server at [SERVER_BASE_URL].  This is the
+ *   path originally implemented in the first PR commit.
+ *
+ * All network calls are synchronous — callers must dispatch to IO threads.
  */
 class RemoteIndexClient(private val context: Context) {
 
     companion object {
         private const val TAG = "RemoteIndexClient"
 
-        // Base URL of the home server that hosts both analytics and the podcast index.
-        // Must match the host used in PrivacyAnalytics.ANALYTICS_ENDPOINT.
+        // GitHub Pages URL for the pre-built static podcast/episode index.
+        // Built nightly by the GitHub Actions workflow in
+        // .github/workflows/build-podcast-index.yml.
+        internal const val GITHUB_PAGES_INDEX_URL =
+            "https://hyliankid14.github.io/BBC-Radio-Player/podcast-index.json"
+
+        // Fallback home server (used only for search queries when the static
+        // index has not yet been downloaded).  Must match
+        // PrivacyAnalytics.ANALYTICS_ENDPOINT host.
         // Replace with your own server hostname/IP when self-hosting.
         internal const val SERVER_BASE_URL = "https://raspberrypi.tailc23afa.ts.net:8443"
 
-        private const val CONNECT_TIMEOUT_MS = 5_000
-        private const val READ_TIMEOUT_MS = 15_000
+        private const val CONNECT_TIMEOUT_MS = 10_000
+        private const val READ_TIMEOUT_MS = 30_000
 
-        // Availability is cached for 5 minutes to avoid a round-trip on every search.
-        @Volatile private var cachedAvailable: Boolean? = null
-        @Volatile private var availabilityCheckedAt: Long = 0L
-        private const val AVAILABILITY_TTL_MS = 5 * 60 * 1000L
+        // Re-download the static index at most once every 6 hours.
+        private const val INDEX_CACHE_TTL_MS = 6 * 60 * 60 * 1_000L
+        private const val INDEX_CACHE_FILENAME = "remote_podcast_index.json"
+
+        // Home-server availability cache (5-minute TTL).
+        @Volatile private var cachedServerAvailable: Boolean? = null
+        @Volatile private var serverAvailabilityCheckedAt: Long = 0L
+        private const val SERVER_AVAILABILITY_TTL_MS = 5 * 60 * 1_000L
 
         fun resetAvailabilityCache() {
-            cachedAvailable = null
-            availabilityCheckedAt = 0L
+            cachedServerAvailable = null
+            serverAvailabilityCheckedAt = 0L
         }
     }
 
-    // ── Availability ──────────────────────────────────────────────────────────
+    // ── Static index: download & cache ────────────────────────────────────────
 
     /**
-     * Return true if the remote index server is reachable and has the podcast index endpoint.
-     * Result is cached for [AVAILABILITY_TTL_MS].
+     * Parsed result of the pre-built GitHub Pages index.
+     * [episodes] may be empty on failure — callers should tolerate that.
+     */
+    data class RemoteIndex(
+        val generatedAt: String,
+        val podcasts: List<Podcast>,
+        val episodes: List<Episode>
+    )
+
+    /**
+     * Return true if the cached `podcast-index.json` is older than
+     * [INDEX_CACHE_TTL_MS] (or does not exist yet).
+     */
+    fun isCachedIndexStale(): Boolean {
+        val cacheFile = File(context.cacheDir, INDEX_CACHE_FILENAME)
+        if (!cacheFile.exists()) return true
+        return (System.currentTimeMillis() - cacheFile.lastModified()) > INDEX_CACHE_TTL_MS
+    }
+
+    /**
+     * Download the pre-built podcast index from GitHub Pages, cache it on
+     * disk, and return the parsed [RemoteIndex].  Returns null on failure.
+     *
+     * This is the primary path used by [IndexWorker]: one download replaces
+     * hundreds of individual RSS feed fetches and eliminates all per-search
+     * home-server traffic.
+     */
+    fun downloadIndex(): RemoteIndex? {
+        val cacheFile = File(context.cacheDir, INDEX_CACHE_FILENAME)
+
+        // Use cached copy if still fresh.
+        if (!isCachedIndexStale() && cacheFile.exists()) {
+            Log.d(TAG, "Using cached podcast index (${cacheFile.length() / 1024} KB)")
+            return try { parseIndexJson(JSONObject(cacheFile.readText())) } catch (e: Exception) {
+                Log.w(TAG, "Failed to parse cached index: ${e.message}")
+                null
+            }
+        }
+
+        // Download fresh copy.
+        return try {
+            Log.d(TAG, "Downloading podcast index from GitHub Pages...")
+            val conn = openConnection(GITHUB_PAGES_INDEX_URL)
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("Accept-Encoding", "gzip")
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                Log.w(TAG, "GitHub Pages returned HTTP ${conn.responseCode}")
+                conn.disconnect()
+                return null
+            }
+            val body = readBody(conn)
+            cacheFile.writeText(body)
+            Log.d(TAG, "Downloaded podcast index (${body.length / 1024} KB)")
+            parseIndexJson(JSONObject(body))
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to download podcast index: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Parse a raw JSON object (from disk cache or fresh download) into a
+     * [RemoteIndex] containing stub [Podcast] and [Episode] objects suitable
+     * for populating the local SQLite FTS index.
+     */
+    private fun parseIndexJson(root: JSONObject): RemoteIndex {
+        val generatedAt = root.optString("generated_at", "")
+
+        val podcastsArr = root.optJSONArray("podcasts") ?: JSONArray()
+        val podcasts = (0 until podcastsArr.length()).mapNotNull { i ->
+            val obj = podcastsArr.optJSONObject(i) ?: return@mapNotNull null
+            val id = obj.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            Podcast(
+                id = id,
+                title = obj.optString("title"),
+                description = obj.optString("description"),
+                rssUrl = "",
+                htmlUrl = "",
+                imageUrl = "",
+                genres = emptyList(),
+                typicalDurationMins = 0
+            )
+        }
+
+        val episodesArr = root.optJSONArray("episodes") ?: JSONArray()
+        val episodes = (0 until episodesArr.length()).mapNotNull { i ->
+            val obj = episodesArr.optJSONObject(i) ?: return@mapNotNull null
+            val id = obj.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val podcastId = obj.optString("podcastId").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            // audioUrl / imageUrl / durationMins are not in the index file — set safe defaults.
+            // IndexStore only reads id, podcastId, title, description, pubDate for FTS.
+            Episode(
+                id = id,
+                podcastId = podcastId,
+                title = obj.optString("title"),
+                description = obj.optString("description"),
+                audioUrl = "",
+                imageUrl = "",
+                pubDate = obj.optString("pubDate"),
+                durationMins = 0
+            )
+        }
+
+        return RemoteIndex(generatedAt, podcasts, episodes)
+    }
+
+    // ── Fallback: home-server search ──────────────────────────────────────────
+
+    /**
+     * Return true if the home server's podcast index endpoint is reachable.
+     * Result is cached for [SERVER_AVAILABILITY_TTL_MS].
      */
     fun isServerAvailable(): Boolean {
         val now = System.currentTimeMillis()
-        val cached = cachedAvailable
-        if (cached != null && (now - availabilityCheckedAt) < AVAILABILITY_TTL_MS) {
+        val cached = cachedServerAvailable
+        if (cached != null && (now - serverAvailabilityCheckedAt) < SERVER_AVAILABILITY_TTL_MS) {
             return cached
         }
         return try {
             val response = getJson("$SERVER_BASE_URL/index/status") ?: run {
-                cacheAvailability(false)
+                cacheServerAvailability(false)
                 return false
             }
             val ok = response.has("podcast_count")
-            cacheAvailability(ok)
+            cacheServerAvailability(ok)
             ok
         } catch (e: Exception) {
-            Log.d(TAG, "Server unavailable: ${e.message}")
-            cacheAvailability(false)
+            Log.d(TAG, "Home server unavailable: ${e.message}")
+            cacheServerAvailability(false)
             false
         }
     }
 
-    private fun cacheAvailability(value: Boolean) {
-        cachedAvailable = value
-        availabilityCheckedAt = System.currentTimeMillis()
-    }
-
-    // ── Push: index data ──────────────────────────────────────────────────────
-
-    /**
-     * Push a list of podcasts to the server for indexing.
-     * Returns the number of records the server accepted, or -1 on failure.
-     */
-    fun pushPodcasts(podcasts: List<Podcast>): Int {
-        if (podcasts.isEmpty()) return 0
-        return try {
-            val body = JSONArray().also { arr ->
-                for (p in podcasts) {
-                    arr.put(JSONObject().apply {
-                        put("id", p.id)
-                        put("title", p.title)
-                        put("description", p.description)
-                    })
-                }
-            }
-            val response = postJson("$SERVER_BASE_URL/index/podcasts", body.toString())
-            response?.optInt("inserted", 0) ?: -1
-        } catch (e: Exception) {
-            Log.w(TAG, "pushPodcasts failed: ${e.message}")
-            -1
-        }
+    private fun cacheServerAvailability(value: Boolean) {
+        cachedServerAvailable = value
+        serverAvailabilityCheckedAt = System.currentTimeMillis()
     }
 
     /**
-     * Push a batch of episodes for a single podcast to the server.
-     * Returns the number of new records the server inserted, or -1 on failure.
-     */
-    fun pushEpisodes(podcastId: String, episodes: List<Episode>): Int {
-        if (episodes.isEmpty()) return 0
-        return try {
-            val epArray = JSONArray().also { arr ->
-                for (ep in episodes) {
-                    arr.put(JSONObject().apply {
-                        put("id", ep.id)
-                        put("title", ep.title)
-                        put("description", ep.description)
-                        put("pubDate", ep.pubDate)
-                        // Convert pubDate to epoch millis so the server can sort by recency
-                        put("pubEpoch", com.hyliankid14.bbcradioplayer.db.IndexStore.parsePubEpoch(ep.pubDate))
-                    })
-                }
-            }
-            val body = JSONObject().apply {
-                put("podcastId", podcastId)
-                put("episodes", epArray)
-            }
-            val response = postJson("$SERVER_BASE_URL/index/episodes", body.toString())
-            response?.optInt("inserted", 0) ?: -1
-        } catch (e: Exception) {
-            Log.w(TAG, "pushEpisodes failed for $podcastId: ${e.message}")
-            -1
-        }
-    }
-
-    // ── Search ────────────────────────────────────────────────────────────────
-
-    /**
-     * Search podcasts on the remote server.
-     * Returns an empty list if the server is unreachable or the query is blank.
+     * Search podcasts on the home server (fallback when static index is
+     * unavailable).  Returns an empty list if the server is unreachable.
      */
     fun searchPodcasts(query: String, limit: Int = 50): List<PodcastFts> {
         if (query.isBlank()) return emptyList()
@@ -155,14 +224,14 @@ class RemoteIndexClient(private val context: Context) {
                 )
             }
         } catch (e: Exception) {
-            Log.d(TAG, "searchPodcasts failed: ${e.message}")
+            Log.d(TAG, "searchPodcasts (home server) failed: ${e.message}")
             emptyList()
         }
     }
 
     /**
-     * Search episodes on the remote server.
-     * Returns an empty list if the server is unreachable or the query is blank.
+     * Search episodes on the home server (fallback when static index is
+     * unavailable).  Returns an empty list if the server is unreachable.
      */
     fun searchEpisodes(query: String, limit: Int = 100, offset: Int = 0): List<EpisodeFts> {
         if (query.isBlank()) return emptyList()
@@ -180,7 +249,7 @@ class RemoteIndexClient(private val context: Context) {
                 )
             }
         } catch (e: Exception) {
-            Log.d(TAG, "searchEpisodes failed: ${e.message}")
+            Log.d(TAG, "searchEpisodes (home server) failed: ${e.message}")
             emptyList()
         }
     }
@@ -207,20 +276,6 @@ class RemoteIndexClient(private val context: Context) {
         return null
     }
 
-    private fun postJson(urlStr: String, body: String): JSONObject? {
-        val conn = openConnection(urlStr)
-        conn.requestMethod = "POST"
-        conn.doOutput = true
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-        val code = conn.responseCode
-        if (code == HttpURLConnection.HTTP_OK || code == HttpURLConnection.HTTP_CREATED) {
-            return JSONObject(readBody(conn))
-        }
-        conn.disconnect()
-        return null
-    }
-
     private fun openConnection(urlStr: String): HttpURLConnection {
         val conn = URL(urlStr).openConnection() as HttpURLConnection
         conn.connectTimeout = CONNECT_TIMEOUT_MS
@@ -239,3 +294,4 @@ class RemoteIndexClient(private val context: Context) {
     private fun encode(s: String): String =
         java.net.URLEncoder.encode(s, "UTF-8")
 }
+
