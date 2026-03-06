@@ -787,12 +787,30 @@ class RadioService : MediaBrowserServiceCompat() {
                     } else if (parentId == "podcasts_history") {
                         try {
                             val history = PlayedHistoryPreference.getHistory(this@RadioService)
+                            val downloadedIds = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
+                                .map { it.id }.toSet()
                             val historyItems = history.map { h ->
+                                val played = PlayedEpisodesPreference.isPlayed(this@RadioService, h.id)
+                                val progress = PlayedEpisodesPreference.getProgress(this@RadioService, h.id)
+                                val isDownloaded = h.id in downloadedIds
+                                val statusTag = when {
+                                    isDownloaded && played -> "Downloaded • Played"
+                                    isDownloaded && progress > 0L -> "Downloaded • In progress"
+                                    isDownloaded -> "Downloaded"
+                                    played -> "Played"
+                                    progress > 0L -> "In progress"
+                                    else -> ""
+                                }
+                                val subtitle = when {
+                                    h.podcastTitle.isNotBlank() && statusTag.isNotBlank() -> "${h.podcastTitle} • $statusTag"
+                                    h.podcastTitle.isNotBlank() -> h.podcastTitle
+                                    else -> statusTag
+                                }
                                 MediaItem(
                                     MediaDescriptionCompat.Builder()
                                         .setMediaId("podcast_episode_${h.id}")
                                         .setTitle(h.title)
-                                        .setSubtitle(h.podcastTitle)
+                                        .setSubtitle(subtitle)
                                         .setIconUri(android.net.Uri.parse(h.imageUrl))
                                         .build(),
                                     MediaItem.FLAG_PLAYABLE
