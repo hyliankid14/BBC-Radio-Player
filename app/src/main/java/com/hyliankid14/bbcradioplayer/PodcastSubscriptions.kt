@@ -60,11 +60,14 @@ object PodcastSubscriptions {
                 val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
                 if (episodes.isEmpty()) return@launch
                 
-                // Download the latest N episodes based on publish date.
+                // Download the latest N unplayed episodes based on publish date.
+                // Skip episodes that have already been played to avoid re-downloading them.
                 val sortedEpisodes = episodes.sortedByDescending {
                     EpisodeDateParser.parsePubDateToEpoch(it.pubDate)
                 }
-                val candidates = sortedEpisodes.take(autoDownloadLimit)
+                val candidates = sortedEpisodes
+                    .filter { !PlayedEpisodesPreference.isPlayed(context, it.id) }
+                    .take(autoDownloadLimit)
                 for (episode in candidates) {
                     if (!DownloadedEpisodes.isDownloaded(context, episode)) {
                         try {
