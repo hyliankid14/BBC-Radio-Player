@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="?attr/colorSurfaceVariant"
+    android:foreground="?attr/selectableItemBackground">
+
+    <TextView
+        android:id="@+id/hint_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:lineSpacingMultiplier="1.3" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/search_indexing_settings_link"
+        android:textSize="14sp"
+        android:textColor="?attr/colorPrimary"
+        android:textStyle="bold"
+        android:layout_marginTop="6dp" />
+
+</LinearLayout>

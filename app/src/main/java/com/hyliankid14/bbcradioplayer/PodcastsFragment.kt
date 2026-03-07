@@ -196,43 +196,12 @@ class PodcastsFragment : Fragment() {
         }
         
         if (hasContent) {
-            emptyState.movementMethod = null // clear any clickable span movement from a previous hint
             emptyState.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
         } else {
             emptyState.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
         }
-    }
-
-    /**
-     * Show the empty state with a clickable hint to open the Indexing Settings page when no
-     * search index has been downloaded yet.  The hint states the approximate download size so
-     * the user can make an informed decision.
-     */
-    private fun showNoIndexSearchHint(emptyState: TextView, recyclerView: RecyclerView) {
-        val fullMessage = getString(R.string.search_no_results_download_hint)
-        val linkLabel = getString(R.string.search_indexing_settings_link)
-        val spannable = android.text.SpannableString(fullMessage)
-        val linkStart = fullMessage.indexOf(linkLabel)
-        if (linkStart >= 0) {
-            val clickSpan = object : android.text.style.ClickableSpan() {
-                override fun onClick(widget: View) {
-                    val intent = android.content.Intent(requireContext(), SettingsDetailActivity::class.java).apply {
-                        putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_INDEXING)
-                    }
-                    startActivity(intent)
-                }
-                override fun updateDrawState(ds: android.text.TextPaint) {
-                    super.updateDrawState(ds)
-                    ds.isUnderlineText = true
-                }
-            }
-            spannable.setSpan(clickSpan, linkStart, linkStart + linkLabel.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        }
-        emptyState.text = spannable
-        emptyState.movementMethod = android.text.method.LinkMovementMethod.getInstance()
-        showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = false, emptyState)
     }
 
     // Leading quick-search helper: run the unified search immediately for snappy UX
@@ -1739,14 +1708,21 @@ class PodcastsFragment : Fragment() {
                 // episodes load silently and become available for scroll-pagination.
 
                 if (!hasIndexedEpisodes) {
-                    // No episode index available. If podcast search also returned nothing,
-                    // show the empty state with an appropriate hint.
-                    if (podcastMatches.isEmpty() && q.isNotEmpty() && isActive) {
-                        if (generation != searchGeneration) return@launch
-                        if (!hasIndexedPodcasts) {
-                            // No search index at all — prompt the user to download it
-                            showNoIndexSearchHint(emptyState, recyclerView)
-                        } else {
+                    // No episode index available. Show the podcast results found (via basic search
+                    // or FTS), and append an inline hint where episode results would appear.
+                    if (isActive && generation == searchGeneration) {
+                        if (podcastMatches.isNotEmpty()) {
+                            // Podcast results are already displayed — add hint in episode slot
+                            val hintMessage = getString(R.string.search_no_results_download_hint)
+                            searchAdapter?.setIndexHint(hintMessage) {
+                                val intent = android.content.Intent(requireContext(), SettingsDetailActivity::class.java).apply {
+                                    putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_INDEXING)
+                                }
+                                startActivity(intent)
+                            }
+                            viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
+                        } else if (q.isNotEmpty()) {
+                            // Nothing found at all — standard empty state
                             emptyState.text = getString(R.string.no_podcasts_found)
                             showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = false, emptyState)
                         }
