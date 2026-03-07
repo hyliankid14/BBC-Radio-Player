@@ -65,7 +65,7 @@ class SavedEpisodesAdapter(
             holder.podcastTitle?.text = e.podcastTitle
         }
         holder.date.text = formatDate(e.pubDate)
-        holder.duration?.text = "${e.durationMins} min"
+        holder.duration?.text = if (e.durationMins > 0) "${e.durationMins} min" else "–"
         // Note: item_episode layout doesn't include an image view by default, so we don't attempt to load it here
 
         val episode = Episode(
@@ -128,6 +128,8 @@ class SavedEpisodesAdapter(
     }
 
     override fun getItemCount(): Int = entries.size
+
+    fun getEntryAt(position: Int): SavedEpisodes.Entry? = entries.getOrNull(position)
 
     fun updateEntries(newEntries: List<SavedEpisodes.Entry>) {
         entries = newEntries

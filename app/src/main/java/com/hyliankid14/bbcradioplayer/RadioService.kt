@@ -2447,11 +2447,27 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             requestAudioFocus()
 
             // Use downloaded URI/file reference when available, otherwise use remote URL.
+            // If the audio URL is blank, attempt to resolve it from the episode cache first.
+            val effectiveAudioUrl = if (episode.audioUrl.isNotBlank()) {
+                episode.audioUrl
+            } else {
+                try {
+                    val repo = PodcastRepository(this)
+                    val cached = repo.getEpisodesFromCache(episode.podcastId)
+                    val found = cached?.firstOrNull { it.id == episode.id }
+                    if (found != null && found.audioUrl.isNotBlank()) {
+                        Log.d(TAG, "Resolved blank audioUrl for episode ${episode.id} from cache: ${found.audioUrl}")
+                        found.audioUrl
+                    } else {
+                        episode.audioUrl
+                    }
+                } catch (_: Exception) { episode.audioUrl }
+            }
             val playbackUri = try {
                 val downloadedEntry = DownloadedEpisodes.getDownloadedEntry(this, episode)
                 val localRef = downloadedEntry?.localFilePath
                 when {
-                    localRef.isNullOrBlank() -> android.net.Uri.parse(episode.audioUrl)
+                    localRef.isNullOrBlank() -> android.net.Uri.parse(effectiveAudioUrl)
                     localRef.startsWith("content://") -> android.net.Uri.parse(localRef)
                     localRef.startsWith("file://") -> android.net.Uri.parse(localRef)
                     localRef.startsWith("http://") || localRef.startsWith("https://") -> android.net.Uri.parse(localRef)
@@ -2464,13 +2480,13 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                         try {
                             android.net.Uri.fromFile(java.io.File(localRef))
                         } catch (_: Exception) {
-                            android.net.Uri.parse(episode.audioUrl)
+                            android.net.Uri.parse(effectiveAudioUrl)
                         }
                     }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Error checking for downloaded episode, using remote URL: ${e.message}")
-                android.net.Uri.parse(episode.audioUrl)
+                android.net.Uri.parse(effectiveAudioUrl)
             }
 
             val mediaItem = ExoMediaItem.Builder()
@@ -2601,11 +2617,9 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     try {
                         val pos = player?.currentPosition ?: 0L
                         val dur = player?.duration ?: 0L
-                        val show = CurrentShow(
-                            title = episode.title,
-                            episodeTitle = episode.title,
-                            description = episode.description,
-                            imageUrl = null,
+                        // Build the progress snapshot by copying the current show info so the podcast/station
+                        // title and episode title are preserved. Only position and duration change each tick.
+                        val show = currentShowInfo.copy(
                             segmentStartMs = pos,
                             segmentDurationMs = if (dur > 0) dur else null
                         )
@@ -2614,22 +2628,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                         // also keep the service-local `currentShowInfo` in sync so `updateMediaMetadata()`
                         // continues to surface the episode title reliably to Android Auto.
                         PlaybackStateHelper.setCurrentShow(show)
-
-                        // Sync service-local show state but DO NOT overwrite artwork/title with nulls from the
-                        // progress snapshot — preserve existing artwork/episodeTitle where possible.
-                        try {
-                            currentShowInfo = currentShowInfo.copy(
-                                // prefer an existing episodeTitle (set at play) but fall back to progress snapshot
-                                episodeTitle = (currentShowInfo.episodeTitle ?: "").ifEmpty { show.episodeTitle },
-                                // keep the original imageUrl (series artwork) if present
-                                imageUrl = currentShowInfo.imageUrl ?: show.imageUrl,
-                                segmentStartMs = show.segmentStartMs,
-                                segmentDurationMs = show.segmentDurationMs
-                            )
-                            currentEpisodeTitle = currentShowInfo.episodeTitle ?: currentEpisodeTitle
-                        } catch (t: Throwable) {
-                            Log.w(TAG, "Failed to sync currentShowInfo from progress runnable: ${'$'}{t.message}")
-                        }
+                        currentShowInfo = show
 
                         // Check if we should mark the episode as played (>=95%)
                         checkAndMarkEpisodePlayed(episode, pos, dur)
