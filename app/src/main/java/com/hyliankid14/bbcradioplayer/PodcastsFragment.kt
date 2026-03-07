@@ -1613,18 +1613,39 @@ class PodcastsFragment : Fragment() {
 
                 // For now, use titleMatches for both (FTS doesn't distinguish title vs description)
                 val descMatches = emptyList<Podcast>()
-                
+
+                // Check if the podcast FTS index has any data (empty on first launch before the
+                // index file has been downloaded).
+                val hasIndexedPodcasts = withContext(Dispatchers.IO) {
+                    try {
+                        com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(requireContext()).hasAnyPodcasts()
+                    } catch (e: Exception) { false }
+                }
+
+                // FALLBACK: When the FTS index has no podcast data (e.g. first launch before the
+                // index is downloaded), fall back to basic in-memory text matching on the loaded
+                // podcast list so that basic search always works.
+                val effectiveTitleMatches: List<Podcast> = if (titleMatches.isEmpty() && !hasIndexedPodcasts) {
+                    withContext(Dispatchers.Default) {
+                        val basicResults = allPodcasts.filter { pod ->
+                            pod.title.contains(qLower, ignoreCase = true) ||
+                            pod.description.contains(qLower, ignoreCase = true)
+                        }
+                        repository.filterPodcasts(basicResults, currentFilter)
+                    }
+                } else titleMatches
+
                 // Apply sort order to podcast matches
-                android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: applying sort order '$currentSort' to titleMatches=${titleMatches.size} descMatches=${descMatches.size}")
+                android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: applying sort order '$currentSort' to effectiveTitleMatches=${effectiveTitleMatches.size} descMatches=${descMatches.size}")
                 val sortedTitleMatches = withContext(Dispatchers.Default) {
                     when (currentSort) {
-                        "Most popular" -> titleMatches.sortedWith(
+                        "Most popular" -> effectiveTitleMatches.sortedWith(
                             compareBy<Podcast> { getPopularRank(it) }
                                 .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
                         )
-                        "Most recent" -> titleMatches.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
-                        "Alphabetical (A-Z)" -> titleMatches.sortedBy { it.title }
-                        else -> titleMatches
+                        "Most recent" -> effectiveTitleMatches.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
+                        "Alphabetical (A-Z)" -> effectiveTitleMatches.sortedBy { it.title }
+                        else -> effectiveTitleMatches
                     }
                 }
                 
@@ -1687,7 +1708,25 @@ class PodcastsFragment : Fragment() {
                 // episodes load silently and become available for scroll-pagination.
 
                 if (!hasIndexedEpisodes) {
-                    // No episode index available — stop here.
+                    // No episode index available. Show the podcast results found (via basic search
+                    // or FTS), and append an inline hint where episode results would appear.
+                    if (isActive && generation == searchGeneration) {
+                        if (podcastMatches.isNotEmpty()) {
+                            // Podcast results are already displayed — add hint in episode slot
+                            val hintMessage = getString(R.string.search_no_results_download_hint)
+                            searchAdapter?.setIndexHint(hintMessage) {
+                                val intent = android.content.Intent(requireContext(), SettingsDetailActivity::class.java).apply {
+                                    putExtra(SettingsDetailActivity.EXTRA_SECTION, SettingsDetailActivity.SECTION_INDEXING)
+                                }
+                                startActivity(intent)
+                            }
+                            viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
+                        } else if (q.isNotEmpty()) {
+                            // Nothing found at all — standard empty state
+                            emptyState.text = getString(R.string.no_podcasts_found)
+                            showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = false, emptyState)
+                        }
+                    }
                 } else {
                     // ── STEP 2a: fast first batch ────────────────────────────────────────────
                     // Fetch the 30 newest matching episodes without any timeout. This should
