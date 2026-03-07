@@ -1,0 +1,42 @@
+name: Build Debug APK
+
+# Builds a debug APK for sideloading on a device.  No signing keys are needed
+# for debug builds — the APK is signed automatically with the Android debug
+# keystore.  The resulting APK is uploaded as a workflow artifact so it can be
+# downloaded and installed directly on a phone.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:       # allow manual trigger from the Actions tab
+
+permissions:
+  contents: read           # read-only checkout; no write access needed
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build debug APKs
+        run: ./gradlew assembleDebug
+
+      - name: Upload debug APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          path: app/build/outputs/apk/**/debug/*.apk
+          retention-days: 14
