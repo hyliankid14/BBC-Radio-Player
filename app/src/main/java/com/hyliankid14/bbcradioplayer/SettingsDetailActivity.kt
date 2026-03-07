@@ -514,10 +514,12 @@ class SettingsDetailActivity : AppCompatActivity() {
                 try {
                     contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 } catch (e: Exception) { }
+                val progressDialog = createImportProgressDialog()
+                progressDialog.show()
                 Thread {
-                    runOnUiThread { android.widget.Toast.makeText(this, "Import started...", android.widget.Toast.LENGTH_SHORT).show() }
                     val success = importPreferencesFromUri(uri)
                     runOnUiThread {
+                        progressDialog.dismiss()
                         android.widget.Toast.makeText(this, if (success) "Import successful" else "Import failed", android.widget.Toast.LENGTH_LONG).show()
                         ThemeManager.applyTheme(ThemePreference.getTheme(this))
                     }
@@ -590,6 +592,19 @@ class SettingsDetailActivity : AppCompatActivity() {
             android.util.Log.e("SettingsDetailActivity", "Failed to export preferences", e)
             false
         }
+    }
+
+    private fun createImportProgressDialog(): androidx.appcompat.app.AlertDialog {
+        return androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Restoring backup…")
+            .setMessage("Restoring your subscriptions and preferences. Please wait.")
+            .setView(android.widget.ProgressBar(this).apply {
+                isIndeterminate = true
+                val pad = (16 * resources.displayMetrics.density).toInt()
+                setPadding(pad, pad, pad, pad)
+            })
+            .setCancelable(false)
+            .create()
     }
 
     private fun importPreferencesFromUri(uri: Uri): Boolean {
