@@ -265,10 +265,12 @@ class MainActivity : AppCompatActivity() {
                 try {
                     contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 } catch (e: Exception) { }
+                val progressDialog = createImportProgressDialog()
+                progressDialog.show()
                 Thread {
-                    runOnUiThread { Toast.makeText(this, "Import started...", Toast.LENGTH_SHORT).show() }
                     val success = importPreferencesFromUri(uri)
                     runOnUiThread {
+                        progressDialog.dismiss()
                         Toast.makeText(this, if (success) "Import successful" else "Import failed", Toast.LENGTH_LONG).show()
                         ThemeManager.applyTheme(ThemePreference.getTheme(this))
                         refreshCurrentView()
@@ -3134,6 +3136,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun createImportProgressDialog(): androidx.appcompat.app.AlertDialog {
+        return androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Restoring backup…")
+            .setMessage("Restoring your subscriptions and preferences. Please wait.")
+            .setView(android.widget.ProgressBar(this).apply {
+                isIndeterminate = true
+                val pad = (16 * resources.displayMetrics.density).toInt()
+                setPadding(pad, pad, pad, pad)
+            })
+            .setCancelable(false)
+            .create()
+    }
+
     // Import preferences from the given Uri (JSON). Returns true on success.
     private fun importPreferencesFromUri(uri: Uri): Boolean {
         return try {
@@ -3179,7 +3194,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
-                edit.commit()
+                edit.apply()
             }
 
             // Ensure critical preferences are set via their helpers so any logic they perform runs
@@ -3199,27 +3214,6 @@ class MainActivity : AppCompatActivity() {
                     if (pp.has("auto_resume_android_auto")) {
                         val enabled = pp.optBoolean("auto_resume_android_auto", false)
                         PlaybackPreference.setAutoResumeAndroidAuto(this, enabled)
-                    }
-                }
-            } catch (e: Exception) { /* Ignore */ }
-
-            try {
-                if (root.has("podcast_subscriptions")) {
-                    val ps = root.getJSONObject("podcast_subscriptions")
-                    // Ensure notification preferences are restored for subscribed podcasts
-                    if (ps.has("notifications_enabled")) {
-                        val notifArray = ps.getJSONArray("notifications_enabled")
-                        val enabledSet = mutableSetOf<String>()
-                        for (i in 0 until notifArray.length()) {
-                            enabledSet.add(notifArray.getString(i))
-                        }
-                        // Only restore notification preferences for podcasts that are actually subscribed
-                        val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
-                        enabledSet.forEach { podcastId ->
-                            if (subscribedIds.contains(podcastId)) {
-                                PodcastSubscriptions.setNotificationsEnabled(this, podcastId, true)
-                            }
-                        }
                     }
                 }
             } catch (e: Exception) { /* Ignore */ }
