@@ -1573,16 +1573,8 @@ class PodcastsFragment : Fragment() {
 
                 android.util.Log.d("PodcastsFragment", "FTS podcast search: query='$q' returned ${indexPodcastResults.size} results, after enrichment and filter=${titleMatches.size}")
 
-                // Update name status: search complete, show checkmark
-                nameProgressBar?.visibility = View.GONE
-                nameStatusIcon?.visibility = View.VISIBLE
-
                 // For now, use titleMatches for both (FTS doesn't distinguish title vs description)
                 val descMatches = emptyList<Podcast>()
-
-                // Update description status: search complete, show checkmark
-                descProgressBar?.visibility = View.GONE
-                descStatusIcon?.visibility = View.VISIBLE
                 
                 // Apply sort order to podcast matches
                 android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: applying sort order '$currentSort' to titleMatches=${titleMatches.size} descMatches=${descMatches.size}")
