@@ -10,6 +10,9 @@ import com.bumptech.glide.Glide
 import java.util.concurrent.Executors
 
 object WidgetUpdateHelper {
+    private const val REQUEST_CODE_ROOT_OFFSET = 100_000
+    private const val REQUEST_CODE_PLAY_STOP_OFFSET = 200_000
+
     private val worker = Executors.newSingleThreadExecutor()
 
     private val providers = listOf(
@@ -71,11 +74,11 @@ object WidgetUpdateHelper {
 
         views.setOnClickPendingIntent(
             R.id.widget_root,
-            playStationIntent(context, appWidgetId, station.id)
+            playStationIntent(context, appWidgetId + REQUEST_CODE_ROOT_OFFSET, station.id)
         )
         views.setOnClickPendingIntent(
             R.id.widget_play_pause,
-            if (isPlaying) stopIntent(context, appWidgetId) else playIntent(context, appWidgetId, station.id, isCurrentStation)
+            if (isPlaying) stopIntent(context, appWidgetId + REQUEST_CODE_PLAY_STOP_OFFSET) else playStationIntent(context, appWidgetId + REQUEST_CODE_PLAY_STOP_OFFSET, station.id)
         )
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -179,40 +182,12 @@ object WidgetUpdateHelper {
         return context.getString(R.string.widget_live)
     }
 
-    private fun playIntent(context: Context, requestCode: Int, stationId: String, isCurrentStation: Boolean): PendingIntent {
-        val action = if (isCurrentStation) RadioService.ACTION_PLAY else RadioService.ACTION_PLAY_STATION
-        val intent = Intent(context, RadioService::class.java).apply {
-            this.action = action
-            if (action == RadioService.ACTION_PLAY_STATION) {
-                putExtra(RadioService.EXTRA_STATION_ID, stationId)
-            }
-        }
-        return PendingIntent.getService(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
     private fun playStationIntent(context: Context, requestCode: Int, stationId: String): PendingIntent {
         val intent = Intent(context, RadioService::class.java).apply {
             action = RadioService.ACTION_PLAY_STATION
             putExtra(RadioService.EXTRA_STATION_ID, stationId)
         }
-        return PendingIntent.getService(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    private fun pauseIntent(context: Context, requestCode: Int): PendingIntent {
-        val intent = Intent(context, RadioService::class.java).apply {
-            action = RadioService.ACTION_PAUSE
-        }
-        return PendingIntent.getService(
+        return PendingIntent.getForegroundService(
             context,
             requestCode,
             intent,
@@ -224,14 +199,13 @@ object WidgetUpdateHelper {
         val intent = Intent(context, RadioService::class.java).apply {
             action = RadioService.ACTION_STOP
         }
-        return PendingIntent.getService(
+        return PendingIntent.getForegroundService(
             context,
-            requestCode + 2_000_000,
+            requestCode,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
-
     private data class ProviderSpec(
         val providerClass: Class<out BaseStationWidgetProvider>,
         val layoutResId: Int
