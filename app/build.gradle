@@ -18,9 +18,19 @@ def computeNextVersion = {
     // Default fallback used only if git is completely unavailable
     def fallback = "1.2.1"
     try {
-        def lastTag = ['git', 'describe', '--tags', '--abbrev=0'].execute().text.trim()
+        def tagProc = ['git', 'describe', '--tags', '--abbrev=0'].execute()
+        def lastTag = tagProc.text.trim()
+        tagProc.waitFor()
+
+        // Guard: tag must exist and the command must have succeeded
+        if (tagProc.exitValue() != 0 || lastTag.isEmpty()) return fallback
+
         def baseVersion = lastTag.replaceAll('^v', '').replaceAll('[^0-9.].*$', '')
         def parts = baseVersion.tokenize('.').collect { it.toInteger() }
+
+        // Guard: need at least major.minor to compute a valid version
+        if (parts.size() < 2) return fallback
+
         def major = parts[0]
         def minor = parts[1]
         def patch = parts.size() > 2 ? parts[2] : 0
