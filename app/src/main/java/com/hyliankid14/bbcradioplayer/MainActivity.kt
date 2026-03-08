@@ -645,8 +645,8 @@ class MainActivity : AppCompatActivity() {
                             val pos = viewHolder.bindingAdapterPosition
                             if (pos != RecyclerView.NO_POSITION) {
                                 // Get the entry from the current adapter data (not a stale captured list)
-                                val savedAdapter = savedRecycler.adapter as? SavedEpisodesAdapter
-                                val removedEntry = savedAdapter?.getEntryAt(pos)
+                                val currentSavedAdapter = savedRecycler.adapter as? SavedEpisodesAdapter
+                                val removedEntry = currentSavedAdapter?.getEntryAt(pos)
                                 if (removedEntry == null) {
                                     try { savedRecycler.adapter?.notifyItemChanged(pos) } catch (_: Exception) { }
                                     return

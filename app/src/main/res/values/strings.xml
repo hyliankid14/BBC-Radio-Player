@@ -71,8 +71,10 @@
     <string name="widget_tap_to_play">Tap to play</string>
     <string name="widget_live">Live now</string>
     <string name="widget_station_artwork">Station artwork</string>
-    <string name="widget_play_pause">Play or pause station</string>
+    <string name="widget_play_pause">Play or stop station</string>
     <string name="widget_stop">Stop playback</string>
+    <string name="widget_previous">Previous station</string>
+    <string name="widget_next">Next station</string>
     <string name="widget_label_resizable">BBC Radio Widget</string>
     <string name="export_settings">Export Settings</string>
     <string name="import_settings">Import Settings</string>

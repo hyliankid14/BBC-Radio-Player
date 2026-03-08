@@ -22,6 +22,15 @@ abstract class BaseStationWidgetProvider : AppWidgetProvider() {
     override fun onDisabled(context: Context) {
         WidgetUpdateHelper.updateAllWidgets(context)
     }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: android.os.Bundle
+    ) {
+        WidgetUpdateHelper.updateWidgets(context, appWidgetManager, intArrayOf(appWidgetId), layoutResId)
+    }
 }
 
 class StationWidgetSmallProvider : BaseStationWidgetProvider() {

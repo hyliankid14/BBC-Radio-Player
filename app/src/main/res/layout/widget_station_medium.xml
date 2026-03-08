@@ -2,28 +2,34 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:padding="10dp">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/widget_background_artwork"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <ImageView
+        android:id="@+id/widget_background_dim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/widget_dim_overlay"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <ImageView
-            android:id="@+id/widget_artwork"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:contentDescription="@string/widget_station_artwork"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_music_note" />
+        android:orientation="horizontal"
+        android:padding="12dp">
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -33,34 +39,38 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/md_theme_onSurface"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:text="@string/app_name"
+                android:textColor="#FFFFFF"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:shadowColor="#000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="2" />
 
             <TextView
                 android:id="@+id/widget_now_playing"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/md_theme_onSurfaceVariant"
-                android:textSize="12sp" />
+                android:maxLines="2"
+                android:text="@string/widget_tap_to_play"
+                android:textColor="#E6E6E6"
+                android:textSize="16sp"
+                android:shadowColor="#000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="2" />
         </LinearLayout>
 
         <ImageView
             android:id="@+id/widget_play_pause"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="@drawable/widget_control_background"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/widget_control_background_opaque"
             android:contentDescription="@string/widget_play_pause"
-            android:padding="8dp"
-            android:src="@drawable/ic_play_arrow"
-            android:tint="@color/md_theme_onPrimaryContainer" />
-
-        <ImageView
-            android:id="@+id/widget_stop"
-            android:layout_width="1dp"
-            android:layout_height="1dp"
-            android:visibility="gone" />
+            android:padding="6dp"
+            android:src="@drawable/widget_ic_play" />
     </LinearLayout>
 </FrameLayout>

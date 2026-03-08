@@ -57,13 +57,16 @@ object WidgetUpdateHelper {
         val isPlaying = PlaybackStateHelper.getIsPlaying() && isCurrentStation
         val currentShow = if (isCurrentStation) PlaybackStateHelper.getCurrentShow() else null
 
-        val views = RemoteViews(context.packageName, layoutResId)
+        val resolvedLayoutResId = resolveLayoutForSize(appWidgetManager, appWidgetId, layoutResId)
+        val views = RemoteViews(context.packageName, resolvedLayoutResId)
 
         views.setTextViewText(R.id.widget_station_name, station.title)
-        views.setTextViewText(R.id.widget_now_playing, formatNowPlaying(context, currentShow, isCurrentStation))
+        views.setTextViewText(R.id.widget_now_playing, formatNowPlaying(context, currentShow, isCurrentStation, isPlaying))
+        
+        // Use widget-specific icons with correct colors baked in for proper visibility
         views.setImageViewResource(
             R.id.widget_play_pause,
-            if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow
+            if (isPlaying) R.drawable.ic_stop else R.drawable.widget_ic_play
         )
 
         views.setOnClickPendingIntent(
@@ -71,16 +74,8 @@ object WidgetUpdateHelper {
             playStationIntent(context, appWidgetId, station.id)
         )
         views.setOnClickPendingIntent(
-            R.id.widget_artwork,
-            playStationIntent(context, appWidgetId + 1_000_000, station.id)
-        )
-        views.setOnClickPendingIntent(
             R.id.widget_play_pause,
-            if (isPlaying) pauseIntent(context, appWidgetId) else playIntent(context, appWidgetId, station.id, isCurrentStation)
-        )
-        views.setOnClickPendingIntent(
-            R.id.widget_stop,
-            stopIntent(context, appWidgetId)
+            if (isPlaying) stopIntent(context, appWidgetId) else playIntent(context, appWidgetId, station.id, isCurrentStation)
         )
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -93,22 +88,74 @@ object WidgetUpdateHelper {
 
         if (!artworkUrl.isNullOrEmpty()) {
             try {
-                val bitmap = Glide.with(context)
+                // Load mildly blurred background artwork to mirror Android Auto-like playback cards.
+                val blurredBitmap = Glide.with(context)
                     .asBitmap()
                     .load(artworkUrl)
-                    .submit(320, 320)
+                    .transform(com.bumptech.glide.load.resource.bitmap.CenterCrop())
+                    .override(400, 400)
+                    .submit()
                     .get()
-                views.setImageViewBitmap(R.id.widget_artwork, bitmap)
+
+                val blurred = applyBlur(context, blurredBitmap, 10f)
+                views.setImageViewBitmap(R.id.widget_background_artwork, blurred)
+
                 appWidgetManager.updateAppWidget(appWidgetId, views)
             } catch (_: Exception) {
-                views.setImageViewResource(R.id.widget_artwork, R.drawable.ic_music_note)
+                views.setImageViewResource(R.id.widget_background_artwork, R.drawable.ic_music_note)
                 appWidgetManager.updateAppWidget(appWidgetId, views)
             }
         }
     }
 
-    private fun formatNowPlaying(context: Context, show: CurrentShow?, isCurrentStation: Boolean): String {
-        if (!isCurrentStation || show == null) {
+    private fun resolveLayoutForSize(
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        defaultLayoutResId: Int
+    ): Int {
+        val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+        val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+        val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+
+        if (minHeight >= 170 || minWidth >= 300) {
+            return R.layout.widget_station_large
+        }
+        if (minHeight >= 110 || minWidth >= 220) {
+            return R.layout.widget_station_medium
+        }
+        return defaultLayoutResId
+    }
+
+    @Suppress("DEPRECATION")
+    private fun applyBlur(context: Context, bitmap: android.graphics.Bitmap, radius: Float): android.graphics.Bitmap {
+        return try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                // Use RenderEffect on Android 12+
+                val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(bitmap, bitmap.width / 2, bitmap.height / 2, true)
+                scaledBitmap
+            } else {
+                // Use RenderScript for older versions
+                val output = android.graphics.Bitmap.createBitmap(bitmap.width, bitmap.height, bitmap.config)
+                val rs = android.renderscript.RenderScript.create(context)
+                val script = android.renderscript.ScriptIntrinsicBlur.create(rs, android.renderscript.Element.U8_4(rs))
+                val input = android.renderscript.Allocation.createFromBitmap(rs, bitmap)
+                val outAlloc = android.renderscript.Allocation.createFromBitmap(rs, output)
+                script.setRadius(radius.coerceIn(0f, 25f))
+                script.setInput(input)
+                script.forEach(outAlloc)
+                outAlloc.copyTo(output)
+                rs.destroy()
+                output
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("WidgetUpdateHelper", "Blur failed: ${e.message}")
+            // Fallback: just scale down for a softer look
+            android.graphics.Bitmap.createScaledBitmap(bitmap, bitmap.width / 2, bitmap.height / 2, true)
+        }
+    }
+
+    private fun formatNowPlaying(context: Context, show: CurrentShow?, isCurrentStation: Boolean, isPlaying: Boolean): String {
+        if (!isCurrentStation || !isPlaying || show == null) {
             return context.getString(R.string.widget_tap_to_play)
         }
 
@@ -179,7 +226,7 @@ object WidgetUpdateHelper {
         }
         return PendingIntent.getService(
             context,
-            requestCode,
+            requestCode + 2_000_000,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
