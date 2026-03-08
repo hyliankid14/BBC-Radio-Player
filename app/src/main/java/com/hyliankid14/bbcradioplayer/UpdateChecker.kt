@@ -66,27 +66,31 @@ class UpdateChecker(private val context: Context) {
             // Strip debug pre-release suffix for version comparison
             // e.g. "1.2.1-debug" -> "1.2.1"
             val currentVersion = fullVersionString.replace(DEBUG_SUFFIX_PATTERN, "")
-            Log.d(TAG, "Checking for updates. Current version: $currentVersion (display: $fullVersionString)")
+            Log.d(TAG, "Checking for updates. Current version: '$currentVersion' (full: '$fullVersionString')")
             
             val releaseInfo = fetchLatestRelease() ?: return@withContext null
+            Log.d(TAG, "Fetched release info: ${releaseInfo.versionName} (prerelease: ${releaseInfo.isPreRelease})")
             
             // Only offer stable releases (not pre-releases)
             if (releaseInfo.isPreRelease) {
-                Log.d(TAG, "Latest release is a pre-release, skipping")
+                Log.d(TAG, "Latest release ${releaseInfo.versionName} is marked as pre-release, skipping")
                 return@withContext null
             }
             
-            if (isNewerVersion(releaseInfo.versionName, currentVersion)) {
-                Log.d(TAG, "Update available: ${releaseInfo.versionName}")
+            val isNewer = isNewerVersion(releaseInfo.versionName, currentVersion)
+            Log.d(TAG, "Version comparison result: ${releaseInfo.versionName} > $currentVersion = $isNewer")
+            
+            if (isNewer) {
+                Log.d(TAG, "✅ Update available: ${releaseInfo.versionName}")
                 // Cache the release info
                 cacheReleaseInfo(releaseInfo)
                 return@withContext releaseInfo
             } else {
-                Log.d(TAG, "Already on latest version or newer")
+                Log.d(TAG, "❌ No update available - already on version $currentVersion or newer")
                 return@withContext null
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to check for updates", e)
+            Log.w(TAG, "❌ Failed to check for updates: ${e.message}", e)
             return@withContext null
         }
     }
@@ -95,6 +99,7 @@ class UpdateChecker(private val context: Context) {
      * Fetch the latest release info from GitHub API
      */
     private fun fetchLatestRelease(): ReleaseInfo? {
+        Log.d(TAG, "Fetching latest release from GitHub API...")
         val connection = (URL(GITHUB_API_LATEST_RELEASE).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
             connectTimeout = 15000
@@ -107,9 +112,10 @@ class UpdateChecker(private val context: Context) {
         return try {
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
+                Log.d(TAG, "GitHub API response received (${response.length} bytes)")
                 parseReleaseResponse(response)
             } else {
-                Log.w(TAG, "GitHub API response code: ${connection.responseCode}")
+                Log.w(TAG, "❌ GitHub API error: HTTP ${connection.responseCode}")
                 null
             }
         } finally {
@@ -126,13 +132,14 @@ class UpdateChecker(private val context: Context) {
             val tagName = json.getString("tag_name")
             val versionName = tagName.removePrefix("v")
             val isPreRelease = json.getBoolean("prerelease")
+            Log.d(TAG, "Parsed release: tag=$tagName, version=$versionName, prerelease=$isPreRelease")
             
             // Get the body as release notes
             val releaseNotes = json.optString("body", "No release notes available")
             
             // Find the APK download URL in the release assets (exclude debug builds)
             val assets = json.getJSONArray("assets")
-            Log.d(TAG, "Found ${assets.length()} assets in release")
+            Log.d(TAG, "Found ${assets.length()} asset(s) in release")
             
             val downloadUrl = (0 until assets.length()).firstNotNullOfOrNull { i ->
                 val asset = assets.getJSONObject(i)
@@ -147,7 +154,7 @@ class UpdateChecker(private val context: Context) {
             }
             
             if (downloadUrl == null) {
-                Log.w(TAG, "No APK download URL found in release assets")
+                Log.w(TAG, "❌ No APK found in release assets")
                 return null
             }
             
@@ -159,7 +166,7 @@ class UpdateChecker(private val context: Context) {
                 isPreRelease = isPreRelease
             )
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to parse release response", e)
+            Log.w(TAG, "❌ Failed to parse release response: ${e.message}", e)
             null
         }
     }
@@ -170,14 +177,32 @@ class UpdateChecker(private val context: Context) {
      */
     private fun isNewerVersion(newVersion: String, currentVersion: String): Boolean {
         return try {
-            val newParts = newVersion.split(".").mapNotNull { it.toIntOrNull() }
-            val currentParts = currentVersion.split(".").mapNotNull { it.toIntOrNull() }
+            // Strip any debug suffixes and whitespace for clean comparison
+            val cleanNew = newVersion.trim().replace(DEBUG_SUFFIX_PATTERN, "")
+            val cleanCurrent = currentVersion.trim().replace(DEBUG_SUFFIX_PATTERN, "")
             
-            Log.d(TAG, "Comparing versions: new=$newVersion ($newParts) vs current=$currentVersion ($currentParts)")
+            // Extract numeric parts, handling pre-release versions (e.g., "1.3.0-rc1" -> "1.3.0")
+            val newVersionOnly = cleanNew.split("-")[0]  // Strip pre-release suffix
+            val currentVersionOnly = cleanCurrent.split("-")[0]  // Strip pre-release suffix
             
-            for (i in 0 until maxOf(newParts.size, currentParts.size)) {
-                val newPart = newParts.getOrNull(i) ?: 0
-                val currentPart = currentParts.getOrNull(i) ?: 0
+            val newParts = newVersionOnly.split(".").map { part ->
+                part.filter { it.isDigit() }.toIntOrNull() ?: 0
+            }
+            val currentParts = currentVersionOnly.split(".").map { part ->
+                part.filter { it.isDigit() }.toIntOrNull() ?: 0
+            }
+            
+            Log.d(TAG, "Comparing versions: new='$newVersion' -> cleaned='$cleanNew' -> parts=$newParts")
+            Log.d(TAG, "Comparing versions: current='$currentVersion' -> cleaned='$cleanCurrent' -> parts=$currentParts")
+            
+            // Pad both lists to same length with 0s for missing components
+            val maxLen = maxOf(newParts.size, currentParts.size)
+            val paddedNew = newParts + List(maxLen - newParts.size) { 0 }
+            val paddedCurrent = currentParts + List(maxLen - currentParts.size) { 0 }
+            
+            for (i in 0 until maxLen) {
+                val newPart = paddedNew[i]
+                val currentPart = paddedCurrent[i]
                 
                 when {
                     newPart > currentPart -> {
@@ -185,15 +210,15 @@ class UpdateChecker(private val context: Context) {
                         return true
                     }
                     newPart < currentPart -> {
-                        Log.d(TAG, "Current version is newer at position $i: $newPart < $currentPart")
+                        Log.d(TAG, "Current version is newer or equal at position $i: $newPart < $currentPart")
                         return false
                     }
                 }
             }
-            Log.d(TAG, "Versions are equal")
+            Log.d(TAG, "Versions are equal: $cleanNew == $cleanCurrent")
             false
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to compare versions", e)
+            Log.w(TAG, "Failed to compare versions: new=$newVersion vs current=$currentVersion", e)
             false
         }
     }
