@@ -40,6 +40,10 @@ def computeNextVersion = {
 
         def log = ['git', 'log', '--format=%B', "${lastTag}..HEAD"].execute().text
 
+        // If HEAD is exactly at the latest tag (no commits since), use the tag version as-is.
+        // This prevents accidental +1 bumps when building a tagged release commit.
+        if (log.trim().isEmpty()) return "${major}.${minor}.${patch}"
+
         // Major: explicit "BREAKING CHANGE:" footer or any "!" type modifier
         // (e.g. feat!:, fix!:, chore(scope)!: — per conventional commits spec)
         def hasMajor = (log =~ /(?m)(^BREAKING CHANGE:|^[a-z]+(\([^)]+\))?!:)/).find()
