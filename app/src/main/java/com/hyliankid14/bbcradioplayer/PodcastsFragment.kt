@@ -58,7 +58,33 @@ class PodcastsFragment : Fragment() {
     private var usingCachedItemAppend: Boolean = false
     // Flag to scroll to top when next results are displayed
     private var shouldScrollToTopOnNextResults: Boolean = false
-    // Use viewLifecycleOwner.lifecycleScope for UI coroutines (auto-cancelled when the view is destroyed) 
+    // Use viewLifecycleOwner.lifecycleScope for UI coroutines (auto-cancelled when the view is destroyed)
+
+    // Shake-to-random-podcast detection
+    private var sensorManager: android.hardware.SensorManager? = null
+    private var lastShakeTime: Long = 0L
+    private val shakeListener = object : android.hardware.SensorEventListener {
+        private var lastUpdate: Long = 0L
+        override fun onSensorChanged(event: android.hardware.SensorEvent) {
+            val now = System.currentTimeMillis()
+            if (now - lastUpdate < 100) return
+            lastUpdate = now
+            val x = event.values[0]
+            val y = event.values[1]
+            val z = event.values[2]
+            val gForce = kotlin.math.sqrt((x * x + y * y + z * z).toDouble()).toFloat() /
+                android.hardware.SensorManager.GRAVITY_EARTH
+            if (gForce > SHAKE_THRESHOLD_GRAVITY && now - lastShakeTime > SHAKE_DEBOUNCE_MS) {
+                lastShakeTime = now
+                activity?.runOnUiThread {
+                    try { shuffleAndOpenRandomPodcast() } catch (e: Exception) {
+                        android.util.Log.w("PodcastsFragment", "Shake shuffle failed: ${e.message}")
+                    }
+                }
+            }
+        }
+        override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+    }
 
     // Normalize queries for robust cache lookups (trim + locale-aware lowercase)
     private fun normalizeQuery(q: String?): String = q?.trim()?.lowercase(Locale.getDefault()) ?: ""
@@ -72,6 +98,42 @@ class PodcastsFragment : Fragment() {
     private var lastActiveQueryNorm: String = ""
 
     private fun currentFilterHash(): Int = (currentFilter.hashCode() * 31) xor currentSort.hashCode()
+
+    /** Update the search field's end icon based on whether the field is empty.
+     *  Empty → shuffle icon; non-empty → clear (X) icon. */
+    private fun updateSearchEndIcon(empty: Boolean) {
+        val layout = searchInputLayout ?: return
+        val editText = searchEditText ?: return
+        try {
+            layout.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM
+            if (empty) {
+                layout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_shuffle)
+                layout.endIconContentDescription = getString(R.string.shuffle_podcast_desc)
+                layout.setEndIconOnClickListener {
+                    try { shuffleAndOpenRandomPodcast() } catch (e: Exception) {
+                        android.util.Log.w("PodcastsFragment", "Shuffle failed: ${e.message}")
+                    }
+                }
+            } else {
+                layout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_clear)
+                layout.endIconContentDescription = getString(R.string.clear_search)
+                layout.setEndIconOnClickListener {
+                    suppressSearchWatcher = true
+                    editText.text?.clear()
+                    suppressSearchWatcher = false
+                    viewModel.clearActiveSearch()
+                    updateSearchEndIcon(true)
+                    val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                        as android.view.inputmethod.InputMethodManager
+                    imm.hideSoftInputFromWindow(editText.windowToken, 0)
+                    editText.clearFocus()
+                }
+            }
+            layout.isEndIconVisible = true
+        } catch (e: Exception) {
+            android.util.Log.w("PodcastsFragment", "updateSearchEndIcon failed: ${e.message}")
+        }
+    }
 
     private fun updateSaveSearchButtonVisibility() {
         val active = viewModel.activeSearchQuery.value ?: searchQuery
@@ -271,42 +333,7 @@ class PodcastsFragment : Fragment() {
         searchEditText.setText(restored ?: "")
         if (!restored.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
         // Ensure the clear (end) icon reflects the restored text immediately (fixes OEMs that only show it after IME events)
-        try {
-            // Use a custom end-icon so some OEM/Material implementations don't hide it when the field loses focus.
-            try {
-                // Set appropriate icon and behaviour depending on whether the field is empty
-                fun setIconForState(empty: Boolean) {
-                    searchInputLayout.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM
-                    if (empty) {
-                        searchInputLayout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_shuffle)
-                        searchInputLayout.endIconContentDescription = getString(R.string.shuffle_podcast_desc)
-                        searchInputLayout.setEndIconOnClickListener {
-                            // Shuffle: pick a random podcast and open its episodes page
-                            try { shuffleAndOpenRandomPodcast() } catch (e: Exception) { android.util.Log.w("PodcastsFragment", "Shuffle failed: ${e.message}") }
-                        }
-                    } else {
-                        searchInputLayout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_clear)
-                        searchInputLayout.endIconContentDescription = getString(R.string.clear_search)
-                        searchInputLayout.setEndIconOnClickListener {
-                            suppressSearchWatcher = true
-                            searchEditText.text?.clear()
-                            suppressSearchWatcher = false
-                            viewModel.clearActiveSearch()
-
-                            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                            imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
-                            searchEditText.clearFocus()
-                        }
-                    }
-                    searchInputLayout.isEndIconVisible = true
-                }
-
-                setIconForState(searchEditText.text.isNullOrEmpty())
-            } catch (_: Exception) { }
-
-            // Ensure icon is always visible regardless of text content or focus/IME state
-            searchInputLayout.isEndIconVisible = true
-        } catch (_: Exception) { }
+        updateSearchEndIcon(searchEditText.text.isNullOrEmpty())
         suppressSearchWatcher = false
         android.util.Log.d("PodcastsFragment", "onViewCreated: viewModel.activeSearchQuery='${restored}' searchEditText='${searchEditText.text}'")
 
@@ -345,36 +372,21 @@ class PodcastsFragment : Fragment() {
                 suppressSearchWatcher = true
                 searchEditText.setText(q ?: "")
                 if (!q.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
-                // Ensure end-icon updates when we apply text programmatically
-                try {
-                    val empty = q.isNullOrEmpty()
-                    searchInputLayout.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM
-                    if (empty) {
-                        searchInputLayout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_shuffle)
-                        searchInputLayout.endIconContentDescription = getString(R.string.shuffle_podcast_desc)
-                        searchInputLayout.setEndIconOnClickListener { try { shuffleAndOpenRandomPodcast() } catch (e: Exception) { android.util.Log.w("PodcastsFragment", "Shuffle failed: ${e.message}") } }
-                    } else {
-                        searchInputLayout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_clear)
-                        searchInputLayout.endIconContentDescription = getString(R.string.clear_search)
-                        searchInputLayout.setEndIconOnClickListener {
-                            suppressSearchWatcher = true
-                            searchEditText.text?.clear()
-                            suppressSearchWatcher = false
-                            viewModel.clearActiveSearch()
-                            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                            imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
-                            searchEditText.clearFocus()
-                        }
-                    }
-                    searchInputLayout.isEndIconVisible = true
-                } catch (_: Exception) { }
                 suppressSearchWatcher = false
             }
+            // Always sync icon state (covers both text changes and programmatic clears)
+            updateSearchEndIcon(q.isNullOrEmpty())
 
             updateSaveSearchButtonVisibility()
         }
 
         val filterButton: android.widget.ImageButton = view.findViewById(R.id.podcasts_filter_button)
+        val shuffleButton: android.widget.ImageButton = view.findViewById(R.id.podcasts_shuffle_button)
+        shuffleButton.setOnClickListener {
+            try { shuffleAndOpenRandomPodcast() } catch (e: Exception) {
+                android.util.Log.w("PodcastsFragment", "Shuffle button failed: ${e.message}")
+            }
+        }
         val genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.genre_filter_spinner)
         val sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.sort_spinner)
         val resetButton: android.widget.Button = view.findViewById(R.id.reset_filters_button)
@@ -396,29 +408,7 @@ class PodcastsFragment : Fragment() {
                 usingCachedItemAppend = false
                 restoringFromCache = false
                 // Update the end-icon: show shuffle when empty, clear when non-empty
-                try {
-                    val empty = s.isNullOrEmpty()
-                    searchInputLayout.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM
-                    if (empty) {
-                        searchInputLayout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_shuffle)
-                        searchInputLayout.endIconContentDescription = getString(R.string.shuffle_podcast_desc)
-                        searchInputLayout.setEndIconOnClickListener { try { shuffleAndOpenRandomPodcast() } catch (e: Exception) { android.util.Log.w("PodcastsFragment", "Shuffle failed: ${e.message}") } }
-                    } else {
-                        searchInputLayout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_clear)
-                        searchInputLayout.endIconContentDescription = getString(R.string.clear_search)
-                        searchInputLayout.setEndIconOnClickListener {
-                            suppressSearchWatcher = true
-                            searchEditText.text?.clear()
-                            suppressSearchWatcher = false
-                            viewModel.clearActiveSearch()
-
-                            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                            imm.hideSoftInputFromWindow(searchEditText.windowToken, 0)
-                            searchEditText.clearFocus()
-                        }
-                    }
-                    searchInputLayout.isEndIconVisible = true
-                } catch (_: Exception) { }
+                updateSearchEndIcon(s.isNullOrEmpty())
 
                 searchQuery = s?.toString() ?: ""
                 // If the user cleared the search box, clear the active persisted search and update immediately
@@ -430,13 +420,6 @@ class PodcastsFragment : Fragment() {
                     searchJob = null
                     filterDebounceJob?.cancel()
                     filterDebounceJob = null
-                    // Update end icon to shuffle now that the box is empty
-                    try {
-                        searchInputLayout.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_CUSTOM
-                        searchInputLayout.endIconDrawable = requireContext().getDrawable(R.drawable.ic_shuffle)
-                        searchInputLayout.endIconContentDescription = getString(R.string.shuffle_podcast_desc)
-                        searchInputLayout.setEndIconOnClickListener { try { shuffleAndOpenRandomPodcast() } catch (e: Exception) { android.util.Log.w("PodcastsFragment", "Shuffle failed: ${e.message}") } }
-                    } catch (_: Exception) {}
 
                     updateSaveSearchButtonVisibility()
                     return
@@ -947,6 +930,7 @@ class PodcastsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        sensorManager?.unregisterListener(shakeListener)
         filterDebounceJob?.cancel()
         searchJob?.cancel()
         episodePaginationJob?.cancel()
@@ -963,8 +947,37 @@ class PodcastsFragment : Fragment() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        sensorManager?.unregisterListener(shakeListener)
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (hidden) {
+            sensorManager?.unregisterListener(shakeListener)
+        } else {
+            registerShakeListener()
+        }
+    }
+
+    private fun registerShakeListener() {
+        if (isHidden) return
+        if (sensorManager == null) {
+            sensorManager = requireContext().getSystemService(android.content.Context.SENSOR_SERVICE)
+                as? android.hardware.SensorManager
+        }
+        val sensor = sensorManager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
+        if (sensor == null) {
+            android.util.Log.d("PodcastsFragment", "Accelerometer not available; shake-to-random disabled")
+            return
+        }
+        sensorManager?.registerListener(shakeListener, sensor, android.hardware.SensorManager.SENSOR_DELAY_UI)
+    }
+
     override fun onResume() {
         super.onResume()
+        registerShakeListener()
         android.util.Log.d("PodcastsFragment", "onResume: activeSearchQuery='${viewModel.activeSearchQuery.value}' searchQuery='${searchQuery}' allPodcasts.size=${allPodcasts.size}")
         
         // Refresh the adapter's subscription cache to reflect any changes
@@ -2142,6 +2155,8 @@ class PodcastsFragment : Fragment() {
     }
 
     companion object {
+        private const val SHAKE_THRESHOLD_GRAVITY = 2.7f
+        private const val SHAKE_DEBOUNCE_MS = 1000L
         private val POPULAR_RANKING = mapOf(
             "Global News Podcast" to 1,
             "Football Daily" to 2,
