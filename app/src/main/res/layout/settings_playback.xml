@@ -109,6 +109,27 @@
 
         </RadioGroup>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/shake_random_podcast_label"
+                android:textSize="14sp" />
+
+            <CheckBox
+                android:id="@+id/shake_random_podcast_checkbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="12dp" />
+        </LinearLayout>
+
     </LinearLayout>
 
 </ScrollView>

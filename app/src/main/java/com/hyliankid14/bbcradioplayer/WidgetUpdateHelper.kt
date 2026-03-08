@@ -13,11 +13,7 @@ object WidgetUpdateHelper {
     private val worker = Executors.newSingleThreadExecutor()
 
     private val providers = listOf(
-        ProviderSpec(StationWidgetSmallProvider::class.java, R.layout.widget_station_small),
-        ProviderSpec(StationWidgetMediumProvider::class.java, R.layout.widget_station_medium),
-        ProviderSpec(StationWidgetMediumSquareProvider::class.java, R.layout.widget_station_medium_square),
-        ProviderSpec(StationWidgetLargeProvider::class.java, R.layout.widget_station_large),
-        ProviderSpec(StationWidgetXLargeProvider::class.java, R.layout.widget_station_xlarge)
+        ProviderSpec(StationWidgetSmallProvider::class.java, R.layout.widget_station_small)
     )
 
     fun updateWidgets(

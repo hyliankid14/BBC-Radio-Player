@@ -7,6 +7,7 @@ object PlaybackPreference {
     private const val KEY_LAST_STATION_ID = "last_station_id"
     private const val KEY_LAST_MEDIA_ID = "last_media_id"
     private const val KEY_AUTO_RESUME_ANDROID_AUTO = "auto_resume_android_auto"
+    private const val KEY_SHAKE_RANDOM_PODCAST = "shake_random_podcast"
 
     fun setLastStationId(context: Context, stationId: String) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -41,5 +42,15 @@ object PlaybackPreference {
     fun isAutoResumeAndroidAutoEnabled(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getBoolean(KEY_AUTO_RESUME_ANDROID_AUTO, false)
+    }
+
+    fun setShakeRandomPodcastEnabled(context: Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_SHAKE_RANDOM_PODCAST, enabled).apply()
+    }
+
+    fun isShakeRandomPodcastEnabled(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_SHAKE_RANDOM_PODCAST, false)
     }
 }

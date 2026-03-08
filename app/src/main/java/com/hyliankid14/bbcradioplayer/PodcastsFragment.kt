@@ -963,6 +963,10 @@ class PodcastsFragment : Fragment() {
 
     private fun registerShakeListener() {
         if (isHidden) return
+        if (!PlaybackPreference.isShakeRandomPodcastEnabled(requireContext())) {
+            sensorManager?.unregisterListener(shakeListener)
+            return
+        }
         if (sensorManager == null) {
             sensorManager = requireContext().getSystemService(android.content.Context.SENSOR_SERVICE)
                 as? android.hardware.SensorManager

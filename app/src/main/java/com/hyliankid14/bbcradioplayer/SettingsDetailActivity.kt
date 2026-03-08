@@ -27,10 +27,13 @@ class SettingsDetailActivity : AppCompatActivity() {
         const val SECTION_PRIVACY = "privacy"
         const val SECTION_ALARM = "alarm"
         const val SECTION_ABOUT = "about"
+        private const val BACKUP_META_PREFS = "backup_meta_prefs"
+        private const val KEY_LAST_BACKUP_TIME = "last_backup_time"
     }
 
     private lateinit var createDocumentLauncher: ActivityResultLauncher<String>
     private lateinit var openDocumentLauncher: ActivityResultLauncher<Array<String>>
+    private var backupLastDateView: TextView? = null
     private var suppressIndexSpinnerSelection = false
     private var lastSeenIndexPercent = 0
 
@@ -219,6 +222,12 @@ class SettingsDetailActivity : AppCompatActivity() {
                 else -> ScrollingPreference.MODE_ALL_STATIONS
             }
             ScrollingPreference.setScrollMode(this, selectedMode)
+        }
+
+        val shakeRandomPodcastCheckbox: android.widget.CheckBox = findViewById(R.id.shake_random_podcast_checkbox)
+        shakeRandomPodcastCheckbox.isChecked = PlaybackPreference.isShakeRandomPodcastEnabled(this)
+        shakeRandomPodcastCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            PlaybackPreference.setShakeRandomPodcastEnabled(this, isChecked)
         }
     }
 
@@ -524,13 +533,26 @@ class SettingsDetailActivity : AppCompatActivity() {
     }
 
     private fun setupBackupSettings() {
+        backupLastDateView = findViewById(R.id.last_backup_date_text)
+        updateBackupLastDateDisplay()
+
         // Register Activity Result Launchers for Export / Import
         createDocumentLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
             if (uri != null) {
                 Thread {
                     runOnUiThread { android.widget.Toast.makeText(this, "Export started...", android.widget.Toast.LENGTH_SHORT).show() }
                     val success = exportPreferencesToUri(uri)
-                    runOnUiThread { android.widget.Toast.makeText(this, if (success) "Export successful" else "Export failed", android.widget.Toast.LENGTH_LONG).show() }
+                    if (success) {
+                        val now = System.currentTimeMillis()
+                        getSharedPreferences(BACKUP_META_PREFS, MODE_PRIVATE)
+                            .edit()
+                            .putLong(KEY_LAST_BACKUP_TIME, now)
+                            .apply()
+                    }
+                    runOnUiThread {
+                        if (success) updateBackupLastDateDisplay()
+                        android.widget.Toast.makeText(this, if (success) "Export successful" else "Export failed", android.widget.Toast.LENGTH_LONG).show()
+                    }
                 }.start()
             }
         }
@@ -565,6 +587,17 @@ class SettingsDetailActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateBackupLastDateDisplay() {
+        val view = backupLastDateView ?: return
+        val ts = getSharedPreferences(BACKUP_META_PREFS, MODE_PRIVATE).getLong(KEY_LAST_BACKUP_TIME, 0L)
+        if (ts <= 0L) {
+            view.text = getString(R.string.backup_last_date_never)
+            return
+        }
+        val fmt = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+        view.text = getString(R.string.backup_last_date_value, fmt.format(java.util.Date(ts)))
+    }
+
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
             val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "saved_searches_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "subscription_refresh_prefs", "podcast_filter_prefs", "theme_prefs", "download_prefs")
@@ -590,6 +623,9 @@ class SettingsDetailActivity : AppCompatActivity() {
                 }
                 if (name == "playback_prefs" && !obj.has("auto_resume_android_auto")) {
                     obj.put("auto_resume_android_auto", PlaybackPreference.isAutoResumeAndroidAutoEnabled(this))
+                }
+                if (name == "playback_prefs" && !obj.has("shake_random_podcast")) {
+                    obj.put("shake_random_podcast", PlaybackPreference.isShakeRandomPodcastEnabled(this))
                 }
                 if (name == "index_prefs") {
                     if (!obj.has("index_interval_days")) obj.put("index_interval_days", IndexPreference.getIntervalDays(this))
@@ -687,6 +723,9 @@ class SettingsDetailActivity : AppCompatActivity() {
                 val pp = root.getJSONObject("playback_prefs")
                 if (pp.has("auto_resume_android_auto")) {
                     PlaybackPreference.setAutoResumeAndroidAuto(this, pp.optBoolean("auto_resume_android_auto", false))
+                }
+                if (pp.has("shake_random_podcast")) {
+                    PlaybackPreference.setShakeRandomPodcastEnabled(this, pp.optBoolean("shake_random_podcast", false))
                 }
             }
             if (root.has("index_prefs")) {

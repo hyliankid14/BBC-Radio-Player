@@ -3,7 +3,7 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
+    android:background="@drawable/widget_background_inset"
     android:padding="8dp">
 
     <LinearLayout

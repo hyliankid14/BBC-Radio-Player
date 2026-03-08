@@ -73,11 +73,12 @@
     <string name="widget_station_artwork">Station artwork</string>
     <string name="widget_play_pause">Play or pause station</string>
     <string name="widget_stop">Stop playback</string>
-    <string name="widget_label_small">BBC Radio Widget (Small)</string>
-    <string name="widget_label_medium">BBC Radio Widget (Medium)</string>
-    <string name="widget_label_medium_square">BBC Radio Widget (Medium Square)</string>
-    <string name="widget_label_large">BBC Radio Widget (Large)</string>
-    <string name="widget_label_xlarge">BBC Radio Widget (Extra Large)</string>
+    <string name="widget_label_resizable">BBC Radio Widget</string>
+    <string name="export_settings">Export Settings</string>
+    <string name="import_settings">Import Settings</string>
+    <string name="backup_last_date_never">Last backup: Never</string>
+    <string name="backup_last_date_value">Last backup: %1$s</string>
+    <string name="shake_random_podcast_label">Shake to select a random podcast</string>
 
     <!-- Hour and Minute Arrays -->
     <string-array name="hour_options">

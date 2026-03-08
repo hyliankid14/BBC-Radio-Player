@@ -27,19 +27,3 @@ abstract class BaseStationWidgetProvider : AppWidgetProvider() {
 class StationWidgetSmallProvider : BaseStationWidgetProvider() {
     override val layoutResId: Int = R.layout.widget_station_small
 }
-
-class StationWidgetMediumProvider : BaseStationWidgetProvider() {
-    override val layoutResId: Int = R.layout.widget_station_medium
-}
-
-class StationWidgetMediumSquareProvider : BaseStationWidgetProvider() {
-    override val layoutResId: Int = R.layout.widget_station_medium_square
-}
-
-class StationWidgetLargeProvider : BaseStationWidgetProvider() {
-    override val layoutResId: Int = R.layout.widget_station_large
-}
-
-class StationWidgetXLargeProvider : BaseStationWidgetProvider() {
-    override val layoutResId: Int = R.layout.widget_station_xlarge
-}

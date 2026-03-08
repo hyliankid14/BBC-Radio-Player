@@ -39,7 +39,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Export Settings" />
+                android:text="@string/export_settings" />
 
             <Space
                 android:layout_width="12dp"
@@ -50,8 +50,16 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Import Settings" />
+                android:text="@string/import_settings" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/last_backup_date_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/backup_last_date_never"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp" />
 
     </LinearLayout>
 

@@ -6,5 +6,7 @@
     android:minWidth="120dp"
     android:previewImage="@mipmap/ic_launcher"
     android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="1"
+    android:targetCellWidth="2"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />
