@@ -2833,9 +2833,22 @@ class MainActivity : AppCompatActivity() {
             
             // Update play/pause button - always show the correct state
             miniPlayerPlayPause.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow)
-            
-            // Update favorite button state - for podcasts, show saved-episode state if an episode is playing; otherwise show podcast subscription
+
+            // Sync progress bar: only shown for podcasts with valid progress data.
+            // This ensures the bar is always hidden when switching to a radio station,
+            // even if the show-change listener fired while the view was temporarily detached.
             val isPodcast = station.id.startsWith("podcast_")
+            val pos = show.segmentStartMs ?: -1L
+            val dur = show.segmentDurationMs ?: -1L
+            if (isPodcast && dur > 0 && pos >= 0) {
+                val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
+                miniPlayerProgress.progress = (ratio * 100).toInt()
+                miniPlayerProgress.visibility = android.view.View.VISIBLE
+            } else {
+                miniPlayerProgress.visibility = android.view.View.GONE
+            }
+
+            // Update favorite button state - for podcasts, show saved-episode state if an episode is playing; otherwise show podcast subscription
             val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
             // If an episode is playing, treat the favorite button as an episode-save (bookmark).
             if (isPodcast && !currentEpisodeId.isNullOrEmpty()) {
@@ -2928,10 +2941,11 @@ class MainActivity : AppCompatActivity() {
             Log.d("MainActivity", "Loading artwork from: $artworkUrl")
         }
 
-        // Show episode progress when available (podcast playback)
+        // Show episode progress only for podcast playback
+        val isPodcastStation = PlaybackStateHelper.getCurrentStation()?.id?.startsWith("podcast_") == true
         val pos = show.segmentStartMs ?: -1L
         val dur = show.segmentDurationMs ?: -1L
-        if (dur > 0 && pos >= 0) {
+        if (isPodcastStation && dur > 0 && pos >= 0) {
             val ratio = (pos.toDouble() / dur.toDouble()).coerceIn(0.0, 1.0)
             val percent = (ratio * 100).toInt()
             miniPlayerProgress.progress = percent
