@@ -20,6 +20,10 @@ object PlaybackStateHelper {
             currentEpisodeId = null
             // Clear any episode-specific playback URI when leaving podcast context
             currentMediaUri = null
+            // Reset the show so podcast episode/progress details don't persist in the UI
+            // while the new station's show info is being fetched.
+            currentShow = CurrentShow(station?.title ?: "BBC Radio")
+            notifyShowChangeListeners()
         }
     }
     
