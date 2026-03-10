@@ -277,6 +277,7 @@ class SettingsDetailActivity : AppCompatActivity() {
             val wifiOnlyCheckbox: android.widget.CheckBox = findViewById(R.id.wifi_only_download_checkbox)
             val deleteOnPlayedCheckbox: android.widget.CheckBox = findViewById(R.id.delete_on_played_checkbox)
             val deleteAllButton: Button = findViewById(R.id.delete_all_downloads_button)
+            val openDownloadsFolderButton: Button = findViewById(R.id.open_downloads_folder_button)
 
             // Initialize auto-download enabled checkbox
             val isAutoDownloadEnabled = DownloadPreferences.isAutoDownloadEnabled(this)
@@ -364,6 +365,29 @@ class SettingsDetailActivity : AppCompatActivity() {
                     }
                     .setNegativeButton("Cancel", null)
                     .show()
+            }
+
+            // Open downloads folder button
+            openDownloadsFolderButton.setOnClickListener {
+                val downloadsDir = java.io.File(getExternalFilesDir(android.os.Environment.DIRECTORY_PODCASTS), "episodes")
+                downloadsDir.mkdirs()
+                try {
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        this, "${packageName}.fileprovider", downloadsDir
+                    )
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, "resource/folder")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    android.util.Log.w("SettingsDetailActivity", "Cannot open downloads folder with file manager: ${e.message}")
+                    androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("Downloads Folder")
+                        .setMessage("Downloaded episodes are stored at:\n\n${downloadsDir.absolutePath}")
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
             }
         } catch (_: Exception) {}
     }
