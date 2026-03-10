@@ -30,6 +30,9 @@ import io
 import logging
 import re
 import unicodedata
+import json
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 from pathlib import Path
 
 app = Flask(__name__)
@@ -49,6 +52,72 @@ def add_cors_headers(response):
 # Database paths
 DB_PATH = Path(__file__).parent / 'analytics.db'
 PODCAST_INDEX_DB_PATH = Path(__file__).parent / 'podcast_index.db'
+GITHUB_PAGES_META_URL = (
+    'https://hyliankid14.github.io/BBC-Radio-Player/podcast-index-meta.json'
+)
+
+
+def _read_github_pages_index_meta():
+    """
+    Fetch lightweight index metadata from GitHub Pages.
+
+    Returns:
+        dict with podcast_count, episode_count, generated_at on success,
+        or None when unavailable.
+    """
+    try:
+        req = Request(
+            GITHUB_PAGES_META_URL,
+            headers={'User-Agent': 'BBC-Radio-Player-Analytics/1.0'}
+        )
+        with urlopen(req, timeout=5) as resp:
+            if resp.status != 200:
+                return None
+            payload = json.loads(resp.read().decode('utf-8'))
+            return {
+                'podcast_count': int(payload.get('podcast_count', 0) or 0),
+                'episode_count': int(payload.get('episode_count', 0) or 0),
+                'generated_at': payload.get('generated_at')
+            }
+    except (URLError, HTTPError, ValueError, OSError):
+        return None
+
+
+def _resolve_index_display_status(server_counts):
+    """
+    Resolve effective index status for UI/API display.
+
+    Prefer local server FTS counts. If local FTS is empty/uninitialised,
+    fall back to GitHub Pages metadata (the app's primary index source).
+    """
+    local_has_data = (
+        server_counts['podcast_count'] > 0 or
+        server_counts['episode_count'] > 0 or
+        bool(server_counts['last_updated'])
+    )
+    if local_has_data:
+        return {
+            'podcast_count': server_counts['podcast_count'],
+            'episode_count': server_counts['episode_count'],
+            'last_updated': server_counts['last_updated'],
+            'source': 'server_fts'
+        }
+
+    upstream = _read_github_pages_index_meta()
+    if upstream:
+        return {
+            'podcast_count': upstream['podcast_count'],
+            'episode_count': upstream['episode_count'],
+            'last_updated': upstream['generated_at'],
+            'source': 'github_pages_meta'
+        }
+
+    return {
+        'podcast_count': server_counts['podcast_count'],
+        'episode_count': server_counts['episode_count'],
+        'last_updated': server_counts['last_updated'],
+        'source': 'server_fts_empty'
+    }
 
 
 def init_podcast_index_db():
@@ -507,10 +576,20 @@ def index_status():
         row = c.fetchone()
         last_updated = row['value'] if row else None
         conn.close()
-        return jsonify({
+
+        server_counts = {
             'podcast_count': podcast_count,
             'episode_count': episode_count,
             'last_updated': last_updated
+        }
+        effective = _resolve_index_display_status(server_counts)
+
+        return jsonify({
+            'podcast_count': effective['podcast_count'],
+            'episode_count': effective['episode_count'],
+            'last_updated': effective['last_updated'],
+            'source': effective['source'],
+            'server_index': server_counts
         }), 200
     except Exception as e:
         print(f"Error getting index status: {e}", file=sys.stderr)
@@ -828,17 +907,30 @@ def index():
             idx_conn = get_podcast_index_db()
             idx_c = idx_conn.cursor()
             idx_c.execute('SELECT COUNT(*) AS n FROM podcast_fts')
-            podcast_count = idx_c.fetchone()['n']
+            local_podcast_count = idx_c.fetchone()['n']
             idx_c.execute('SELECT COUNT(*) AS n FROM episode_meta')
-            episode_count = idx_c.fetchone()['n']
+            local_episode_count = idx_c.fetchone()['n']
             idx_c.execute("SELECT value FROM index_meta WHERE key = 'last_updated'")
             row = idx_c.fetchone()
-            last_updated = row['value'] if row else 'never'
+            local_last_updated = row['value'] if row else None
             idx_conn.close()
+
+            server_counts = {
+                'podcast_count': local_podcast_count,
+                'episode_count': local_episode_count,
+                'last_updated': local_last_updated
+            }
+            effective = _resolve_index_display_status(server_counts)
+
+            podcast_count = effective['podcast_count']
+            episode_count = effective['episode_count']
+            last_updated = effective['last_updated'] or 'never'
+            index_source = effective['source']
         except Exception:
             podcast_count = 0
             episode_count = 0
             last_updated = 'unavailable'
+            index_source = 'unavailable'
         
         html = f"""
         <!DOCTYPE html>
@@ -950,7 +1042,8 @@ def index():
                     <div style="margin-top: 10px;">
                         <strong>{podcast_count}</strong> podcasts &nbsp;·&nbsp;
                         <strong>{episode_count}</strong> episodes &nbsp;·&nbsp;
-                        Last updated: <code>{last_updated}</code>
+                        Last updated: <code>{last_updated}</code> &nbsp;·&nbsp;
+                        Source: <code>{index_source}</code>
                     </div>
                 </div>
 
