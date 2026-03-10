@@ -369,22 +369,29 @@ class SettingsDetailActivity : AppCompatActivity() {
 
             // Open downloads folder button
             openDownloadsFolderButton.setOnClickListener {
-                val downloadsDir = java.io.File(getExternalFilesDir(android.os.Environment.DIRECTORY_PODCASTS), "episodes")
+                val downloadsDir = java.io.File(
+                    android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PODCASTS),
+                    "BBC Radio Player"
+                )
                 downloadsDir.mkdirs()
-                try {
-                    val uri = androidx.core.content.FileProvider.getUriForFile(
-                        this, "${packageName}.fileprovider", downloadsDir
-                    )
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, "resource/folder")
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+                // Try to open the folder in the system file manager via the Documents provider URI
+                val dirUri = android.provider.DocumentsContract.buildDocumentUri(
+                    "com.android.externalstorage.documents",
+                    "primary:Podcasts/BBC Radio Player"
+                )
+                val opened = try {
+                    val intent = Intent(Intent.ACTION_VIEW, dirUri).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     startActivity(intent)
-                } catch (e: Exception) {
-                    android.util.Log.w("SettingsDetailActivity", "Cannot open downloads folder with file manager: ${e.message}")
+                    true
+                } catch (_: Exception) { false }
+
+                if (!opened) {
                     androidx.appcompat.app.AlertDialog.Builder(this)
                         .setTitle("Downloads Folder")
-                        .setMessage("Downloaded episodes are stored at:\n\n${downloadsDir.absolutePath}")
+                        .setMessage("Downloaded episodes are stored at:\n\n${downloadsDir.absolutePath}\n\nOpen this path in your file manager to access the files.")
                         .setPositiveButton("OK", null)
                         .show()
                 }
