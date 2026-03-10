@@ -1667,6 +1667,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
     private fun playStation(stationId: String) {
         isStopped = false
+        if (!mediaSession.isActive) mediaSession.isActive = true
         val station = StationRepository.getStations().firstOrNull { it.id == stationId }
         if (station == null) {
             Log.w(TAG, "Unknown station: $stationId")
@@ -2279,6 +2280,22 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         lastSongSignature = null
 
         WidgetUpdateHelper.updateAllWidgets(this)
+
+        // Deactivate the MediaSession and clear its metadata so that Samsung One UI's
+        // "Live notifications" media player widget is dismissed from the notification shade.
+        // Without this, Samsung rebuilds its own media-player card from the still-active session
+        // even after stopForeground() + NotificationManager.cancel() have removed the app's own
+        // notification, causing the podcast to keep appearing after the user presses Stop.
+        try {
+            mediaSession.setMetadata(android.support.v4.media.MediaMetadataCompat.Builder().build())
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear MediaSession metadata on stop: ${e.message}")
+        }
+        try {
+            mediaSession.isActive = false
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to deactivate MediaSession on stop: ${e.message}")
+        }
         
         Log.d(TAG, "Playback stopped")
     }
@@ -2469,6 +2486,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     private fun playPodcastEpisode(episode: Episode, intent: Intent?) {
         try {
             isStopped = false
+            if (!mediaSession.isActive) mediaSession.isActive = true
 
             // Cancel any pending analytics from previous playback
             stationAnalyticsRunnable?.let { handler.removeCallbacks(it); stationAnalyticsRunnable = null }
