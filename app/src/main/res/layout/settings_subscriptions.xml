@@ -179,6 +179,14 @@
             android:text="Delete All Downloads"
             android:layout_marginTop="8dp" />
 
+        <Button
+            android:id="@+id/open_downloads_folder_button"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Open Downloads Folder"
+            android:layout_marginTop="8dp" />
+
     </LinearLayout>
 
 </ScrollView>
