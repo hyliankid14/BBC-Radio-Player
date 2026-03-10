@@ -1,6 +1,9 @@
 package com.hyliankid14.bbcradioplayer
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
@@ -124,6 +127,20 @@ object SavedEpisodes {
             j.put("savedAtMs", System.currentTimeMillis())
             current.add(j.toString())
             prefs(context).edit().putStringSet(KEY_SAVED_SET, current).apply()
+            
+            // Trigger auto-download if enabled
+            val episodeForDownload = Episode(
+                id = episode.id,
+                title = episode.title,
+                description = episode.description,
+                audioUrl = resolvedAudio,
+                imageUrl = episode.imageUrl,
+                pubDate = resolvedPubDate,
+                durationMins = resolvedDuration,
+                podcastId = episode.podcastId
+            )
+            triggerAutoDownloadForEpisode(context, episodeForDownload, podcastTitle ?: "")
+            
             return true
         }
     }
@@ -166,5 +183,69 @@ object SavedEpisodes {
 
     fun clearAll(context: Context) {
         prefs(context).edit().remove(KEY_SAVED_SET).apply()
+    }
+
+    /**
+     * Trigger auto-download for a specific saved episode if the auto-download-saved setting is enabled.
+     * This runs in the background and handles errors silently.
+     */
+    private fun triggerAutoDownloadForEpisode(context: Context, episode: Episode, podcastTitle: String) {
+        if (!DownloadPreferences.isAutoDownloadSaved(context)) return
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Skip if already downloaded
+                if (DownloadedEpisodes.isDownloaded(context, episode)) {
+                    return@launch
+                }
+                
+                // Download the episode (saved episodes are downloaded regardless of play status)
+                EpisodeDownloadManager.downloadEpisode(context, episode, podcastTitle, isAutoDownload = true)
+            } catch (_: Exception) {
+                // Silently handle errors - this is a best-effort operation
+            }
+        }
+    }
+
+    /**
+     * Trigger auto-download for all existing saved episodes.
+     * This is useful when the user enables auto-download-saved for the first time.
+     */
+    fun triggerAutoDownloadForAllSaved(context: Context) {
+        if (!DownloadPreferences.isAutoDownloadSaved(context)) return
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val savedEntries = getSavedEntries(context)
+                if (savedEntries.isEmpty()) return@launch
+                
+                for (entry in savedEntries) {
+                    // Skip if already downloaded
+                    if (DownloadedEpisodes.isDownloaded(context, entry.id)) {
+                        continue
+                    }
+                    
+                    // Convert Entry to Episode and download (saved episodes are downloaded regardless of play status)
+                    val episode = Episode(
+                        id = entry.id,
+                        title = entry.title,
+                        description = entry.description,
+                        audioUrl = entry.audioUrl,
+                        imageUrl = entry.imageUrl,
+                        pubDate = entry.pubDate,
+                        durationMins = entry.durationMins,
+                        podcastId = entry.podcastId
+                    )
+                    
+                    try {
+                        EpisodeDownloadManager.downloadEpisode(context, episode, entry.podcastTitle, isAutoDownload = true)
+                    } catch (_: Exception) {
+                        // Continue with next episode
+                    }
+                }
+            } catch (_: Exception) {
+                // Silently handle errors - this is a best-effort operation
+            }
+        }
     }
 }

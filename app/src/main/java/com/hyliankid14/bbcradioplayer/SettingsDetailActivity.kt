@@ -271,21 +271,47 @@ class SettingsDetailActivity : AppCompatActivity() {
         // Setup download settings
         try {
             val autoDownloadCheckbox: android.widget.CheckBox = findViewById(R.id.auto_download_checkbox)
+            val autoDownloadSavedCheckbox: android.widget.CheckBox = findViewById(R.id.auto_download_saved_checkbox)
+            val autoDownloadLimitLayout: com.google.android.material.textfield.TextInputLayout = findViewById(R.id.auto_download_limit_layout)
             val autoDownloadLimitSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView = findViewById(R.id.auto_download_limit_spinner)
             val wifiOnlyCheckbox: android.widget.CheckBox = findViewById(R.id.wifi_only_download_checkbox)
             val deleteOnPlayedCheckbox: android.widget.CheckBox = findViewById(R.id.delete_on_played_checkbox)
             val deleteAllButton: Button = findViewById(R.id.delete_all_downloads_button)
 
             // Initialize auto-download enabled checkbox
-            autoDownloadCheckbox.isChecked = DownloadPreferences.isAutoDownloadEnabled(this)
+            val isAutoDownloadEnabled = DownloadPreferences.isAutoDownloadEnabled(this)
+            autoDownloadCheckbox.isChecked = isAutoDownloadEnabled
+            
+            // Set initial enabled state for limit spinner based on auto-download checkbox
+            autoDownloadLimitLayout.isEnabled = isAutoDownloadEnabled
+            autoDownloadLimitSpinner.isEnabled = isAutoDownloadEnabled
+            
             autoDownloadCheckbox.setOnCheckedChangeListener { _, isChecked ->
                 DownloadPreferences.setAutoDownloadEnabled(this, isChecked)
+                
+                // Enable/disable the limit spinner based on auto-download state
+                autoDownloadLimitLayout.isEnabled = isChecked
+                autoDownloadLimitSpinner.isEnabled = isChecked
+                
                 if (isChecked) {
                     // When enabling auto-download, immediately trigger downloads for all existing subscriptions
                     PodcastSubscriptions.triggerAutoDownloadForAllSubscriptions(this)
                     android.widget.Toast.makeText(this, "Auto-download enabled - checking subscribed podcasts...", android.widget.Toast.LENGTH_SHORT).show()
                 } else {
                     android.widget.Toast.makeText(this, "Auto-download disabled", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            // Initialize auto-download saved episodes checkbox
+            autoDownloadSavedCheckbox.isChecked = DownloadPreferences.isAutoDownloadSaved(this)
+            autoDownloadSavedCheckbox.setOnCheckedChangeListener { _, isChecked ->
+                DownloadPreferences.setAutoDownloadSaved(this, isChecked)
+                if (isChecked) {
+                    // When enabling, immediately trigger downloads for all existing saved episodes
+                    SavedEpisodes.triggerAutoDownloadForAllSaved(this)
+                    android.widget.Toast.makeText(this, "Auto-download enabled for saved episodes - checking saved episodes...", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.widget.Toast.makeText(this, "Auto-download disabled for saved episodes", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
 

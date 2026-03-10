@@ -11,6 +11,7 @@ object DownloadPreferences {
     private const val KEY_AUTO_DOWNLOAD_LIMIT = "auto_download_limit"
     private const val KEY_DOWNLOAD_ON_WIFI_ONLY = "download_on_wifi_only"
     private const val KEY_DELETE_ON_PLAYED = "delete_on_played"
+    private const val KEY_AUTO_DOWNLOAD_SAVED = "auto_download_saved"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -48,5 +49,13 @@ object DownloadPreferences {
 
     fun setDeleteOnPlayed(context: Context, deleteOnPlayed: Boolean) {
         prefs(context).edit().putBoolean(KEY_DELETE_ON_PLAYED, deleteOnPlayed).apply()
+    }
+
+    fun isAutoDownloadSaved(context: Context): Boolean {
+        return prefs(context).getBoolean(KEY_AUTO_DOWNLOAD_SAVED, false)
+    }
+
+    fun setAutoDownloadSaved(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_AUTO_DOWNLOAD_SAVED, enabled).apply()
     }
 }

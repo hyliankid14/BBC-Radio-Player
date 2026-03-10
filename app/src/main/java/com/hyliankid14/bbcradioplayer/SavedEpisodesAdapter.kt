@@ -19,6 +19,40 @@ class SavedEpisodesAdapter(
     private val onRemoveSaved: (String) -> Unit
 ) : RecyclerView.Adapter<SavedEpisodesAdapter.ViewHolder>() {
 
+    private var downloadCompleteReceiver: android.content.BroadcastReceiver? = null
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        
+        // Register receiver to refresh list when downloads complete
+        downloadCompleteReceiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                try {
+                    // Refresh the entire adapter when any download completes
+                    notifyDataSetChanged()
+                } catch (_: Exception) { }
+            }
+        }
+        
+        try {
+            context.registerReceiver(
+                downloadCompleteReceiver,
+                android.content.IntentFilter(EpisodeDownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                android.content.Context.RECEIVER_NOT_EXPORTED
+            )
+        } catch (_: Exception) { }
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        
+        // Unregister receiver
+        try {
+            downloadCompleteReceiver?.let { context.unregisterReceiver(it) }
+            downloadCompleteReceiver = null
+        } catch (_: Exception) { }
+    }
+
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val title: TextView = view.findViewById(R.id.episode_title)
         val desc: TextView = view.findViewById(R.id.episode_description)

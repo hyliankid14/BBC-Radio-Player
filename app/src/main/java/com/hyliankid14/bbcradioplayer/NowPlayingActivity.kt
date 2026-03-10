@@ -240,7 +240,7 @@ class NowPlayingActivity : AppCompatActivity() {
         })
         
         // No longer send seek in addOnChangeListener - only when user releases slider
-        seekBar.addOnChangeListener { _, _, fromUser ->
+        seekBar.addOnChangeListener { _, _, _ ->
             // Just track that the value changed; seek happens on touch release
         }
         
@@ -1409,8 +1409,6 @@ class NowPlayingActivity : AppCompatActivity() {
         val episodeId = previewEpisodeProp?.id ?: episodeIdInPlayback ?: currentShownEpisodeId
         
         val playPauseColorStateList = android.content.res.ColorStateList.valueOf(currentPlayPauseButtonColor)
-        val whiteColorStateList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
-        val iconColorStateList = android.content.res.ColorStateList.valueOf(currentIconColor)
         
         // For episodes being played/previewed, show bookmark styling
         if (!episodeId.isNullOrEmpty()) {
@@ -1651,7 +1649,6 @@ class NowPlayingActivity : AppCompatActivity() {
                         val outlineButtonColorStateList = android.content.res.ColorStateList.valueOf(buttonOutlineColor)
                         val playPauseButtonColorStateList = android.content.res.ColorStateList.valueOf(playPauseButtonColor)
                         val iconColorStateList = android.content.res.ColorStateList.valueOf(iconColor)
-                        val whiteColorStateList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
                         
                         stopButton.backgroundTintList = outlineButtonColorStateList
                         stopButton.iconTint = null
