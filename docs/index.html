@@ -10,6 +10,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako/dist/pako.min.js"></script>
     <title>BBC Radio Player - Podcast & Episode Sharing</title>
     <!-- Version: 2.2 - Added PWA baseline support -->
     <style>
@@ -923,7 +924,10 @@
             title,
             serviceId,
             category,
-            logoUrl: `${STATION_LOGO_BASE}/${logoServiceId}/blocks-colour-black_600x600.png`
+            logoUrl: `${STATION_LOGO_BASE}/${logoServiceId}/blocks-colour-black_600x600.png`,
+            nowPlaying: 'Loading...',
+            nextShow: '',
+            nowPlayingLoaded: false
         });
 
         const LIVE_RADIO_STATIONS = [
@@ -1541,9 +1545,24 @@
 
                 this.isLoadingPodcasts = true;
                 try {
-                    const opmlText = await this.fetchTextWithProxy('https://www.bbc.co.uk/radio/opml/bbc_podcast_opml.xml', 20000);
-                    this.allPodcasts = this.parsePodcastOpml(opmlText);
+                    // Fetch the pre-built podcast index (gzip-compressed JSON)
+                    const response = await fetch('podcast-index.json.gz', {
+                        cache: 'no-store'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status} loading podcast index`);
+                    }
+
+                    // Get the response as an ArrayBuffer and decompress with pako
+                    const buffer = await response.arrayBuffer();
+                    const decompressed = pako.inflate(new Uint8Array(buffer), { to: 'string' });
+                    const indexData = JSON.parse(decompressed);
+
+                    // Convert the flat episode array into a structured podcast list
+                    this.allPodcasts = this.buildPodcastsFromIndex(indexData);
                     this.podcasts = this.allPodcasts.slice();
+                    
                     if (!this.currentPodcastId && this.allPodcasts[0]) {
                         this.currentPodcastId = this.allPodcasts[0].id;
                     }
@@ -1553,6 +1572,47 @@
                 } finally {
                     this.isLoadingPodcasts = false;
                 }
+            }
+
+            buildPodcastsFromIndex(indexData) {
+                // indexData is { generated_at, podcast_count, episode_count, podcasts[], episodes[] }
+                const podcasts = indexData.podcasts || [];
+                const episodes = indexData.episodes || [];
+                
+                // Create a map of episodes by podcast ID for quick lookup
+                const episodesByPodcast = {};
+                for (const episode of episodes) {
+                    const podcastId = episode.podcastId;
+                    if (!podcastId) continue;
+                    
+                    if (!episodesByPodcast[podcastId]) {
+                        episodesByPodcast[podcastId] = [];
+                    }
+                    if (episodesByPodcast[podcastId].length < 24) {
+                        episodesByPodcast[podcastId].push({
+                            id: episode.id || `ep-${Math.random()}`,
+                            title: episode.title || 'Untitled',
+                            description: episode.description || '',
+                            audioUrl: episode.enclosureUrl || episode.audioUrl || '',
+                            imageUrl: episode.image || '',
+                            pubDate: episode.pubDate || '',
+                            durationMins: episode.durationMins || 0
+                        });
+                    }
+                }
+
+                // Enrich podcasts with their episodes
+                return podcasts.map(podcast => ({
+                    id: podcast.id,
+                    title: podcast.title || 'Unknown Podcast',
+                    description: podcast.description || 'BBC podcast',
+                    rssUrl: '',
+                    imageUrl: podcast.image || null,
+                    episodes: episodesByPodcast[podcast.id] || [],
+                    episodeCount: (episodesByPodcast[podcast.id] || []).length,
+                    isLoading: false,
+                    loadError: ''
+                })).sort((a, b) => a.title.localeCompare(b.title));
             }
 
             getPodcastById(podcastId) {
@@ -1574,7 +1634,6 @@
             async selectPodcast(podcastId) {
                 this.currentWebAppTab = 'podcasts';
                 this.currentPodcastId = podcastId;
-                this.renderLiveRadioSection();
                 await this.ensurePodcastLoaded(podcastId);
                 this.renderLiveRadioSection();
             }
@@ -1640,23 +1699,21 @@
 
             async ensurePodcastLoaded(podcastId) {
                 const podcast = this.getPodcastById(podcastId);
-                if (!podcast || podcast.isLoading || Array.isArray(podcast.episodes)) {
+                if (!podcast) {
                     return;
                 }
 
-                podcast.isLoading = true;
-                podcast.loadError = '';
-                this.renderLiveRadioSection();
-
-                try {
-                    const feedText = await this.fetchPodcastFeedText(podcast.rssUrl);
-                    const hydratedPodcast = this.parsePodcastFeed(feedText, podcast);
-                    Object.assign(podcast, hydratedPodcast);
-                } catch (error) {
-                    console.error('Failed to load podcast feed:', podcastId, error);
+                // Episodes are already loaded from the pre-built index
+                // Just mark it as loaded (no need to fetch RSS anymore)
+                if (Array.isArray(podcast.episodes) && podcast.episodes.length > 0) {
                     podcast.isLoading = false;
-                    podcast.loadError = 'Unable to load episodes right now. Please try another podcast or retry in a moment.';
+                    return;
                 }
+
+                // If no episodes, mark as complete (empty podcast)
+                podcast.isLoading = false;
+                podcast.episodeCount = 0;
+                podcast.episodes = [];
             }
 
             renderPodcastCards(podcasts) {
@@ -1808,15 +1865,96 @@
                 });
             }
 
+            async ensureStationNowPlayingLoaded(station) {
+                if (station.nowPlayingLoaded) {
+                    return;
+                }
+
+                try {
+                    const data = await this.fetchStationNowPlaying(station.serviceId);
+                    if (data) {
+                        station.nowPlaying = data.nowPlaying || 'Live Radio';
+                        station.nextShow = data.nextShow || '';
+                        station.nowPlayingLoaded = true;
+                    }
+                } catch (error) {
+                    console.debug('Failed to load now playing for', station.id, error);
+                    station.nowPlaying = 'Live Radio';
+                    station.nowPlayingLoaded = true;
+                }
+            }
+
+            async fetchStationNowPlaying(serviceId) {
+                try {
+                    // BBC Schedules API endpoint for now and next programmes
+                    const url = `https://www.bbc.co.uk/schedule/${serviceId}.json`;
+                    const response = await fetch(url, {
+                        cache: 'default',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (compatible; BBC-Radio-Player/1.0)'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        return null;
+                    }
+
+                    const data = await response.json();
+                    const schedule = data.schedule || [];
+                    
+                    if (schedule.length === 0) {
+                        return null;
+                    }
+
+                    // Sort by date to get current and next shows
+                    const now = new Date();
+                    let currentShow = null;
+                    let nextShow = null;
+
+                    for (const item of schedule) {
+                        const start = new Date(item.start);
+                        const end = new Date(item.end);
+
+                        if (start <= now && now < end) {
+                            currentShow = item;
+                        } else if (start > now && !nextShow) {
+                            nextShow = item;
+                        }
+
+                        if (currentShow && nextShow) break;
+                    }
+
+                    const nowPlaying = currentShow ? currentShow.title : null;
+                    const next = nextShow ? nextShow.title : null;
+
+                    return {
+                        nowPlaying,
+                        nextShow: next
+                    };
+                } catch (error) {
+                    console.debug('BBC Schedules API failed:', error.message);
+                    return null;
+                }
+            }
+
             renderStationRows(stations) {
                 return stations.map(station => {
                     const favouriteIcon = this.isFavoriteStation(station.id) ? '⭐' : '☆';
+                    const nowPlaying = station.nowPlaying || 'Loading...';
+                    
+                    // Fetch now playing data asynchronously without blocking render
+                    this.ensureStationNowPlayingLoaded(station).then(() => {
+                        this.renderLiveRadioSection();
+                    }).catch(() => {
+                        // Silently fail - will show 'Loading...' then update
+                    });
+
                     return `
                         <div class="station-row">
                             <img class="station-row-art" src="${this.escapeHtml(station.logoUrl)}" alt="${this.escapeHtml(station.title)}" onerror="this.style.display='none'">
                             <div class="station-row-info">
                                 <div class="station-row-title">${this.escapeHtml(station.title)}</div>
-                                <div class="station-row-subtitle">${this.escapeHtml(station.category)}</div>
+                                <div class="station-row-subtitle">${this.escapeHtml(nowPlaying)}</div>
                             </div>
                             <div class="station-row-actions">
                                 <button class="station-icon-button" onclick="player.toggleFavoriteStation('${this.escapeHtml(station.id)}')" aria-label="Toggle favourite">${favouriteIcon}</button>
