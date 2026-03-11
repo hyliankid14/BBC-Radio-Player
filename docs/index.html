@@ -925,7 +925,7 @@
             serviceId,
             category,
             logoUrl: `${STATION_LOGO_BASE}/${logoServiceId}/blocks-colour-black_600x600.png`,
-            nowPlaying: 'Loading...',
+            nowPlaying: '',
             nextShow: '',
             nowPlayingLoaded: false
         });
@@ -1865,92 +1865,58 @@
                 });
             }
 
-            async ensureStationNowPlayingLoaded(station) {
-                if (station.nowPlayingLoaded) {
-                    return;
-                }
+            async loadNowPlayingBatch(stations) {
+                // Fetch now-playing for each station in parallel using BBC's RMS API.
+                // Updates each station's nowPlaying property and patches the DOM directly
+                // — never triggers a full re-render to avoid cascading loops.
+                const toFetch = stations.filter(s => !s.nowPlayingLoaded);
+                if (!toFetch.length) return;
 
-                try {
-                    const data = await this.fetchStationNowPlaying(station.serviceId);
-                    if (data) {
-                        station.nowPlaying = data.nowPlaying || 'Live Radio';
-                        station.nextShow = data.nextShow || '';
-                        station.nowPlayingLoaded = true;
-                    }
-                } catch (error) {
-                    console.debug('Failed to load now playing for', station.id, error);
-                    station.nowPlaying = 'Live Radio';
-                    station.nowPlayingLoaded = true;
-                }
-            }
+                // Mark all immediately to prevent duplicate requests
+                for (const s of toFetch) s.nowPlayingLoaded = true;
 
-            async fetchStationNowPlaying(serviceId) {
-                try {
-                    // BBC Schedules API endpoint for now and next programmes
-                    const url = `https://www.bbc.co.uk/schedule/${serviceId}.json`;
-                    const response = await fetch(url, {
-                        cache: 'default',
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (compatible; BBC-Radio-Player/1.0)'
-                        }
-                    });
+                await Promise.allSettled(toFetch.map(async (station) => {
+                    const apiUrl = `https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=${encodeURIComponent(station.serviceId)}&lang=en&limit=55`;
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
 
-                    if (!response.ok) {
-                        return null;
-                    }
+                    for (const endpoint of [apiUrl, proxyUrl]) {
+                        try {
+                            const controller = new AbortController();
+                            const t = setTimeout(() => controller.abort(), 8000);
+                            const resp = await fetch(endpoint, { signal: controller.signal });
+                            clearTimeout(t);
+                            if (!resp.ok) continue;
 
-                    const data = await response.json();
-                    const schedule = data.schedule || [];
-                    
-                    if (schedule.length === 0) {
-                        return null;
+                            const data = await resp.json();
+                            const nowMs = Date.now();
+                            const current = (data.data || []).find(b => {
+                                const start = new Date(b.start).getTime();
+                                const end = new Date(b.end).getTime();
+                                return start <= nowMs && nowMs < end;
+                            });
+
+                            if (current) {
+                                station.nowPlaying = current.programme.titles.primary;
+                            } else {
+                                station.nowPlaying = '';
+                            }
+                            break;
+                        } catch (_) { /* try next endpoint */ }
                     }
 
-                    // Sort by date to get current and next shows
-                    const now = new Date();
-                    let currentShow = null;
-                    let nextShow = null;
-
-                    for (const item of schedule) {
-                        const start = new Date(item.start);
-                        const end = new Date(item.end);
-
-                        if (start <= now && now < end) {
-                            currentShow = item;
-                        } else if (start > now && !nextShow) {
-                            nextShow = item;
-                        }
-
-                        if (currentShow && nextShow) break;
-                    }
-
-                    const nowPlaying = currentShow ? currentShow.title : null;
-                    const next = nextShow ? nextShow.title : null;
-
-                    return {
-                        nowPlaying,
-                        nextShow: next
-                    };
-                } catch (error) {
-                    console.debug('BBC Schedules API failed:', error.message);
-                    return null;
-                }
+                    // Patch only this station's subtitle element — no re-render
+                    const el = document.querySelector(`[data-station-id="${station.id}"] .station-row-subtitle`);
+                    if (el) el.textContent = station.nowPlaying || '';
+                }));
             }
 
             renderStationRows(stations) {
                 return stations.map(station => {
                     const favouriteIcon = this.isFavoriteStation(station.id) ? '⭐' : '☆';
-                    const nowPlaying = station.nowPlaying || 'Loading...';
-                    
-                    // Fetch now playing data asynchronously without blocking render
-                    this.ensureStationNowPlayingLoaded(station).then(() => {
-                        this.renderLiveRadioSection();
-                    }).catch(() => {
-                        // Silently fail - will show 'Loading...' then update
-                    });
+                    const nowPlaying = station.nowPlaying || '';
 
                     return `
-                        <div class="station-row">
+                        <div class="station-row" data-station-id="${this.escapeHtml(station.id)}">
                             <img class="station-row-art" src="${this.escapeHtml(station.logoUrl)}" alt="${this.escapeHtml(station.title)}" onerror="this.style.display='none'">
                             <div class="station-row-info">
                                 <div class="station-row-title">${this.escapeHtml(station.title)}</div>
@@ -2104,6 +2070,10 @@
                         <div class="station-list">${this.renderStationRows(filteredStations)}</div>
                     </div>
                 `;
+
+                // Load now-playing in background — updates DOM directly, no re-render
+                const visibleStations = [...(favoriteStations || []), ...(filteredStations || [])];
+                this.loadNowPlayingBatch(visibleStations);
 
                 const audio = document.getElementById('live-radio-player');
                 if (audio) {
