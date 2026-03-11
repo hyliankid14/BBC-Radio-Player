@@ -1114,6 +1114,8 @@
                 this.currentPodcastSearch = '';
                 this.podcastSearchDebounce = null;
                 this.podcastPrefetchStarted = false;
+                this.podcastEpisodesPageSize = 10;
+                this.podcastEpisodeDisplayCountById = {};
                 this.currentView = 'landing';
                 this.init();
                 this.initCookieBanner();
@@ -1736,6 +1738,28 @@
                 });
             }
 
+            getPodcastEpisodeDisplayCount(podcastId) {
+                if (!podcastId) {
+                    return this.podcastEpisodesPageSize;
+                }
+
+                if (!this.podcastEpisodeDisplayCountById[podcastId]) {
+                    this.podcastEpisodeDisplayCountById[podcastId] = this.podcastEpisodesPageSize;
+                }
+
+                return this.podcastEpisodeDisplayCountById[podcastId];
+            }
+
+            loadMorePodcastEpisodes(podcastId) {
+                if (!podcastId) {
+                    return;
+                }
+
+                const current = this.getPodcastEpisodeDisplayCount(podcastId);
+                this.podcastEpisodeDisplayCountById[podcastId] = current + this.podcastEpisodesPageSize;
+                this.renderLiveRadioSection();
+            }
+
             prefetchPopularPodcastFeeds() {
                 if (this.podcastPrefetchStarted) {
                     return;
@@ -1773,6 +1797,7 @@
                 this.currentWebAppTab = 'podcasts';
                 this.currentPodcastId = podcastId;
                 this.currentPodcastDetailId = podcastId;
+                this.podcastEpisodeDisplayCountById[podcastId] = this.podcastEpisodesPageSize;
                 this.renderLiveRadioSection(); // show loading state immediately
                 await this.ensurePodcastLoaded(podcastId);
                 this.renderLiveRadioSection(); // update with loaded content
@@ -1927,6 +1952,9 @@
                 const playableEpisodes = Array.isArray(selectedPodcast.episodes) ? selectedPodcast.episodes : [];
                 const previewEpisodes = Array.isArray(selectedPodcast.previewEpisodes) ? selectedPodcast.previewEpisodes : [];
                 const episodes = playableEpisodes.length ? playableEpisodes : previewEpisodes;
+                const visibleCount = this.getPodcastEpisodeDisplayCount(selectedPodcast.id);
+                const visibleEpisodes = episodes.slice(0, visibleCount);
+                const hasMoreEpisodes = episodes.length > visibleEpisodes.length;
                 const showLoadingNote = selectedPodcast.isLoading || (!selectedPodcast.rssLoaded && previewEpisodes.length);
                 const showErrorNote = !!selectedPodcast.loadError;
 
@@ -1961,7 +1989,7 @@
 
                     <div class="podcast-episodes-title">Recent Episodes${selectedPodcast.episodeCount ? ` (${selectedPodcast.episodeCount})` : ''}</div>
                     <div class="podcast-episodes">
-                        ${episodes.length ? episodes.map(episode => {
+                        ${episodes.length ? visibleEpisodes.map(episode => {
                             const episodeArt = episode.imageUrl
                                 ? `<img src="${this.escapeHtml(episode.imageUrl)}" alt="${this.escapeHtml(episode.title)}" onerror="this.parentElement.innerHTML='🎧'">`
                                 : '🎧';
@@ -2001,6 +2029,12 @@
                                 <div>This feed loaded, but it did not expose recent audio entries the browser could play.</div>
                             </div>
                         `}
+
+                        ${hasMoreEpisodes ? `
+                            <div style="display:flex;justify-content:center;margin-top:6px;">
+                                <button class="button button-secondary" type="button" onclick="player.loadMorePodcastEpisodes('${this.escapeHtml(selectedPodcast.id)}')">Load more episodes</button>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }
