@@ -2232,6 +2232,26 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
     private fun stopPlayback() {
         isStopped = true
         stopAlarmPlaybackVolumeRamp()
+
+        // Deactivate the MediaSession and clear its metadata FIRST, before player?.stop()
+        // triggers ExoPlayer state-change callbacks that call updatePlaybackState() on the
+        // still-active session.  Samsung One UI 8's "Live notifications" system monitors
+        // active MediaSessions; if the session is still active when STATE_STOPPED is posted
+        // (either from the explicit call below or from the ExoPlayer IDLE callback) Samsung
+        // rebuilds its own media-player card in the notification shade even after
+        // stopForeground() + NotificationManager.cancel() have already removed the app's
+        // own notification.  Deactivating the session here prevents that from happening.
+        try {
+            mediaSession.setMetadata(android.support.v4.media.MediaMetadataCompat.Builder().build())
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear MediaSession metadata on stop: ${e.message}")
+        }
+        try {
+            mediaSession.isActive = false
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to deactivate MediaSession on stop: ${e.message}")
+        }
+
         player?.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
         try {
@@ -2281,22 +2301,6 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
         WidgetUpdateHelper.updateAllWidgets(this)
 
-        // Deactivate the MediaSession and clear its metadata so that Samsung One UI's
-        // "Live notifications" media player widget is dismissed from the notification shade.
-        // Without this, Samsung rebuilds its own media-player card from the still-active session
-        // even after stopForeground() + NotificationManager.cancel() have removed the app's own
-        // notification, causing the podcast to keep appearing after the user presses Stop.
-        try {
-            mediaSession.setMetadata(android.support.v4.media.MediaMetadataCompat.Builder().build())
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to clear MediaSession metadata on stop: ${e.message}")
-        }
-        try {
-            mediaSession.isActive = false
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to deactivate MediaSession on stop: ${e.message}")
-        }
-        
         Log.d(TAG, "Playback stopped")
     }
 
