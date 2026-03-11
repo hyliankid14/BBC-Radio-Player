@@ -490,6 +490,243 @@
             border-color: transparent;
         }
 
+        .webapp-panel {
+            margin-top: 16px;
+        }
+
+        .podcast-shell {
+            display: grid;
+            grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .podcast-browser,
+        .podcast-detail-panel {
+            background: white;
+            border: 1px solid #e6e6e6;
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .podcast-search-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .podcast-search-input {
+            width: 100%;
+            border: 1px solid #d8d8d8;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 14px;
+            color: #333;
+            background: #fafafa;
+        }
+
+        .podcast-search-input:focus {
+            outline: 2px solid rgba(102, 126, 234, 0.18);
+            border-color: #667eea;
+            background: white;
+        }
+
+        .podcast-search-meta {
+            font-size: 12px;
+            color: #777;
+        }
+
+        .podcast-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 980px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .podcast-card {
+            display: flex;
+            gap: 12px;
+            border: 1px solid #ececec;
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            background: #fff;
+        }
+
+        .podcast-card:hover {
+            border-color: #cfcff7;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(102, 126, 234, 0.08);
+        }
+
+        .podcast-card.active {
+            border-color: #667eea;
+            box-shadow: 0 10px 24px rgba(102, 126, 234, 0.16);
+            background: linear-gradient(180deg, #ffffff 0%, #f7f8ff 100%);
+        }
+
+        .podcast-card-art,
+        .podcast-detail-art,
+        .podcast-episode-art,
+        .podcast-art-placeholder {
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .podcast-card-art,
+        .podcast-art-placeholder {
+            width: 64px;
+            height: 64px;
+            font-size: 28px;
+        }
+
+        .podcast-card-art img,
+        .podcast-detail-art img,
+        .podcast-episode-art img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .podcast-card-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .podcast-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 4px;
+            line-height: 1.35;
+        }
+
+        .podcast-card-description {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.45;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .podcast-detail-header {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 18px;
+        }
+
+        .podcast-detail-art {
+            width: 110px;
+            height: 110px;
+            font-size: 44px;
+        }
+
+        .podcast-detail-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .podcast-detail-title {
+            font-size: 24px;
+            line-height: 1.2;
+            color: #222;
+            margin-bottom: 8px;
+        }
+
+        .podcast-detail-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .podcast-detail-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 18px 0 20px;
+        }
+
+        .podcast-episodes-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .podcast-episodes {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .podcast-episode {
+            border: 1px solid #ececec;
+            border-radius: 12px;
+            background: #fafafa;
+            padding: 14px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .podcast-episode-art {
+            width: 72px;
+            height: 72px;
+            font-size: 28px;
+        }
+
+        .podcast-episode-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .podcast-episode-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 6px;
+            line-height: 1.35;
+        }
+
+        .podcast-episode-meta {
+            font-size: 12px;
+            color: #777;
+            margin-bottom: 8px;
+        }
+
+        .podcast-episode-description {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .podcast-episode audio {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .empty-state-card {
+            border: 1px dashed #d5d5d5;
+            background: #fbfbfb;
+            border-radius: 12px;
+            padding: 28px 20px;
+            text-align: center;
+            color: #666;
+        }
+
         .station-list {
             margin-top: 8px;
             display: flex;
@@ -599,6 +836,30 @@
 
             .button {
                 flex: 1;
+            }
+
+            .webapp-toolbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .podcast-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .podcast-detail-header,
+            .podcast-episode {
+                flex-direction: column;
+            }
+
+            .podcast-detail-art {
+                width: 88px;
+                height: 88px;
+            }
+
+            .podcast-episode-art {
+                width: 64px;
+                height: 64px;
             }
         }
     </style>
@@ -760,6 +1021,10 @@
                 this.podcasts = [];
                 this.allPodcasts = [];
                 this.podcastsLoaded = false;
+                this.isLoadingPodcasts = false;
+                this.currentWebAppTab = 'radio';
+                this.currentPodcastId = null;
+                this.currentPodcastSearch = '';
                 this.currentView = 'landing';
                 this.init();
                 this.initCookieBanner();
@@ -1115,132 +1380,431 @@
                 this.renderLiveRadioSection();
             }
 
-            openWebApp() {
+            openWebApp(initialTab = 'radio') {
+                this.currentWebAppTab = initialTab;
+                if (window.location.hash.startsWith('#/webapp') || window.location.hash.startsWith('#/app')) {
+                    this.showWebAppPage();
+                    return;
+                }
                 window.location.hash = '#/webapp';
             }
 
-            async loadPodcastsIndex() {
-                if (this.podcastsLoaded) {
-                    return;
+            openPodcastsView() {
+                this.currentWebAppTab = 'podcasts';
+                this.openWebApp('podcasts');
+            }
+
+            setWebAppTab(tab) {
+                this.currentWebAppTab = tab;
+                if (tab === 'podcasts' && !this.podcastsLoaded && !this.isLoadingPodcasts) {
+                    this.ensurePodcastDirectoryLoaded().finally(() => this.renderLiveRadioSection());
+                }
+                this.renderLiveRadioSection();
+            }
+
+            async fetchTextWithProxy(url, timeoutMs = 15000) {
+                const safeUrl = url.replace(/^http:\/\//i, 'https://');
+                const endpoints = [
+                    safeUrl,
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(safeUrl)}`,
+                    `https://corsproxy.io/?${encodeURIComponent(safeUrl)}`
+                ];
+
+                let lastError = null;
+                for (const endpoint of endpoints) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+                        const response = await fetch(endpoint, {
+                            cache: 'no-store',
+                            signal: controller.signal
+                        });
+                        clearTimeout(timeoutId);
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        return await response.text();
+                    } catch (error) {
+                        lastError = error;
+                    }
                 }
 
-                try {
-                    const metaUrl = 'https://hyliankid14.github.io/BBC-Radio-Player/podcast-index-meta.json';
-                    const indexUrl = 'https://hyliankid14.github.io/BBC-Radio-Player/podcast-index.json.gz';
-                    
-                    // Try to fetch the metadata first to check if index is available
-                    const metaResponse = await fetch(metaUrl, { cache: 'no-cache' });
-                    if (!metaResponse.ok) {
-                        console.warn('Podcast index metadata not available');
-                        return;
+                throw lastError || new Error('Request failed');
+            }
+
+            async fetchPodcastFeedText(rssUrl) {
+                const decodedRssUrl = decodeURIComponent(rssUrl || '');
+                const safeUrl = decodedRssUrl.replace(/^http:\/\//i, 'https://');
+                const endpoints = [
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(safeUrl)}`,
+                    `https://corsproxy.io/?${encodeURIComponent(safeUrl)}`
+                ];
+
+                let lastError = null;
+                for (const endpoint of endpoints) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 15000);
+                        const response = await fetch(endpoint, {
+                            cache: 'no-store',
+                            signal: controller.signal
+                        });
+
+                        if (!response.ok) {
+                            clearTimeout(timeoutId);
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        if (!response.body || !response.body.getReader) {
+                            const text = await response.text();
+                            clearTimeout(timeoutId);
+                            return text;
+                        }
+
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let text = '';
+                        let itemCount = 0;
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) {
+                                break;
+                            }
+
+                            text += decoder.decode(value, { stream: true });
+                            const closedMatches = text.match(/<\/item>/gi);
+                            itemCount = closedMatches ? closedMatches.length : 0;
+
+                            if (text.length > 2000000 && itemCount >= 18) {
+                                reader.cancel();
+                                const lastItemEnd = text.lastIndexOf('</item>');
+                                if (lastItemEnd !== -1) {
+                                    text = `${text.substring(0, lastItemEnd + 7)}\n</channel>\n</rss>`;
+                                }
+                                break;
+                            }
+
+                            if (text.length > 10000000) {
+                                reader.cancel();
+                                break;
+                            }
+                        }
+
+                        clearTimeout(timeoutId);
+                        return text;
+                    } catch (error) {
+                        lastError = error;
+                    }
+                }
+
+                throw lastError || new Error('Feed unavailable');
+            }
+
+            parsePodcastOpml(text) {
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(text, 'text/xml');
+                const outlines = Array.from(xml.querySelectorAll('outline[xmlUrl], outline[url]'));
+                const seenIds = new Set();
+
+                return outlines.map(outline => {
+                    const rssUrl = (outline.getAttribute('xmlUrl') || outline.getAttribute('url') || '').trim();
+                    const title = (outline.getAttribute('text') || outline.getAttribute('title') || '').trim();
+                    const match = rssUrl.match(/\/([a-z0-9]+)\.rss$/i);
+                    const id = match ? match[1] : rssUrl;
+
+                    if (!rssUrl || !title || seenIds.has(id)) {
+                        return null;
                     }
 
-                    // For now, we'll create a fallback list of popular BBC podcasts
-                    // A production app would decompress the .json.gz and parse it
-                    this.allPodcasts = [
-                        { id: 'global-news', title: 'Global News Podcast', description: 'The news you need to know about around the world', genres: ['News', 'BBC'], imageUrl: null },
-                        { id: 'football-daily', title: 'Football Daily', description: 'The latest football analysis and insights', genres: ['Sports', 'BBC'], imageUrl: null },
-                        { id: 'newshour', title: 'Newshour', description: 'BBC World Service news podcast', genres: ['News', 'BBC'], imageUrl: null },
-                        { id: 'all-day-breakfast', title: "Radio 1's All Day Breakfast", description: 'Entertainment and music from BBC Radio 1', genres: ['Entertainment', 'BBC'], imageUrl: null },
-                        { id: 'test-match-special', title: 'Test Match Special', description: 'Live cricket commentary and analysis', genres: ['Sports', 'BBC'], imageUrl: null },
-                        { id: 'the-exchange', title: 'The Exchange', description: 'BBC business and economics podcast', genres: ['Business', 'BBC'], imageUrl: null },
-                        { id: 'inside-health', title: 'Inside Health', description: 'BBC health and medicine podcast', genres: ['Health', 'BBC'], imageUrl: null },
-                        { id: 'desert-island-discs', title: 'Desert Island Discs', description: 'BBC Radio 4 interview show', genres: ['Talk', 'BBC'], imageUrl: null }
-                    ];
-                    this.podcastsLoaded = true;
-                } catch (error) {
-                    console.error('Failed to load podcasts index:', error);
-                }
+                    seenIds.add(id);
+                    return {
+                        id,
+                        title,
+                        description: 'BBC podcast',
+                        rssUrl,
+                        imageUrl: null,
+                        episodes: null,
+                        episodeCount: null,
+                        isLoading: false,
+                        loadError: ''
+                    };
+                }).filter(Boolean).sort((left, right) => left.title.localeCompare(right.title));
             }
 
-            async openPodcastsView() {
-                await this.loadPodcastsIndex();
-                this.currentView = 'podcasts';
-                this.showPodcastsPage();
-            }
-
-            showPodcastsPage() {
-                const app = document.getElementById('app');
-                app.innerHTML = `
-                    <div class="header">
-                        <h1>🎙️ BBC Podcasts</h1>
-                        <p>Browse and listen to BBC podcasts</p>
-                    </div>
-                    <div class="content">
-                        <div class="button-group" style="flex-direction: row; margin: 20px 0;">
-                            <button class="button button-secondary" onclick="window.location.hash = '#/'" style="flex: 0;">← Home</button>
-                            <input type="text" id="podcast-search" placeholder="Search podcasts..." style="flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
-                        </div>
-                        <div id="podcasts-container" style="margin-top: 20px;"></div>
-                    </div>
-                `;
-
-                this.renderPodcastsList();
-
-                const searchInput = document.getElementById('podcast-search');
-                if (searchInput) {
-                    searchInput.addEventListener('input', (e) => this.filterPodcasts(e.target.value));
-                }
-            }
-
-            filterPodcasts(query) {
-                const filtered = query.trim() === '' 
-                    ? this.allPodcasts 
-                    : this.allPodcasts.filter(p => 
-                        p.title.toLowerCase().includes(query.toLowerCase()) ||
-                        p.description.toLowerCase().includes(query.toLowerCase())
-                      );
-                this.podcasts = filtered;
-                this.renderPodcastsList();
-            }
-
-            renderPodcastsList() {
-                const container = document.getElementById('podcasts-container');
-                if (!container) return;
-
-                if (this.podcasts.length === 0 && this.allPodcasts.length > 0) {
-                    this.podcasts = this.allPodcasts.slice(0, 10);
-                }
-
-                if (this.podcasts.length === 0) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 40px 20px;">
-                            <div style="font-size: 48px; margin-bottom: 16px;">🎙️</div>
-                            <p style="color: #666; font-size: 16px;">Loading podcasts...</p>
-                        </div>
-                    `;
+            async ensurePodcastDirectoryLoaded() {
+                if (this.podcastsLoaded || this.isLoadingPodcasts) {
                     return;
                 }
 
-                container.innerHTML = this.podcasts.map(podcast => `
-                    <div style="background: white; border: 1px solid #e6e6e6; border-radius: 10px; padding: 16px; margin-bottom: 12px; cursor: pointer;" onclick="player.showPodcastDetail('${this.escapeHtml(podcast.id)}', '${this.escapeHtml(podcast.title)}')">
-                        <div style="display: flex; gap: 12px; align-items: flex-start;">
-                            <div style="width: 60px; height: 60px; min-width: 60px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px;">🎙️</div>
-                            <div style="flex: 1;">
-                                <h3 style="margin: 0 0 6px 0; color: #333; font-size: 16px;">${this.escapeHtml(podcast.title)}</h3>
-                                <p style="margin: 0 0 8px 0; color: #666; font-size: 13px; line-height: 1.4;">${this.escapeHtml(podcast.description)}</p>
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                    ${podcast.genres.map(g => `<span style="background: #f0f0f0; color: #666; padding: 4px 10px; border-radius: 12px; font-size: 12px;">${this.escapeHtml(g)}</span>`).join('')}
-                                </div>
+                this.isLoadingPodcasts = true;
+                try {
+                    const opmlText = await this.fetchTextWithProxy('https://www.bbc.co.uk/radio/opml/bbc_podcast_opml.xml', 20000);
+                    this.allPodcasts = this.parsePodcastOpml(opmlText);
+                    this.podcasts = this.allPodcasts.slice();
+                    if (!this.currentPodcastId && this.allPodcasts[0]) {
+                        this.currentPodcastId = this.allPodcasts[0].id;
+                    }
+                    this.podcastsLoaded = true;
+                } catch (error) {
+                    console.error('Failed to load podcast directory:', error);
+                } finally {
+                    this.isLoadingPodcasts = false;
+                }
+            }
+
+            getPodcastById(podcastId) {
+                return this.allPodcasts.find(podcast => podcast.id === podcastId) || null;
+            }
+
+            getFilteredPodcasts() {
+                const query = this.currentPodcastSearch.trim().toLowerCase();
+                if (!query) {
+                    return this.allPodcasts;
+                }
+
+                return this.allPodcasts.filter(podcast => {
+                    const haystack = [podcast.title, podcast.description].join(' ').toLowerCase();
+                    return haystack.includes(query);
+                });
+            }
+
+            async selectPodcast(podcastId) {
+                this.currentWebAppTab = 'podcasts';
+                this.currentPodcastId = podcastId;
+                this.renderLiveRadioSection();
+                await this.ensurePodcastLoaded(podcastId);
+                this.renderLiveRadioSection();
+            }
+
+            parsePodcastFeed(text, podcast) {
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(text, 'text/xml');
+
+                if (xml.documentElement.tagName === 'parsererror') {
+                    throw new Error('Invalid RSS feed');
+                }
+
+                const channel = xml.querySelector('channel');
+                if (!channel) {
+                    throw new Error('Missing channel element');
+                }
+
+                const imageUrl = channel.querySelector('itunes\\:image')?.getAttribute('href')
+                    || channel.querySelector('image url')?.textContent?.trim()
+                    || podcast.imageUrl
+                    || null;
+                const description = channel.querySelector('itunes\\:summary')?.textContent?.trim()
+                    || channel.querySelector('description')?.textContent?.trim()
+                    || podcast.description
+                    || 'BBC podcast';
+                const title = channel.querySelector('title')?.textContent?.trim() || podcast.title;
+
+                const episodes = Array.from(channel.querySelectorAll('item')).slice(0, 24).map(item => {
+                    const guid = item.querySelector('guid')?.textContent?.trim() || '';
+                    const enclosureUrl = item.querySelector('enclosure')?.getAttribute('url') || '';
+                    const itemImage = item.querySelector('itunes\\:image')?.getAttribute('href')
+                        || item.querySelector('image url')?.textContent?.trim()
+                        || imageUrl;
+                    const itemDescription = item.querySelector('itunes\\:summary')?.textContent?.trim()
+                        || item.querySelector('description')?.textContent?.trim()
+                        || '';
+                    const rawDuration = item.querySelector('itunes\\:duration')?.textContent?.trim()
+                        || item.querySelector('duration')?.textContent?.trim()
+                        || '';
+
+                    return {
+                        id: guid || enclosureUrl || item.querySelector('title')?.textContent?.trim() || `episode-${Math.random().toString(36).slice(2)}`,
+                        title: item.querySelector('title')?.textContent?.trim() || 'Untitled episode',
+                        description: itemDescription,
+                        audioUrl: enclosureUrl,
+                        imageUrl: itemImage,
+                        pubDate: item.querySelector('pubDate')?.textContent?.trim() || '',
+                        durationMins: Math.round(this.parseDuration(rawDuration) || 0)
+                    };
+                }).filter(episode => episode.audioUrl);
+
+                return {
+                    ...podcast,
+                    title,
+                    description,
+                    imageUrl,
+                    episodes,
+                    episodeCount: episodes.length,
+                    isLoading: false,
+                    loadError: ''
+                };
+            }
+
+            async ensurePodcastLoaded(podcastId) {
+                const podcast = this.getPodcastById(podcastId);
+                if (!podcast || podcast.isLoading || Array.isArray(podcast.episodes)) {
+                    return;
+                }
+
+                podcast.isLoading = true;
+                podcast.loadError = '';
+                this.renderLiveRadioSection();
+
+                try {
+                    const feedText = await this.fetchPodcastFeedText(podcast.rssUrl);
+                    const hydratedPodcast = this.parsePodcastFeed(feedText, podcast);
+                    Object.assign(podcast, hydratedPodcast);
+                } catch (error) {
+                    console.error('Failed to load podcast feed:', podcastId, error);
+                    podcast.isLoading = false;
+                    podcast.loadError = 'Unable to load episodes right now. Please try another podcast or retry in a moment.';
+                }
+            }
+
+            renderPodcastCards(podcasts) {
+                if (!podcasts.length) {
+                    return `
+                        <div class="empty-state-card">
+                            <div style="font-size: 40px; margin-bottom: 10px;">🔎</div>
+                            <div style="font-weight: 700; color: #333; margin-bottom: 6px;">No podcasts match that search</div>
+                            <div>Try a different title or clear the search box.</div>
+                        </div>
+                    `;
+                }
+
+                return podcasts.map(podcast => {
+                    const description = this.stripHtml(podcast.description || 'BBC podcast');
+                    const artwork = podcast.imageUrl
+                        ? `<img src="${this.escapeHtml(podcast.imageUrl)}" alt="${this.escapeHtml(podcast.title)}" onerror="this.parentElement.innerHTML='🎙️'">`
+                        : '🎙️';
+
+                    return `
+                        <button class="podcast-card ${this.currentPodcastId === podcast.id ? 'active' : ''}" onclick="player.selectPodcast('${this.escapeHtml(podcast.id)}')" type="button">
+                            <div class="podcast-card-art">${artwork}</div>
+                            <div class="podcast-card-copy">
+                                <div class="podcast-card-title">${this.escapeHtml(podcast.title)}</div>
+                                <div class="podcast-card-description">${this.escapeHtml(description || 'BBC podcast')}</div>
                             </div>
-                            <button class="station-icon-button play" onclick="event.stopPropagation(); player.playPodcast('${this.escapeHtml(podcast.id)}');" style="margin-top: 4px;">▶</button>
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            renderPodcastDetail(selectedPodcast) {
+                if (!selectedPodcast) {
+                    return `
+                        <div class="empty-state-card">
+                            <div style="font-size: 40px; margin-bottom: 10px;">🎙️</div>
+                            <div style="font-weight: 700; color: #333; margin-bottom: 6px;">Pick a podcast</div>
+                            <div>Select a BBC podcast from the list to browse episodes and start listening.</div>
+                        </div>
+                    `;
+                }
+
+                if (selectedPodcast.isLoading) {
+                    return `
+                        <div class="empty-state-card">
+                            <div class="spinner" style="margin: 0 auto 16px;"></div>
+                            <div style="font-weight: 700; color: #333; margin-bottom: 6px;">Loading episodes</div>
+                            <div>Fetching artwork, programme details, and recent episodes for ${this.escapeHtml(selectedPodcast.title)}.</div>
+                        </div>
+                    `;
+                }
+
+                if (selectedPodcast.loadError) {
+                    return `
+                        <div class="empty-state-card">
+                            <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
+                            <div style="font-weight: 700; color: #333; margin-bottom: 6px;">Podcast unavailable</div>
+                            <div style="margin-bottom: 12px;">${this.escapeHtml(selectedPodcast.loadError)}</div>
+                            <button class="button button-secondary" onclick="player.selectPodcast('${this.escapeHtml(selectedPodcast.id)}')">Retry</button>
+                        </div>
+                    `;
+                }
+
+                const artwork = selectedPodcast.imageUrl
+                    ? `<img src="${this.escapeHtml(selectedPodcast.imageUrl)}" alt="${this.escapeHtml(selectedPodcast.title)}" onerror="this.parentElement.innerHTML='🎙️'">`
+                    : '🎙️';
+                const episodes = Array.isArray(selectedPodcast.episodes) ? selectedPodcast.episodes : [];
+
+                return `
+                    <div class="podcast-detail-header">
+                        <div class="podcast-detail-art">${artwork}</div>
+                        <div class="podcast-detail-copy">
+                            <div class="info-title">Podcast</div>
+                            <div class="podcast-detail-title">${this.escapeHtml(selectedPodcast.title)}</div>
+                            <div class="podcast-detail-description">${this.escapeHtml(this.stripHtml(selectedPodcast.description || 'BBC podcast'))}</div>
                         </div>
                     </div>
-                `).join('');
+
+                    <div class="podcast-detail-actions">
+                        <button class="button button-secondary" onclick="player.openRSSFeed('${this.escapeHtml(selectedPodcast.rssUrl)}')">📡 Open RSS</button>
+                    </div>
+
+                    <div class="podcast-episodes-title">Recent Episodes${selectedPodcast.episodeCount ? ` (${selectedPodcast.episodeCount})` : ''}</div>
+                    <div class="podcast-episodes">
+                        ${episodes.length ? episodes.map(episode => {
+                            const episodeArt = episode.imageUrl
+                                ? `<img src="${this.escapeHtml(episode.imageUrl)}" alt="${this.escapeHtml(episode.title)}" onerror="this.parentElement.innerHTML='🎧'">`
+                                : '🎧';
+                            const description = this.stripHtml(episode.description || '');
+                            const summary = description.length > 240 ? `${description.slice(0, 240)}...` : description;
+
+                            return `
+                                <div class="podcast-episode">
+                                    <div class="podcast-episode-art">${episodeArt}</div>
+                                    <div class="podcast-episode-copy">
+                                        <div class="podcast-episode-title">${this.escapeHtml(episode.title)}</div>
+                                        <div class="podcast-episode-meta">
+                                            ${episode.pubDate ? this.escapeHtml(this.formatDate(episode.pubDate)) : 'Recent episode'}
+                                            ${episode.durationMins ? ` • ${this.escapeHtml(String(episode.durationMins))} min` : ''}
+                                        </div>
+                                        ${summary ? `<div class="podcast-episode-description">${this.escapeHtml(summary)}</div>` : ''}
+                                        <audio controls preload="none" data-podcast-id="${this.escapeHtml(selectedPodcast.id)}" data-episode-id="${this.escapeHtml(episode.id)}">
+                                            <source src="${this.escapeHtml(episode.audioUrl)}" type="audio/mpeg">
+                                            Your browser does not support the audio element.
+                                        </audio>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : `
+                            <div class="empty-state-card">
+                                <div style="font-size: 36px; margin-bottom: 10px;">📚</div>
+                                <div style="font-weight: 700; color: #333; margin-bottom: 6px;">No playable episodes found</div>
+                                <div>This feed loaded, but it did not expose recent audio entries the browser could play.</div>
+                            </div>
+                        `}
+                    </div>
+                `;
             }
 
-            showPodcastDetail(podcastId, podcastTitle) {
-                window.location.hash = `#/podcasts/${encodeURIComponent(podcastId)}`;
+            attachPodcastInteractions() {
+                const searchInput = document.getElementById('podcast-search');
+                if (searchInput) {
+                    searchInput.value = this.currentPodcastSearch;
+                    searchInput.oninput = event => {
+                        this.currentPodcastSearch = event.target.value;
+                        this.podcasts = this.getFilteredPodcasts();
+                        if (this.currentPodcastId && !this.podcasts.some(podcast => podcast.id === this.currentPodcastId)) {
+                            this.currentPodcastId = this.podcasts[0]?.id || null;
+                        }
+                        this.renderLiveRadioSection();
+                    };
+                }
+
+                document.querySelectorAll('audio[data-podcast-id][data-episode-id]').forEach(audio => {
+                    audio.onplay = () => {
+                        this.trackPodcastEpisodePlay(audio.dataset.podcastId, audio.dataset.episodeId);
+                    };
+                });
             }
 
-            playPodcast(podcastId) {
-                const podcast = this.allPodcasts.find(p => p.id === podcastId);
-                if (!podcast) return;
-                
-                alert(`Now playing: ${podcast.title}\n\nTo download the BBC Radio Player app for full podcast support including offline listening, tap Download App from the home page.`);
-                this.trackEvent('web_player_podcast_play', {
+            trackPodcastEpisodePlay(podcastId, episodeId) {
+                const podcast = this.getPodcastById(podcastId);
+                const episode = podcast?.episodes?.find(item => item.id === episodeId);
+                this.trackEvent('web_player_podcast_episode_play', {
                     podcast_id: podcastId,
-                    podcast_title: podcast.title
+                    podcast_title: podcast?.title || '',
+                    episode_id: episodeId,
+                    episode_title: episode?.title || ''
                 });
             }
 
@@ -1267,6 +1831,76 @@
                 const { autoplay = false } = options;
                 const section = document.getElementById('live-radio-section');
                 if (!section) {
+                    return;
+                }
+
+                const appTabs = `
+                    <div class="webapp-categories">
+                        <button class="webapp-tab ${this.currentWebAppTab === 'radio' ? 'active' : ''}" onclick="player.setWebAppTab('radio')">Radio</button>
+                        <button class="webapp-tab ${this.currentWebAppTab === 'podcasts' ? 'active' : ''}" onclick="player.setWebAppTab('podcasts')">Podcasts</button>
+                    </div>
+                `;
+
+                if (this.currentWebAppTab === 'podcasts') {
+                    if (!this.podcastsLoaded && !this.isLoadingPodcasts) {
+                        this.ensurePodcastDirectoryLoaded().finally(() => this.renderLiveRadioSection());
+                    }
+
+                    this.podcasts = this.getFilteredPodcasts();
+                    if (!this.currentPodcastId && this.podcasts[0]) {
+                        this.currentPodcastId = this.podcasts[0].id;
+                    }
+
+                    const selectedPodcast = this.getPodcastById(this.currentPodcastId)
+                        || this.podcasts[0]
+                        || this.allPodcasts[0]
+                        || null;
+
+                    section.innerHTML = `
+                        <div class="radio-section">
+                            <div class="webapp-toolbar">
+                                <button class="button button-secondary" onclick="window.location.hash = '#/'">← Home</button>
+                                <div>
+                                    <div class="webapp-title">BBC Radio Web App</div>
+                                    <div class="webapp-subtitle">Live radio and BBC podcasts in one place</div>
+                                </div>
+                                <button class="button button-secondary" onclick="player.installPwa()">Install</button>
+                            </div>
+
+                            ${appTabs}
+
+                            <div class="webapp-panel podcast-shell">
+                                <div class="podcast-browser">
+                                    <div class="podcast-search-row">
+                                        <input id="podcast-search" class="podcast-search-input" type="search" placeholder="Search BBC podcasts" value="${this.escapeHtml(this.currentPodcastSearch)}">
+                                        <div class="podcast-search-meta">
+                                            ${this.isLoadingPodcasts ? 'Loading podcast directory...' : `${this.escapeHtml(String(this.podcasts.length || this.allPodcasts.length || 0))} podcasts available`}
+                                        </div>
+                                    </div>
+                                    <div class="podcast-list">
+                                        ${this.podcastsLoaded || this.allPodcasts.length
+                                            ? this.renderPodcastCards(this.podcasts.length ? this.podcasts : this.allPodcasts)
+                                            : `
+                                                <div class="empty-state-card">
+                                                    <div class="spinner" style="margin: 0 auto 16px;"></div>
+                                                    <div style="font-weight: 700; color: #333; margin-bottom: 6px;">Loading podcasts</div>
+                                                    <div>Fetching the BBC podcast directory so you can browse and search.</div>
+                                                </div>
+                                            `}
+                                    </div>
+                                </div>
+
+                                <div class="podcast-detail-panel">
+                                    ${this.renderPodcastDetail(selectedPodcast)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    this.attachPodcastInteractions();
+                    if (selectedPodcast && !selectedPodcast.isLoading && !selectedPodcast.episodes && !selectedPodcast.loadError) {
+                        this.selectPodcast(selectedPodcast.id);
+                    }
                     return;
                 }
 
@@ -1304,6 +1938,8 @@
                             </div>
                             <button class="button button-secondary" onclick="player.installPwa()">Install</button>
                         </div>
+
+                        ${appTabs}
 
                         <div class="radio-player-box">
                             <div class="radio-now-playing">Now playing: ${this.escapeHtml(selectedStation.title)}</div>
@@ -1350,13 +1986,16 @@
             parseUrl() {
                 const hash = window.location.hash;
 
-                if (hash.startsWith('#/webapp') || hash.startsWith('#/app')) {
+                const podcastMatch = hash.match(/^#\/podcasts(?:\/([^/?]+))?/);
+                if (podcastMatch) {
+                    this.currentWebAppTab = 'podcasts';
+                    this.currentPodcastId = podcastMatch[1] ? decodeURIComponent(podcastMatch[1]) : this.currentPodcastId;
                     this.showWebAppPage();
                     return;
                 }
 
-                if (hash.startsWith('#/podcasts')) {
-                    this.openPodcastsView();
+                if (hash.startsWith('#/webapp') || hash.startsWith('#/app')) {
+                    this.showWebAppPage();
                     return;
                 }
 
@@ -1376,7 +2015,7 @@
                 app.innerHTML = `
                     <div class="header">
                         <h1>🎙️ BBC Radio Player</h1>
-                        <p>Live Radio Web App</p>
+                        <p>Radio and podcasts</p>
                     </div>
                     <div class="content">
                         <div id="live-radio-section"></div>
@@ -2162,10 +2801,7 @@
                                 🔗 View on GitHub
                             </a>
                             <button class="button button-secondary" onclick="player.openWebApp()">
-                                🌐 Open Web App
-                            </button>
-                            <button class="button button-secondary" onclick="player.openPodcastsView()">
-                                🎙️ Browse Podcasts
+                                🌐 Open Radio & Podcasts
                             </button>
                         </div>
 
