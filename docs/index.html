@@ -1009,7 +1009,8 @@
             logoUrl: `${STATION_LOGO_BASE}/${logoServiceId}/blocks-colour-black_600x600.png`,
             nowPlaying: '',
             nextShow: '',
-            nowPlayingLoaded: false
+            nowPlayingLoaded: false,
+            nowPlayingLoading: false
         });
 
         const LIVE_RADIO_STATIONS = [
@@ -1104,6 +1105,8 @@
                 this.currentRadioObjectUrl = null;
                 this.hlsPlayer = null;
                 this.isRadioPlaying = false;
+                this.currentStationShowLoadPromise = null;
+                this.currentStationShowLoadedAtMs = 0;
                 this.podcasts = [];
                 this.allPodcasts = [];
                 this.podcastsLoaded = false;
@@ -1530,67 +1533,95 @@
                 const safeUrl = decodedRssUrl.replace(/^http:\/\//i, 'https://');
                 let lastError = null;
                 const endpointsFor = url => [
-                    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
                     `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
                     `https://corsproxy.io/?${encodeURIComponent(url)}`
                 ];
+
+                const fetchFeedTextFromEndpoint = async endpoint => {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 12000);
+                    try {
+                        const response = await fetch(endpoint, {
+                            cache: 'no-store',
+                            signal: controller.signal
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        if (!response.body || !response.body.getReader) {
+                            return await response.text();
+                        }
+
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let text = '';
+                        let itemCount = 0;
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) {
+                                break;
+                            }
+
+                            text += decoder.decode(value, { stream: true });
+                            const closedMatches = text.match(/<\/item>/gi);
+                            itemCount = closedMatches ? closedMatches.length : 0;
+
+                            if (text.length > 2000000 && itemCount >= 24) {
+                                reader.cancel();
+                                const lastItemEnd = text.lastIndexOf('</item>');
+                                if (lastItemEnd !== -1) {
+                                    text = `${text.substring(0, lastItemEnd + 7)}\n</channel>\n</rss>`;
+                                }
+                                break;
+                            }
+
+                            if (text.length > 10000000) {
+                                reader.cancel();
+                                break;
+                            }
+                        }
+
+                        return text;
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+                };
+
+                const isFeedLike = text => {
+                    const sample = String(text || '').toLowerCase();
+                    return sample.includes('<rss') && sample.includes('<item');
+                };
 
                 for (let attempt = 0; attempt < 2; attempt += 1) {
                     const urlWithCacheBust = `${safeUrl}${safeUrl.includes('?') ? '&' : '?'}cb=${Date.now()}-${attempt}`;
                     const endpoints = endpointsFor(urlWithCacheBust);
 
-                    for (const endpoint of endpoints) {
-                        try {
-                            const controller = new AbortController();
-                            const timeoutId = setTimeout(() => controller.abort(), 12000);
-                            const response = await fetch(endpoint, {
-                                cache: 'no-store',
-                                signal: controller.signal
-                            });
+                    try {
+                        const fastest = await Promise.any(endpoints.map(endpoint => fetchFeedTextFromEndpoint(endpoint)));
+                        if (isFeedLike(fastest)) {
+                            return fastest;
+                        }
+                    } catch (error) {
+                        lastError = error;
+                    }
 
-                            if (!response.ok) {
-                                clearTimeout(timeoutId);
-                                throw new Error(`HTTP ${response.status}`);
+                    const settled = await Promise.allSettled(endpoints.map(endpoint => fetchFeedTextFromEndpoint(endpoint)));
+                    for (const result of settled) {
+                        try {
+                            if (result.status !== 'fulfilled') {
+                                lastError = result.reason;
+                                continue;
                             }
 
-                            if (!response.body || !response.body.getReader) {
-                                const text = await response.text();
-                                clearTimeout(timeoutId);
+                            const text = result.value || '';
+                            if (isFeedLike(text)) {
                                 return text;
                             }
-
-                            const reader = response.body.getReader();
-                            const decoder = new TextDecoder();
-                            let text = '';
-                            let itemCount = 0;
-
-                            while (true) {
-                                const { done, value } = await reader.read();
-                                if (done) {
-                                    break;
-                                }
-
-                                text += decoder.decode(value, { stream: true });
-                                const closedMatches = text.match(/<\/item>/gi);
-                                itemCount = closedMatches ? closedMatches.length : 0;
-
-                                if (text.length > 2000000 && itemCount >= 24) {
-                                    reader.cancel();
-                                    const lastItemEnd = text.lastIndexOf('</item>');
-                                    if (lastItemEnd !== -1) {
-                                        text = `${text.substring(0, lastItemEnd + 7)}\n</channel>\n</rss>`;
-                                    }
-                                    break;
-                                }
-
-                                if (text.length > 10000000) {
-                                    reader.cancel();
-                                    break;
-                                }
-                            }
-
-                            clearTimeout(timeoutId);
-                            return text;
+                            lastError = new Error('Feed response missing RSS items');
                         } catch (error) {
                             lastError = error;
                         }
@@ -1772,26 +1803,30 @@
                 }
 
                 this.podcastPrefetchStarted = true;
-                const queue = this.allPodcasts.slice(0, 6);
+                const queue = this.allPodcasts.slice(0, 18);
                 if (!queue.length) {
                     return;
                 }
 
                 setTimeout(async () => {
-                    for (const podcast of queue) {
-                        if (!podcast || podcast.rssLoaded || podcast.isLoading) {
-                            continue;
-                        }
+                    const workerCount = Math.min(4, queue.length);
+                    await Promise.allSettled(Array.from({ length: workerCount }).map(async (_unused, workerIdx) => {
+                        for (let i = workerIdx; i < queue.length; i += workerCount) {
+                            const podcast = queue[i];
+                            if (!podcast || podcast.rssLoaded || podcast.isLoading) {
+                                continue;
+                            }
 
-                        podcast.isPrefetching = true;
-                        try {
-                            await this.ensurePodcastLoaded(podcast.id, { background: true });
-                        } catch (_) {
-                            // Ignore background warm-up failures.
-                        } finally {
-                            podcast.isPrefetching = false;
+                            podcast.isPrefetching = true;
+                            try {
+                                await this.ensurePodcastLoaded(podcast.id, { background: true });
+                            } catch (_) {
+                                // Ignore background warm-up failures.
+                            } finally {
+                                podcast.isPrefetching = false;
+                            }
                         }
-                    }
+                    }));
 
                     if (this.currentWebAppTab === 'podcasts' && !this.currentPodcastDetailId) {
                         this.updatePodcastListUI();
@@ -1816,7 +1851,8 @@
 
             parsePodcastFeed(text, podcast) {
                 const parser = new DOMParser();
-                const xml = parser.parseFromString(text, 'text/xml');
+                const sanitisedText = String(text || '').replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-f]+;)/gi, '&amp;');
+                const xml = parser.parseFromString(sanitisedText, 'text/xml');
 
                 const normaliseAudioUrl = rawUrl => {
                     const cleaned = String(rawUrl || '').trim();
@@ -2116,82 +2152,120 @@
             }
 
             async loadNowPlayingBatch(stations) {
-                // Fetch now-playing for each station in parallel using BBC's RMS API.
-                // Updates each station's nowPlaying property and patches the DOM directly
-                // — never triggers a full re-render to avoid cascading loops.
-                const toFetch = stations.filter(s => !s.nowPlayingLoaded && !s.nowPlayingLoading);
-                if (!toFetch.length) return;
+                // Current station only (mirrors Android app behaviour: fast ESS + RMS lookup for active station).
+                const station = stations.find(s => s.id === this.currentRadioStationId) || stations[0] || null;
+                if (!station || station.nowPlayingLoading) return;
 
-                for (const station of toFetch) {
-                    station.nowPlayingLoading = true;
-                    const el = document.querySelector(`[data-station-id="${station.id}"] .station-row-subtitle`);
-                    if (el && !station.nowPlaying) {
-                        el.textContent = 'Loading now playing...';
-                    }
-
-                    if (station.id === this.currentRadioStationId) {
-                        const playerShow = document.getElementById('radio-player-show');
-                        if (playerShow && !station.nowPlaying) {
-                            playerShow.textContent = 'Loading now playing...';
-                        }
-                    }
+                const now = Date.now();
+                if (station.nowPlayingLoaded && (now - this.currentStationShowLoadedAtMs) < 20000) {
+                    return;
                 }
 
-                await Promise.allSettled(toFetch.map(async (station) => {
-                    const apiUrl = `https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=${encodeURIComponent(station.serviceId)}&lang=en&limit=100`;
-                    const proxy1 = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-                    const proxy2 = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
-                    let resolved = false;
+                if (this.currentStationShowLoadPromise) {
+                    return this.currentStationShowLoadPromise;
+                }
 
-                    for (const endpoint of [apiUrl, proxy1, proxy2]) {
-                        try {
-                            const controller = new AbortController();
-                            const t = setTimeout(() => controller.abort(), 10000);
-                            const resp = await fetch(endpoint, { signal: controller.signal });
-                            clearTimeout(t);
-                            if (!resp.ok) continue;
+                station.nowPlayingLoading = true;
+                station.nowPlaying = station.nowPlaying || '';
 
-                            const data = await resp.json();
+                const updateUi = subtitle => {
+                    const stationSubtitle = document.querySelector(`[data-station-id="${station.id}"] .station-row-subtitle`);
+                    if (stationSubtitle) stationSubtitle.textContent = subtitle;
+                    const playerShow = document.getElementById('radio-player-show');
+                    if (playerShow) playerShow.textContent = subtitle;
+                };
+
+                if (!station.nowPlaying) {
+                    updateUi('Loading now playing...');
+                }
+
+                this.currentStationShowLoadPromise = (async () => {
+                    try {
+                        const serviceId = encodeURIComponent(station.serviceId);
+                        const ts = Date.now();
+                        const essUrl = `https://ess.api.bbci.co.uk/schedules?serviceId=${serviceId}&t=${ts}`;
+                        const rmsUrl = `https://rms.api.bbc.co.uk/v2/services/${serviceId}/segments/latest?t=${ts}`;
+
+                        const fetchJsonWithFallbacks = async url => {
+                            const endpoints = [
+                                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+                                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                                `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                                url
+                            ];
+
+                            let lastErr = null;
+                            for (const endpoint of endpoints) {
+                                try {
+                                    const controller = new AbortController();
+                                    const timeoutId = setTimeout(() => controller.abort(), 4500);
+                                    const resp = await fetch(endpoint, { cache: 'no-store', signal: controller.signal });
+                                    clearTimeout(timeoutId);
+                                    if (!resp.ok) continue;
+                                    return await resp.json();
+                                } catch (err) {
+                                    lastErr = err;
+                                }
+                            }
+                            throw lastErr || new Error('No endpoint succeeded');
+                        };
+
+                        const [essData, rmsData] = await Promise.allSettled([
+                            fetchJsonWithFallbacks(essUrl),
+                            fetchJsonWithFallbacks(rmsUrl)
+                        ]);
+
+                        let showName = '';
+                        if (essData.status === 'fulfilled') {
+                            const items = essData.value?.items || [];
                             const nowMs = Date.now();
-                            const current = (data.data || []).find(b => {
-                                const start = new Date(b.start).getTime();
-                                const end = new Date(b.end).getTime();
-                                return start <= nowMs && nowMs < end;
-                            });
+                            const current = items.find(item => {
+                                const start = new Date(item.start).getTime();
+                                const end = new Date(item.end).getTime();
+                                return Number.isFinite(start) && Number.isFinite(end) && start <= nowMs && nowMs < end;
+                            }) || null;
+                            showName = current?.title || current?.programme?.title || '';
+                        }
 
-                            station.nowPlaying = current ? current.programme.titles.primary : '';
-                            station.nowPlayingLoaded = true;
-                            station.nowPlayingLoading = false;
-                            resolved = true;
-                            break;
-                        } catch (_) { /* try next endpoint */ }
-                    }
+                        let artist = '';
+                        let track = '';
+                        if (rmsData.status === 'fulfilled') {
+                            const seg = (rmsData.value?.data || [])[0] || null;
+                            const nowPlayingFlag = seg?.offset?.now_playing;
+                            if (seg && (nowPlayingFlag === undefined || nowPlayingFlag === true)) {
+                                artist = seg?.titles?.primary || '';
+                                track = seg?.titles?.secondary || seg?.titles?.tertiary || '';
+                                const segImage = (seg?.image_url || '').replace(/^http:\/\//i, 'https://').replace('{recipe}', '320x320');
+                                if (segImage) {
+                                    station.logoUrl = segImage;
+                                }
+                            }
+                        }
 
-                    if (!resolved) {
+                        station.nowPlaying = (artist && track) ? `${artist} - ${track}` : (showName || artist || track || 'Now playing unavailable');
+                        station.nowPlayingLoaded = true;
+                        this.currentStationShowLoadedAtMs = Date.now();
+                        updateUi(station.nowPlaying);
+                    } catch (_) {
                         station.nowPlayingLoaded = false;
+                        updateUi(station.nowPlaying || 'Now playing unavailable');
+                    } finally {
                         station.nowPlayingLoading = false;
+                        this.currentStationShowLoadPromise = null;
                     }
+                })();
 
-                    const subtitle = station.nowPlaying
-                        || (station.nowPlayingLoading ? 'Loading now playing...' : 'Now playing unavailable');
-
-                    // Patch the station row subtitle
-                    const el = document.querySelector(`[data-station-id="${station.id}"] .station-row-subtitle`);
-                    if (el) el.textContent = subtitle;
-
-                    // Also patch the player box show name if this is the currently playing station
-                    if (station.id === this.currentRadioStationId) {
-                        const playerShow = document.getElementById('radio-player-show');
-                        if (playerShow) playerShow.textContent = subtitle;
-                    }
-                }));
+                return this.currentStationShowLoadPromise;
             }
 
             renderStationRows(stations) {
                 return stations.map(station => {
                     const favouriteIcon = this.isFavoriteStation(station.id) ? '⭐' : '☆';
+                    const isCurrent = station.id === this.currentRadioStationId;
                     const nowPlaying = station.nowPlaying
-                        || (station.nowPlayingLoading ? 'Loading now playing...' : (station.nowPlayingLoaded ? 'Now playing unavailable' : 'Loading now playing...'));
+                        || (isCurrent
+                            ? (station.nowPlayingLoading ? 'Loading now playing...' : (station.nowPlayingLoaded ? 'Now playing unavailable' : 'Loading now playing...'))
+                            : '');
 
                     return `
                         <div class="station-row" data-station-id="${this.escapeHtml(station.id)}">
