@@ -3,6 +3,8 @@ package com.hyliankid14.bbcradioplayer
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
@@ -27,6 +29,13 @@ class PodcastDetailFragment : Fragment() {
     private val fragmentScope = CoroutineScope(Dispatchers.Main + Job())
     private var currentPodcast: Podcast? = null
     private var episodesAdapter: EpisodeAdapter? = null
+    private var episodesRecycler: RecyclerView? = null
+    private var loadingIndicator: ProgressBar? = null
+    private var emptyState: TextView? = null
+    private var currentOffset = 0
+    private var isLoadingPage = false
+    private var reachedEnd = false
+    private val pageSize = 20
     private val playedStatusReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
             // Refresh the episodes list when played status changes
@@ -66,6 +75,9 @@ class PodcastDetailFragment : Fragment() {
             val episodesRecycler: RecyclerView = view.findViewById(R.id.episodes_recycler)
             val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
+            this.episodesRecycler = episodesRecycler
+            this.loadingIndicator = loadingIndicator
+            this.emptyState = emptyState
 
             (activity as? AppCompatActivity)?.supportActionBar?.apply {
                 show()
@@ -205,42 +217,8 @@ class PodcastDetailFragment : Fragment() {
                 scrollView.smoothScrollTo(0, 0)
             }
 
-            // Implement lazy-loading (paged) fetch for episodes
-            val pageSize = 20
-            var currentOffset = 0
-            var isLoadingPage = false
-            var reachedEnd = false
-
-            fun loadNextPage() {
-                if (isLoadingPage || reachedEnd) return
-                isLoadingPage = true
-                loadingIndicator.visibility = View.VISIBLE
-                fragmentScope.launch {
-                    val page = repository.fetchEpisodesPaged(podcast, currentOffset, pageSize)
-                    loadingIndicator.visibility = View.GONE
-
-                    if (page.isEmpty()) {
-                        if (currentOffset == 0) {
-                            emptyState.visibility = View.VISIBLE
-                            episodesRecycler.visibility = View.GONE
-                        }
-                        reachedEnd = true
-                    } else {
-                        emptyState.visibility = View.GONE
-                        episodesRecycler.visibility = View.VISIBLE
-                            if (currentOffset == 0) {
-                                episodesAdapter?.updateEpisodes(page)
-                                // Ensure action bar shows podcast title once episodes are visible
-                                (activity as? AppCompatActivity)?.supportActionBar?.title = podcast.title
-                            } else episodesAdapter?.addEpisodes(page)
-                        currentOffset += page.size
-                    }
-                    isLoadingPage = false
-                }
-            }
-
             // Trigger initial page load
-            loadNextPage()
+            loadNextPage(reset = true)
 
             // Load more and handle FAB show/hide when the parent NestedScrollView nears the bottom
             val parentScroll = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.podcast_detail_scroll)
@@ -272,6 +250,17 @@ class PodcastDetailFragment : Fragment() {
                 setHomeAsUpIndicator(R.drawable.ic_arrow_back)
             }
         }
+        requireActivity().invalidateOptionsMenu()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.podcast_detail_menu, menu)
+        super.onCreateOptionsMenu(menu, inflater)
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu) {
+        super.onPrepareOptionsMenu(menu)
+        menu.findItem(R.id.action_toggle_episode_sort)?.title = getEpisodeSortMenuTitle()
     }
 
     private fun openEpisodePreview(episode: Episode) {
@@ -316,6 +305,9 @@ class PodcastDetailFragment : Fragment() {
         } catch (e: Exception) {
             // ignore
         }
+        episodesRecycler = null
+        loadingIndicator = null
+        emptyState = null
         // Reset action bar state. Only hide the action bar if we're returning to the Podcasts fragment
         val appCompat = activity as? AppCompatActivity
         appCompat?.supportActionBar?.apply {
@@ -335,7 +327,81 @@ class PodcastDetailFragment : Fragment() {
                 requireActivity().onBackPressedDispatcher.onBackPressed()
                 true
             }
+            R.id.action_toggle_episode_sort -> {
+                toggleEpisodeSortOrder()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun getEpisodeSortMenuTitle(): String {
+        val podcast = currentPodcast ?: return getString(R.string.podcast_episode_sort_switch_to_oldest)
+        return if (PodcastEpisodeSortPreference.isOldestFirst(requireContext(), podcast.id)) {
+            getString(R.string.podcast_episode_sort_switch_to_newest)
+        } else {
+            getString(R.string.podcast_episode_sort_switch_to_oldest)
+        }
+    }
+
+    private fun toggleEpisodeSortOrder() {
+        val podcast = currentPodcast ?: return
+        val nextOrder = PodcastEpisodeSortPreference.toggleOrder(requireContext(), podcast.id)
+        requireActivity().invalidateOptionsMenu()
+        val messageRes = when (nextOrder) {
+            PodcastEpisodeSortPreference.Order.NEWEST_FIRST -> R.string.podcast_episode_sort_changed_newest
+            PodcastEpisodeSortPreference.Order.OLDEST_FIRST -> R.string.podcast_episode_sort_changed_oldest
+        }
+        view?.let {
+            com.google.android.material.snackbar.Snackbar.make(it, getString(messageRes), com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
+                .show()
+        }
+        loadNextPage(reset = true)
+    }
+
+    private fun loadNextPage(reset: Boolean = false) {
+        val podcast = currentPodcast ?: return
+        val recycler = episodesRecycler ?: return
+        val loading = loadingIndicator ?: return
+        val empty = emptyState ?: return
+
+        if (reset) {
+            currentOffset = 0
+            reachedEnd = false
+            isLoadingPage = false
+            episodesAdapter?.updateEpisodes(emptyList())
+            recycler.scrollToPosition(0)
+        }
+
+        if (isLoadingPage || reachedEnd) return
+
+        isLoadingPage = true
+        loading.visibility = View.VISIBLE
+        fragmentScope.launch {
+            val page = repository.fetchEpisodesPaged(podcast, currentOffset, pageSize)
+            if (!isAdded) return@launch
+
+            loading.visibility = View.GONE
+
+            if (page.isEmpty()) {
+                if (currentOffset == 0) {
+                    empty.visibility = View.VISIBLE
+                    recycler.visibility = View.GONE
+                }
+                reachedEnd = true
+            } else {
+                empty.visibility = View.GONE
+                recycler.visibility = View.VISIBLE
+                if (currentOffset == 0) {
+                    episodesAdapter?.updateEpisodes(page)
+                    (activity as? AppCompatActivity)?.supportActionBar?.title = podcast.title
+                } else {
+                    episodesAdapter?.addEpisodes(page)
+                }
+                currentOffset += page.size
+            }
+            isLoadingPage = false
         }
     }
 }

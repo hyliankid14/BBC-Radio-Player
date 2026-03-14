@@ -162,6 +162,7 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val MEDIA_ID_ALL_STATIONS = "all_stations"
         private const val MEDIA_ID_PODCASTS = "podcasts"
         private const val MEDIA_ID_PODCASTS_DOWNLOADED = "podcasts_downloaded"
+        private const val MEDIA_ID_PODCAST_SORT_TOGGLE_PREFIX = "podcast_sort_toggle_"
         private const val ANDROID_AUTO_CLIENT_HINT = "gearhead"
         // Number of episodes returned per page when Android Auto requests paginated episode lists.
         private const val EPISODE_PAGE_SIZE = 20
@@ -255,7 +256,19 @@ class RadioService : MediaBrowserServiceCompat() {
             override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
                 Log.d(TAG, "onPlayFromMediaId called with mediaId: $mediaId")
                 mediaId?.let { id ->
-                    if (id.startsWith("podcast_episode_")) {
+                    if (id.startsWith(MEDIA_ID_PODCAST_SORT_TOGGLE_PREFIX)) {
+                        val podcastId = id.removePrefix(MEDIA_ID_PODCAST_SORT_TOGGLE_PREFIX)
+                        val nextOrder = PodcastEpisodeSortPreference.toggleOrder(this@RadioService, podcastId)
+                        autoEpisodesCache.remove(podcastId)
+                        notifyChildrenChanged("podcast_$podcastId")
+                        handler.post {
+                            val messageRes = when (nextOrder) {
+                                PodcastEpisodeSortPreference.Order.NEWEST_FIRST -> R.string.podcast_episode_sort_changed_newest
+                                PodcastEpisodeSortPreference.Order.OLDEST_FIRST -> R.string.podcast_episode_sort_changed_oldest
+                            }
+                            android.widget.Toast.makeText(this@RadioService, getString(messageRes), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    } else if (id.startsWith("podcast_episode_")) {
                         val episodeId = id.removePrefix("podcast_episode_")
                         serviceScope.launch {
                             try {
@@ -756,25 +769,37 @@ class RadioService : MediaBrowserServiceCompat() {
                     }
                 }
 
-                val startIndex = page * pageSize
-                val pageEps = allEps.drop(startIndex).take(pageSize)
-                if (pageEps.isEmpty()) {
-                    result.sendResult(emptyList())
-                } else {
+                val items = mutableListOf<MediaItem>()
+                if (page == 0) {
+                    items.add(buildPodcastSortToggleMediaItem(podcastId))
+                }
+
+                val startIndex = if (page == 0) 0 else (page * pageSize) - 1
+                val episodeCount = if (page == 0) (pageSize - 1).coerceAtLeast(0) else pageSize
+                val pageEps = allEps.drop(startIndex).take(episodeCount)
+                if (pageEps.isNotEmpty()) {
                     val downloadedIds = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
                         .map { it.id }.toSet()
-                    result.sendResult(pageEps.map { ep -> episodeToMediaItem(ep, downloadedIds) })
+                    items.addAll(pageEps.map { ep -> episodeToMediaItem(ep, downloadedIds) })
                 }
+                result.sendResult(items)
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading paged episodes for podcast $podcastId page $page", e)
                 try {
                     val downloadedEps = DownloadedEpisodes.getDownloadedEpisodesForPodcast(
                         this@RadioService, podcastId)
-                    val startIndex = page * pageSize
-                    result.sendResult(
-                        downloadedEps.drop(startIndex).take(pageSize)
+                    val sortedDownloaded = sortDownloadedEpisodesForPodcast(downloadedEps, podcastId)
+                    val items = mutableListOf<MediaItem>()
+                    if (page == 0) {
+                        items.add(buildPodcastSortToggleMediaItem(podcastId))
+                    }
+                    val startIndex = if (page == 0) 0 else (page * pageSize) - 1
+                    val episodeCount = if (page == 0) (pageSize - 1).coerceAtLeast(0) else pageSize
+                    items.addAll(
+                        sortedDownloaded.drop(startIndex).take(episodeCount)
                             .map { d -> downloadedEntryToMediaItem(d) }
                     )
+                    result.sendResult(items)
                 } catch (ex: Exception) {
                     result.sendResult(emptyList())
                 }
@@ -989,17 +1014,22 @@ class RadioService : MediaBrowserServiceCompat() {
                                     fetched
                                 } else emptyList<Episode>()
                             }
+                            val itemsForPodcast = mutableListOf<MediaItem>()
+                            itemsForPodcast.add(buildPodcastSortToggleMediaItem(podcastId))
                             if (eps.isNotEmpty()) {
                                 val downloadedIds = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
                                     .map { it.id }.toSet()
-                                result.sendResult(eps.map { ep -> episodeToMediaItem(ep, downloadedIds) })
+                                itemsForPodcast.addAll(eps.map { ep -> episodeToMediaItem(ep, downloadedIds) })
+                                result.sendResult(itemsForPodcast)
                             } else {
                                 // Podcast not found or has no online episodes – show downloaded fallback
                                 val downloadedEps = DownloadedEpisodes.getDownloadedEpisodesForPodcast(this@RadioService, podcastId)
                                 if (downloadedEps.isNotEmpty()) {
-                                    result.sendResult(downloadedEps.map { d -> downloadedEntryToMediaItem(d) })
+                                    val sortedDownloaded = sortDownloadedEpisodesForPodcast(downloadedEps, podcastId)
+                                    itemsForPodcast.addAll(sortedDownloaded.map { d -> downloadedEntryToMediaItem(d) })
+                                    result.sendResult(itemsForPodcast)
                                 } else {
-                                    result.sendResult(null)
+                                    result.sendResult(itemsForPodcast)
                                 }
                             }
                         } catch (e: Exception) {
@@ -1007,12 +1037,11 @@ class RadioService : MediaBrowserServiceCompat() {
                             // Offline fallback: show downloaded episodes for this podcast
                             try {
                                 val downloadedEps = DownloadedEpisodes.getDownloadedEpisodesForPodcast(this@RadioService, podcastId)
-                                if (downloadedEps.isNotEmpty()) {
-                                    val fallbackItems = downloadedEps.map { d -> downloadedEntryToMediaItem(d) }
-                                    result.sendResult(fallbackItems)
-                                } else {
-                                    result.sendResult(null)
-                                }
+                                val itemsForPodcast = mutableListOf<MediaItem>()
+                                itemsForPodcast.add(buildPodcastSortToggleMediaItem(podcastId))
+                                val sortedDownloaded = sortDownloadedEpisodesForPodcast(downloadedEps, podcastId)
+                                itemsForPodcast.addAll(sortedDownloaded.map { d -> downloadedEntryToMediaItem(d) })
+                                result.sendResult(itemsForPodcast)
                             } catch (ex: Exception) {
                                 Log.e(TAG, "Error loading offline fallback for podcast $podcastId", ex)
                                 result.sendResult(null)
@@ -1215,6 +1244,56 @@ class RadioService : MediaBrowserServiceCompat() {
             MediaItem.FLAG_PLAYABLE
         )
     }
+
+    private fun buildPodcastSortToggleMediaItem(podcastId: String): MediaItem {
+        val title = if (PodcastEpisodeSortPreference.isOldestFirst(this, podcastId)) {
+            getString(R.string.podcast_auto_sort_toggle_oldest)
+        } else {
+            getString(R.string.podcast_auto_sort_toggle_newest)
+        }
+        return MediaItem(
+            MediaDescriptionCompat.Builder()
+                .setMediaId(MEDIA_ID_PODCAST_SORT_TOGGLE_PREFIX + podcastId)
+                .setTitle(title)
+                .build(),
+            MediaItem.FLAG_PLAYABLE
+        )
+    }
+
+    private fun sortDownloadedEpisodesForPodcast(
+        entries: List<DownloadedEpisodes.Entry>,
+        podcastId: String
+    ): List<DownloadedEpisodes.Entry> {
+        val indexedEntries = entries.mapIndexed { index, entry ->
+            IndexedDownloadedEpisode(
+                entry = entry,
+                epochMs = EpisodeDateParser.parsePubDateToEpochOrNull(entry.pubDate),
+                originalIndex = index
+            )
+        }
+
+        val sorted = if (PodcastEpisodeSortPreference.isOldestFirst(this, podcastId)) {
+            indexedEntries.sortedWith(
+                compareByDescending<IndexedDownloadedEpisode> { it.epochMs != null }
+                    .thenBy { it.epochMs ?: Long.MAX_VALUE }
+                    .thenBy { it.originalIndex }
+            )
+        } else {
+            indexedEntries.sortedWith(
+                compareByDescending<IndexedDownloadedEpisode> { it.epochMs != null }
+                    .thenByDescending { it.epochMs ?: Long.MIN_VALUE }
+                    .thenBy { it.originalIndex }
+            )
+        }
+
+        return sorted.map { it.entry }
+    }
+
+    private data class IndexedDownloadedEpisode(
+        val entry: DownloadedEpisodes.Entry,
+        val epochMs: Long?,
+        val originalIndex: Int
+    )
 
     /**
      * Convert a [Episode] to a [MediaItem] for Android Auto, annotating the subtitle with

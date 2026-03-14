@@ -81,6 +81,12 @@
     <string name="backup_last_date_never">Last backup: Never</string>
     <string name="backup_last_date_value">Last backup: %1$s</string>
     <string name="shake_random_podcast_label">Shake to select a random podcast</string>
+    <string name="podcast_episode_sort_switch_to_oldest">Listen from oldest first</string>
+    <string name="podcast_episode_sort_switch_to_newest">Listen from newest first</string>
+    <string name="podcast_episode_sort_changed_oldest">Episode order set to oldest first</string>
+    <string name="podcast_episode_sort_changed_newest">Episode order set to newest first</string>
+    <string name="podcast_auto_sort_toggle_oldest">Sort: Oldest first (tap to change)</string>
+    <string name="podcast_auto_sort_toggle_newest">Sort: Newest first (tap to change)</string>
 
     <!-- Hour and Minute Arrays -->
     <string-array name="hour_options">

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Empty: app bar subscribe action removed to avoid duplication with in-player star -->
+    <item
+        android:id="@+id/action_toggle_episode_sort"
+        android:title="@string/podcast_episode_sort_switch_to_oldest"
+        android:showAsAction="never" />
 </menu>

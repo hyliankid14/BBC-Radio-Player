@@ -153,6 +153,8 @@ object RSSParser {
     private const val DESCRIPTION = "description"
     private const val ENCLOSURE = "enclosure"
     private const val PUB_DATE = "pubDate"
+    private const val UPDATED = "updated"
+    private const val PUBLISHED = "published"
     private const val DURATION = "duration"
     private const val GUID = "guid"
 
@@ -225,6 +227,11 @@ object RSSParser {
                             }
                             PUB_DATE -> {
                                 if (parser.next() == XmlPullParser.TEXT) {
+                                    currentPubDate = parser.text
+                                }
+                            }
+                            UPDATED, PUBLISHED, "date", "datePublished" -> {
+                                if (currentPubDate.isBlank() && parser.next() == XmlPullParser.TEXT) {
                                     currentPubDate = parser.text
                                 }
                             }

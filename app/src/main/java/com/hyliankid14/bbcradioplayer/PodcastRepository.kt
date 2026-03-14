@@ -298,7 +298,7 @@ class PodcastRepository(private val context: Context) {
             }
             if (all.isEmpty()) return@withContext emptyList()
 
-            val sorted = all.sortedByDescending { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+            val sorted = sortEpisodesForPodcast(podcast.id, all)
             val from = startIndex.coerceAtLeast(0)
             val to = kotlin.math.min(sorted.size, startIndex + count)
             if (from >= to) return@withContext emptyList()
@@ -308,6 +308,41 @@ class PodcastRepository(private val context: Context) {
             emptyList()
         }
     }
+
+    fun sortEpisodesForPodcast(podcastId: String, episodes: List<Episode>): List<Episode> {
+        val datedEpisodes = episodes.mapIndexed { index, episode ->
+            IndexedEpisode(
+                episode = episode,
+                epochMs = EpisodeDateParser.parsePubDateToEpochOrNull(episode.pubDate),
+                originalIndex = index
+            )
+        }
+
+        val sorted = when (PodcastEpisodeSortPreference.getOrder(context, podcastId)) {
+            PodcastEpisodeSortPreference.Order.NEWEST_FIRST -> {
+                datedEpisodes.sortedWith(
+                    compareByDescending<IndexedEpisode> { it.epochMs != null }
+                        .thenByDescending { it.epochMs ?: Long.MIN_VALUE }
+                        .thenBy { it.originalIndex }
+                )
+            }
+            PodcastEpisodeSortPreference.Order.OLDEST_FIRST -> {
+                datedEpisodes.sortedWith(
+                    compareByDescending<IndexedEpisode> { it.epochMs != null }
+                        .thenBy { it.epochMs ?: Long.MAX_VALUE }
+                        .thenBy { it.originalIndex }
+                )
+            }
+        }
+
+        return sorted.map { it.episode }
+    }
+
+    private data class IndexedEpisode(
+        val episode: Episode,
+        val epochMs: Long?,
+        val originalIndex: Int
+    )
 
     /**
      * Prefetch episode metadata for the provided podcasts and store in-memory.

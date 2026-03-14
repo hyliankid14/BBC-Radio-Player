@@ -248,8 +248,7 @@ class EpisodeAdapter(
     private val episodeIds = mutableSetOf<String>()
 
     fun updateEpisodes(newEpisodes: List<Episode>) {
-        // Sort by publication date (most recent first). Unknown dates are treated as epoch 0.
-        episodes = newEpisodes.sortedByDescending { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+        episodes = newEpisodes
         episodeIds.clear()
         episodes.mapTo(episodeIds) { it.id }
         notifyDataSetChanged()
@@ -258,9 +257,10 @@ class EpisodeAdapter(
     fun addEpisodes(newEpisodes: List<Episode>) {
         val uniqueNew = newEpisodes.filter { it.id !in episodeIds }
         if (uniqueNew.isEmpty()) return
-        episodes = (episodes + uniqueNew).sortedByDescending { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+        val oldSize = episodes.size
+        episodes = episodes + uniqueNew
         uniqueNew.mapTo(episodeIds) { it.id }
-        notifyDataSetChanged()
+        notifyItemRangeInserted(oldSize, uniqueNew.size)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeViewHolder {
