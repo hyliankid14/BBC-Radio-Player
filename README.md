@@ -80,6 +80,7 @@ Open the project in Android Studio (2023.2+), or use the CI deploy script
 - ExoPlayer 2.18+, Material 3 Components, WorkManager for background tasks
 
 ## Changelog
+- **v1.4.0** (Mar 2026): podcast improvements, playback and station updates, and interface refinements.
 - **v1.3.0**: Improved indexing system, faster performance, Android Auto enhancements, Widget support and various fixes.
 - **v1.2.2**: podcast improvements, playback and station updates, and interface refinements.
 - **v1.2.0**: Added alarm feature, F-Droid fixes and various UI improvements

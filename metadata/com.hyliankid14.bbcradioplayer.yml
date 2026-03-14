@@ -39,11 +39,17 @@ Builds:
     gradle:
       - fdroidAutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.3.0
+CurrentVersion: 1.4.0
 CurrentVersionCode: 34
   - versionName: 1.3.0
     versionCode: 34
                 commit: v1.3.0
+    subdir: app
+    gradle:
+      - fdroid
+  - versionName: 1.4.0
+    versionCode: 34
+                commit: v1.4.0
     subdir: app
     gradle:
       - fdroid
