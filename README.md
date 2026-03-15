@@ -73,6 +73,25 @@ cd "BBC Radio Player"
 Open the project in Android Studio (2023.2+), or use the CI deploy script
 `./scripts/deploy.sh` to build and sideload via `adb`.
 
+## Local USB Debug Deploy (macOS/Linux)
+
+Run the local environment setup once:
+
+```bash
+./scripts/setup-local-build.sh
+```
+
+Then build and install a debug APK to a USB-connected Android device:
+
+```bash
+./scripts/local-deploy.sh
+```
+
+Notes:
+- On macOS, the script uses Homebrew and the default SDK path `~/Library/Android/sdk`.
+- If the device is visible in `adb devices`, the script installs in place with `adb install -r -d`.
+- If an install fails due to signing mismatch, it falls back to uninstall + clean install.
+
 ## Requirements
 
 - Android API 21+ (Lollipop) with API 33+ recommended
