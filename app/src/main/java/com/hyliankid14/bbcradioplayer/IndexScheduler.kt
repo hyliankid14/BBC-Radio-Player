@@ -3,6 +3,7 @@ package com.hyliankid14.bbcradioplayer
 import android.content.Context
 import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
+import java.util.Calendar
 
 /**
  * Scheduler for periodic podcast indexing using WorkManager.
@@ -10,6 +11,8 @@ import androidx.work.ExistingPeriodicWorkPolicy
  */
 object IndexScheduler {
     private const val TAG = "IndexScheduler"
+    private const val TARGET_HOUR_LOCAL = 5
+    private const val TARGET_MINUTE_LOCAL = 0
     
     fun scheduleIndexing(context: Context) {
         val days = IndexPreference.getIntervalDays(context)
@@ -46,8 +49,21 @@ object IndexScheduler {
         // First-time users or users without a known timestamp do not need catch-up logic.
         val lastRunTime = lastReindex ?: return
 
+        val nowMs = System.currentTimeMillis()
+        val mostRecentTargetWindow = computeMostRecentTargetWindow(nowMs)
+
+        // If daily indexing missed the 05:00 window, run as soon as the app starts.
+        if (intervalDays == 1 && nowMs >= mostRecentTargetWindow && lastRunTime < mostRecentTargetWindow) {
+            com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.enqueueIndexing(
+                context,
+                fullReindex = false
+            )
+            Log.d(TAG, "Enqueued catch-up indexing for missed 05:00 run")
+            return
+        }
+
         val intervalMillis = intervalDays * 24L * 60L * 60L * 1000L
-        val elapsed = System.currentTimeMillis() - lastRunTime
+        val elapsed = nowMs - lastRunTime
         if (elapsed >= intervalMillis) {
             com.hyliankid14.bbcradioplayer.workers.BackgroundIndexWorker.enqueueIndexing(
                 context,
@@ -55,6 +71,21 @@ object IndexScheduler {
             )
             Log.d(TAG, "Enqueued catch-up indexing (overdue by ${elapsed - intervalMillis} ms)")
         }
+    }
+
+    private fun computeMostRecentTargetWindow(nowMs: Long): Long {
+        val now = Calendar.getInstance().apply { timeInMillis = nowMs }
+        val target = Calendar.getInstance().apply {
+            timeInMillis = nowMs
+            set(Calendar.HOUR_OF_DAY, TARGET_HOUR_LOCAL)
+            set(Calendar.MINUTE, TARGET_MINUTE_LOCAL)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            if (after(now)) {
+                add(Calendar.DAY_OF_YEAR, -1)
+            }
+        }
+        return target.timeInMillis
     }
 
     fun cancel(context: Context) {
