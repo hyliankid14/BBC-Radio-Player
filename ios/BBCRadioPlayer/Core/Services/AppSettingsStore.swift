@@ -3,6 +3,18 @@ import SwiftUI
 import UIKit
 import UserNotifications
 
+private final class HTTPSRedirectUpgradeDelegate: NSObject, URLSessionTaskDelegate {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(request._upgradingToSecureTransport())
+    }
+}
+
 enum AppTheme: String, CaseIterable {
     case system
     case light
@@ -45,6 +57,20 @@ enum PodcastArtworkMode: String, CaseIterable {
         case .podcast:
             return "Podcast artwork"
         }
+    }
+}
+
+enum AutoDownloadLimit: Int, CaseIterable, Identifiable {
+    case one = 1
+    case two = 2
+    case three = 3
+    case five = 5
+    case ten = 10
+
+    var id: Int { rawValue }
+
+    var displayName: String {
+        "\(rawValue) latest episodes"
     }
 }
 
@@ -91,6 +117,10 @@ final class AppSettingsStore: ObservableObject {
         didSet { defaults.set(autoDownloadSubscribedPodcasts, forKey: autoDownloadSubscribedPodcastsKey) }
     }
 
+    @Published var autoDownloadLimit: AutoDownloadLimit {
+        didSet { defaults.set(autoDownloadLimit.rawValue, forKey: autoDownloadLimitKey) }
+    }
+
     private let defaults: UserDefaults
     private let playbackQualityKey = "playback_quality"
     private let appThemeKey = "app_theme"
@@ -101,6 +131,7 @@ final class AppSettingsStore: ObservableObject {
     private let episodeIndexLastUpdatedKey = "episode_index_last_updated"
     private let autoDownloadSavedEpisodesKey = "auto_download_saved_episodes"
     private let autoDownloadSubscribedPodcastsKey = "auto_download_subscribed_podcasts"
+    private let autoDownloadLimitKey = "auto_download_limit"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -113,6 +144,7 @@ final class AppSettingsStore: ObservableObject {
         self.episodeIndexLastUpdated = defaults.object(forKey: episodeIndexLastUpdatedKey) as? Date
         self.autoDownloadSavedEpisodes = defaults.object(forKey: autoDownloadSavedEpisodesKey) as? Bool ?? false
         self.autoDownloadSubscribedPodcasts = defaults.object(forKey: autoDownloadSubscribedPodcastsKey) as? Bool ?? false
+        self.autoDownloadLimit = AutoDownloadLimit(rawValue: defaults.integer(forKey: autoDownloadLimitKey)) ?? .one
     }
 }
 
@@ -139,6 +171,7 @@ final class EpisodeDownloadService: ObservableObject {
     private let defaults: UserDefaults
     private let session: URLSession
     private let fileManager: FileManager
+    private let redirectUpgradeDelegate = HTTPSRedirectUpgradeDelegate()
     private var recordsByEpisodeID: [String: DownloadedEpisodeRecord] = [:]
     private var activeEpisodeIDs: Set<String> = []
     private var failureMessagesByEpisodeID: [String: String] = [:]
@@ -198,22 +231,38 @@ final class EpisodeDownloadService: ObservableObject {
 
         do {
             let downloadsDirectory = try ensureDownloadsDirectory()
+            let destinationURL = downloadsDirectory.appendingPathComponent(fileName(for: episode))
+            let secureSourceURL = episode.audioURL._normalisedSecureBBCMediaURL()
 
-            var request = URLRequest(url: episode.audioURL)
+            var request = URLRequest(url: secureSourceURL)
             request.timeoutInterval = 120
             request.setValue("BBC Radio Player/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
+            request.setValue("audio/mpeg,audio/*,*/*", forHTTPHeaderField: "Accept")
 
-            let (temporaryURL, response) = try await session.download(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode) else {
-                throw URLError(.badServerResponse)
-            }
+            do {
+                let (temporaryURL, response) = try await session.download(for: request, delegate: redirectUpgradeDelegate)
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200..<300).contains(httpResponse.statusCode) else {
+                    throw URLError(.badServerResponse)
+                }
 
-            let destinationURL = downloadsDirectory.appendingPathComponent(fileName(for: episode))
-            if fileManager.fileExists(atPath: destinationURL.path) {
-                try fileManager.removeItem(at: destinationURL)
+                if fileManager.fileExists(atPath: destinationURL.path) {
+                    try fileManager.removeItem(at: destinationURL)
+                }
+                try fileManager.moveItem(at: temporaryURL, to: destinationURL)
+            } catch {
+                let (data, response) = try await session.data(for: request, delegate: redirectUpgradeDelegate)
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200..<300).contains(httpResponse.statusCode),
+                      !data.isEmpty else {
+                    throw error
+                }
+
+                if fileManager.fileExists(atPath: destinationURL.path) {
+                    try fileManager.removeItem(at: destinationURL)
+                }
+                try data.write(to: destinationURL, options: .atomic)
             }
-            try fileManager.moveItem(at: temporaryURL, to: destinationURL)
 
             let record = DownloadedEpisodeRecord(
                 episodeID: episode.id,
@@ -269,10 +318,12 @@ final class EpisodeDownloadService: ObservableObject {
 
     func scheduleSubscribedPodcastDownloads(
         _ snapshots: [SavedPodcastSnapshot],
-        podcastRepository: any PodcastRepository
+        podcastRepository: any PodcastRepository,
+        limit: Int
     ) {
         let podcasts = snapshots.compactMap(\._asPodcastDownloadSeed)
         guard !podcasts.isEmpty else { return }
+        let clampedLimit = max(1, limit)
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -285,12 +336,14 @@ final class EpisodeDownloadService: ObservableObject {
                     continue
                 }
 
-                guard let latestEpisode = episodes.max(by: { self.parseEpisodeDate($0.pubDate) < self.parseEpisodeDate($1.pubDate) }) else {
-                    continue
-                }
+                let latestEpisodes = episodes
+                    .sorted(by: { self.parseEpisodeDate($0.pubDate) > self.parseEpisodeDate($1.pubDate) })
+                    .prefix(clampedLimit)
 
-                if case .notDownloaded = self.status(for: latestEpisode) {
-                    _ = await self.downloadEpisode(latestEpisode, podcastTitle: podcastTitle)
+                for episode in latestEpisodes {
+                    if case .notDownloaded = self.status(for: episode) {
+                        _ = await self.downloadEpisode(episode, podcastTitle: podcastTitle)
+                    }
                 }
             }
         }
@@ -407,6 +460,28 @@ final class EpisodeDownloadService: ObservableObject {
         }
 
         return .distantPast
+    }
+}
+
+private extension URL {
+    func _normalisedSecureBBCMediaURL() -> URL {
+        var value = absoluteString
+        if value.hasPrefix("http://") {
+            value = "https://" + value.dropFirst("http://".count)
+        }
+        value = value.replacingOccurrences(of: "/proto/http/", with: "/proto/https/")
+        return URL(string: value) ?? self
+    }
+}
+
+private extension URLRequest {
+    func _upgradingToSecureTransport() -> URLRequest {
+        guard let url else { return self }
+        let secureURL = url._normalisedSecureBBCMediaURL()
+        guard secureURL != url else { return self }
+        var upgraded = self
+        upgraded.url = secureURL
+        return upgraded
     }
 }
 

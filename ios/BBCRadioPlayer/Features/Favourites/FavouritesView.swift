@@ -250,13 +250,13 @@ struct FavouritesView: View {
         List {
             if container.podcastsViewModel.savedSearches.isEmpty {
                 Section {
-                    Text("No saved searches yet. Use the Podcasts search and save it from the keyboard submit action.")
+                    Text("No saved searches yet. Use Podcasts search, then tap the save-search button.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             } else {
                 Section("Saved Searches") {
-                    ForEach(Array(container.podcastsViewModel.savedSearches.enumerated()), id: \.offset) { _, query in
+                    ForEach(Array(container.podcastsViewModel.savedSearches.enumerated()), id: \.offset) { index, query in
                         Button {
                             container.podcastsViewModel.applySavedSearch(query)
                             container.selectedRootTab = .podcasts
@@ -267,6 +267,11 @@ struct FavouritesView: View {
                                 Text(query)
                                     .foregroundStyle(Color.brandText)
                                 Spacer()
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button("Delete", role: .destructive) {
+                                container.podcastsViewModel.removeSavedSearch(at: IndexSet(integer: index))
                             }
                         }
                     }

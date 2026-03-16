@@ -189,8 +189,8 @@ private final class RSSParserDelegate: NSObject, XMLParserDelegate {
 
         currentElement = name
 
-        if name == "enclosure", let url = attributeDict["url"].flatMap(URL.init(string:)) {
-            currentAudioURL = url
+        if name == "enclosure", let rawURL = attributeDict["url"], let url = URL(string: rawURL) {
+            currentAudioURL = url._normalisedSecureBBCMediaURL()
         }
 
         if (name == "itunes:image" || name == "image"),
@@ -293,5 +293,16 @@ private final class RSSParserDelegate: NSObject, XMLParserDelegate {
         }
 
         return 0
+    }
+}
+
+private extension URL {
+    func _normalisedSecureBBCMediaURL() -> URL {
+        var value = absoluteString
+        if value.hasPrefix("http://") {
+            value = "https://" + value.dropFirst("http://".count)
+        }
+        value = value.replacingOccurrences(of: "/proto/http/", with: "/proto/https/")
+        return URL(string: value) ?? self
     }
 }

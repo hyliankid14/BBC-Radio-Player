@@ -1,5 +1,6 @@
 import Foundation
 import Compression
+import zlib
 
 struct RemoteIndexMeta: Decodable, Equatable {
     let generatedAt: String
@@ -82,57 +83,56 @@ struct RemoteIndexClient {
             return data
         }
 
-        return try data.withUnsafeBytes { (compressedBytes: UnsafeRawBufferPointer) in
-            guard let compressedPtr = compressedBytes.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
+        return try data.withUnsafeBytes { compressedBytes in
+            guard let sourceBaseAddress = compressedBytes.baseAddress else {
                 throw URLError(.unknown)
             }
 
-            let destinationBufferSize = 64 * 1024
-            let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: destinationBufferSize)
-            defer { destinationBuffer.deallocate() }
+            var stream = z_stream()
+            stream.next_in = UnsafeMutablePointer<Bytef>(mutating: sourceBaseAddress.assumingMemoryBound(to: Bytef.self))
+            stream.avail_in = uInt(data.count)
 
-            let sourcePlaceholder = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
-            let destinationPlaceholder = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
-            defer {
-                sourcePlaceholder.deallocate()
-                destinationPlaceholder.deallocate()
-            }
-
-            var stream = compression_stream(
-                dst_ptr: destinationPlaceholder,
-                dst_size: 0,
-                src_ptr: UnsafePointer(sourcePlaceholder),
-                src_size: 0,
-                state: nil
-            )
-            var status = compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB)
-            guard status != COMPRESSION_STATUS_ERROR else {
+            let windowBits = Int32(MAX_WBITS) + 32
+            let initResult = inflateInit2_(&stream, windowBits, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size))
+            guard initResult == Z_OK else {
                 throw URLError(.cannotDecodeRawData)
             }
-            defer { compression_stream_destroy(&stream) }
+            defer { inflateEnd(&stream) }
 
-            stream.src_ptr = compressedPtr
-            stream.src_size = data.count
+            let bufferSize = 64 * 1024
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer { buffer.deallocate() }
 
-            var decompressed = Data()
+            var output = Data()
 
-            repeat {
-                stream.dst_ptr = destinationBuffer
-                stream.dst_size = destinationBufferSize
+            while true {
+                stream.next_out = buffer
+                stream.avail_out = uInt(bufferSize)
 
-                status = compression_stream_process(&stream, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
-                switch status {
-                case COMPRESSION_STATUS_OK, COMPRESSION_STATUS_END:
-                    let producedCount = destinationBufferSize - stream.dst_size
-                    if producedCount > 0 {
-                        decompressed.append(destinationBuffer, count: producedCount)
-                    }
-                default:
+                let inflateResult = inflate(&stream, Z_NO_FLUSH)
+                let producedCount = bufferSize - Int(stream.avail_out)
+                if producedCount > 0 {
+                    output.append(buffer, count: producedCount)
+                }
+
+                if inflateResult == Z_STREAM_END {
+                    break
+                }
+
+                guard inflateResult == Z_OK else {
                     throw URLError(.cannotDecodeRawData)
                 }
-            } while status == COMPRESSION_STATUS_OK
 
-            return decompressed
+                if stream.avail_in == 0 && producedCount == 0 {
+                    break
+                }
+            }
+
+            guard !output.isEmpty else {
+                throw URLError(.cannotDecodeRawData)
+            }
+
+            return output
         }
     }
 }

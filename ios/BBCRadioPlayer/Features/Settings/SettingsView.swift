@@ -45,6 +45,20 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                HStack {
+                    Text("Podcasts in index")
+                    Spacer()
+                    Text("\(podcastsViewModel.indexPodcastCount)")
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Episodes in index")
+                    Spacer()
+                    Text("\(podcastsViewModel.indexEpisodeCount)")
+                        .foregroundStyle(.secondary)
+                }
+
                 Button {
                     Task {
                         let didRefresh = await podcastsViewModel.refreshEpisodeIndex(force: true)
@@ -67,6 +81,14 @@ struct SettingsView: View {
             Section("Downloads") {
                 Toggle("Auto-download saved episodes", isOn: $settingsStore.autoDownloadSavedEpisodes)
                 Toggle("Auto-download latest subscribed episodes", isOn: $settingsStore.autoDownloadSubscribedPodcasts)
+
+                if settingsStore.autoDownloadSubscribedPodcasts {
+                    Picker("Episodes per podcast", selection: $settingsStore.autoDownloadLimit) {
+                        ForEach(AutoDownloadLimit.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                }
 
                 HStack {
                     Text("Downloaded episodes")

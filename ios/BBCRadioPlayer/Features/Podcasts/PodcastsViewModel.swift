@@ -12,6 +12,7 @@ struct EpisodeSearchResult: Identifiable, Equatable {
 
 enum PodcastSortOption: String, CaseIterable, Identifiable {
     case mostPopular = "Most Popular"
+    case mostRecent = "Most Recent"
     case alphabetical = "Alphabetical (A-Z)"
 
     var id: String { rawValue }
@@ -40,6 +41,8 @@ final class PodcastsViewModel: ObservableObject {
     @Published private(set) var isEpisodeSearchLoading = false
     @Published private(set) var isRefreshingEpisodeIndex = false
     @Published private(set) var savedSearches: [String] = []
+    @Published private(set) var indexPodcastCount: Int = 0
+    @Published private(set) var indexEpisodeCount: Int = 0
 
     private let podcastRepository: PodcastRepository
     private let remoteIndexClient: RemoteIndexClient
@@ -50,6 +53,8 @@ final class PodcastsViewModel: ObservableObject {
     private let defaults: UserDefaults
     private var indexedPodcastsByID: [String: RemoteIndexPodcast] = [:]
     private var indexedEpisodes: [RemoteIndexEpisode] = []
+    private var indexedEpisodeCorpus: [(episode: RemoteIndexEpisode, searchable: String)] = []
+    private var latestEpisodeEpochByPodcastID: [String: Int] = [:]
     private var hasLoadedRemoteIndex = false
 
     private static let savedSearchesKey = "saved_podcast_episode_searches"
@@ -82,6 +87,7 @@ final class PodcastsViewModel: ObservableObject {
 
         do {
             podcasts = try await podcastRepository.fetchPodcasts(forceRefresh: false)
+            await loadIndexSummaryIfNeeded()
         } catch {
             let message = (error as NSError).localizedDescription
             errorMessage = message == "The operation couldn’t be completed." ? "The BBC podcast feed could not be parsed." : message
@@ -155,7 +161,7 @@ final class PodcastsViewModel: ObservableObject {
     }
 
     func searchEpisodesFromIndex(limit: Int = 60) async {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
             episodeSearchResults = []
             return
@@ -167,14 +173,15 @@ final class PodcastsViewModel: ObservableObject {
         do {
             try await ensureRemoteIndexLoaded()
 
-            let results = indexedEpisodes.lazy
-                .filter { episode in
-                    let title = episode.title.lowercased()
-                    let description = episode.description.lowercased()
-                    return title.contains(query) || description.contains(query)
+            let queryMatcher = QueryMatcher(query: query)
+
+            let results = indexedEpisodeCorpus.lazy
+                .filter { entry in
+                    queryMatcher.matches(entry.searchable)
                 }
                 .prefix(limit)
-                .map { episode -> EpisodeSearchResult in
+                .map { entry -> EpisodeSearchResult in
+                    let episode = entry.episode
                     let podcastTitle = self.indexedPodcastsByID[episode.podcastId]?.title ?? "Podcast"
                     let stableID = "\(episode.podcastId)|\(episode.audioUrl ?? episode.title)"
                     return EpisodeSearchResult(
@@ -214,6 +221,20 @@ final class PodcastsViewModel: ObservableObject {
 
     func applySavedSearch(_ query: String) {
         searchText = query
+        selectedSort = .mostRecent
+    }
+
+    func resetFilters() {
+        searchText = ""
+        selectedGenre = "All Genres"
+        selectedSort = .mostPopular
+        episodeSearchResults = []
+    }
+
+    var hasActiveFilters: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        selectedGenre != "All Genres" ||
+        selectedSort != .mostPopular
     }
 
     func refreshEpisodeIndex(force: Bool) async -> Bool {
@@ -231,6 +252,16 @@ final class PodcastsViewModel: ObservableObject {
             let index = try await remoteIndexClient.fetchIndex()
             indexedPodcastsByID = Dictionary(uniqueKeysWithValues: index.podcasts.map { ($0.id, $0) })
             indexedEpisodes = index.episodes
+            indexedEpisodeCorpus = index.episodes.map { episode in
+                let searchable = "\(episode.title) \(episode.description)".lowercased()
+                return (episode: episode, searchable: searchable)
+            }
+            latestEpisodeEpochByPodcastID = Dictionary(index.episodes.compactMap { episode in
+                guard let epoch = episode.pubEpoch else { return nil }
+                return (episode.podcastId, normalisedEpoch(epoch))
+            }, uniquingKeysWith: max)
+            indexPodcastCount = index.podcasts.count
+            indexEpisodeCount = index.episodes.count
             hasLoadedRemoteIndex = true
             let now = Date()
             appSettingsStore.episodeIndexLastUpdated = now
@@ -260,7 +291,7 @@ final class PodcastsViewModel: ObservableObject {
 
     func playEpisodeSearchResult(_ result: EpisodeSearchResult) {
         guard let audioURL = result.audioURL else { return }
-        let fallbackDate = result.pubEpoch.map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? Date()
+        let fallbackDate = dateFromEpoch(result.pubEpoch) ?? Date()
         let dateString = ISO8601DateFormatter().string(from: fallbackDate)
         let episode = Episode(
             id: result.id,
@@ -290,8 +321,7 @@ final class PodcastsViewModel: ObservableObject {
     }
 
     func formattedEpoch(_ epoch: Int?) -> String {
-        guard let epoch else { return "" }
-        let date = Date(timeIntervalSince1970: TimeInterval(epoch))
+        guard let date = dateFromEpoch(epoch) else { return "" }
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
@@ -317,6 +347,17 @@ final class PodcastsViewModel: ObservableObject {
         _ = await refreshEpisodeIndex(force: false)
         guard hasLoadedRemoteIndex else {
             throw URLError(.resourceUnavailable)
+        }
+    }
+
+    private func loadIndexSummaryIfNeeded() async {
+        guard indexPodcastCount == 0, indexEpisodeCount == 0 else { return }
+        do {
+            let meta = try await remoteIndexClient.fetchMeta()
+            indexPodcastCount = meta.podcastCount
+            indexEpisodeCount = meta.episodeCount
+        } catch {
+            // Leave defaults if metadata endpoint is unavailable.
         }
     }
 
@@ -390,7 +431,7 @@ final class PodcastsViewModel: ObservableObject {
     }
 
     var filteredPodcasts: [Podcast] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let genreFiltered = podcasts.filter { podcast in
             selectedGenre == "All Genres" || podcast.genres.contains(selectedGenre)
         }
@@ -399,10 +440,10 @@ final class PodcastsViewModel: ObservableObject {
         if query.isEmpty {
             searchFiltered = genreFiltered
         } else {
+            let queryMatcher = QueryMatcher(query: query)
             searchFiltered = genreFiltered.filter { podcast in
-                podcast.title.lowercased().contains(query) ||
-                podcast.description.lowercased().contains(query) ||
-                podcast.genres.joined(separator: " ").lowercased().contains(query)
+                let searchable = "\(podcast.title) \(podcast.description) \(podcast.genres.joined(separator: " "))".lowercased()
+                return queryMatcher.matches(searchable)
             }
         }
 
@@ -416,11 +457,29 @@ final class PodcastsViewModel: ObservableObject {
                 }
                 return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
             }
+        case .mostRecent:
+            return searchFiltered.sorted {
+                let lhsEpoch = latestEpisodeEpochByPodcastID[$0.id] ?? 0
+                let rhsEpoch = latestEpisodeEpochByPodcastID[$1.id] ?? 0
+                if lhsEpoch != rhsEpoch {
+                    return lhsEpoch > rhsEpoch
+                }
+                return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+            }
         case .alphabetical:
             return searchFiltered.sorted {
                 $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
             }
         }
+    }
+
+    private func normalisedEpoch(_ epoch: Int) -> Int {
+        epoch > 10_000_000_000 ? epoch / 1000 : epoch
+    }
+
+    private func dateFromEpoch(_ epoch: Int?) -> Date? {
+        guard let epoch else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(normalisedEpoch(epoch)))
     }
 
     private func popularRank(for podcast: Podcast) -> Int {
@@ -529,4 +588,106 @@ final class PodcastsViewModel: ObservableObject {
         "just one thing - with michael mosley": 99,
         "scientifically...": 100
     ]
+}
+
+private struct QueryMatcher {
+    private let orGroups: [[QueryToken]]
+
+    init(query: String) {
+        self.orGroups = QueryMatcher.parse(query)
+    }
+
+    func matches(_ searchableLowercased: String) -> Bool {
+        guard !orGroups.isEmpty else { return true }
+        for group in orGroups {
+            var groupMatches = true
+            for token in group {
+                let contains = searchableLowercased.contains(token.term)
+                if token.isNegated {
+                    if contains {
+                        groupMatches = false
+                        break
+                    }
+                } else if !contains {
+                    groupMatches = false
+                    break
+                }
+            }
+            if groupMatches { return true }
+        }
+        return false
+    }
+
+    private static func parse(_ query: String) -> [[QueryToken]] {
+        let rawTokens = tokenise(query.lowercased())
+        guard !rawTokens.isEmpty else { return [] }
+
+        var groups: [[QueryToken]] = [[]]
+        var negateNext = false
+
+        for raw in rawTokens {
+            if raw == "or" || raw == "|" {
+                if !groups.last!.isEmpty {
+                    groups.append([])
+                }
+                negateNext = false
+                continue
+            }
+
+            if raw == "and" {
+                continue
+            }
+
+            if raw == "not" {
+                negateNext = true
+                continue
+            }
+
+            let isNegated = negateNext || raw.hasPrefix("-")
+            let term = raw.hasPrefix("-") ? String(raw.dropFirst()) : raw
+            negateNext = false
+
+            let cleaned = term.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty else { continue }
+            groups[groups.count - 1].append(QueryToken(term: cleaned, isNegated: isNegated))
+        }
+
+        return groups.filter { !$0.isEmpty }
+    }
+
+    private static func tokenise(_ query: String) -> [String] {
+        var tokens: [String] = []
+        var current = ""
+        var inQuotes = false
+
+        for ch in query {
+            if ch == "\"" {
+                inQuotes.toggle()
+                if !inQuotes {
+                    let cleaned = current.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !cleaned.isEmpty { tokens.append(cleaned) }
+                    current = ""
+                }
+                continue
+            }
+
+            if ch.isWhitespace && !inQuotes {
+                let cleaned = current.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !cleaned.isEmpty { tokens.append(cleaned) }
+                current = ""
+                continue
+            }
+
+            current.append(ch)
+        }
+
+        let cleaned = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleaned.isEmpty { tokens.append(cleaned) }
+        return tokens
+    }
+}
+
+private struct QueryToken {
+    let term: String
+    let isNegated: Bool
 }

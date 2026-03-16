@@ -11,81 +11,102 @@ struct PodcastsView: View {
     @State private var showFullPlayer = false
 
     var body: some View {
-        Group {
-            if let selectedPodcast = viewModel.selectedPodcast {
-                episodeList(for: selectedPodcast)
-            } else if let error = viewModel.errorMessage {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.orange)
-                    Text("Could not load podcasts")
-                        .font(.headline)
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button(action: {
-                        Task {
-                            await viewModel.loadPodcasts()
-                        }
-                    }) {
-                        Label("Try Again", systemImage: "arrow.clockwise")
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(Color.blue)
-                            .foregroundStyle(.white)
-                            .cornerRadius(8)
-                    }
+        content
+            .navigationTitle(viewModel.selectedPodcast?.title ?? "Podcasts")
+            .navigationBarTitleDisplayMode(.inline)
+            .overlay(alignment: .bottom) {
+                if toastVisible, let toastMessage {
+                    Text(toastMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(.black.opacity(0.85), in: Capsule())
+                        .padding(.bottom, 90)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .padding()
-            } else {
-                podcastList
             }
-        }
-        .navigationTitle(viewModel.selectedPodcast?.title ?? "Podcasts")
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $viewModel.searchText, prompt: "Search podcasts")
-        .onSubmit(of: .search) {
-            let query = viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !query.isEmpty else { return }
-            viewModel.saveCurrentSearch()
-            showToast("Saved search")
-        }
-        .overlay(alignment: .bottom) {
-            if toastVisible, let toastMessage {
-                Text(toastMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(.black.opacity(0.85), in: Capsule())
-                    .padding(.bottom, 90)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            .task {
+                if viewModel.podcasts.isEmpty && viewModel.errorMessage == nil {
+                    await viewModel.loadPodcasts()
+                }
             }
-        }
-        .task {
-            if viewModel.podcasts.isEmpty && viewModel.errorMessage == nil {
-                await viewModel.loadPodcasts()
+            .task(id: viewModel.searchText) {
+                guard viewModel.selectedPodcast == nil else { return }
+                await viewModel.searchEpisodesFromIndex()
             }
-        }
-        .task(id: viewModel.searchText) {
-            guard viewModel.selectedPodcast == nil else { return }
-            await viewModel.searchEpisodesFromIndex()
-        }
-        .sheet(isPresented: $showInfoSheet) {
-            EpisodeInfoSheet(title: infoTitle, description: infoDescription)
-        }
-        .fullScreenCover(isPresented: $showFullPlayer) {
-            FullPlayerView()
-                .environmentObject(container)
+            .sheet(isPresented: $showInfoSheet) {
+                EpisodeInfoSheet(title: infoTitle, description: infoDescription)
+            }
+            .fullScreenCover(isPresented: $showFullPlayer) {
+                FullPlayerView()
+                    .environmentObject(container)
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let selectedPodcast = viewModel.selectedPodcast {
+            episodeList(for: selectedPodcast)
+        } else if let error = viewModel.errorMessage {
+            landingErrorView(error: error)
+                .searchable(text: $viewModel.searchText, prompt: "Search (AND / OR / NOT)")
+        } else {
+            podcastList
+                .searchable(text: $viewModel.searchText, prompt: "Search (AND / OR / NOT)")
         }
     }
 
+
+    private func landingErrorView(error: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 48))
+                .foregroundStyle(.orange)
+            Text("Could not load podcasts")
+                .font(.headline)
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button(action: {
+                Task {
+                    await viewModel.loadPodcasts()
+                }
+            }) {
+                Label("Try Again", systemImage: "arrow.clockwise")
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.blue)
+                    .foregroundStyle(.white)
+                    .cornerRadius(8)
+            }
+        }
+        .padding()
+    }
+
+    private func saveSearchFromInput() {
+        let query = viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        viewModel.saveCurrentSearch()
+        showToast("Saved search")
+    }
     private var podcastList: some View {
         List {
             Section {
                 filterBar
+            }
+
+            if viewModel.indexPodcastCount > 0 || viewModel.indexEpisodeCount > 0 {
+                Section {
+                    HStack(spacing: 6) {
+                        Image(systemName: "tray.full")
+                            .foregroundStyle(.secondary)
+                        Text("Index: \(viewModel.indexPodcastCount) podcasts, \(viewModel.indexEpisodeCount) episodes")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -142,7 +163,14 @@ struct PodcastsView: View {
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                presentInfo(title: result.episodeTitle, description: result.episodeDescription.stripHTMLTags)
+                                if result.audioURL != nil {
+                                    viewModel.playEpisodeSearchResult(result)
+                                    showFullPlayer = true
+                                } else {
+                                    Task {
+                                        await viewModel.openEpisodeSearchResult(result)
+                                    }
+                                }
                             }
                         }
                     }
@@ -387,6 +415,30 @@ struct PodcastsView: View {
                 }
             } label: {
                 filterChip(title: "Sort", value: viewModel.selectedSort.rawValue)
+            }
+
+            if !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button {
+                    saveSearchFromInput()
+                } label: {
+                    Image(systemName: "bookmark.badge.plus")
+                        .font(.body)
+                        .frame(width: 34, height: 34)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Save current search")
+            }
+
+            if viewModel.hasActiveFilters {
+                Button {
+                    viewModel.resetFilters()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.body)
+                        .frame(width: 34, height: 34)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Reset filters")
             }
 
             Spacer()

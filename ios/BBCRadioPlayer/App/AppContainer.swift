@@ -103,7 +103,8 @@ final class AppContainer: ObservableObject {
             guard let self, self.appSettingsStore.autoDownloadSubscribedPodcasts else { return }
             self.episodeDownloadService.scheduleSubscribedPodcastDownloads(
                 snapshots,
-                podcastRepository: self.podcastRepository
+                podcastRepository: self.podcastRepository,
+                limit: self.appSettingsStore.autoDownloadLimit.rawValue
             )
         }
 
@@ -152,6 +153,14 @@ final class AppContainer: ObservableObject {
             }
             .store(in: &cancellables)
 
+        appSettingsStore.$autoDownloadLimit
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                guard let self, self.appSettingsStore.autoDownloadSubscribedPodcasts else { return }
+                self.syncSubscribedPodcastDownloads()
+            }
+            .store(in: &cancellables)
+
         resolvedAudioPlayerService.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
@@ -176,7 +185,8 @@ final class AppContainer: ObservableObject {
         guard appSettingsStore.autoDownloadSubscribedPodcasts else { return }
         episodeDownloadService.scheduleSubscribedPodcastDownloads(
             favoritesStore.subscribedPodcastSnapshots,
-            podcastRepository: podcastRepository
+            podcastRepository: podcastRepository,
+            limit: appSettingsStore.autoDownloadLimit.rawValue
         )
     }
 }
