@@ -210,7 +210,7 @@ def init_db():
             platform TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    '''
+    ''')
 
     # Backward-compatible migrations for existing databases
     existing_columns = {row[1] for row in c.execute("PRAGMA table_info(events)").fetchall()}
@@ -987,6 +987,23 @@ def index():
                 @media (min-width: 768px) {{
                     .container {{ padding: 32px; }}
                     .panels {{ grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }}
+                }}
+                
+                /* Dark mode support */
+                @media (prefers-color-scheme: dark) {{
+                    body {{ background: #1a1a1a; color: #e0e0e0; }}
+                    h1 {{ color: #f0f0f0; }}
+                    p {{ color: #b0b0b0; }}
+                    code {{ background: #2a2a2a; color: #e0e0e0; }}
+                    a {{ color: #64b5f6; }}
+                    a:hover {{ text-decoration: underline; }}
+                    .badge {{ background: #1a3a52; color: #64b5f6; }}
+                    .panel {{ background: #252525; border-color: #3a3a3a; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }}
+                    .filters button {{ border-color: #404040; background: #2a2a2a; color: #e0e0e0; }}
+                    .filters button.active {{ border-color: #64b5f6; background: #1a3a52; color: #64b5f6; }}
+                    th {{ color: #a0a0a0; }}
+                    td {{ border-bottom-color: #333; }}
+                    .muted {{ color: #a0a0a0; }}
                 }}
             </style>
         </head>

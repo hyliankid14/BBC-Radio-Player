@@ -11,6 +11,8 @@ struct FavouritesView: View {
     @ObservedObject var viewModel: RadioViewModel
     @EnvironmentObject private var container: AppContainer
     @State private var selectedTab = FavouritesTab.stations
+    @State private var toastMessage: String?
+    @State private var toastVisible = false
 
     private var hasAnyFavourites: Bool {
         !viewModel.favoriteStations.isEmpty ||
@@ -58,6 +60,18 @@ struct FavouritesView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if hasAnyFavourites {
                 favouritesHeader
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if toastVisible, let toastMessage {
+                Text(toastMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(.black.opacity(0.85), in: Capsule())
+                    .padding(.bottom, 90)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
     }
@@ -214,6 +228,8 @@ struct FavouritesView: View {
 
                                 Spacer(minLength: 8)
 
+                                savedEpisodeDownloadMenu(for: snapshot)
+
                                 Button {
                                     container.favoritesStore.toggleSaved(episodeID: snapshot.id)
                                 } label: {
@@ -296,6 +312,67 @@ struct FavouritesView: View {
         }
         .frame(width: 44, height: 44)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func savedEpisodeDownloadMenu(for snapshot: SavedEpisodeSnapshot) -> some View {
+        if let episode = snapshot.asEpisode {
+            let status = container.episodeDownloadService.status(for: episode)
+
+            switch status {
+            case .downloading:
+                ProgressView()
+                    .frame(width: 28, height: 28)
+            case .downloaded:
+                Menu {
+                    Button("Remove download", role: .destructive) {
+                        container.episodeDownloadService.deleteDownload(for: episode)
+                        showToast("Download removed")
+                    }
+                } label: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+            case .failed:
+                Button {
+                    Task {
+                        let didDownload = await container.podcastsViewModel.downloadEpisode(episode, podcastTitle: snapshot.podcastTitle)
+                        showToast(didDownload ? "Episode downloaded" : "Could not download episode")
+                    }
+                } label: {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+            case .notDownloaded:
+                Button {
+                    Task {
+                        let didDownload = await container.podcastsViewModel.downloadEpisode(episode, podcastTitle: snapshot.podcastTitle)
+                        showToast(didDownload ? "Episode downloaded" : "Could not download episode")
+                    }
+                } label: {
+                    Image(systemName: "arrow.down.circle")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        } else {
+            EmptyView()
+        }
+    }
+
+    private func showToast(_ message: String) {
+        toastMessage = message
+        withAnimation(.easeOut(duration: 0.2)) {
+            toastVisible = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_600_000_000)
+            withAnimation(.easeIn(duration: 0.2)) {
+                toastVisible = false
+            }
+        }
     }
 }
 

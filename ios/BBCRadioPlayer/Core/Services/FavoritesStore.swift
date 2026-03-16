@@ -82,6 +82,9 @@ final class FavoritesStore: ObservableObject {
     @Published private(set) var savedEpisodeSnapshotsByID: [String: SavedEpisodeSnapshot]
     @Published private(set) var notificationsEnabledIDs: Set<String>
 
+    var onSubscribedPodcastsChanged: (([SavedPodcastSnapshot]) -> Void)?
+    var onSavedEpisodesChanged: (([SavedEpisodeSnapshot]) -> Void)?
+
     private let defaults: UserDefaults
     private static let stationKey = "favorite_station_ids"
     private static let podcastKey = "subscribed_podcast_ids"
@@ -155,6 +158,7 @@ final class FavoritesStore: ObservableObject {
             subscribedPodcastSnapshotsByID[podcastID] = SavedPodcastSnapshot(podcast: podcast)
         }
         persist()
+        onSubscribedPodcastsChanged?(subscribedPodcastSnapshots)
     }
 
     func toggleSubscription(podcastID: String) {
@@ -166,6 +170,7 @@ final class FavoritesStore: ObservableObject {
             subscribedPodcastIDs.insert(podcastID)
         }
         persist()
+        onSubscribedPodcastsChanged?(subscribedPodcastSnapshots)
     }
 
     // MARK: - Podcast Notifications
@@ -198,6 +203,7 @@ final class FavoritesStore: ObservableObject {
             savedEpisodeSnapshotsByID[episodeID] = SavedEpisodeSnapshot(episode: episode, podcastTitle: podcastTitle)
         }
         persist()
+        onSavedEpisodesChanged?(savedEpisodeSnapshots)
     }
 
     func toggleSaved(episodeID: String) {
@@ -208,6 +214,7 @@ final class FavoritesStore: ObservableObject {
             savedEpisodeIDs.insert(episodeID)
         }
         persist()
+        onSavedEpisodesChanged?(savedEpisodeSnapshots)
     }
 
     var subscribedPodcastSnapshots: [SavedPodcastSnapshot] {
@@ -228,6 +235,8 @@ final class FavoritesStore: ObservableObject {
         subscribedPodcastSnapshotsByID.removeAll()
         savedEpisodeSnapshotsByID.removeAll()
         persist()
+        onSubscribedPodcastsChanged?(subscribedPodcastSnapshots)
+        onSavedEpisodesChanged?(savedEpisodeSnapshots)
     }
 
     private func persist() {

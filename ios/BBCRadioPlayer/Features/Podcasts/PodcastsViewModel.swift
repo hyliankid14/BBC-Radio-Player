@@ -38,22 +38,21 @@ final class PodcastsViewModel: ObservableObject {
     @Published private(set) var playedEpisodeIDs: Set<String> = []
     @Published private(set) var episodeSearchResults: [EpisodeSearchResult] = []
     @Published private(set) var isEpisodeSearchLoading = false
+    @Published private(set) var isRefreshingEpisodeIndex = false
     @Published private(set) var savedSearches: [String] = []
-    @Published private(set) var indexLastUpdated: Date?
-    @Published var autoIndexUpdatesEnabled: Bool = true
 
     private let podcastRepository: PodcastRepository
     private let remoteIndexClient: RemoteIndexClient
     private let audioPlayerService: AudioPlayerService
     private let favoritesStore: FavoritesStore
+    private let appSettingsStore: AppSettingsStore
+    private let episodeDownloadService: EpisodeDownloadService
     private let defaults: UserDefaults
     private var indexedPodcastsByID: [String: RemoteIndexPodcast] = [:]
     private var indexedEpisodes: [RemoteIndexEpisode] = []
     private var hasLoadedRemoteIndex = false
 
     private static let savedSearchesKey = "saved_podcast_episode_searches"
-    private static let indexLastUpdatedKey = "episode_index_last_updated"
-    private static let autoIndexUpdatesEnabledKey = "episode_index_auto_update"
     private static let indexRefreshInterval: TimeInterval = 60 * 60 * 24
 
     init(
@@ -61,17 +60,19 @@ final class PodcastsViewModel: ObservableObject {
         remoteIndexClient: RemoteIndexClient,
         audioPlayerService: AudioPlayerService,
         favoritesStore: FavoritesStore,
+        appSettingsStore: AppSettingsStore,
+        episodeDownloadService: EpisodeDownloadService,
         defaults: UserDefaults = .standard
     ) {
         self.podcastRepository = podcastRepository
         self.remoteIndexClient = remoteIndexClient
         self.audioPlayerService = audioPlayerService
         self.favoritesStore = favoritesStore
+        self.appSettingsStore = appSettingsStore
+        self.episodeDownloadService = episodeDownloadService
         self.defaults = defaults
         loadPlayedEpisodes()
         loadSavedSearches()
-        indexLastUpdated = defaults.object(forKey: Self.indexLastUpdatedKey) as? Date
-        autoIndexUpdatesEnabled = defaults.object(forKey: Self.autoIndexUpdatesEnabledKey) as? Bool ?? true
     }
 
     func loadPodcasts() async {
@@ -102,18 +103,20 @@ final class PodcastsViewModel: ObservableObject {
     }
 
     func play(_ episode: Episode) {
-        markEpisodeAsPlayed(episode)
+        let playableEpisode = resolvedEpisodeForPlayback(episode)
+        markEpisodeAsPlayed(playableEpisode)
         audioPlayerService.play(
-            episode: episode,
+            episode: playableEpisode,
             podcastTitle: selectedPodcast?.title,
             podcastArtworkURL: selectedPodcast?.imageURL
         )
     }
 
     func play(_ episode: Episode, podcastTitle: String?) {
-        markEpisodeAsPlayed(episode)
+        let playableEpisode = resolvedEpisodeForPlayback(episode)
+        markEpisodeAsPlayed(playableEpisode)
         audioPlayerService.play(
-            episode: episode,
+            episode: playableEpisode,
             podcastTitle: podcastTitle,
             podcastArtworkURL: selectedPodcast?.imageURL
         )
@@ -213,21 +216,16 @@ final class PodcastsViewModel: ObservableObject {
         searchText = query
     }
 
-    func setAutoIndexUpdatesEnabled(_ enabled: Bool) {
-        autoIndexUpdatesEnabled = enabled
-        defaults.set(enabled, forKey: Self.autoIndexUpdatesEnabledKey)
-    }
-
-    func refreshEpisodeIndex(force: Bool) async {
+    func refreshEpisodeIndex(force: Bool) async -> Bool {
         if !force,
            hasLoadedRemoteIndex,
-           let last = indexLastUpdated,
+           let last = appSettingsStore.episodeIndexLastUpdated,
            Date().timeIntervalSince(last) < Self.indexRefreshInterval {
-            return
+            return true
         }
 
-        isEpisodeSearchLoading = true
-        defer { isEpisodeSearchLoading = false }
+        isRefreshingEpisodeIndex = true
+        defer { isRefreshingEpisodeIndex = false }
 
         do {
             let index = try await remoteIndexClient.fetchIndex()
@@ -235,18 +233,19 @@ final class PodcastsViewModel: ObservableObject {
             indexedEpisodes = index.episodes
             hasLoadedRemoteIndex = true
             let now = Date()
-            indexLastUpdated = now
-            defaults.set(now, forKey: Self.indexLastUpdatedKey)
+            appSettingsStore.episodeIndexLastUpdated = now
+            return true
         } catch {
             if force {
                 errorMessage = "Could not update episode index right now."
             }
+            return false
         }
     }
 
     func refreshEpisodeIndexIfNeeded() async {
-        guard autoIndexUpdatesEnabled else { return }
-        await refreshEpisodeIndex(force: false)
+        guard appSettingsStore.episodeIndexAutoUpdatesEnabled else { return }
+        _ = await refreshEpisodeIndex(force: false)
     }
 
     func openEpisodeSearchResult(_ result: EpisodeSearchResult) async {
@@ -273,12 +272,21 @@ final class PodcastsViewModel: ObservableObject {
             durationMins: 0,
             podcastID: result.podcastID
         )
-        markEpisodeAsPlayed(episode)
+        let playableEpisode = resolvedEpisodeForPlayback(episode)
+        markEpisodeAsPlayed(playableEpisode)
         audioPlayerService.play(
-            episode: episode,
+            episode: playableEpisode,
             podcastTitle: result.podcastTitle,
             podcastArtworkURL: nil
         )
+    }
+
+    func downloadEpisode(_ episode: Episode, podcastTitle: String?) async -> Bool {
+        await episodeDownloadService.downloadEpisode(episode, podcastTitle: podcastTitle)
+    }
+
+    func deleteDownloadedEpisode(_ episode: Episode) {
+        episodeDownloadService.deleteDownload(for: episode)
     }
 
     func formattedEpoch(_ epoch: Int?) -> String {
@@ -306,10 +314,27 @@ final class PodcastsViewModel: ObservableObject {
 
     private func ensureRemoteIndexLoaded() async throws {
         guard !hasLoadedRemoteIndex else { return }
-        await refreshEpisodeIndex(force: false)
+        _ = await refreshEpisodeIndex(force: false)
         guard hasLoadedRemoteIndex else {
             throw URLError(.resourceUnavailable)
         }
+    }
+
+    private func resolvedEpisodeForPlayback(_ episode: Episode) -> Episode {
+        guard let localFileURL = episodeDownloadService.localFileURL(for: episode) else {
+            return episode
+        }
+
+        return Episode(
+            id: episode.id,
+            title: episode.title,
+            description: episode.description,
+            audioURL: localFileURL,
+            imageURL: episode.imageURL,
+            pubDate: episode.pubDate,
+            durationMins: episode.durationMins,
+            podcastID: episode.podcastID
+        )
     }
 
     var availableGenres: [String] {

@@ -115,7 +115,7 @@ final class CarPlayManager {
         nowPlayingTemplate.tabImage = UIImage(systemName: "play.circle.fill")
 
         let root = CPTabBarTemplate(templates: [favouritesTemplate, stationsTemplate, nowPlayingTemplate])
-        interfaceController.setRootTemplate(root, animated: true)
+        interfaceController.setRootTemplate(root, animated: true) { _, _ in }
     }
 
     private func makeStationsTemplate(title: String, stations: [Station], emptyMessage: String) -> CPListTemplate {

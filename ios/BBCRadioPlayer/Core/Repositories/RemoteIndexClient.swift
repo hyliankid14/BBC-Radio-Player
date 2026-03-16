@@ -82,39 +82,57 @@ struct RemoteIndexClient {
             return data
         }
 
-        let bufferSize = 256 * 1024
-        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { buffer.deallocate() }
-
-        var decompressed = Data()
-
-        let result = try data.withUnsafeBytes { compressedBytes in
+        return try data.withUnsafeBytes { (compressedBytes: UnsafeRawBufferPointer) in
             guard let compressedPtr = compressedBytes.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
                 throw URLError(.unknown)
             }
 
-            // compression_decode_buffer with COMPRESSION_ZLIB handles both raw deflate and gzip
-            let status = compression_decode_buffer(
-                buffer,
-                bufferSize,
-                compressedPtr,
-                data.count,
-                nil,
-                COMPRESSION_ZLIB
-            )
+            let destinationBufferSize = 64 * 1024
+            let destinationBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: destinationBufferSize)
+            defer { destinationBuffer.deallocate() }
 
-            guard status > 0 else {
-                throw URLError(.cannotDecodeRawData)
+            let sourcePlaceholder = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
+            let destinationPlaceholder = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
+            defer {
+                sourcePlaceholder.deallocate()
+                destinationPlaceholder.deallocate()
             }
 
-            decompressed = Data(bytes: buffer, count: status)
-            return status
-        }
+            var stream = compression_stream(
+                dst_ptr: destinationPlaceholder,
+                dst_size: 0,
+                src_ptr: UnsafePointer(sourcePlaceholder),
+                src_size: 0,
+                state: nil
+            )
+            var status = compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB)
+            guard status != COMPRESSION_STATUS_ERROR else {
+                throw URLError(.cannotDecodeRawData)
+            }
+            defer { compression_stream_destroy(&stream) }
 
-        guard result > 0 else {
-            throw URLError(.cannotDecodeRawData)
-        }
+            stream.src_ptr = compressedPtr
+            stream.src_size = data.count
 
-        return decompressed
+            var decompressed = Data()
+
+            repeat {
+                stream.dst_ptr = destinationBuffer
+                stream.dst_size = destinationBufferSize
+
+                status = compression_stream_process(&stream, Int32(COMPRESSION_STREAM_FINALIZE.rawValue))
+                switch status {
+                case COMPRESSION_STATUS_OK, COMPRESSION_STATUS_END:
+                    let producedCount = destinationBufferSize - stream.dst_size
+                    if producedCount > 0 {
+                        decompressed.append(destinationBuffer, count: producedCount)
+                    }
+                default:
+                    throw URLError(.cannotDecodeRawData)
+                }
+            } while status == COMPRESSION_STATUS_OK
+
+            return decompressed
+        }
     }
 }

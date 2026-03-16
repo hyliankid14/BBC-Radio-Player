@@ -3,7 +3,11 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var settingsStore: AppSettingsStore
     @ObservedObject var analytics: PrivacyAnalyticsService
+    @ObservedObject var podcastsViewModel: PodcastsViewModel
+    @ObservedObject var episodeDownloadService: EpisodeDownloadService
     @State private var showPrivacyPolicy = false
+    @State private var showDeleteDownloadsConfirmation = false
+    @State private var statusMessage: String?
 
     var body: some View {
         Form {
@@ -31,6 +35,54 @@ struct SettingsView: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
+            }
+
+            Section("Episode Index") {
+                HStack {
+                    Text("Last updated")
+                    Spacer()
+                    Text(settingsStore.episodeIndexLastUpdated.map(relativeDateString) ?? "Never")
+                        .foregroundStyle(.secondary)
+                }
+
+                Button {
+                    Task {
+                        let didRefresh = await podcastsViewModel.refreshEpisodeIndex(force: true)
+                        statusMessage = didRefresh ? "Episode index updated" : "Could not update episode index"
+                    }
+                } label: {
+                    HStack {
+                        Text("Update episode index now")
+                        Spacer()
+                        if podcastsViewModel.isRefreshingEpisodeIndex {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(podcastsViewModel.isRefreshingEpisodeIndex)
+
+                Toggle("Auto-update daily", isOn: $settingsStore.episodeIndexAutoUpdatesEnabled)
+            }
+
+            Section("Downloads") {
+                Toggle("Auto-download saved episodes", isOn: $settingsStore.autoDownloadSavedEpisodes)
+                Toggle("Auto-download latest subscribed episodes", isOn: $settingsStore.autoDownloadSubscribedPodcasts)
+
+                HStack {
+                    Text("Downloaded episodes")
+                    Spacer()
+                    Text("\(episodeDownloadService.downloadedEpisodeCount)")
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Delete all downloads", role: .destructive) {
+                    showDeleteDownloadsConfirmation = true
+                }
+                .disabled(episodeDownloadService.downloadedEpisodeCount == 0)
+
+                Text("Downloads are saved in the app’s Documents folder so they can be accessed from the Files app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Interface") {
@@ -67,6 +119,25 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Delete all downloads?", isPresented: $showDeleteDownloadsConfirmation) {
+            Button("Delete", role: .destructive) {
+                episodeDownloadService.deleteAllDownloads()
+                statusMessage = "All downloads deleted"
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes all downloaded podcast episodes from local storage.")
+        }
+        .alert("Status", isPresented: Binding(
+            get: { statusMessage != nil },
+            set: { if !$0 { statusMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {
+                statusMessage = nil
+            }
+        } message: {
+            Text(statusMessage ?? "")
+        }
         .sheet(isPresented: $showPrivacyPolicy) {
             NavigationStack {
                 ScrollView {
@@ -97,5 +168,11 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func relativeDateString(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }

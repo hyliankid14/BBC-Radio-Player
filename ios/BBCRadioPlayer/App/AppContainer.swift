@@ -18,6 +18,7 @@ final class AppContainer: ObservableObject {
     let audioPlayerService: AudioPlayerService
     let favoritesStore: FavoritesStore
     let appSettingsStore: AppSettingsStore
+    let episodeDownloadService: EpisodeDownloadService
     let privacyAnalytics: PrivacyAnalyticsService
     let podcastNotificationService: PodcastNotificationService
     let radioViewModel: RadioViewModel
@@ -51,6 +52,11 @@ final class AppContainer: ObservableObject {
         }
     }
 
+    func syncEpisodeDownloads() {
+        syncSavedEpisodeDownloads()
+        syncSubscribedPodcastDownloads()
+    }
+
     init(
         stationRepository: StationRepository = DefaultStationRepository(),
         podcastRepository: PodcastRepository = DefaultPodcastRepository(),
@@ -58,10 +64,12 @@ final class AppContainer: ObservableObject {
         audioPlayerService: AudioPlayerService? = nil,
         favoritesStore: FavoritesStore = FavoritesStore(),
         appSettingsStore: AppSettingsStore = AppSettingsStore(),
+        episodeDownloadService: EpisodeDownloadService? = nil,
         privacyAnalytics: PrivacyAnalyticsService = PrivacyAnalyticsService(),
         podcastNotificationService: PodcastNotificationService = PodcastNotificationService()
     ) {
         let resolvedAudioPlayerService = audioPlayerService ?? AudioPlayerService()
+        let resolvedEpisodeDownloadService = episodeDownloadService ?? EpisodeDownloadService()
 
         self.stationRepository = stationRepository
         self.podcastRepository = podcastRepository
@@ -69,6 +77,7 @@ final class AppContainer: ObservableObject {
         self.audioPlayerService = resolvedAudioPlayerService
         self.favoritesStore = favoritesStore
         self.appSettingsStore = appSettingsStore
+        self.episodeDownloadService = resolvedEpisodeDownloadService
         self.privacyAnalytics = privacyAnalytics
         self.podcastNotificationService = podcastNotificationService
         self.radioViewModel = RadioViewModel(
@@ -81,8 +90,22 @@ final class AppContainer: ObservableObject {
             podcastRepository: podcastRepository,
             remoteIndexClient: remoteIndexClient,
             audioPlayerService: resolvedAudioPlayerService,
-            favoritesStore: favoritesStore
+            favoritesStore: favoritesStore,
+            appSettingsStore: appSettingsStore,
+            episodeDownloadService: resolvedEpisodeDownloadService
         )
+
+        favoritesStore.onSavedEpisodesChanged = { [weak self] snapshots in
+            guard let self, self.appSettingsStore.autoDownloadSavedEpisodes else { return }
+            self.episodeDownloadService.scheduleSavedEpisodeDownloads(snapshots)
+        }
+        favoritesStore.onSubscribedPodcastsChanged = { [weak self] snapshots in
+            guard let self, self.appSettingsStore.autoDownloadSubscribedPodcasts else { return }
+            self.episodeDownloadService.scheduleSubscribedPodcastDownloads(
+                snapshots,
+                podcastRepository: self.podcastRepository
+            )
+        }
 
         resolvedAudioPlayerService.onNextRequested = { [weak self] in
             self?.radioViewModel.playNextStation()
@@ -102,10 +125,30 @@ final class AppContainer: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
+        resolvedEpisodeDownloadService.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
         appSettingsStore.$podcastArtworkMode
             .removeDuplicates()
             .sink { [resolvedAudioPlayerService] mode in
                 resolvedAudioPlayerService.updatePodcastArtworkMode(mode)
+            }
+            .store(in: &cancellables)
+
+        appSettingsStore.$autoDownloadSavedEpisodes
+            .removeDuplicates()
+            .sink { [weak self] enabled in
+                guard let self, enabled else { return }
+                self.syncSavedEpisodeDownloads()
+            }
+            .store(in: &cancellables)
+
+        appSettingsStore.$autoDownloadSubscribedPodcasts
+            .removeDuplicates()
+            .sink { [weak self] enabled in
+                guard let self, enabled else { return }
+                self.syncSubscribedPodcastDownloads()
             }
             .store(in: &cancellables)
 
@@ -120,5 +163,20 @@ final class AppContainer: ObservableObject {
         podcastsViewModel.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
+
+        syncEpisodeDownloads()
+    }
+
+    private func syncSavedEpisodeDownloads() {
+        guard appSettingsStore.autoDownloadSavedEpisodes else { return }
+        episodeDownloadService.scheduleSavedEpisodeDownloads(favoritesStore.savedEpisodeSnapshots)
+    }
+
+    private func syncSubscribedPodcastDownloads() {
+        guard appSettingsStore.autoDownloadSubscribedPodcasts else { return }
+        episodeDownloadService.scheduleSubscribedPodcastDownloads(
+            favoritesStore.subscribedPodcastSnapshots,
+            podcastRepository: podcastRepository
+        )
     }
 }

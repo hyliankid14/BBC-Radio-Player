@@ -69,12 +69,38 @@ final class AppSettingsStore: ObservableObject {
         didSet { defaults.set(podcastArtworkMode.rawValue, forKey: podcastArtworkModeKey) }
     }
 
+    @Published var episodeIndexAutoUpdatesEnabled: Bool {
+        didSet { defaults.set(episodeIndexAutoUpdatesEnabled, forKey: episodeIndexAutoUpdatesEnabledKey) }
+    }
+
+    @Published var episodeIndexLastUpdated: Date? {
+        didSet {
+            if let episodeIndexLastUpdated {
+                defaults.set(episodeIndexLastUpdated, forKey: episodeIndexLastUpdatedKey)
+            } else {
+                defaults.removeObject(forKey: episodeIndexLastUpdatedKey)
+            }
+        }
+    }
+
+    @Published var autoDownloadSavedEpisodes: Bool {
+        didSet { defaults.set(autoDownloadSavedEpisodes, forKey: autoDownloadSavedEpisodesKey) }
+    }
+
+    @Published var autoDownloadSubscribedPodcasts: Bool {
+        didSet { defaults.set(autoDownloadSubscribedPodcasts, forKey: autoDownloadSubscribedPodcastsKey) }
+    }
+
     private let defaults: UserDefaults
     private let playbackQualityKey = "playback_quality"
     private let appThemeKey = "app_theme"
     private let compactRowsKey = "compact_rows"
     private let stationSkipModeKey = "station_skip_mode"
     private let podcastArtworkModeKey = "podcast_artwork_mode"
+    private let episodeIndexAutoUpdatesEnabledKey = "episode_index_auto_update"
+    private let episodeIndexLastUpdatedKey = "episode_index_last_updated"
+    private let autoDownloadSavedEpisodesKey = "auto_download_saved_episodes"
+    private let autoDownloadSubscribedPodcastsKey = "auto_download_subscribed_podcasts"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -83,6 +109,311 @@ final class AppSettingsStore: ObservableObject {
         self.compactRows = defaults.object(forKey: compactRowsKey) as? Bool ?? true
         self.stationSkipMode = StationSkipMode(rawValue: defaults.string(forKey: stationSkipModeKey) ?? "allStations") ?? .allStations
         self.podcastArtworkMode = PodcastArtworkMode(rawValue: defaults.string(forKey: podcastArtworkModeKey) ?? "episode") ?? .episode
+        self.episodeIndexAutoUpdatesEnabled = defaults.object(forKey: episodeIndexAutoUpdatesEnabledKey) as? Bool ?? true
+        self.episodeIndexLastUpdated = defaults.object(forKey: episodeIndexLastUpdatedKey) as? Date
+        self.autoDownloadSavedEpisodes = defaults.object(forKey: autoDownloadSavedEpisodesKey) as? Bool ?? false
+        self.autoDownloadSubscribedPodcasts = defaults.object(forKey: autoDownloadSubscribedPodcastsKey) as? Bool ?? false
+    }
+}
+
+enum EpisodeDownloadStatus: Equatable {
+    case notDownloaded
+    case downloading
+    case downloaded(URL)
+    case failed(String)
+}
+
+private struct DownloadedEpisodeRecord: Codable, Equatable {
+    let episodeID: String
+    let sourceAudioURLString: String
+    let localFileName: String
+    let episodeTitle: String
+    let podcastTitle: String?
+    let createdAt: Date
+}
+
+@MainActor
+final class EpisodeDownloadService: ObservableObject {
+    @Published private(set) var downloadedEpisodeCount: Int = 0
+
+    private let defaults: UserDefaults
+    private let session: URLSession
+    private let fileManager: FileManager
+    private var recordsByEpisodeID: [String: DownloadedEpisodeRecord] = [:]
+    private var activeEpisodeIDs: Set<String> = []
+    private var failureMessagesByEpisodeID: [String: String] = [:]
+
+    private static let recordsKey = "downloaded_episode_records"
+    private static let downloadsFolderName = "Episode Downloads"
+
+    init(
+        defaults: UserDefaults = .standard,
+        session: URLSession = .shared,
+        fileManager: FileManager = .default
+    ) {
+        self.defaults = defaults
+        self.session = session
+        self.fileManager = fileManager
+        loadRecords()
+    }
+
+    func status(for episode: Episode) -> EpisodeDownloadStatus {
+        if activeEpisodeIDs.contains(episode.id) {
+            return .downloading
+        }
+
+        if let record = downloadedRecord(for: episode),
+           let fileURL = localFileURL(for: record) {
+            return .downloaded(fileURL)
+        }
+
+        if let message = failureMessagesByEpisodeID[episode.id], !message.isEmpty {
+            return .failed(message)
+        }
+
+        return .notDownloaded
+    }
+
+    func localFileURL(for episode: Episode) -> URL? {
+        guard let record = downloadedRecord(for: episode) else { return nil }
+        return localFileURL(for: record)
+    }
+
+    func downloadEpisode(_ episode: Episode, podcastTitle: String?) async -> Bool {
+        if case .downloaded = status(for: episode) {
+            return true
+        }
+        guard !activeEpisodeIDs.contains(episode.id) else {
+            return false
+        }
+
+        activeEpisodeIDs.insert(episode.id)
+        failureMessagesByEpisodeID[episode.id] = nil
+        objectWillChange.send()
+
+        defer {
+            activeEpisodeIDs.remove(episode.id)
+            objectWillChange.send()
+        }
+
+        do {
+            let downloadsDirectory = try ensureDownloadsDirectory()
+
+            var request = URLRequest(url: episode.audioURL)
+            request.timeoutInterval = 120
+            request.setValue("BBC Radio Player/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
+
+            let (temporaryURL, response) = try await session.download(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200..<300).contains(httpResponse.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+
+            let destinationURL = downloadsDirectory.appendingPathComponent(fileName(for: episode))
+            if fileManager.fileExists(atPath: destinationURL.path) {
+                try fileManager.removeItem(at: destinationURL)
+            }
+            try fileManager.moveItem(at: temporaryURL, to: destinationURL)
+
+            let record = DownloadedEpisodeRecord(
+                episodeID: episode.id,
+                sourceAudioURLString: episode.audioURL.absoluteString,
+                localFileName: destinationURL.lastPathComponent,
+                episodeTitle: episode.title,
+                podcastTitle: podcastTitle,
+                createdAt: Date()
+            )
+
+            recordsByEpisodeID[episode.id] = record
+            persistRecords()
+            downloadedEpisodeCount = recordsByEpisodeID.count
+            return true
+        } catch {
+            failureMessagesByEpisodeID[episode.id] = error.localizedDescription
+            return false
+        }
+    }
+
+    func deleteDownload(for episode: Episode) {
+        guard let record = downloadedRecord(for: episode) else { return }
+        deleteRecord(record)
+    }
+
+    func deleteDownload(episodeID: String) {
+        guard let record = recordsByEpisodeID[episodeID] else { return }
+        deleteRecord(record)
+    }
+
+    func deleteAllDownloads() {
+        let records = Array(recordsByEpisodeID.values)
+        records.forEach(deleteRecord)
+        failureMessagesByEpisodeID.removeAll()
+    }
+
+    func scheduleSavedEpisodeDownloads(_ snapshots: [SavedEpisodeSnapshot]) {
+        let pendingEpisodes = snapshots.compactMap { snapshot -> (Episode, String?)? in
+            guard let episode = snapshot.asEpisode else { return nil }
+            guard case .notDownloaded = status(for: episode) else { return nil }
+            return (episode, snapshot.podcastTitle)
+        }
+
+        guard !pendingEpisodes.isEmpty else { return }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            for (episode, podcastTitle) in pendingEpisodes {
+                _ = await self.downloadEpisode(episode, podcastTitle: podcastTitle)
+            }
+        }
+    }
+
+    func scheduleSubscribedPodcastDownloads(
+        _ snapshots: [SavedPodcastSnapshot],
+        podcastRepository: any PodcastRepository
+    ) {
+        let podcasts = snapshots.compactMap(\._asPodcastDownloadSeed)
+        guard !podcasts.isEmpty else { return }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            for (podcast, podcastTitle) in podcasts {
+                let episodes: [Episode]
+                do {
+                    episodes = try await podcastRepository.fetchEpisodes(for: podcast)
+                } catch {
+                    continue
+                }
+
+                guard let latestEpisode = episodes.max(by: { self.parseEpisodeDate($0.pubDate) < self.parseEpisodeDate($1.pubDate) }) else {
+                    continue
+                }
+
+                if case .notDownloaded = self.status(for: latestEpisode) {
+                    _ = await self.downloadEpisode(latestEpisode, podcastTitle: podcastTitle)
+                }
+            }
+        }
+    }
+
+    private func loadRecords() {
+        guard let data = defaults.data(forKey: Self.recordsKey),
+              let decodedRecords = try? JSONDecoder().decode([DownloadedEpisodeRecord].self, from: data) else {
+            downloadedEpisodeCount = 0
+            return
+        }
+
+        let validRecords = decodedRecords.filter { record in
+            localFileURL(for: record) != nil
+        }
+
+        recordsByEpisodeID = Dictionary(uniqueKeysWithValues: validRecords.map { ($0.episodeID, $0) })
+        downloadedEpisodeCount = recordsByEpisodeID.count
+        if validRecords.count != decodedRecords.count {
+            persistRecords()
+        }
+    }
+
+    private func persistRecords() {
+        let records = recordsByEpisodeID.values.sorted { lhs, rhs in
+            lhs.createdAt > rhs.createdAt
+        }
+        if let data = try? JSONEncoder().encode(records) {
+            defaults.set(data, forKey: Self.recordsKey)
+        }
+    }
+
+    private func downloadedRecord(for episode: Episode) -> DownloadedEpisodeRecord? {
+        if let record = recordsByEpisodeID[episode.id], localFileURL(for: record) != nil {
+            return record
+        }
+
+        return recordsByEpisodeID.values.first(where: { record in
+            record.sourceAudioURLString == episode.audioURL.absoluteString && localFileURL(for: record) != nil
+        })
+    }
+
+    private func localFileURL(for record: DownloadedEpisodeRecord) -> URL? {
+        let fileURL = downloadsDirectoryURL().appendingPathComponent(record.localFileName)
+        return fileManager.fileExists(atPath: fileURL.path) ? fileURL : nil
+    }
+
+    private func ensureDownloadsDirectory() throws -> URL {
+        let directoryURL = downloadsDirectoryURL()
+        if !fileManager.fileExists(atPath: directoryURL.path) {
+            try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        }
+        return directoryURL
+    }
+
+    private func downloadsDirectoryURL() -> URL {
+        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first ?? fileManager.temporaryDirectory
+        return documentsDirectory.appendingPathComponent(Self.downloadsFolderName, isDirectory: true)
+    }
+
+    private func deleteRecord(_ record: DownloadedEpisodeRecord) {
+        if let fileURL = localFileURL(for: record) {
+            try? fileManager.removeItem(at: fileURL)
+        }
+        recordsByEpisodeID[record.episodeID] = nil
+        failureMessagesByEpisodeID[record.episodeID] = nil
+        persistRecords()
+        downloadedEpisodeCount = recordsByEpisodeID.count
+        objectWillChange.send()
+    }
+
+    private func fileName(for episode: Episode) -> String {
+        let extensionComponent = episode.audioURL.pathExtension.isEmpty ? "mp3" : episode.audioURL.pathExtension
+        let safeTitle = sanitisedFileComponent(episode.title)
+        let discriminator = stableDiscriminator(for: episode.id)
+        return "\(safeTitle)-\(discriminator).\(extensionComponent)"
+    }
+
+    private func sanitisedFileComponent(_ value: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(.whitespaces)
+        let filteredScalars = value.unicodeScalars.map { scalar in
+            allowed.contains(scalar) ? Character(scalar) : " "
+        }
+        let filtered = String(filteredScalars)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\s+", with: "-", options: .regularExpression)
+        return filtered.isEmpty ? "episode" : filtered.prefix(60).description
+    }
+
+    private func stableDiscriminator(for value: String) -> String {
+        let hash = value.unicodeScalars.reduce(UInt64(5381)) { partialResult, scalar in
+            ((partialResult << 5) &+ partialResult) &+ UInt64(scalar.value)
+        }
+        return String(hash, radix: 16)
+    }
+
+    private func parseEpisodeDate(_ dateString: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+
+        let formats = [
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy HH:mm:ss zzz",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd"
+        ]
+
+        for format in formats {
+            formatter.dateFormat = format
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+        }
+
+        return .distantPast
+    }
+}
+
+private extension SavedPodcastSnapshot {
+    var _asPodcastDownloadSeed: (Podcast, String)? {
+        guard let podcast = asPodcast else { return nil }
+        return (podcast, title)
     }
 }
 

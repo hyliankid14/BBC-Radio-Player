@@ -80,48 +80,12 @@ struct PodcastsView: View {
             FullPlayerView()
                 .environmentObject(container)
         }
-        .toolbar {
-            if viewModel.selectedPodcast == nil {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button("Update episode index now") {
-                            Task {
-                                await viewModel.refreshEpisodeIndex(force: true)
-                                showToast("Episode index updated")
-                            }
-                        }
-
-                        Toggle(isOn: Binding(
-                            get: { viewModel.autoIndexUpdatesEnabled },
-                            set: { viewModel.setAutoIndexUpdatesEnabled($0) }
-                        )) {
-                            Text("Auto-update index daily")
-                        }
-                    } label: {
-                        Image(systemName: "arrow.triangle.2.circlepath.circle")
-                    }
-                }
-            }
-        }
     }
 
     private var podcastList: some View {
         List {
             Section {
                 filterBar
-            }
-
-            Section("Index") {
-                HStack {
-                    Text("Last updated")
-                    Spacer()
-                    Text(viewModel.indexLastUpdated.map(relativeDateString) ?? "Never")
-                        .foregroundStyle(.secondary)
-                }
-                Toggle("Auto-update daily", isOn: Binding(
-                    get: { viewModel.autoIndexUpdatesEnabled },
-                    set: { viewModel.setAutoIndexUpdatesEnabled($0) }
-                ))
             }
 
             if !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -284,6 +248,8 @@ struct PodcastsView: View {
                         }
 
                         Spacer(minLength: 8)
+
+                        episodeDownloadMenu(for: episode, podcastTitle: podcast.title)
 
                         Button {
                             viewModel.play(episode)
@@ -466,12 +432,6 @@ struct PodcastsView: View {
         showInfoSheet = true
     }
 
-    private func relativeDateString(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-
     private func showToast(_ message: String) {
         toastMessage = message
         withAnimation(.easeOut(duration: 0.2)) {
@@ -482,6 +442,53 @@ struct PodcastsView: View {
             withAnimation(.easeIn(duration: 0.2)) {
                 toastVisible = false
             }
+        }
+    }
+
+    @ViewBuilder
+    private func episodeDownloadMenu(for episode: Episode, podcastTitle: String?) -> some View {
+        let status = container.episodeDownloadService.status(for: episode)
+
+        switch status {
+        case .downloading:
+            ProgressView()
+                .frame(width: 28, height: 28)
+        case .downloaded:
+            Menu {
+                Button("Remove download", role: .destructive) {
+                    viewModel.deleteDownloadedEpisode(episode)
+                    showToast("Download removed")
+                }
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.green)
+            }
+            .buttonStyle(.plain)
+        case .failed:
+            Button {
+                Task {
+                    let didDownload = await viewModel.downloadEpisode(episode, podcastTitle: podcastTitle)
+                    showToast(didDownload ? "Episode downloaded" : "Could not download episode")
+                }
+            } label: {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+            }
+            .buttonStyle(.plain)
+        case .notDownloaded:
+            Button {
+                Task {
+                    let didDownload = await viewModel.downloadEpisode(episode, podcastTitle: podcastTitle)
+                    showToast(didDownload ? "Episode downloaded" : "Could not download episode")
+                }
+            } label: {
+                Image(systemName: "arrow.down.circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
     }
 }

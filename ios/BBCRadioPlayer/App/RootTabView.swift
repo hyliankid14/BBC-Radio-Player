@@ -37,7 +37,12 @@ struct RootTabView: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) { miniPlayerSpacer }
 
                 NavigationStack {
-                    SettingsView(settingsStore: container.appSettingsStore, analytics: container.privacyAnalytics)
+                    SettingsView(
+                        settingsStore: container.appSettingsStore,
+                        analytics: container.privacyAnalytics,
+                        podcastsViewModel: container.podcastsViewModel,
+                        episodeDownloadService: container.episodeDownloadService
+                    )
                 }
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")
@@ -59,11 +64,13 @@ struct RootTabView: View {
             }
             container.checkEpisodeNotifications()
             container.checkEpisodeIndexRefresh()
+            container.syncEpisodeDownloads()
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
                 container.checkEpisodeNotifications()
                 container.checkEpisodeIndexRefresh()
+                container.syncEpisodeDownloads()
             }
         }
         .onReceive(container.audioPlayerService.objectWillChange) { _ in
