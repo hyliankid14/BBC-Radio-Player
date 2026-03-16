@@ -19,6 +19,7 @@ final class AppContainer: ObservableObject {
     let favoritesStore: FavoritesStore
     let appSettingsStore: AppSettingsStore
     let privacyAnalytics: PrivacyAnalyticsService
+    let podcastNotificationService: PodcastNotificationService
     let radioViewModel: RadioViewModel
     let podcastsViewModel: PodcastsViewModel
     private var cancellables: Set<AnyCancellable> = []
@@ -35,6 +36,21 @@ final class AppContainer: ObservableObject {
         privacyAnalytics.markOptInDialogShown()
     }
 
+    func checkEpisodeNotifications() {
+        Task {
+            await podcastNotificationService.checkForNewEpisodes(
+                podcastRepository: podcastRepository,
+                favoritesStore: favoritesStore
+            )
+        }
+    }
+
+    func checkEpisodeIndexRefresh() {
+        Task {
+            await podcastsViewModel.refreshEpisodeIndexIfNeeded()
+        }
+    }
+
     init(
         stationRepository: StationRepository = DefaultStationRepository(),
         podcastRepository: PodcastRepository = DefaultPodcastRepository(),
@@ -42,7 +58,8 @@ final class AppContainer: ObservableObject {
         audioPlayerService: AudioPlayerService? = nil,
         favoritesStore: FavoritesStore = FavoritesStore(),
         appSettingsStore: AppSettingsStore = AppSettingsStore(),
-        privacyAnalytics: PrivacyAnalyticsService = PrivacyAnalyticsService()
+        privacyAnalytics: PrivacyAnalyticsService = PrivacyAnalyticsService(),
+        podcastNotificationService: PodcastNotificationService = PodcastNotificationService()
     ) {
         let resolvedAudioPlayerService = audioPlayerService ?? AudioPlayerService()
 
@@ -53,6 +70,7 @@ final class AppContainer: ObservableObject {
         self.favoritesStore = favoritesStore
         self.appSettingsStore = appSettingsStore
         self.privacyAnalytics = privacyAnalytics
+        self.podcastNotificationService = podcastNotificationService
         self.radioViewModel = RadioViewModel(
             stationRepository: stationRepository,
             audioPlayerService: resolvedAudioPlayerService,
@@ -61,6 +79,7 @@ final class AppContainer: ObservableObject {
         )
         self.podcastsViewModel = PodcastsViewModel(
             podcastRepository: podcastRepository,
+            remoteIndexClient: remoteIndexClient,
             audioPlayerService: resolvedAudioPlayerService,
             favoritesStore: favoritesStore
         )

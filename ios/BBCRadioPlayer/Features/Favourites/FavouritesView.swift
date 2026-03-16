@@ -4,6 +4,7 @@ enum FavouritesTab {
     case stations
     case podcasts
     case episodes
+    case searches
 }
 
 struct FavouritesView: View {
@@ -14,7 +15,8 @@ struct FavouritesView: View {
     private var hasAnyFavourites: Bool {
         !viewModel.favoriteStations.isEmpty ||
         !container.favoritesStore.subscribedPodcastIDs.isEmpty ||
-        !container.favoritesStore.savedEpisodeIDs.isEmpty
+        !container.favoritesStore.savedEpisodeIDs.isEmpty ||
+        !container.podcastsViewModel.savedSearches.isEmpty
     }
 
     var body: some View {
@@ -44,6 +46,8 @@ struct FavouritesView: View {
                             podcastsList
                         case .episodes:
                             episodesList
+                        case .searches:
+                            savedSearchesList
                         }
                     }
                 }
@@ -64,6 +68,7 @@ struct FavouritesView: View {
                 Text("Stations").tag(FavouritesTab.stations)
                 Text("Podcasts").tag(FavouritesTab.podcasts)
                 Text("Episodes").tag(FavouritesTab.episodes)
+                Text("Searches").tag(FavouritesTab.searches)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
@@ -99,7 +104,7 @@ struct FavouritesView: View {
                                         .foregroundStyle(Color.brandText)
                                     Text(viewModel.showSubtitle(for: station))
                                         .font(.caption)
-                                        .foregroundStyle(.tertiary)
+                                        .foregroundStyle(Color.subtitleText)
                                         .lineLimit(1)
                                 }
 
@@ -125,7 +130,7 @@ struct FavouritesView: View {
         List {
             if container.favoritesStore.subscribedPodcastIDs.isEmpty {
                 Section {
-                    Text("No subscribed podcasts. Add the + button on any podcast to subscribe.")
+                    Text("No subscribed podcasts. Open a podcast to subscribe.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -150,20 +155,12 @@ struct FavouritesView: View {
                                     if !snapshot.genres.isEmpty {
                                         Text(snapshot.genres.prefix(2).joined(separator: " • "))
                                             .font(.caption2)
-                                            .foregroundStyle(.tertiary)
+                                            .foregroundStyle(Color.subtitleText)
                                             .lineLimit(1)
                                     }
                                 }
 
                                 Spacer(minLength: 8)
-
-                                Button {
-                                    container.favoritesStore.toggleSubscription(podcastID: snapshot.id)
-                                } label: {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundStyle(.blue)
-                                }
-                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -194,16 +191,23 @@ struct FavouritesView: View {
                                         .font(container.appSettingsStore.compactRows ? .body : .headline)
                                         .lineLimit(2)
                                         .foregroundStyle(Color.brandText)
-                                    
+
+                                    if let podcastTitle = snapshot.podcastTitle, !podcastTitle.isEmpty {
+                                        Text(podcastTitle)
+                                            .font(.caption)
+                                            .foregroundStyle(Color.subtitleText)
+                                            .lineLimit(1)
+                                    }
+
                                     HStack(spacing: 8) {
                                         Text(container.podcastsViewModel.formattedDate(snapshot.pubDate))
                                             .font(.caption2)
-                                            .foregroundStyle(.tertiary)
+                                            .foregroundStyle(Color.subtitleText)
                                         
                                         if snapshot.durationMins > 0 {
                                             Text("\(snapshot.durationMins) min")
                                                 .font(.caption2)
-                                                .foregroundStyle(.tertiary)
+                                                .foregroundStyle(Color.subtitleText)
                                         }
                                     }
                                 }
@@ -219,6 +223,39 @@ struct FavouritesView: View {
                                 .buttonStyle(.plain)
                             }
                         }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    private var savedSearchesList: some View {
+        List {
+            if container.podcastsViewModel.savedSearches.isEmpty {
+                Section {
+                    Text("No saved searches yet. Use the Podcasts search and save it from the keyboard submit action.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Section("Saved Searches") {
+                    ForEach(Array(container.podcastsViewModel.savedSearches.enumerated()), id: \.offset) { _, query in
+                        Button {
+                            container.podcastsViewModel.applySavedSearch(query)
+                            container.selectedRootTab = .podcasts
+                        } label: {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundStyle(.secondary)
+                                Text(query)
+                                    .foregroundStyle(Color.brandText)
+                                Spacer()
+                            }
+                        }
+                    }
+                    .onDelete { offsets in
+                        container.podcastsViewModel.removeSavedSearch(at: offsets)
                     }
                 }
             }

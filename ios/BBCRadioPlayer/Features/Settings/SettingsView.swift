@@ -14,6 +14,12 @@ struct SettingsView: View {
                     }
                 }
 
+                if settingsStore.playbackQuality == .auto {
+                    Text("Automatically selects High quality on Wi-Fi and Low quality on cellular data")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Picker("Next/Previous buttons", selection: $settingsStore.stationSkipMode) {
                     ForEach(StationSkipMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
@@ -24,12 +30,6 @@ struct SettingsView: View {
                     ForEach(PodcastArtworkMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
-                }
-
-                if settingsStore.playbackQuality == .auto {
-                    Text("Automatically selects High quality on Wi-Fi and Low quality on cellular data")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
 

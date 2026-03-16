@@ -80,6 +80,7 @@ final class FavoritesStore: ObservableObject {
     @Published private(set) var savedEpisodeIDs: Set<String>
     @Published private(set) var subscribedPodcastSnapshotsByID: [String: SavedPodcastSnapshot]
     @Published private(set) var savedEpisodeSnapshotsByID: [String: SavedEpisodeSnapshot]
+    @Published private(set) var notificationsEnabledIDs: Set<String>
 
     private let defaults: UserDefaults
     private static let stationKey = "favorite_station_ids"
@@ -87,6 +88,7 @@ final class FavoritesStore: ObservableObject {
     private static let episodeKey = "saved_episode_ids"
     private static let podcastSnapshotsKey = "subscribed_podcast_snapshots"
     private static let episodeSnapshotsKey = "saved_episode_snapshots"
+    private static let notificationsKey = "podcast_notifications_enabled"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -115,6 +117,8 @@ final class FavoritesStore: ObservableObject {
         self.savedEpisodeIDs = Set(storedEpisodes)
         self.subscribedPodcastSnapshotsByID = Dictionary(uniqueKeysWithValues: podcastSnapshots.map { ($0.id, $0) })
         self.savedEpisodeSnapshotsByID = Dictionary(uniqueKeysWithValues: episodeSnapshots.map { ($0.id, $0) })
+        let storedNotifications = defaults.stringArray(forKey: Self.notificationsKey) ?? []
+        self.notificationsEnabledIDs = Set(storedNotifications)
 
         // Ensure IDs include anything recovered from snapshots.
         self.subscribedPodcastIDs.formUnion(self.subscribedPodcastSnapshotsByID.keys)
@@ -145,6 +149,7 @@ final class FavoritesStore: ObservableObject {
         if subscribedPodcastIDs.contains(podcastID) {
             subscribedPodcastIDs.remove(podcastID)
             subscribedPodcastSnapshotsByID[podcastID] = nil
+            notificationsEnabledIDs.remove(podcastID)
         } else {
             subscribedPodcastIDs.insert(podcastID)
             subscribedPodcastSnapshotsByID[podcastID] = SavedPodcastSnapshot(podcast: podcast)
@@ -156,8 +161,24 @@ final class FavoritesStore: ObservableObject {
         if subscribedPodcastIDs.contains(podcastID) {
             subscribedPodcastIDs.remove(podcastID)
             subscribedPodcastSnapshotsByID[podcastID] = nil
+            notificationsEnabledIDs.remove(podcastID)
         } else {
             subscribedPodcastIDs.insert(podcastID)
+        }
+        persist()
+    }
+
+    // MARK: - Podcast Notifications
+    func isNotificationsEnabled(podcastID: String) -> Bool {
+        notificationsEnabledIDs.contains(podcastID)
+    }
+
+    func toggleNotifications(podcastID: String) {
+        guard subscribedPodcastIDs.contains(podcastID) else { return }
+        if notificationsEnabledIDs.contains(podcastID) {
+            notificationsEnabledIDs.remove(podcastID)
+        } else {
+            notificationsEnabledIDs.insert(podcastID)
         }
         persist()
     }
@@ -213,6 +234,7 @@ final class FavoritesStore: ObservableObject {
         defaults.set(Array(favoriteStationIDs).sorted(), forKey: Self.stationKey)
         defaults.set(Array(subscribedPodcastIDs).sorted(), forKey: Self.podcastKey)
         defaults.set(Array(savedEpisodeIDs).sorted(), forKey: Self.episodeKey)
+        defaults.set(Array(notificationsEnabledIDs).sorted(), forKey: Self.notificationsKey)
 
         let podcastSnapshots = subscribedPodcastIDs.compactMap { subscribedPodcastSnapshotsByID[$0] }
         if let data = try? JSONEncoder().encode(podcastSnapshots) {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootTabView: View {
     @EnvironmentObject private var container: AppContainer
+    @Environment(\.scenePhase) private var scenePhase
     @State private var miniPlayerVisible = false
     @State private var showAnalyticsPrompt = false
 
@@ -55,6 +56,14 @@ struct RootTabView: View {
             miniPlayerVisible = container.audioPlayerService.hasActiveItem
             if container.shouldShowAnalyticsOptInDialog {
                 showAnalyticsPrompt = true
+            }
+            container.checkEpisodeNotifications()
+            container.checkEpisodeIndexRefresh()
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                container.checkEpisodeNotifications()
+                container.checkEpisodeIndexRefresh()
             }
         }
         .onReceive(container.audioPlayerService.objectWillChange) { _ in

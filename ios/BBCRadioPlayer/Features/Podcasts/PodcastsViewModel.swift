@@ -1,5 +1,15 @@
 import Foundation
 
+struct EpisodeSearchResult: Identifiable, Equatable {
+    let id: String
+    let podcastID: String
+    let podcastTitle: String
+    let episodeTitle: String
+    let episodeDescription: String
+    let audioURL: URL?
+    let pubEpoch: Int?
+}
+
 enum PodcastSortOption: String, CaseIterable, Identifiable {
     case mostPopular = "Most Popular"
     case alphabetical = "Alphabetical (A-Z)"
@@ -26,18 +36,42 @@ final class PodcastsViewModel: ObservableObject {
     @Published var selectedSort: PodcastSortOption = .mostPopular
     @Published var episodeSortOption: EpisodeSortOption = .newestFirst
     @Published private(set) var playedEpisodeIDs: Set<String> = []
+    @Published private(set) var episodeSearchResults: [EpisodeSearchResult] = []
+    @Published private(set) var isEpisodeSearchLoading = false
+    @Published private(set) var savedSearches: [String] = []
+    @Published private(set) var indexLastUpdated: Date?
+    @Published var autoIndexUpdatesEnabled: Bool = true
 
     private let podcastRepository: PodcastRepository
+    private let remoteIndexClient: RemoteIndexClient
     private let audioPlayerService: AudioPlayerService
     private let favoritesStore: FavoritesStore
     private let defaults: UserDefaults
+    private var indexedPodcastsByID: [String: RemoteIndexPodcast] = [:]
+    private var indexedEpisodes: [RemoteIndexEpisode] = []
+    private var hasLoadedRemoteIndex = false
 
-    init(podcastRepository: PodcastRepository, audioPlayerService: AudioPlayerService, favoritesStore: FavoritesStore, defaults: UserDefaults = .standard) {
+    private static let savedSearchesKey = "saved_podcast_episode_searches"
+    private static let indexLastUpdatedKey = "episode_index_last_updated"
+    private static let autoIndexUpdatesEnabledKey = "episode_index_auto_update"
+    private static let indexRefreshInterval: TimeInterval = 60 * 60 * 24
+
+    init(
+        podcastRepository: PodcastRepository,
+        remoteIndexClient: RemoteIndexClient,
+        audioPlayerService: AudioPlayerService,
+        favoritesStore: FavoritesStore,
+        defaults: UserDefaults = .standard
+    ) {
         self.podcastRepository = podcastRepository
+        self.remoteIndexClient = remoteIndexClient
         self.audioPlayerService = audioPlayerService
         self.favoritesStore = favoritesStore
         self.defaults = defaults
         loadPlayedEpisodes()
+        loadSavedSearches()
+        indexLastUpdated = defaults.object(forKey: Self.indexLastUpdatedKey) as? Date
+        autoIndexUpdatesEnabled = defaults.object(forKey: Self.autoIndexUpdatesEnabledKey) as? Bool ?? true
     }
 
     func loadPodcasts() async {
@@ -117,6 +151,145 @@ final class PodcastsViewModel: ObservableObject {
         favoritesStore.isSaved(episodeID: episode.id)
     }
 
+    func searchEpisodesFromIndex(limit: Int = 60) async {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else {
+            episodeSearchResults = []
+            return
+        }
+
+        isEpisodeSearchLoading = true
+        defer { isEpisodeSearchLoading = false }
+
+        do {
+            try await ensureRemoteIndexLoaded()
+
+            let results = indexedEpisodes.lazy
+                .filter { episode in
+                    let title = episode.title.lowercased()
+                    let description = episode.description.lowercased()
+                    return title.contains(query) || description.contains(query)
+                }
+                .prefix(limit)
+                .map { episode -> EpisodeSearchResult in
+                    let podcastTitle = self.indexedPodcastsByID[episode.podcastId]?.title ?? "Podcast"
+                    let stableID = "\(episode.podcastId)|\(episode.audioUrl ?? episode.title)"
+                    return EpisodeSearchResult(
+                        id: stableID,
+                        podcastID: episode.podcastId,
+                        podcastTitle: podcastTitle,
+                        episodeTitle: episode.title,
+                        episodeDescription: episode.description,
+                        audioURL: episode.audioUrl.flatMap(URL.init(string:)),
+                        pubEpoch: episode.pubEpoch
+                    )
+                }
+
+            episodeSearchResults = Array(results)
+        } catch {
+            episodeSearchResults = []
+        }
+    }
+
+    func saveCurrentSearch() {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+
+        var updated = savedSearches.filter { $0.caseInsensitiveCompare(query) != .orderedSame }
+        updated.insert(query, at: 0)
+        if updated.count > 20 {
+            updated = Array(updated.prefix(20))
+        }
+        savedSearches = updated
+        defaults.set(savedSearches, forKey: Self.savedSearchesKey)
+    }
+
+    func removeSavedSearch(at offsets: IndexSet) {
+        savedSearches.remove(atOffsets: offsets)
+        defaults.set(savedSearches, forKey: Self.savedSearchesKey)
+    }
+
+    func applySavedSearch(_ query: String) {
+        searchText = query
+    }
+
+    func setAutoIndexUpdatesEnabled(_ enabled: Bool) {
+        autoIndexUpdatesEnabled = enabled
+        defaults.set(enabled, forKey: Self.autoIndexUpdatesEnabledKey)
+    }
+
+    func refreshEpisodeIndex(force: Bool) async {
+        if !force,
+           hasLoadedRemoteIndex,
+           let last = indexLastUpdated,
+           Date().timeIntervalSince(last) < Self.indexRefreshInterval {
+            return
+        }
+
+        isEpisodeSearchLoading = true
+        defer { isEpisodeSearchLoading = false }
+
+        do {
+            let index = try await remoteIndexClient.fetchIndex()
+            indexedPodcastsByID = Dictionary(uniqueKeysWithValues: index.podcasts.map { ($0.id, $0) })
+            indexedEpisodes = index.episodes
+            hasLoadedRemoteIndex = true
+            let now = Date()
+            indexLastUpdated = now
+            defaults.set(now, forKey: Self.indexLastUpdatedKey)
+        } catch {
+            if force {
+                errorMessage = "Could not update episode index right now."
+            }
+        }
+    }
+
+    func refreshEpisodeIndexIfNeeded() async {
+        guard autoIndexUpdatesEnabled else { return }
+        await refreshEpisodeIndex(force: false)
+    }
+
+    func openEpisodeSearchResult(_ result: EpisodeSearchResult) async {
+        if podcasts.isEmpty {
+            await loadPodcasts()
+        }
+        guard let podcast = podcasts.first(where: { $0.id == result.podcastID }) else {
+            return
+        }
+        await selectPodcast(podcast)
+    }
+
+    func playEpisodeSearchResult(_ result: EpisodeSearchResult) {
+        guard let audioURL = result.audioURL else { return }
+        let fallbackDate = result.pubEpoch.map { Date(timeIntervalSince1970: TimeInterval($0)) } ?? Date()
+        let dateString = ISO8601DateFormatter().string(from: fallbackDate)
+        let episode = Episode(
+            id: result.id,
+            title: result.episodeTitle,
+            description: result.episodeDescription,
+            audioURL: audioURL,
+            imageURL: nil,
+            pubDate: dateString,
+            durationMins: 0,
+            podcastID: result.podcastID
+        )
+        markEpisodeAsPlayed(episode)
+        audioPlayerService.play(
+            episode: episode,
+            podcastTitle: result.podcastTitle,
+            podcastArtworkURL: nil
+        )
+    }
+
+    func formattedEpoch(_ epoch: Int?) -> String {
+        guard let epoch else { return "" }
+        let date = Date(timeIntervalSince1970: TimeInterval(epoch))
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+
     private func loadPlayedEpisodes() {
         if let savedArray = defaults.array(forKey: "played_episode_ids") as? [String] {
             playedEpisodeIDs = Set(savedArray)
@@ -125,6 +298,18 @@ final class PodcastsViewModel: ObservableObject {
 
     private func savePlayedEpisodes() {
         defaults.set(Array(playedEpisodeIDs), forKey: "played_episode_ids")
+    }
+
+    private func loadSavedSearches() {
+        savedSearches = defaults.stringArray(forKey: Self.savedSearchesKey) ?? []
+    }
+
+    private func ensureRemoteIndexLoaded() async throws {
+        guard !hasLoadedRemoteIndex else { return }
+        await refreshEpisodeIndex(force: false)
+        guard hasLoadedRemoteIndex else {
+            throw URLError(.resourceUnavailable)
+        }
     }
 
     var availableGenres: [String] {

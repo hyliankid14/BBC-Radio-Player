@@ -21,7 +21,7 @@ struct RadioView: View {
                                     .foregroundStyle(Color.brandText)
                                 Text(viewModel.showSubtitle(for: station))
                                     .font(.caption)
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(Color.subtitleText)
                                     .lineLimit(1)
                             }
 
