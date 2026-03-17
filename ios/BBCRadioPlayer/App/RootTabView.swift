@@ -63,13 +63,11 @@ struct RootTabView: View {
                 showAnalyticsPrompt = true
             }
             container.checkEpisodeNotifications()
-            container.checkEpisodeIndexRefresh()
             container.syncEpisodeDownloads()
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
                 container.checkEpisodeNotifications()
-                container.checkEpisodeIndexRefresh()
                 container.syncEpisodeDownloads()
             }
         }

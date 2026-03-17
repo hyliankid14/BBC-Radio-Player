@@ -1,24 +1,30 @@
 import SwiftUI
 import CoreMotion
 
+// MARK: - PodcastsView
+
 struct PodcastsView: View {
     @ObservedObject var viewModel: PodcastsViewModel
     @EnvironmentObject private var container: AppContainer
     @State private var toastMessage: String?
     @State private var toastVisible = false
-    @State private var infoTitle: String = ""
-    @State private var infoDescription: String = ""
-    @State private var showInfoSheet = false
     @State private var showFullPlayer = false
+    @State private var isEpisodeViewPresented = false
     @StateObject private var shakeDetector = ShakeToShuffleDetector()
 
     var body: some View {
-        content
-            .navigationTitle(viewModel.selectedPodcast?.title ?? "Podcasts")
+        podcastList
+            .navigationTitle("Podcasts")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $isEpisodeViewPresented) {
+                if let podcast = viewModel.selectedPodcast {
+                    PodcastEpisodeView(podcast: podcast, viewModel: viewModel, showFullPlayer: $showFullPlayer)
+                        .environmentObject(container)
+                }
+            }
             .overlay(alignment: .bottom) {
-                if toastVisible, let toastMessage {
-                    Text(toastMessage)
+                if toastVisible, let msg = toastMessage {
+                    Text(msg)
                         .font(.footnote)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 14)
@@ -34,73 +40,42 @@ struct PodcastsView: View {
                 }
             }
             .task(id: viewModel.searchText) {
-                guard viewModel.selectedPodcast == nil else { return }
                 await viewModel.searchEpisodesFromIndex()
             }
-            .sheet(isPresented: $showInfoSheet) {
-                EpisodeInfoSheet(title: infoTitle, description: infoDescription)
-            }
             .fullScreenCover(isPresented: $showFullPlayer) {
-                FullPlayerView()
-                    .environmentObject(container)
+                FullPlayerView().environmentObject(container)
             }
             .onAppear {
                 shakeDetector.onShake = { [weak viewModel] in
-                    guard let viewModel, viewModel.selectedPodcast == nil else { return }
-                    selectRandomPodcast()
+                    guard let vm = viewModel, vm.selectedPodcast == nil else { return }
+                    guard let random = vm.filteredPodcasts.randomElement() else { return }
+                    Task { @MainActor in
+                        self.openPodcast(random)
+                    }
                 }
                 shakeDetector.start()
             }
-            .onDisappear {
-                shakeDetector.stop()
+            .onDisappear { shakeDetector.stop() }
+    }
+
+    @MainActor
+    private func openPodcast(_ podcast: Podcast) {
+        viewModel.selectedPodcast = podcast
+        isEpisodeViewPresented = true
+    }
+
+    private func openPodcast(byID podcastID: String) {
+        Task {
+            if viewModel.podcasts.isEmpty {
+                await viewModel.loadPodcasts()
             }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if let selectedPodcast = viewModel.selectedPodcast {
-            episodeList(for: selectedPodcast)
-        } else if let error = viewModel.errorMessage {
-            landingErrorView(error: error)
-        } else {
-            podcastList
-        }
-    }
-
-
-    private func landingErrorView(error: String) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 48))
-                .foregroundStyle(.orange)
-            Text("Could not load podcasts")
-                .font(.headline)
-            Text(error)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button(action: {
-                Task {
-                    await viewModel.loadPodcasts()
-                }
-            }) {
-                Label("Try Again", systemImage: "arrow.clockwise")
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(Color.blue)
-                    .foregroundStyle(.white)
-                    .cornerRadius(8)
+            guard let podcast = viewModel.podcasts.first(where: { $0.id == podcastID }) else { return }
+            await MainActor.run {
+                openPodcast(podcast)
             }
         }
-        .padding()
     }
 
-    private func saveSearchFromInput() {
-        let query = viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return }
-        viewModel.saveCurrentSearch()
-        showToast("Saved search")
-    }
     private var podcastList: some View {
         List {
             Section {
@@ -152,9 +127,7 @@ struct PodcastsView: View {
                                 Spacer(minLength: 8)
 
                                 Button {
-                                    Task {
-                                        await viewModel.openEpisodeSearchResult(result)
-                                    }
+                                    openPodcast(byID: result.podcastID)
                                 } label: {
                                     Image(systemName: "chevron.right.circle")
                                         .foregroundStyle(.secondary)
@@ -177,9 +150,7 @@ struct PodcastsView: View {
                                     viewModel.playEpisodeSearchResult(result)
                                     showFullPlayer = true
                                 } else {
-                                    Task {
-                                        await viewModel.openEpisodeSearchResult(result)
-                                    }
+                                    openPodcast(byID: result.podcastID)
                                 }
                             }
                         }
@@ -188,15 +159,18 @@ struct PodcastsView: View {
             }
 
             Section("Podcasts") {
-                ForEach(viewModel.filteredPodcasts) { podcast in
-                    Button {
-                        Task {
-                            await viewModel.selectPodcast(podcast)
-                        }
-                    } label: {
+                if viewModel.isLoading && viewModel.filteredPodcasts.isEmpty {
+                    HStack { Spacer(); ProgressView("Loading…"); Spacer() }
+                } else if let error = viewModel.errorMessage, viewModel.podcasts.isEmpty {
+                    VStack(spacing: 12) {
+                        Text(error).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        Button("Try Again") { Task { await viewModel.loadPodcasts() } }
+                    }
+                    .padding(.vertical, 8)
+                } else {
+                    ForEach(viewModel.filteredPodcasts) { podcast in
                         HStack(spacing: 12) {
                             artwork(url: podcast.imageURL, placeholder: "mic.circle.fill")
-
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(podcast.title)
                                     .font(container.appSettingsStore.compactRows ? .body : .headline)
@@ -204,210 +178,37 @@ struct PodcastsView: View {
                                     .foregroundStyle(Color.brandText)
                                 if !podcast.description.isEmpty {
                                     Text(podcast.description.stripHTMLTags)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
+                                        .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                                 }
                                 if !podcast.genres.isEmpty {
                                     Text(podcast.genres.prefix(2).joined(separator: ", "))
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
+                                        .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                                 }
                             }
-
                             Spacer(minLength: 8)
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
                         }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .overlay {
-            if viewModel.isLoading {
-                ProgressView("Loading podcasts...")
-            }
-        }
-        .refreshable {
-            await viewModel.loadPodcasts()
-        }
-        .listStyle(.insetGrouped)
-    }
-
-    private func episodeList(for podcast: Podcast) -> some View {
-        List {
-            Section {
-                podcastHeader(for: podcast)
-                    .listRowInsets(EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
-            }
-
-            Section("Episodes") {
-                ForEach(viewModel.sortedEpisodes) { episode in
-                    HStack(spacing: 12) {
-                        ZStack(alignment: .bottomTrailing) {
-                            artwork(url: episode.imageURL ?? podcast.imageURL, placeholder: "waveform.circle.fill")
-
-                            if viewModel.isEpisodePlayed(episode) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.green)
-                                    .background(
-                                        Circle()
-                                            .fill(Color(.systemBackground))
-                                            .frame(width: 14, height: 14)
-                                    )
-                                    .offset(x: 2, y: 2)
-                            }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            dismissKeyboard()
+                            openPodcast(podcast)
                         }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(episode.title)
-                                .font(container.appSettingsStore.compactRows ? .body : .headline)
-                                .lineLimit(2)
-                                .foregroundStyle(Color.brandText)
-
-                            HStack(spacing: 8) {
-                                Text(viewModel.formattedDate(episode.pubDate))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-
-                                if episode.durationMins > 0 {
-                                    Text("\(episode.durationMins) min")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-
-                            if !episode.description.isEmpty {
-                                Text(episode.description.stripHTMLTags)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                        }
-
-                        Spacer(minLength: 8)
-
-                        episodeDownloadMenu(for: episode, podcastTitle: podcast.title)
-
-                        Button {
-                            viewModel.play(episode)
-                            showFullPlayer = true
-                        } label: {
-                            Image(systemName: "play.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(.blue)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        viewModel.play(episode)
-                        showFullPlayer = true
                     }
                 }
             }
         }
         .overlay {
-            if viewModel.isLoading {
-                ProgressView("Loading episodes...")
+            if viewModel.isLoading && viewModel.podcasts.isEmpty {
+                ProgressView("Loading podcasts…")
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Back") {
-                    viewModel.clearSelection()
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Picker("Sort episodes", selection: $viewModel.episodeSortOption) {
-                        ForEach(EpisodeSortOption.allCases) { option in
-                            Text(option.rawValue).tag(option)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "arrow.up.arrow.down")
-                }
-            }
-        }
+        .refreshable { await viewModel.loadPodcasts() }
+        .scrollDismissesKeyboard(.immediately)
         .listStyle(.insetGrouped)
-    }
-
-    private func podcastHeader(for podcast: Podcast) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                AsyncImage(url: podcast.imageURL) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                        Image(systemName: "mic.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(width: 100, height: 100)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                Text(podcast.description.stripHTMLTags)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(5)
-                    .frame(maxHeight: .infinity, alignment: .topLeading)
-            }
-
-            if podcast.description.stripHTMLTags.count > 220 {
-                Button("Show more") {
-                    presentInfo(title: podcast.title, description: podcast.description.stripHTMLTags)
-                }
-                .font(.caption)
-                .foregroundStyle(.blue)
-            }
-
-            HStack(spacing: 12) {
-                Button {
-                    viewModel.toggleSubscription(for: podcast)
-                    let subscribed = viewModel.isSubscribed(to: podcast)
-                    showToast(subscribed ? "Subscribed to \(podcast.title)" : "Unsubscribed from \(podcast.title)")
-                } label: {
-                    Text(viewModel.isSubscribed(to: podcast) ? "Subscribed" : "Subscribe")
-                        .font(.body.weight(.medium))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.accentColor)
-
-                if viewModel.isSubscribed(to: podcast) {
-                    Button {
-                        let podcastID = podcast.id
-                        let willEnable = !container.favoritesStore.isNotificationsEnabled(podcastID: podcastID)
-                        if willEnable {
-                            Task { await container.podcastNotificationService.requestAuthorisation() }
-                        }
-                        container.favoritesStore.toggleNotifications(podcastID: podcastID)
-                    } label: {
-                        Image(systemName: container.favoritesStore.isNotificationsEnabled(podcastID: podcast.id) ? "bell.fill" : "bell")
-                            .foregroundStyle(container.favoritesStore.isNotificationsEnabled(podcastID: podcast.id) ? .blue : .secondary)
-                            .frame(width: 44, height: 44)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                ShareLink(item: podcast.htmlURL ?? podcast.rssURL) {
-                    Image(systemName: "square.and.arrow.up")
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-            }
-        }
     }
 
     private var searchAndFilterPanel: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
@@ -436,87 +237,100 @@ struct PodcastsView: View {
                 .accessibilityLabel("Random podcast")
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 12)
+            .padding(.vertical, 8)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-            Menu {
-                Picker("Genre", selection: $viewModel.selectedGenre) {
-                    ForEach(viewModel.availableGenres, id: \.self) { genre in
-                        Text(genre).tag(genre)
+            HStack(spacing: 8) {
+                Menu {
+                    Picker("Genre", selection: $viewModel.selectedGenre) {
+                        ForEach(viewModel.availableGenres, id: \.self) { genre in
+                            Text(genre).tag(genre)
+                        }
                     }
+                } label: {
+                    filterRow(title: "Genre", value: viewModel.selectedGenre)
                 }
-            } label: {
-                filterRow(title: "Genre", value: viewModel.selectedGenre)
+
+                Menu {
+                    Picker("Sort", selection: $viewModel.selectedSort) {
+                        ForEach(PodcastSortOption.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
+                    }
+                } label: {
+                    filterRow(title: "Sort", value: viewModel.selectedSort.rawValue)
+                }
             }
 
-            Menu {
-                Picker("Sort", selection: $viewModel.selectedSort) {
-                    ForEach(PodcastSortOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
-                    }
-                }
-            } label: {
-                filterRow(title: "Sort", value: viewModel.selectedSort.rawValue)
-            }
-
-            if viewModel.hasActiveFilters {
+            HStack(spacing: 8) {
                 Button {
                     viewModel.resetFilters()
                 } label: {
                     Text("Reset Filters")
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 9)
                 }
                 .buttonStyle(.plain)
                 .background(Color.accentColor.opacity(0.35))
                 .clipShape(Capsule())
-            }
 
-            if !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button {
-                    saveSearchFromInput()
-                } label: {
-                    Text("Save Search")
-                        .font(.subheadline.weight(.semibold))
+                if !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button {
+                        saveSearchFromInput()
+                    } label: {
+                        Image(systemName: "bookmark")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 42, height: 36)
+                    }
+                    .buttonStyle(.plain)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(Capsule())
+                    .accessibilityLabel("Save Search")
                 }
             }
         }
     }
 
     private func filterRow(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.headline)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
             HStack {
                 Text(value)
-                    .font(.title3.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: "chevron.down")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
-    private func selectRandomPodcast() {
-        guard viewModel.selectedPodcast == nil else { return }
-        guard !viewModel.filteredPodcasts.isEmpty else {
-            showToast("No podcast available for random pick")
-            return
-        }
+    private func saveSearchFromInput() {
+        let q = viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return }
+        viewModel.saveCurrentSearch()
+        showToast("Saved search")
+    }
 
-        guard let randomPodcast = viewModel.filteredPodcasts.randomElement() else { return }
-        Task {
-            await viewModel.selectPodcast(randomPodcast)
-        }
-        showToast("Random: \(randomPodcast.title)")
+    private func selectRandomPodcast() {
+        guard !viewModel.filteredPodcasts.isEmpty else { return }
+        guard let random = viewModel.filteredPodcasts.randomElement() else { return }
+        openPodcast(random)
+        showToast("Random: \(random.title)")
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     private func artwork(url: URL?, placeholder: String) -> some View {
@@ -537,69 +351,242 @@ struct PodcastsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    private func presentInfo(title: String, description: String) {
-        infoTitle = title
-        infoDescription = description.isEmpty ? "No additional information available." : description
-        showInfoSheet = true
-    }
-
     private func showToast(_ message: String) {
         toastMessage = message
-        withAnimation(.easeOut(duration: 0.2)) {
-            toastVisible = true
-        }
+        withAnimation(.easeOut(duration: 0.2)) { toastVisible = true }
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_600_000_000)
-            withAnimation(.easeIn(duration: 0.2)) {
-                toastVisible = false
+            withAnimation(.easeIn(duration: 0.2)) { toastVisible = false }
+        }
+    }
+}
+
+// MARK: - PodcastEpisodeView
+
+struct PodcastEpisodeView: View {
+    let podcast: Podcast
+    @ObservedObject var viewModel: PodcastsViewModel
+    @Binding var showFullPlayer: Bool
+    @EnvironmentObject private var container: AppContainer
+    @State private var showInfoSheet = false
+    @State private var localEpisodes: [Episode] = []
+    @State private var isLoadingEpisodes = false
+    @State private var localErrorMessage: String?
+
+    private var cleanedPodcastDescription: String {
+        let stripped = podcast.description.stripHTMLTags
+        if !stripped.isEmpty {
+            return stripped
+        }
+        return podcast.description.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var displayedEpisodes: [Episode] {
+        viewModel.sortEpisodesForDisplay(localEpisodes)
+    }
+
+    var body: some View {
+        List {
+            Section {
+                podcastHeader
+                    .listRowInsets(EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12))
+            }
+
+            Section("Episodes") {
+                if isLoadingEpisodes && displayedEpisodes.isEmpty {
+                    HStack { Spacer(); ProgressView("Loading episodes…"); Spacer() }
+                } else if displayedEpisodes.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(localErrorMessage ?? "No episodes available right now.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        Button("Retry") { Task { await reloadEpisodes() } }
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .padding(.vertical, 4)
+                } else {
+                    ForEach(displayedEpisodes) { episode in
+                        HStack(spacing: 12) {
+                            ZStack(alignment: .bottomTrailing) {
+                                episodeArtwork(url: episode.imageURL ?? podcast.imageURL)
+                                if viewModel.isEpisodePlayed(episode) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.caption).foregroundStyle(.green)
+                                        .background(Circle().fill(Color(.systemBackground)).frame(width: 14, height: 14))
+                                        .offset(x: 2, y: 2)
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(episode.title)
+                                    .font(container.appSettingsStore.compactRows ? .body : .headline)
+                                    .lineLimit(2).foregroundStyle(Color.brandText)
+                                HStack(spacing: 8) {
+                                    Text(viewModel.formattedDate(episode.pubDate))
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                    if episode.durationMins > 0 {
+                                        Text("\(episode.durationMins) min")
+                                            .font(.caption2).foregroundStyle(.secondary)
+                                    }
+                                }
+                                if !episode.description.isEmpty {
+                                    Text(episode.description.stripHTMLTags)
+                                        .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                }
+                            }
+
+                            Spacer(minLength: 8)
+                            episodeDownloadMenu(for: episode)
+                            Button {
+                                viewModel.play(episode)
+                                showFullPlayer = true
+                            } label: {
+                                Image(systemName: "play.circle.fill").font(.title3).foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            viewModel.play(episode)
+                            showFullPlayer = true
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(podcast.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Sort", selection: $viewModel.episodeSortOption) {
+                        ForEach(EpisodeSortOption.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                } label: { Image(systemName: "arrow.up.arrow.down") }
+            }
+        }
+        .sheet(isPresented: $showInfoSheet) {
+            EpisodeInfoSheet(title: podcast.title, description: cleanedPodcastDescription)
+        }
+        .task(id: podcast.id) {
+            await reloadEpisodes()
+        }
+    }
+
+    private func reloadEpisodes() async {
+        isLoadingEpisodes = true
+        localErrorMessage = nil
+        let result = await viewModel.loadEpisodesForDisplay(for: podcast)
+        localEpisodes = result.episodes
+        localErrorMessage = result.errorMessage
+        isLoadingEpisodes = false
+    }
+
+    private var podcastHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                AsyncImage(url: podcast.imageURL) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                        Image(systemName: "mic.circle.fill").font(.title2).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 100, height: 100)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(cleanedPodcastDescription)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(5)
+
+                    if cleanedPodcastDescription.count > 220 {
+                        Button("Show more") {
+                            showInfoSheet = true
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+
+            HStack(spacing: 12) {
+                Button {
+                    viewModel.toggleSubscription(for: podcast)
+                } label: {
+                    Text(viewModel.isSubscribed(to: podcast) ? "Subscribed" : "Subscribe")
+                        .font(.body.weight(.medium)).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered).tint(.accentColor)
+
+                if viewModel.isSubscribed(to: podcast) {
+                    Button {
+                        let id = podcast.id
+                        if !container.favoritesStore.isNotificationsEnabled(podcastID: id) {
+                            Task { await container.podcastNotificationService.requestAuthorisation() }
+                        }
+                        container.favoritesStore.toggleNotifications(podcastID: id)
+                    } label: {
+                        Image(systemName: container.favoritesStore.isNotificationsEnabled(podcastID: podcast.id)
+                              ? "bell.fill" : "bell")
+                        .foregroundStyle(container.favoritesStore.isNotificationsEnabled(podcastID: podcast.id)
+                                         ? .blue : .secondary)
+                        .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                ShareLink(item: podcast.htmlURL ?? podcast.rssURL) {
+                    Image(systemName: "square.and.arrow.up").frame(width: 44, height: 44)
+                }.buttonStyle(.plain)
             }
         }
     }
 
-    @ViewBuilder
-    private func episodeDownloadMenu(for episode: Episode, podcastTitle: String?) -> some View {
-        let status = container.episodeDownloadService.status(for: episode)
+    private func episodeArtwork(url: URL?) -> some View {
+        AsyncImage(url: url) { image in
+            image.resizable().scaledToFill()
+        } placeholder: {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                Image(systemName: "waveform.circle.fill").font(.title3).foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 52, height: 52)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
 
+    @ViewBuilder
+    private func episodeDownloadMenu(for episode: Episode) -> some View {
+        let status = container.episodeDownloadService.status(for: episode)
         switch status {
         case .downloading:
-            ProgressView()
-                .frame(width: 28, height: 28)
+            ProgressView().frame(width: 28, height: 28)
         case .downloaded:
             Menu {
                 Button("Remove download", role: .destructive) {
                     viewModel.deleteDownloadedEpisode(episode)
-                    showToast("Download removed")
                 }
             } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.green)
-            }
-            .buttonStyle(.plain)
+                Image(systemName: "checkmark.circle.fill").font(.title3).foregroundStyle(.green)
+            }.buttonStyle(.plain)
         case .failed:
             Button {
-                Task {
-                    let didDownload = await viewModel.downloadEpisode(episode, podcastTitle: podcastTitle)
-                    showToast(didDownload ? "Episode downloaded" : "Could not download episode")
-                }
+                Task { _ = await viewModel.downloadEpisode(episode, podcastTitle: podcast.title) }
             } label: {
-                Image(systemName: "exclamationmark.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.orange)
-            }
-            .buttonStyle(.plain)
+                Image(systemName: "exclamationmark.circle.fill").font(.title3).foregroundStyle(.orange)
+            }.buttonStyle(.plain)
         case .notDownloaded:
             Button {
-                Task {
-                    let didDownload = await viewModel.downloadEpisode(episode, podcastTitle: podcastTitle)
-                    showToast(didDownload ? "Episode downloaded" : "Could not download episode")
-                }
+                Task { _ = await viewModel.downloadEpisode(episode, podcastTitle: podcast.title) }
             } label: {
-                Image(systemName: "arrow.down.circle")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
+                Image(systemName: "arrow.down.circle").font(.title3).foregroundStyle(.secondary)
+            }.buttonStyle(.plain)
         }
     }
 }
@@ -643,9 +630,11 @@ private struct EpisodeInfoSheet: View {
     let description: String
 
     var body: some View {
+        let displayDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+
         NavigationStack {
             ScrollView {
-                Text(description)
+                Text(displayDescription.isEmpty ? "No additional information available." : displayDescription)
                     .font(.body)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()

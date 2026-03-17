@@ -27,7 +27,9 @@ struct DefaultPodcastRepository: PodcastRepository {
             throw URLError(.badServerResponse)
         }
 
-        let podcasts = OPMLPodcastParser.parse(data: data)
+        let podcasts = try await Task.detached(priority: .userInitiated) {
+            OPMLPodcastParser.parse(data: data)
+        }.value
         guard !podcasts.isEmpty else {
             throw URLError(.cannotParseResponse)
         }
@@ -46,7 +48,9 @@ struct DefaultPodcastRepository: PodcastRepository {
             throw URLError(.badServerResponse)
         }
 
-        return try RSSPodcastParser.parseEpisodes(data: data, podcastID: podcast.id)
+        return try await Task.detached(priority: .userInitiated) {
+            try RSSPodcastParser.parseEpisodes(data: data, podcastID: podcast.id)
+        }.value
     }
 }
 
@@ -191,6 +195,17 @@ private final class RSSParserDelegate: NSObject, XMLParserDelegate {
 
         if name == "enclosure", let rawURL = attributeDict["url"], let url = URL(string: rawURL) {
             currentAudioURL = url._normalisedSecureBBCMediaURL()
+        }
+
+        if (name == "media:content" || name == "content"),
+            currentAudioURL == nil,
+            let rawURL = attributeDict["url"],
+            let url = URL(string: rawURL) {
+            let typeHint = (attributeDict["type"] ?? "").lowercased()
+            let pathHint = url.path.lowercased()
+            if typeHint.contains("audio") || pathHint.hasSuffix(".mp3") || pathHint.hasSuffix(".m4a") {
+                currentAudioURL = url._normalisedSecureBBCMediaURL()
+            }
         }
 
         if (name == "itunes:image" || name == "image"),

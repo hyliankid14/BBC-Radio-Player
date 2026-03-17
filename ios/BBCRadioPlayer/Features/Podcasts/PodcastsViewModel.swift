@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 struct EpisodeSearchResult: Identifiable, Equatable {
     let id: String
@@ -69,13 +70,21 @@ enum EpisodeSortOption: String, CaseIterable, Identifiable {
 final class PodcastsViewModel: ObservableObject {
     @Published private(set) var podcasts: [Podcast] = []
     @Published private(set) var episodes: [Episode] = []
-    @Published private(set) var selectedPodcast: Podcast?
+    @Published var selectedPodcast: Podcast?
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
-    @Published var searchText: String = ""
-    @Published var selectedGenre: String = "All Genres"
-    @Published var selectedSort: PodcastSortOption = .mostPopular
-    @Published var episodeSortOption: EpisodeSortOption = .newestFirst
+    @Published var searchText: String = "" {
+        didSet { recalculateFilteredPodcasts() }
+    }
+    @Published var selectedGenre: String = "All Genres" {
+        didSet { recalculateFilteredPodcasts() }
+    }
+    @Published var selectedSort: PodcastSortOption = .mostPopular {
+        didSet { recalculateFilteredPodcasts() }
+    }
+    @Published var episodeSortOption: EpisodeSortOption = .newestFirst {
+        didSet { recalculateSortedEpisodes() }
+    }
     @Published private(set) var playedEpisodeIDs: Set<String> = []
     @Published private(set) var episodeSearchResults: [EpisodeSearchResult] = []
     @Published private(set) var isEpisodeSearchLoading = false
@@ -84,6 +93,9 @@ final class PodcastsViewModel: ObservableObject {
     @Published private(set) var playedHistory: [PlayedEpisodeHistoryEntry] = []
     @Published private(set) var indexPodcastCount: Int = 0
     @Published private(set) var indexEpisodeCount: Int = 0
+    @Published private(set) var filteredPodcastResults: [Podcast] = []
+    @Published private(set) var sortedEpisodeResults: [Episode] = []
+    @Published private(set) var availableGenres: [String] = ["All Genres"]
 
     private let podcastRepository: PodcastRepository
     private let remoteIndexClient: RemoteIndexClient
@@ -96,10 +108,13 @@ final class PodcastsViewModel: ObservableObject {
     private var indexedEpisodes: [RemoteIndexEpisode] = []
     private var indexedEpisodeCorpus: [(episode: RemoteIndexEpisode, searchable: String)] = []
     private var latestEpisodeEpochByPodcastID: [String: Int] = [:]
+    private var dateCache: [String: Date] = [:]
     private var hasLoadedRemoteIndex = false
+    private var cancellables: Set<AnyCancellable> = []
 
     private static let savedSearchesKey = "saved_podcast_episode_searches"
     private static let playedHistoryKey = "played_podcast_episode_history"
+    private static let cachedPodcastsKey = "cached_podcast_list"
     private static let maxPlayedHistoryEntries = 20
     private static let indexRefreshInterval: TimeInterval = 60 * 60 * 24
 
@@ -119,36 +134,94 @@ final class PodcastsViewModel: ObservableObject {
         self.appSettingsStore = appSettingsStore
         self.episodeDownloadService = episodeDownloadService
         self.defaults = defaults
+        loadCachedPodcasts()
         loadPlayedEpisodes()
         loadSavedSearches()
         loadPlayedHistory()
+
+        $podcasts
+            .sink { [weak self] _ in
+                self?.rebuildAvailableGenres()
+                self?.recalculateFilteredPodcasts()
+            }
+            .store(in: &cancellables)
+
+        $episodes
+            .sink { [weak self] _ in self?.recalculateSortedEpisodes() }
+            .store(in: &cancellables)
+
+        rebuildAvailableGenres()
+        recalculateFilteredPodcasts()
+        recalculateSortedEpisodes()
     }
 
     func loadPodcasts() async {
-        isLoading = true
+        // Only show loading spinner if we have nothing cached to show
+        let hadCachedData = !podcasts.isEmpty
+        if !hadCachedData {
+            isLoading = true
+        }
         errorMessage = nil
         defer { isLoading = false }
 
         do {
-            podcasts = try await podcastRepository.fetchPodcasts(forceRefresh: false)
-            await loadIndexSummaryIfNeeded()
+            let fetched = try await podcastRepository.fetchPodcasts(forceRefresh: false)
+            podcasts = fetched
+            persistCachedPodcasts()
+            Task { [weak self] in
+                await self?.loadIndexSummaryIfNeeded()
+            }
         } catch {
-            let message = (error as NSError).localizedDescription
-            errorMessage = message == "The operation couldn’t be completed." ? "The BBC podcast feed could not be parsed." : message
+            if !hadCachedData {
+                let message = (error as NSError).localizedDescription
+                errorMessage = message == "The operation couldn't be completed." ? "The BBC podcast feed could not be parsed." : message
+            }
+            // Silently ignore errors when cached data is already showing
         }
     }
 
     func selectPodcast(_ podcast: Podcast) async {
+        // Set selectedPodcast first so view switches immediately
         selectedPodcast = podcast
-        isLoading = true
+        // Show fallback episodes from index instantly (no spinner if we have them)
+        let fallbackEpisodes = fallbackEpisodesFromIndex(for: podcast)
+        episodes = fallbackEpisodes
         errorMessage = nil
+
+        // Only show loading indicator if we have no fallback episodes
+        let showSpinner = fallbackEpisodes.isEmpty
+        if showSpinner {
+            isLoading = true
+        }
+
         defer { isLoading = false }
 
         do {
-            episodes = try await podcastRepository.fetchEpisodes(for: podcast)
+            let fetched = try await podcastRepository.fetchEpisodes(for: podcast)
+            // Only update if we're still viewing the same podcast
+            guard selectedPodcast?.id == podcast.id else { return }
+            if fetched.isEmpty {
+                if fallbackEpisodes.isEmpty {
+                    let didRefreshIndex = await refreshEpisodeIndex(force: false)
+                    let refreshedFallback = didRefreshIndex ? fallbackEpisodesFromIndex(for: podcast) : []
+                    if !refreshedFallback.isEmpty {
+                        episodes = refreshedFallback
+                        errorMessage = nil
+                    } else {
+                        errorMessage = "No episodes available right now."
+                    }
+                }
+            } else {
+                episodes = fetched
+                errorMessage = nil
+            }
+            dateCache.removeAll(keepingCapacity: true)
         } catch {
-            errorMessage = "Could not load episodes for \(podcast.title)."
-            episodes = []
+            guard selectedPodcast?.id == podcast.id else { return }
+            if episodes.isEmpty {
+                errorMessage = "Could not load episodes for \(podcast.title) right now."
+            }
+            // Keep fallback episodes if we have them
         }
     }
 
@@ -175,6 +248,7 @@ final class PodcastsViewModel: ObservableObject {
     func clearSelection() {
         selectedPodcast = nil
         episodes = []
+        dateCache.removeAll(keepingCapacity: true)
     }
 
     func markEpisodeAsPlayed(_ episode: Episode, podcastTitle: String? = nil) {
@@ -218,27 +292,30 @@ final class PodcastsViewModel: ObservableObject {
         do {
             try await ensureRemoteIndexLoaded()
 
-            let queryMatcher = QueryMatcher(query: query)
-
-            let results = indexedEpisodeCorpus.lazy
-                .filter { entry in
-                    queryMatcher.matches(entry.searchable)
-                }
-                .prefix(limit)
-                .map { entry -> EpisodeSearchResult in
-                    let episode = entry.episode
-                    let podcastTitle = self.indexedPodcastsByID[episode.podcastId]?.title ?? "Podcast"
-                    let stableID = "\(episode.podcastId)|\(episode.audioUrl ?? episode.title)"
-                    return EpisodeSearchResult(
-                        id: stableID,
-                        podcastID: episode.podcastId,
-                        podcastTitle: podcastTitle,
-                        episodeTitle: episode.title,
-                        episodeDescription: episode.description,
-                        audioURL: episode.audioUrl.flatMap(URL.init(string:)),
-                        pubEpoch: episode.pubEpoch
-                    )
-                }
+            let corpus = indexedEpisodeCorpus
+            let titlesByID = indexedPodcastsByID
+            let results = await Task.detached(priority: .userInitiated) {
+                let queryMatcher = QueryMatcher(query: query)
+                return corpus.lazy
+                    .filter { entry in
+                        queryMatcher.matches(entry.searchable)
+                    }
+                    .prefix(limit)
+                    .map { entry -> EpisodeSearchResult in
+                        let episode = entry.episode
+                        let podcastTitle = titlesByID[episode.podcastId]?.title ?? "Podcast"
+                        let stableID = "\(episode.podcastId)|\(episode.audioUrl ?? episode.title)"
+                        return EpisodeSearchResult(
+                            id: stableID,
+                            podcastID: episode.podcastId,
+                            podcastTitle: podcastTitle,
+                            episodeTitle: episode.title,
+                            episodeDescription: episode.description,
+                            audioURL: episode.audioUrl.flatMap(URL.init(string:)),
+                            pubEpoch: episode.pubEpoch
+                        )
+                    }
+            }.value
 
             episodeSearchResults = Array(results)
         } catch {
@@ -310,6 +387,7 @@ final class PodcastsViewModel: ObservableObject {
                 guard let epoch = episode.pubEpoch else { return nil }
                 return (episode.podcastId, normalisedEpoch(epoch))
             }, uniquingKeysWith: max)
+            recalculateFilteredPodcasts()
             indexPodcastCount = index.podcasts.count
             indexEpisodeCount = index.episodes.count
             hasLoadedRemoteIndex = true
@@ -392,6 +470,20 @@ final class PodcastsViewModel: ObservableObject {
         savedSearches = defaults.stringArray(forKey: Self.savedSearchesKey) ?? []
     }
 
+    private func loadCachedPodcasts() {
+        guard podcasts.isEmpty,
+              let data = defaults.data(forKey: Self.cachedPodcastsKey),
+              let decoded = try? JSONDecoder().decode([Podcast].self, from: data) else {
+            return
+        }
+        podcasts = decoded
+    }
+
+    private func persistCachedPodcasts() {
+        guard let data = try? JSONEncoder().encode(podcasts) else { return }
+        defaults.set(data, forKey: Self.cachedPodcastsKey)
+    }
+
     private func loadPlayedHistory() {
         guard let data = defaults.data(forKey: Self.playedHistoryKey),
               let decoded = try? JSONDecoder().decode([PlayedEpisodeHistoryEntry].self, from: data) else {
@@ -451,31 +543,101 @@ final class PodcastsViewModel: ObservableObject {
         )
     }
 
-    var availableGenres: [String] {
-        let genres = Set(podcasts.flatMap(\.genres).filter { !$0.isEmpty })
-        return ["All Genres"] + genres.sorted()
+    private func fallbackEpisodesFromIndex(for podcast: Podcast) -> [Episode] {
+        guard !indexedEpisodes.isEmpty else { return [] }
+
+        let isoFormatter = ISO8601DateFormatter()
+
+        return indexedEpisodes
+            .filter { $0.podcastId == podcast.id }
+            .compactMap { item -> (Episode, Int)? in
+                guard let audioString = item.audioUrl,
+                      let audioURL = URL(string: audioString) else {
+                    return nil
+                }
+                let epoch = item.pubEpoch.map(normalisedEpoch)
+                let pubDate = epoch.map { isoFormatter.string(from: Date(timeIntervalSince1970: TimeInterval($0))) } ?? ""
+                let id = "\(item.podcastId)|\(audioString)"
+                let episode = Episode(
+                    id: id,
+                    title: item.title,
+                    description: item.description,
+                    audioURL: audioURL,
+                    imageURL: podcast.imageURL,
+                    pubDate: pubDate,
+                    durationMins: 0,
+                    podcastID: item.podcastId
+                )
+                return (episode, epoch ?? 0)
+            }
+            .sorted { $0.1 > $1.1 }
+            .map(\.0)
     }
 
-    var sortedEpisodes: [Episode] {
-        let sorted: [Episode]
+    private func rebuildAvailableGenres() {
+        let genres = Set(podcasts.flatMap(\.genres).filter { !$0.isEmpty })
+        availableGenres = ["All Genres"] + genres.sorted()
+    }
+
+    func sortEpisodesForDisplay(_ sourceEpisodes: [Episode]) -> [Episode] {
         switch episodeSortOption {
         case .newestFirst:
-            sorted = episodes.sorted { episode1, episode2 in
+            return sourceEpisodes.sorted { episode1, episode2 in
                 parseDate(episode1.pubDate) > parseDate(episode2.pubDate)
             }
         case .oldestFirst:
-            sorted = episodes.sorted { episode1, episode2 in
+            return sourceEpisodes.sorted { episode1, episode2 in
                 parseDate(episode1.pubDate) < parseDate(episode2.pubDate)
             }
         }
-        return sorted
+    }
+
+    func loadEpisodesForDisplay(for podcast: Podcast) async -> (episodes: [Episode], errorMessage: String?) {
+        let initialFallback = fallbackEpisodesFromIndex(for: podcast)
+
+        do {
+            let fetched = try await podcastRepository.fetchEpisodes(for: podcast)
+            if !fetched.isEmpty {
+                return (fetched, nil)
+            }
+
+            let didRefreshIndex = await refreshEpisodeIndex(force: false)
+            let refreshedFallback = didRefreshIndex ? fallbackEpisodesFromIndex(for: podcast) : initialFallback
+            if !refreshedFallback.isEmpty {
+                return (refreshedFallback, nil)
+            }
+
+            return ([], "No episodes available right now.")
+        } catch {
+            if !initialFallback.isEmpty {
+                return (initialFallback, nil)
+            }
+
+            let didRefreshIndex = await refreshEpisodeIndex(force: false)
+            let refreshedFallback = didRefreshIndex ? fallbackEpisodesFromIndex(for: podcast) : []
+            if !refreshedFallback.isEmpty {
+                return (refreshedFallback, nil)
+            }
+
+            return ([], "Could not load episodes for \(podcast.title) right now.")
+        }
+    }
+
+    var sortedEpisodes: [Episode] {
+        sortedEpisodeResults
     }
 
     private func parseDate(_ dateString: String) -> Date {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        
-        // Try common RSS date formats
+        if let cached = dateCache[dateString] {
+            return cached
+        }
+
+        let parsed = Self.parseWithRSSFormatters(dateString) ?? Date.distantPast
+        dateCache[dateString] = parsed
+        return parsed
+    }
+
+    private static let rssDateFormatters: [DateFormatter] = {
         let formats = [
             "EEE, dd MMM yyyy HH:mm:ss Z",
             "EEE, dd MMM yyyy HH:mm:ss zzz",
@@ -483,16 +645,21 @@ final class PodcastsViewModel: ObservableObject {
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
             "yyyy-MM-dd"
         ]
-        
-        for format in formats {
+        return formats.map { format in
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = format
-            if let date = formatter.date(from: dateString) {
+            return formatter
+        }
+    }()
+
+    private static func parseWithRSSFormatters(_ value: String) -> Date? {
+        for formatter in rssDateFormatters {
+            if let date = formatter.date(from: value) {
                 return date
             }
         }
-        
-        // Fallback to current date if parsing fails
-        return Date()
+        return nil
     }
 
     func formattedDate(_ dateString: String) -> String {
@@ -504,9 +671,21 @@ final class PodcastsViewModel: ObservableObject {
     }
 
     var filteredPodcasts: [Podcast] {
+        filteredPodcastResults
+    }
+
+    private func recalculateSortedEpisodes() {
+        sortedEpisodeResults = sortEpisodesForDisplay(episodes)
+    }
+
+    private func recalculateFilteredPodcasts() {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let genreFiltered = podcasts.filter { podcast in
-            selectedGenre == "All Genres" || podcast.genres.contains(selectedGenre)
+            if selectedGenre == "All Genres" { return true }
+            return podcast.genres.contains {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .localizedCaseInsensitiveCompare(selectedGenre) == .orderedSame
+            }
         }
 
         let searchFiltered: [Podcast]
@@ -522,7 +701,7 @@ final class PodcastsViewModel: ObservableObject {
 
         switch selectedSort {
         case .mostPopular:
-            return searchFiltered.sorted {
+            filteredPodcastResults = searchFiltered.sorted {
                 let lhsRank = popularRank(for: $0)
                 let rhsRank = popularRank(for: $1)
                 if lhsRank != rhsRank {
@@ -531,7 +710,7 @@ final class PodcastsViewModel: ObservableObject {
                 return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
             }
         case .mostRecent:
-            return searchFiltered.sorted {
+            filteredPodcastResults = searchFiltered.sorted {
                 let lhsEpoch = latestEpisodeEpochByPodcastID[$0.id] ?? 0
                 let rhsEpoch = latestEpisodeEpochByPodcastID[$1.id] ?? 0
                 if lhsEpoch != rhsEpoch {
@@ -540,7 +719,7 @@ final class PodcastsViewModel: ObservableObject {
                 return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
             }
         case .alphabetical:
-            return searchFiltered.sorted {
+            filteredPodcastResults = searchFiltered.sorted {
                 $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
             }
         }

@@ -4,8 +4,8 @@ enum FavouritesTab {
     case stations
     case podcasts
     case episodes
-    case history
     case searches
+    case history
 }
 
 struct FavouritesView: View {
@@ -50,10 +50,10 @@ struct FavouritesView: View {
                             podcastsList
                         case .episodes:
                             episodesList
-                        case .history:
-                            historyList
                         case .searches:
                             savedSearchesList
+                        case .history:
+                            historyList
                         }
                     }
                 }
@@ -86,8 +86,8 @@ struct FavouritesView: View {
                 Text("Stations").tag(FavouritesTab.stations)
                 Text("Podcasts").tag(FavouritesTab.podcasts)
                 Text("Episodes").tag(FavouritesTab.episodes)
-                Text("History").tag(FavouritesTab.history)
                 Text("Searches").tag(FavouritesTab.searches)
+                Text("History").tag(FavouritesTab.history)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)

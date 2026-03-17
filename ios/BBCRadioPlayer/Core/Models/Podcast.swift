@@ -1,6 +1,6 @@
 import Foundation
 
-struct Podcast: Identifiable, Codable, Equatable {
+struct Podcast: Identifiable, Codable, Equatable, Hashable {
     let id: String
     let title: String
     let description: String
