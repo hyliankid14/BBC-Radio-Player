@@ -151,7 +151,7 @@ object LanguageDetector {
             connection.connectTimeout = 5000
             connection.readTimeout = 5000
             connection.requestMethod = "GET"
-            connection.setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+            connection.setRequestProperty("User-Agent", "British Radio Player/1.0 (Android)")
 
             val code = connection.responseCode
             if (code != 200) {

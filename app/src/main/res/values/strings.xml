@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">BBC Radio Player</string>
+    <string name="app_name">British Radio Player</string>
     <string name="clear_search">Clear search</string>
     <string name="index_schedule_label">Schedule index update</string>
     <string name="index_schedule_never">Never</string>
@@ -75,7 +75,7 @@
     <string name="widget_stop">Stop playback</string>
     <string name="widget_previous">Previous station</string>
     <string name="widget_next">Next station</string>
-    <string name="widget_label_resizable">BBC Radio Widget</string>
+    <string name="widget_label_resizable">British Radio Widget</string>
     <string name="export_settings">Export Settings</string>
     <string name="import_settings">Import Settings</string>
     <string name="backup_last_date_never">Last backup: Never</string>

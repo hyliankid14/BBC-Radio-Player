@@ -62,7 +62,7 @@ object ShareUtil {
                     }
                     append("\n\n")
                     append(shortUrl)
-                    append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
+                    append("\n\nIf you have the British Radio Player app installed, you can open it directly.")
                 }
                 
                 // Post back to main thread to start activity
@@ -150,7 +150,7 @@ object ShareUtil {
                     }
                     append("\n\n")
                     append(shortUrl)
-                    append("\n\nIf you have the BBC Radio Player app installed, you can open it directly.")
+                    append("\n\nIf you have the British Radio Player app installed, you can open it directly.")
                 }
                 
                 // Post back to main thread to start activity
@@ -322,7 +322,7 @@ object ShareUtil {
                 connectTimeout = 10000
                 readTimeout = 10000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "BBC Radio Player/1.0")
+                setRequestProperty("User-Agent", "British Radio Player/1.0")
             }
             
             val responseCode = connection.responseCode

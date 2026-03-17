@@ -9,7 +9,7 @@
         android:id="@+id/analytics_message"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Help improve BBC Radio Player by sharing anonymous analytics.\n\nThis data is only used to track the most popular stations, podcasts, and episodes.\n\n📊 What we collect:\n• Station/podcast/episode plays\n• App version and date\n\n🔒 What we DON'T collect:\n• No user IDs or device identifiers\n• No personal information\n• No location data\n• No IP addresses\n\nYou can disable analytics any time in Settings → Privacy."
+        android:text="Help improve British Radio Player by sharing anonymous analytics.\n\nThis data is only used to track the most popular stations, podcasts, and episodes.\n\n📊 What we collect:\n• Station/podcast/episode plays\n• App version and date\n\n🔒 What we DON'T collect:\n• No user IDs or device identifiers\n• No personal information\n• No location data\n• No IP addresses\n\nYou can disable analytics any time in Settings → Privacy."
         android:textSize="14sp"
         android:lineSpacingExtra="4dp" />
     

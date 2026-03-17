@@ -1,4 +1,4 @@
-# BBC Radio Player
+# British Radio Player
 
 An unofficial Android client for BBC Radio and podcasts. It focuses on
 reliable streaming on phones and Android Auto, offering a clean Material 3
@@ -10,23 +10,23 @@ interface with useful features for listeners.
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/Screenshot_20260301_221020_BBC Radio Player.jpg" width="150" alt="Favorites - Dark Mode" />
-  <img src="docs/screenshots/Screenshot_20260301_221037_BBC Radio Player.jpg" width="150" alt="All Stations - Light Mode" />
-  <img src="docs/screenshots/Screenshot_20260301_221048_BBC Radio Player.jpg" width="150" alt="Podcasts Browser" />
-  <img src="docs/screenshots/Screenshot_20260301_225106_BBC Radio Player.jpg" width="150" alt="Podcast Search" />
+  <img src="docs/screenshots/Screenshot_20260301_221020_British Radio Player.jpg" width="150" alt="Favorites - Dark Mode" />
+  <img src="docs/screenshots/Screenshot_20260301_221037_British Radio Player.jpg" width="150" alt="All Stations - Light Mode" />
+  <img src="docs/screenshots/Screenshot_20260301_221048_British Radio Player.jpg" width="150" alt="Podcasts Browser" />
+  <img src="docs/screenshots/Screenshot_20260301_225106_British Radio Player.jpg" width="150" alt="Podcast Search" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/Screenshot_20260301_225120_BBC Radio Player.jpg" width="150" alt="Settings" />
-  <img src="docs/screenshots/Screenshot_20260301_225144_BBC Radio Player.jpg" width="150" alt="Favorite Episodes" />
-  <img src="docs/screenshots/Screenshot_20260301_225421_BBC Radio Player.jpg" width="150" alt="Podcast Subscriptions - Light Mode" />
-  <img src="docs/screenshots/Screenshot_20260301_230842_BBC Radio Player.jpg" width="150" alt="Screen 8" />
+  <img src="docs/screenshots/Screenshot_20260301_225120_British Radio Player.jpg" width="150" alt="Settings" />
+  <img src="docs/screenshots/Screenshot_20260301_225144_British Radio Player.jpg" width="150" alt="Favorite Episodes" />
+  <img src="docs/screenshots/Screenshot_20260301_225421_British Radio Player.jpg" width="150" alt="Podcast Subscriptions - Light Mode" />
+  <img src="docs/screenshots/Screenshot_20260301_230842_British Radio Player.jpg" width="150" alt="Screen 8" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/Screenshot_20260301_230901_BBC Radio Player.jpg" width="150" alt="Screen 9" />
-  <img src="docs/screenshots/Screenshot_20260301_232642_BBC Radio Player.jpg" width="150" alt="Screen 10" />
-  <img src="docs/screenshots/Screenshot_20260301_232649_BBC Radio Player.jpg" width="150" alt="Screen 11" />
+  <img src="docs/screenshots/Screenshot_20260301_230901_British Radio Player.jpg" width="150" alt="Screen 9" />
+  <img src="docs/screenshots/Screenshot_20260301_232642_British Radio Player.jpg" width="150" alt="Screen 10" />
+  <img src="docs/screenshots/Screenshot_20260301_232649_British Radio Player.jpg" width="150" alt="Screen 11" />
 </p>
 
 
@@ -64,7 +64,7 @@ interface with useful features for listeners.
 
 ```bash
 git clone https://github.com/yourname/bbc-radio-player.git
-cd "BBC Radio Player"
+cd bbc-radio-player
 
 # build a debug APK
 ./gradlew assembleDebug

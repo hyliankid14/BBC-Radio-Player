@@ -50,7 +50,7 @@ object DownloadedEpisodes {
             // while the direct-download fallback path writes to the app-specific directory.
             val candidateDirs = buildList<File> {
                 // Public directory — destination used by DownloadManager on all API levels
-                add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS), "BBC Radio Player"))
+                add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS), "British Radio Player"))
                 // App-specific directory — used by the direct-download fallback path
                 add(File(context.getExternalFilesDir(Environment.DIRECTORY_PODCASTS), "episodes"))
             }

@@ -436,7 +436,7 @@ class MainActivity : AppCompatActivity() {
                     val imageUrl = uri.getQueryParameter("img") ?: ""
                     val pubDate = uri.getQueryParameter("date") ?: ""
                     val durationMins = uri.getQueryParameter("duration")?.toIntOrNull() ?: 0
-                    val podcastTitle = uri.getQueryParameter("podcast") ?: "BBC Radio Player"
+                    val podcastTitle = uri.getQueryParameter("podcast") ?: "British Radio Player"
                     val podcastId = uri.getQueryParameter("podcastId") ?: ""
 
                     if (audioUrl.isEmpty()) {

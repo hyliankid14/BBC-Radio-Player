@@ -1,6 +1,6 @@
-# BBC Radio Player - Web Share UI
+# British Radio Player - Web Share UI
 
-This directory hosts the GitHub Pages web UI for sharing podcasts and episodes from the BBC Radio Player app.
+This directory hosts the GitHub Pages web UI for sharing podcasts and episodes from the British Radio Player app.
 
 ## Quick Setup
 

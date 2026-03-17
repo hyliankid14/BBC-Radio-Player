@@ -19,7 +19,7 @@ struct DefaultPodcastRepository: PodcastRepository {
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
-        request.setValue("BBC Radio Player/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
+        request.setValue("British Radio Player/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
         request.setValue("application/xml,text/xml,application/rss+xml,*/*", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await session.data(for: request)
@@ -40,7 +40,7 @@ struct DefaultPodcastRepository: PodcastRepository {
     func fetchEpisodes(for podcast: Podcast) async throws -> [Episode] {
         var request = URLRequest(url: podcast.rssURL)
         request.timeoutInterval = 20
-        request.setValue("BBC Radio Player/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
+        request.setValue("British Radio Player/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
         request.setValue("application/xml,text/xml,application/rss+xml,*/*", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await session.data(for: request)

@@ -95,7 +95,7 @@ class UpdateDownloadWorker(
                 connectTimeout = 15000
                 readTimeout = 15000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+                setRequestProperty("User-Agent", "British Radio Player/1.0 (Android)")
             }
 
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
@@ -164,7 +164,7 @@ class UpdateDownloadWorker(
 
         val notification = NotificationCompat.Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("BBC Radio Player Update Ready")
+            .setContentTitle("British Radio Player Update Ready")
             .setContentText("Version $versionName is ready to install")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

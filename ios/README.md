@@ -1,6 +1,6 @@
 # iOS Port (Initial Implementation)
 
-This directory contains the first implementation slice of a native iOS port for BBC Radio Player.
+This directory contains the first implementation slice of a native iOS port for British Radio Player.
 
 ## Current status
 

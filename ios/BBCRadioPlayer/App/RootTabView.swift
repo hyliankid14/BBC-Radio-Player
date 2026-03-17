@@ -74,7 +74,7 @@ struct RootTabView: View {
         .onReceive(container.audioPlayerService.objectWillChange) { _ in
             miniPlayerVisible = container.audioPlayerService.hasActiveItem
         }
-        .alert("Help Improve BBC Radio Player", isPresented: $showAnalyticsPrompt) {
+        .alert("Help Improve British Radio Player", isPresented: $showAnalyticsPrompt) {
             Button("Approve") {
                 container.setAnalyticsEnabled(true)
                 container.markAnalyticsOptInDialogShown()

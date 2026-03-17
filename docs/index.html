@@ -6,12 +6,12 @@
     <meta name="theme-color" content="#667eea">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="BBC Radio">
+    <meta name="apple-mobile-web-app-title" content="British Radio">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako/dist/pako.min.js"></script>
-    <title>BBC Radio Player - Podcast & Episode Sharing</title>
+    <title>British Radio Player - Podcast & Episode Sharing</title>
     <!-- Version: 2.2 - Added PWA baseline support -->
     <style>
         * {
@@ -952,7 +952,7 @@
     <div class="cookie-banner" id="cookieBanner">
         <div class="cookie-content">
             <div class="cookie-text">
-                We use analytics to understand how the stream sharing feature is used. This helps us improve the BBC Radio Player. 
+                We use analytics to understand how the stream sharing feature is used. This helps us improve the British Radio Player. 
                 <a href="privacy.html" target="_blank">Learn more</a>
             </div>
             <div class="cookie-buttons">
@@ -979,7 +979,7 @@
                 podcasts: {
                     'example-1': {
                         type: 'podcast',
-                        title: 'BBC Radio Player',
+                        title: 'British Radio Player',
                         description: 'Your favorite BBC podcasts and radio content',
                         imageUrl: 'https://via.placeholder.com/400x400?text=BBC+Radio',
                         rssUrl: 'https://example.com/feed.xml'
@@ -2486,7 +2486,7 @@
                 const app = document.getElementById('app');
                 app.innerHTML = `
                     <div class="header">
-                        <h1>🎙️ BBC Radio Player</h1>
+                        <h1>🎙️ British Radio Player</h1>
                         <p>Radio and podcasts</p>
                     </div>
                     <div class="content">
@@ -2514,7 +2514,7 @@
                         type: 'podcast',
                         id: id,
                         title: title || 'Shared Podcast',
-                        description: desc || 'This podcast was shared with you from the BBC Radio Player app.',
+                        description: desc || 'This podcast was shared with you from the British Radio Player app.',
                         imageUrl: img || null,
                         rssUrl: rssUrl
                     };
@@ -2537,8 +2537,8 @@
                         type: 'episode',
                         id: id,
                         title: params.get('title') || 'Shared Episode',
-                        description: params.get('desc') || 'This episode was shared with you from the BBC Radio Player app.',
-                        podcastTitle: params.get('podcast') || 'BBC Radio Player',
+                        description: params.get('desc') || 'This episode was shared with you from the British Radio Player app.',
+                        podcastTitle: params.get('podcast') || 'British Radio Player',
                         podcastId: params.get('podcastId') || '',
                         imageUrl: params.get('img') || null,
                         audioUrl: params.get('audio') || null,
@@ -2604,7 +2604,7 @@
             renderPodcast(podcast) {
                 return `
                     <div class="header">
-                        <h1>🎙️ BBC Radio Player</h1>
+                        <h1>🎙️ British Radio Player</h1>
                         <p>Podcast Sharing</p>
                     </div>
                     <div class="content">
@@ -2639,7 +2639,7 @@
 
                         <div class="hero-text">
                             <h2>Subscribe to this podcast</h2>
-                            <p>Don't have the BBC Radio Player app? You can subscribe and listen on your favorite podcast platform.</p>
+                            <p>Don't have the British Radio Player app? You can subscribe and listen on your favorite podcast platform.</p>
                         </div>
 
                         <div class="button-group">
@@ -2659,7 +2659,7 @@
                         </div>
 
                         <div class="publication-info">
-                            <span>💡 Install the BBC Radio Player app for the best experience</span>
+                            <span>💡 Install the British Radio Player app for the best experience</span>
                         </div>
                     </div>
                 `;
@@ -2668,7 +2668,7 @@
             renderEpisode(episode) {
                 return `
                     <div class="header">
-                        <h1>🎙️ BBC Radio Player</h1>
+                        <h1>🎙️ British Radio Player</h1>
                         <p>Episode Sharing</p>
                     </div>
                     <div class="content">
@@ -2730,7 +2730,7 @@
 
                         <div class="hero-text">
                             <h2>Get the full experience</h2>
-                            <p>Install the BBC Radio Player app to enjoy better playback, save episodes, and track your listening history.</p>
+                            <p>Install the British Radio Player app to enjoy better playback, save episodes, and track your listening history.</p>
                         </div>
 
                         <div class="button-group">
@@ -2788,7 +2788,7 @@
                 setTimeout(() => {
                     document.removeEventListener('visibilitychange', onVisibilityChange);
                     if (!appOpened) {
-                        alert('Could not open the app. Make sure BBC Radio Player is installed.');
+                        alert('Could not open the app. Make sure British Radio Player is installed.');
                     }
                 }, 1200);
             }
@@ -2959,7 +2959,7 @@
                         type: 'podcast',
                         id: id,
                         title: channel?.querySelector('title')?.textContent || 'Shared Podcast',
-                        description: channel?.querySelector('description')?.textContent || 'Podcast shared from BBC Radio Player',
+                        description: channel?.querySelector('description')?.textContent || 'Podcast shared from British Radio Player',
                         imageUrl: itunesImage,
                         rssUrl: rssUrl
                     };
@@ -3128,7 +3128,7 @@
                                 <h3 style="font-size: 20px; margin-bottom: 12px; color: #333;">Episode Library Unavailable</h3>
                                 <p style="font-size: 15px; color: #666; line-height: 1.6; max-width: 500px; margin: 0 auto;">
                                     This podcast has many episodes. For the complete library with playback, 
-                                    search, and download features, install the BBC Radio Player app.
+                                    search, and download features, install the British Radio Player app.
                                 </p>
                             </div>
                         `;
@@ -3222,7 +3222,7 @@
                 const app = document.getElementById('app');
                 app.innerHTML = `
                     <div class="header">
-                        <h1>🎙️ BBC Radio Player</h1>
+                        <h1>🎙️ British Radio Player</h1>
                         <p>Podcast Sharing</p>
                     </div>
                     <div class="error-state">
@@ -3240,13 +3240,13 @@
                 const app = document.getElementById('app');
                 app.innerHTML = `
                     <div class="header">
-                        <h1>🎙️ BBC Radio Player</h1>
+                        <h1>🎙️ British Radio Player</h1>
                         <p>Podcast & Episode Sharing</p>
                     </div>
                     <div class="content">
                         <div class="hero-text" style="text-align: center;">
                             <div style="font-size: 64px; margin-bottom: 20px;">🎧</div>
-                            <h2>Welcome to BBC Radio Player</h2>
+                            <h2>Welcome to British Radio Player</h2>
                             <p style="font-size: 16px; margin-bottom: 20px;">
                                 Your unofficial Android client for BBC Radio and podcasts with support for Android Auto, 
                                 podcast subscriptions, downloads, and episode sharing.
@@ -3282,7 +3282,7 @@
                                 <strong>Share Your Favorite Podcast or Episode</strong>
                             </div>
                             <p style="font-size: 13px; color: #999; margin-bottom: 0;">
-                                Use the BBC Radio Player app to share podcasts and episodes. Recipients will be able to preview and listen directly from this web player.
+                                Use the British Radio Player app to share podcasts and episodes. Recipients will be able to preview and listen directly from this web player.
                             </p>
                         </div>
 

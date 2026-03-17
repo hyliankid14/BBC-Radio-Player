@@ -1,7 +1,7 @@
 {
-  "name": "BBC Radio Player",
-  "short_name": "BBC Radio",
-  "description": "Unofficial BBC Radio and podcast player web companion",
+  "name": "British Radio Player",
+  "short_name": "British Radio",
+  "description": "Unofficial third-party web companion for BBC radio and podcasts. Not affiliated with the BBC.",
   "start_url": "./#/",
   "scope": "./",
   "display": "standalone",

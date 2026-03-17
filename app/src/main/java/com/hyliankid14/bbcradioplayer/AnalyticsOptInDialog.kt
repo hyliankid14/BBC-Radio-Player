@@ -19,7 +19,7 @@ object AnalyticsOptInDialog {
             messageText.movementMethod = LinkMovementMethod.getInstance()
             
             AlertDialog.Builder(context)
-                .setTitle("Help Improve BBC Radio Player")
+                .setTitle("Help Improve British Radio Player")
                 .setView(dialogView)
                 .setPositiveButton("Approve") { _, _ ->
                     analytics.setEnabled(true)

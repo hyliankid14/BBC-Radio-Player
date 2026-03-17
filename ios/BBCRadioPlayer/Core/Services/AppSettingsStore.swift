@@ -236,7 +236,7 @@ final class EpisodeDownloadService: ObservableObject {
 
             var request = URLRequest(url: secureSourceURL)
             request.timeoutInterval = 120
-            request.setValue("BBC Radio Player/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
+            request.setValue("British Radio Player/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
             request.setValue("audio/mpeg,audio/*,*/*", forHTTPHeaderField: "Accept")
 
             do {

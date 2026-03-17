@@ -54,7 +54,7 @@ object OPMLParser {
                     connectTimeout = 15000
                     readTimeout = 15000
                     requestMethod = "GET"
-                    setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+                    setRequestProperty("User-Agent", "British Radio Player/1.0 (Android)")
                     setRequestProperty("Accept", "application/xml,text/xml,application/rss+xml,*/*")
                     setRequestProperty("Accept-Encoding", "gzip")
                     doInput = true
@@ -302,7 +302,7 @@ object RSSParser {
                 connectTimeout = 15000
                 readTimeout = 15000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+                setRequestProperty("User-Agent", "British Radio Player/1.0 (Android)")
             }
             
             val responseCode = connection.responseCode
@@ -326,7 +326,7 @@ object RSSParser {
                 connectTimeout = 10000
                 readTimeout = 10000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+                setRequestProperty("User-Agent", "British Radio Player/1.0 (Android)")
             }
             val code = connection.responseCode
             if (code != java.net.HttpURLConnection.HTTP_OK) {

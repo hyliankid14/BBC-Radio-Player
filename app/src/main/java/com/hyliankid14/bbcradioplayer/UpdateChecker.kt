@@ -105,7 +105,7 @@ class UpdateChecker(private val context: Context) {
             connectTimeout = 15000
             readTimeout = 15000
             requestMethod = "GET"
-            setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+            setRequestProperty("User-Agent", "British Radio Player/1.0 (Android)")
             setRequestProperty("Accept", "application/vnd.github.v3+json")
         }
         

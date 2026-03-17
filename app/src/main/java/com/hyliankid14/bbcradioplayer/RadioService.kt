@@ -1637,14 +1637,14 @@ class RadioService : MediaBrowserServiceCompat() {
 
             val notificationTitle = when {
                 // Podcasts: podcast name as title
-                isPodcast -> currentStationTitle.ifEmpty { "BBC Radio Player" }
+                isPodcast -> currentStationTitle.ifEmpty { "British Radio Player" }
                 // Music segments: Artist - Track preferred
                 !currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty() -> {
                     val artist = currentShowInfo.secondary ?: ""
                     val track = currentShowInfo.tertiary ?: ""
                     if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
                 }
-                else -> currentStationTitle.ifEmpty { "BBC Radio Player" }
+                else -> currentStationTitle.ifEmpty { "British Radio Player" }
             }
 
             // Prefer episode title for podcasts only when it is present and distinct from the
@@ -1836,7 +1836,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                         val track = currentShowInfo.tertiary ?: ""
                         if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
                     } else {
-                        currentStationTitle.ifEmpty { "BBC Radio Player" }
+                        currentStationTitle.ifEmpty { "British Radio Player" }
                     }
 
                     // Show episode title for podcasts only when present and distinct from the podcast title;
@@ -3275,13 +3275,13 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
             val titleText = if (currentStationId.startsWith("podcast_")) {
                 // For podcasts show podcast name as the title
-                currentStationTitle.ifEmpty { "BBC Radio Player" }
+                currentStationTitle.ifEmpty { "British Radio Player" }
             } else if (!currentShowInfo.secondary.isNullOrEmpty() || !currentShowInfo.tertiary.isNullOrEmpty()) {
                 val artist = currentShowInfo.secondary ?: ""
                 val track = currentShowInfo.tertiary ?: ""
                 if (artist.isNotEmpty() && track.isNotEmpty()) "$artist - $track" else currentShowInfo.getFormattedTitle()
             } else {
-                currentStationTitle.ifEmpty { "BBC Radio Player" }
+                currentStationTitle.ifEmpty { "British Radio Player" }
             }
             // Show episode title for podcasts only when it is present and distinct from
             // the podcast/station title; otherwise leave the small line empty to avoid

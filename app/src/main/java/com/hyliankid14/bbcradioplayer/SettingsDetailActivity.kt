@@ -397,14 +397,14 @@ class SettingsDetailActivity : AppCompatActivity() {
             openDownloadsFolderButton.setOnClickListener {
                 val downloadsDir = java.io.File(
                     android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PODCASTS),
-                    "BBC Radio Player"
+                    "British Radio Player"
                 )
                 downloadsDir.mkdirs()
 
                 // Try to open the folder in the system file manager via the Documents provider URI
                 val dirUri = android.provider.DocumentsContract.buildDocumentUri(
                     "com.android.externalstorage.documents",
-                    "primary:Podcasts/BBC Radio Player"
+                    "primary:Podcasts/British Radio Player"
                 )
                 val opened = try {
                     val intent = Intent(Intent.ACTION_VIEW, dirUri).apply {
@@ -763,7 +763,7 @@ class SettingsDetailActivity : AppCompatActivity() {
     }
     
     private fun showPrivacyPolicy() {
-        val privacyPolicyText = """BBC Radio Player Analytics Privacy Policy
+        val privacyPolicyText = """British Radio Player Analytics Privacy Policy
             
 When you enable analytics:
 • We collect station, podcast, and episode play events

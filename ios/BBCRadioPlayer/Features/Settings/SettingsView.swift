@@ -220,7 +220,7 @@ private struct PrivacySettingsSubView: View {
             NavigationStack {
                 ScrollView {
                     Text("""
-                    BBC Radio Player Analytics Privacy Policy
+                    British Radio Player Analytics Privacy Policy
 
                     When you enable analytics:
                     • We collect station, podcast and episode play events
@@ -252,7 +252,10 @@ private struct PrivacySettingsSubView: View {
 private struct AboutSettingsSubView: View {
     var body: some View {
         Form {
-            Text("BBC Radio Player iOS port")
+            Text("British Radio Player iOS port")
+            Text("Unofficial third-party app. Not affiliated with or endorsed by the BBC.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             HStack {
                 Text("Version")
                 Spacer()

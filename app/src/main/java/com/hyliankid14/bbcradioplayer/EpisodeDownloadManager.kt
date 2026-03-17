@@ -195,7 +195,7 @@ object EpisodeDownloadManager {
         // though SharedPreferences was wiped.  If so, register it and skip the download.
         val publicFileName = buildDestinationFile(context, episode).name
         val publicFile = File(
-            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS), "BBC Radio Player"),
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS), "British Radio Player"),
             publicFileName
         )
         if (publicFile.exists() && publicFile.length() > 0) {
@@ -350,7 +350,7 @@ object EpisodeDownloadManager {
         // On Android 10+ the DownloadManager handles writing to public storage; use the
         // app-scoped directory only for the direct-download fallback path on those versions.
         val downloadDir = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS), "BBC Radio Player")
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS), "British Radio Player")
         } else {
             File(context.getExternalFilesDir(Environment.DIRECTORY_PODCASTS), "episodes")
         }
@@ -372,14 +372,14 @@ object EpisodeDownloadManager {
     ): Long {
         // Store in the public Podcasts directory so the files are accessible to file managers.
         // The DownloadManager system service has permission to write there on all API levels.
-        val publicSubPath = "BBC Radio Player/${destinationFile.name}"
+        val publicSubPath = "British Radio Player/${destinationFile.name}"
         val request = DownloadManager.Request(Uri.parse(episode.audioUrl)).apply {
             setTitle("${podcastTitle ?: "Podcast"}: ${episode.title}")
             setDescription("Downloading episode")
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             setDestinationInExternalPublicDir(Environment.DIRECTORY_PODCASTS, publicSubPath)
             setMimeType("audio/mpeg")
-            addRequestHeader("User-Agent", "BBC Radio Player/1.0 (Android)")
+            addRequestHeader("User-Agent", "British Radio Player/1.0 (Android)")
 
             if (!DownloadPreferences.isDownloadOnWifiOnly(context)) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -704,8 +704,8 @@ object EpisodeDownloadManager {
     private fun performDirectDownload(url: String, destinationFile: File): DirectDownloadResult {
         val headerCombos = listOf(
             emptyMap<String, String>(),
-            mapOf("User-Agent" to "BBC Radio Player/1.0 (Android)"),
-            mapOf("User-Agent" to "BBC Radio Player/1.0 (Android)", "Accept" to "*/*")
+            mapOf("User-Agent" to "British Radio Player/1.0 (Android)"),
+            mapOf("User-Agent" to "British Radio Player/1.0 (Android)", "Accept" to "*/*")
         )
         for (headers in headerCombos) {
             val result = directDownloadWithHeaders(url, destinationFile, headers)

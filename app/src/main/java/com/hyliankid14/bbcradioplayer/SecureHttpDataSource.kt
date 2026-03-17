@@ -57,7 +57,7 @@ class SecureHttpDataSource : DataSource.Factory {
                     connectTimeout = 15000
                     readTimeout = 15000
                     instanceFollowRedirects = false // Handle redirects manually
-                    setRequestProperty("User-Agent", "BBC Radio Player/1.0 (Android)")
+                    setRequestProperty("User-Agent", "British Radio Player/1.0 (Android)")
                     setRequestProperty("Accept-Encoding", "identity")
                     rangeHeader?.let { setRequestProperty("Range", it) }
                     for ((name, value) in headersSnapshot) {

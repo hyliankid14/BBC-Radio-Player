@@ -1159,7 +1159,7 @@ class NowPlayingActivity : AppCompatActivity() {
                         
                         val podcastTitle = supportActionBar?.title?.toString() 
                             ?: showName.text?.toString() 
-                            ?: "BBC Radio Player"
+                            ?: "British Radio Player"
                         
                         ShareUtil.shareEpisode(this, episode, podcastTitle)
                         return true
