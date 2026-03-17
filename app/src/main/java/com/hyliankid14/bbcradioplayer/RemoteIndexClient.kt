@@ -21,18 +21,33 @@ import java.util.zip.GZIPInputStream
 /**
  * Client for the remote podcast index.
  *
- * Primary source — GitHub Pages static index:
- *   A nightly GitHub Actions workflow runs `api/build_index.py` and commits
- *   `docs/podcast-index.json` to the repository.  This file is served from
- *   GitHub Pages at [GITHUB_PAGES_INDEX_URL].  The app downloads it at most
- *   once per [INDEX_CACHE_TTL_MS], caches it on disk, and uses it to populate
- *   the local SQLite FTS index.  All searches then run locally — zero traffic
- *   to the home server per search.
+ * Primary source — Google Cloud Storage static index:
+ *   A nightly Cloud Scheduler job (or GitHub Actions workflow) runs
+ *   `api/build_index.py --bucket BUCKET` and uploads the result to a GCS
+ *   bucket.  The Android app downloads it at most once per [INDEX_CACHE_TTL_MS],
+ *   caches it on disk, and uses it to populate the local SQLite FTS index.
+ *   All searches then run locally — zero per-search traffic.
  *
- * Fallback — home server query endpoints:
- *   If the static index is unavailable, [searchPodcasts] / [searchEpisodes]
- *   fall back to querying the Flask server at [SERVER_BASE_URL].  This is the
- *   path originally implemented in the first PR commit.
+ *   Configure the bucket URLs at build time via `local.properties`:
+ *     GCS_INDEX_URL=https://storage.googleapis.com/YOUR_BUCKET/podcast-index.json.gz
+ *     GCS_META_URL=https://storage.googleapis.com/YOUR_BUCKET/podcast-index-meta.json
+ *
+ * Live search — Cloud Function:
+ *   The app also supports querying a Cloud Function that performs server-side
+ *   search without requiring a full index download to the device.  Set the
+ *   Cloud Function base URL at build time:
+ *     CLOUD_FUNCTION_URL=https://REGION-PROJECT.cloudfunctions.net/podcast-search
+ *
+ *   The Cloud Function exposes the same endpoints as the home server:
+ *     /index/status  — lightweight freshness check
+ *     /search/podcasts?q=QUERY
+ *     /search/episodes?q=QUERY[&limit=N][&offset=N]
+ *
+ *   See api/GOOGLE_CLOUD_SETUP.md for deployment instructions.
+ *
+ * Fallback — GitHub Pages static index (legacy):
+ *   If neither GCS nor Cloud Function URLs are configured, the app falls back
+ *   to the original GitHub Pages URL.
  *
  * All network calls are synchronous — callers must dispatch to IO threads.
  */
@@ -41,23 +56,39 @@ class RemoteIndexClient(private val context: Context) {
     companion object {
         private const val TAG = "RemoteIndexClient"
 
-        // GitHub Pages URL for the pre-built static podcast/episode index.
-        // Built nightly by the GitHub Actions workflow in
-        // .github/workflows/build-podcast-index.yml.
-        internal const val GITHUB_PAGES_INDEX_URL =
-            "https://hyliankid14.github.io/BBC-Radio-Player/podcast-index.json.gz"
+        // ── Index download URLs ───────────────────────────────────────────────
 
-        // Lightweight companion metadata file (< 100 bytes).  The app fetches this
-        // first to decide whether the full index needs re-downloading; avoids a
-        // 250 MB+ download when nothing has changed since the last sync.
-        internal const val GITHUB_PAGES_META_URL =
+        // Google Cloud Storage public URLs (set via GCS_INDEX_URL / GCS_META_URL
+        // in local.properties or environment variables at build time).
+        // These are blank when not configured; the app falls back to GitHub Pages.
+        private val GCS_INDEX_URL: String get() = BuildConfig.GCS_INDEX_URL
+        private val GCS_META_URL: String  get() = BuildConfig.GCS_META_URL
+
+        // Legacy GitHub Pages fallback (used when GCS URLs are not configured).
+        private const val GITHUB_PAGES_INDEX_URL =
+            "https://hyliankid14.github.io/BBC-Radio-Player/podcast-index.json.gz"
+        private const val GITHUB_PAGES_META_URL =
             "https://hyliankid14.github.io/BBC-Radio-Player/podcast-index-meta.json"
 
-        // Fallback home server (used only for search queries when the static
-        // index has not yet been downloaded).  Must match
-        // PrivacyAnalytics.ANALYTICS_ENDPOINT host.
-        // Replace with your own server hostname/IP when self-hosting.
+        // Resolved index URL: prefer GCS, fall back to GitHub Pages.
+        internal val INDEX_URL: String
+            get() = GCS_INDEX_URL.takeIf { it.isNotBlank() } ?: GITHUB_PAGES_INDEX_URL
+        internal val META_URL: String
+            get() = GCS_META_URL.takeIf { it.isNotBlank() } ?: GITHUB_PAGES_META_URL
+
+        // ── Live search URL ───────────────────────────────────────────────────
+
+        // Cloud Function base URL (set via CLOUD_FUNCTION_URL in local.properties).
+        // Falls back to the legacy home-server URL when not configured.
+        private val CLOUD_FUNCTION_URL: String get() = BuildConfig.CLOUD_FUNCTION_URL
+
+        // Legacy home-server fallback.  Replace with your Cloud Function URL via
+        // CLOUD_FUNCTION_URL in local.properties once deployed.
         internal const val SERVER_BASE_URL = "https://raspberrypi.tailc23afa.ts.net:8443"
+
+        // Resolved live-search base URL: prefer Cloud Function, fall back to home server.
+        internal val LIVE_SEARCH_URL: String
+            get() = CLOUD_FUNCTION_URL.takeIf { it.isNotBlank() } ?: SERVER_BASE_URL
 
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val READ_TIMEOUT_MS = 30_000
@@ -101,12 +132,12 @@ class RemoteIndexClient(private val context: Context) {
     )
 
     /**
-     * Fetch the tiny companion metadata file from GitHub Pages.
+     * Fetch the tiny companion metadata file from GCS (or GitHub Pages fallback).
      * Returns null on any network or parse error.
      */
     fun fetchRemoteIndexMeta(): RemoteIndexMeta? {
         return try {
-            val conn = openConnection(GITHUB_PAGES_META_URL)
+            val conn = openConnection(META_URL)
             conn.requestMethod = "GET"
             if (conn.responseCode != HttpURLConnection.HTTP_OK) {
                 conn.disconnect()
@@ -155,12 +186,13 @@ class RemoteIndexClient(private val context: Context) {
     }
 
     /**
-     * Download the pre-built podcast index from GitHub Pages, cache it on
-     * disk, and return the parsed [RemoteIndex].  Returns null on failure.
+     * Download the pre-built podcast index from GCS (or GitHub Pages fallback),
+     * cache it on disk, and return the parsed [RemoteIndex].  Returns null on
+     * failure.
      *
      * This is the primary path used by [IndexWorker]: one download replaces
      * hundreds of individual RSS feed fetches and eliminates all per-search
-     * home-server traffic.
+     * server traffic.
      *
      * @param forceDownload When true the cached copy is ignored and a fresh
      *   download is always performed (e.g. after [isRemoteIndexNewer] says the
@@ -181,12 +213,13 @@ class RemoteIndexClient(private val context: Context) {
 
         // Download fresh copy.
         return try {
-            onProgress?.invoke("Connecting to GitHub Pages...", 5)
-            Log.d(TAG, "Downloading podcast index from GitHub Pages...")
-            val conn = openConnection(GITHUB_PAGES_INDEX_URL)
+            val sourceLabel = if (GCS_INDEX_URL.isNotBlank()) "GCS" else "GitHub Pages"
+            onProgress?.invoke("Connecting to $sourceLabel...", 5)
+            Log.d(TAG, "Downloading podcast index from $INDEX_URL")
+            val conn = openConnection(INDEX_URL)
             conn.requestMethod = "GET"
             if (conn.responseCode != HttpURLConnection.HTTP_OK) {
-                Log.w(TAG, "GitHub Pages returned HTTP ${conn.responseCode}")
+                Log.w(TAG, "$sourceLabel returned HTTP ${conn.responseCode}")
                 conn.disconnect()
                 return null
             }
@@ -396,8 +429,8 @@ class RemoteIndexClient(private val context: Context) {
     // ── Fallback: home-server search ──────────────────────────────────────────
 
     /**
-     * Return true if the home server's podcast index endpoint is reachable.
-     * Result is cached for [SERVER_AVAILABILITY_TTL_MS].
+     * Return true if the live search endpoint (Cloud Function or home server)
+     * is reachable.  Result is cached for [SERVER_AVAILABILITY_TTL_MS].
      */
     fun isServerAvailable(): Boolean {
         val now = System.currentTimeMillis()
@@ -406,7 +439,7 @@ class RemoteIndexClient(private val context: Context) {
             return cached
         }
         return try {
-            val response = getJson("$SERVER_BASE_URL/index/status") ?: run {
+            val response = getJson("$LIVE_SEARCH_URL/index/status") ?: run {
                 cacheServerAvailability(false)
                 return false
             }
@@ -414,7 +447,7 @@ class RemoteIndexClient(private val context: Context) {
             cacheServerAvailability(ok)
             ok
         } catch (e: Exception) {
-            Log.d(TAG, "Home server unavailable: ${e.message}")
+            Log.d(TAG, "Live search endpoint unavailable: ${e.message}")
             cacheServerAvailability(false)
             false
         }
@@ -426,13 +459,13 @@ class RemoteIndexClient(private val context: Context) {
     }
 
     /**
-     * Search podcasts on the home server (fallback when static index is
-     * unavailable).  Returns an empty list if the server is unreachable.
+     * Search podcasts via the live search endpoint (Cloud Function or home
+     * server fallback).  Returns an empty list if the endpoint is unreachable.
      */
     fun searchPodcasts(query: String, limit: Int = 50): List<PodcastFts> {
         if (query.isBlank()) return emptyList()
         return try {
-            val url = "$SERVER_BASE_URL/search/podcasts?q=${encode(query)}&limit=$limit"
+            val url = "$LIVE_SEARCH_URL/search/podcasts?q=${encode(query)}&limit=$limit"
             val array = getJsonArray(url) ?: return emptyList()
             (0 until array.length()).mapNotNull { i ->
                 val obj = array.optJSONObject(i) ?: return@mapNotNull null
@@ -443,19 +476,19 @@ class RemoteIndexClient(private val context: Context) {
                 )
             }
         } catch (e: Exception) {
-            Log.d(TAG, "searchPodcasts (home server) failed: ${e.message}")
+            Log.d(TAG, "searchPodcasts (live endpoint) failed: ${e.message}")
             emptyList()
         }
     }
 
     /**
-     * Search episodes on the home server (fallback when static index is
-     * unavailable).  Returns an empty list if the server is unreachable.
+     * Search episodes via the live search endpoint (Cloud Function or home
+     * server fallback).  Returns an empty list if the endpoint is unreachable.
      */
     fun searchEpisodes(query: String, limit: Int = 100, offset: Int = 0): List<EpisodeFts> {
         if (query.isBlank()) return emptyList()
         return try {
-            val url = "$SERVER_BASE_URL/search/episodes?q=${encode(query)}&limit=$limit&offset=$offset"
+            val url = "$LIVE_SEARCH_URL/search/episodes?q=${encode(query)}&limit=$limit&offset=$offset"
             val array = getJsonArray(url) ?: return emptyList()
             (0 until array.length()).mapNotNull { i ->
                 val obj = array.optJSONObject(i) ?: return@mapNotNull null
@@ -468,7 +501,7 @@ class RemoteIndexClient(private val context: Context) {
                 )
             }
         } catch (e: Exception) {
-            Log.d(TAG, "searchEpisodes (home server) failed: ${e.message}")
+            Log.d(TAG, "searchEpisodes (live endpoint) failed: ${e.message}")
             emptyList()
         }
     }
