@@ -74,6 +74,23 @@ android {
         targetSdk = 34
         versionCode = 33
         versionName = computeNextVersion()
+
+        // Configurable backend URLs.  Set these in local.properties or as
+        // environment variables when building.  The app falls back to the
+        // hard-coded defaults in RemoteIndexClient if these are blank.
+        //
+        // GCS_INDEX_URL   — public URL of podcast-index.json.gz in GCS
+        //   e.g. https://storage.googleapis.com/YOUR_BUCKET/podcast-index.json.gz
+        // GCS_META_URL    — public URL of podcast-index-meta.json in GCS
+        //   e.g. https://storage.googleapis.com/YOUR_BUCKET/podcast-index-meta.json
+        // CLOUD_FUNCTION_URL — base URL of the Cloud Function search API
+        //   e.g. https://REGION-PROJECT.cloudfunctions.net/podcast-search
+        def gcsIndexUrl       = project.findProperty("GCS_INDEX_URL")       ?: System.getenv("GCS_INDEX_URL")       ?: ""
+        def gcsMetaUrl        = project.findProperty("GCS_META_URL")        ?: System.getenv("GCS_META_URL")        ?: ""
+        def cloudFunctionUrl  = project.findProperty("CLOUD_FUNCTION_URL")  ?: System.getenv("CLOUD_FUNCTION_URL")  ?: ""
+        buildConfigField "String", "GCS_INDEX_URL",      "\"${gcsIndexUrl}\""
+        buildConfigField "String", "GCS_META_URL",       "\"${gcsMetaUrl}\""
+        buildConfigField "String", "CLOUD_FUNCTION_URL", "\"${cloudFunctionUrl}\""
     }
 
     signingConfigs {
@@ -159,6 +176,10 @@ android {
         abortOnError true
         // Optionally create a baseline file to track existing issues
         // baseline = file("lint-baseline.xml")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 }
 

@@ -62,7 +62,7 @@ object IndexWorker {
             try {
                 onProgress("Starting index...", -1, false)
 
-                // Download pre-built index from GitHub Pages.
+                // Download pre-built index from GCS (or GitHub Pages fallback).
                 // Always force a fresh download for full reindex (user initiated or first install).
                 val remoteClient = RemoteIndexClient(context)
                 val downloadedIndex = try {
@@ -70,13 +70,13 @@ object IndexWorker {
                         onProgress(msg, pct, false)
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "GitHub Pages index download failed: ${e.message}")
+                    Log.w(TAG, "Remote index download failed: ${e.message}")
                     null
                 }
 
                 if (downloadedIndex == null) {
                     onProgress("Index download failed. Please check your internet connection.", -1, false)
-                    Log.e(TAG, "Unable to download index from GitHub Pages")
+                    Log.e(TAG, "Unable to download index from remote source")
                     return@withContext
                 }
 
@@ -119,7 +119,7 @@ object IndexWorker {
                     "(from ${downloadedIndex.generatedAt})",
                     100, false
                 )
-                Log.d(TAG, "Reindex from GitHub Pages complete: podcasts=${podcasts.size}, episodes=$inserted")
+                Log.d(TAG, "Reindex from remote source complete: podcasts=${podcasts.size}, episodes=$inserted")
                 try { store.setLastReindexTime(System.currentTimeMillis()) } catch (e: Exception) {
                     Log.w(TAG, "Failed to persist last reindex time: ${e.message}")
                 }
@@ -165,13 +165,13 @@ object IndexWorker {
                         onProgress(msg, pct, false)
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "GitHub Pages index download failed: ${e.message}")
+                    Log.w(TAG, "Remote index download failed: ${e.message}")
                     null
                 }
 
                 if (downloadedIndex == null) {
                     onProgress("Index download failed. Please check your internet connection.", -1, false)
-                    Log.e(TAG, "Unable to download index from GitHub Pages")
+                    Log.e(TAG, "Unable to download index from remote source")
                     return@withContext
                 }
 
@@ -219,7 +219,7 @@ object IndexWorker {
                     "Incremental index complete: newPodcasts=$newPodcasts, newEpisodes=$inserted",
                     100, false
                 )
-                Log.d(TAG, "Incremental reindex from GitHub Pages: newPodcasts=$newPodcasts, newEpisodes=$inserted")
+                Log.d(TAG, "Incremental reindex from remote source: newPodcasts=$newPodcasts, newEpisodes=$inserted")
                 try { store.setLastReindexTime(System.currentTimeMillis()) } catch (e: Exception) {
                     Log.w(TAG, "Failed to persist last reindex time: ${e.message}")
                 }

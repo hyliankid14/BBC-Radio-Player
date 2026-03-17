@@ -1,14 +1,31 @@
 #!/usr/bin/env python3
 """
 Builds a static podcast index JSON from the BBC OPML feed and the individual
-podcast RSS feeds.  Intended to be run by a nightly GitHub Actions workflow;
-the output is committed to docs/podcast-index.json.gz and served from GitHub
-Pages so the Android app can download it without hitting the home server on
-every search.  The file is gzip-compressed to stay well below GitHub's 100 MB
-file size limit.
+podcast RSS feeds.
+
+Output can be written to a local file (default) and/or uploaded to a
+Google Cloud Storage bucket (pass ``--bucket BUCKET_NAME``).  When a bucket
+is provided the files are uploaded as public objects so the Android app and
+the search Cloud Function can read them without authentication:
+
+  podcast-index.json.gz   — gzip-compressed full index (~46 MB)
+  podcast-index-meta.json — tiny freshness-check companion (~100 bytes)
+
+Running locally:
+    python3 api/build_index.py                          # write to docs/
+    python3 api/build_index.py --bucket my-gcs-bucket  # write to docs/ AND upload
+
+Running as a Cloud Run Job (no local file needed):
+    python3 api/build_index.py --output /tmp/podcast-index.json.gz \
+                               --bucket my-gcs-bucket
+
+The file is gzip-compressed.  The GitHub-Pages path (committing to docs/) is
+still supported as a fallback but is no longer the recommended deployment
+target — use GCS instead.
 
 Usage:
     python3 api/build_index.py [--output docs/podcast-index.json.gz]
+                               [--bucket GCS_BUCKET_NAME]
                                [--max-episodes N]
                                [--workers 16]
 """
@@ -183,14 +200,64 @@ def fetch_podcast(pid, title, rss_url, max_episodes):
         return pid, title, "", [], str(exc)
 
 
+# ── GCS upload ───────────────────────────────────────────────────────────────
+
+def upload_to_gcs(bucket_name: str, local_index_path: Path, local_meta_path: Path) -> None:
+    """
+    Upload both output files to a Google Cloud Storage bucket as public objects.
+
+    Requires the ``google-cloud-storage`` package and Application Default
+    Credentials (ADC).  On Cloud Run / Cloud Functions ADC is provided
+    automatically via the service account attached to the job/function.
+    When running locally, authenticate first with:
+        gcloud auth application-default login
+
+    The objects are given ``Cache-Control: public, max-age=21600`` so CDN
+    and browser caches respect the 6-hour TTL used by the Android app.
+    """
+    try:
+        from google.cloud import storage as gcs  # type: ignore[import-untyped]
+    except ImportError:
+        print(
+            "ERROR: google-cloud-storage is not installed.\n"
+            "  pip install google-cloud-storage",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    client = gcs.Client()
+    bucket = client.bucket(bucket_name)
+
+    cache_control = "public, max-age=21600"
+
+    index_blob = bucket.blob("podcast-index.json.gz")
+    index_blob.cache_control = cache_control
+    index_blob.content_encoding = "gzip"
+    index_blob.content_type = "application/json"
+    index_blob.upload_from_filename(str(local_index_path))
+    index_blob.make_public()
+    print(f"Uploaded {local_index_path.name} → gs://{bucket_name}/podcast-index.json.gz")
+    print(f"  Public URL: https://storage.googleapis.com/{bucket_name}/podcast-index.json.gz")
+
+    meta_blob = bucket.blob("podcast-index-meta.json")
+    meta_blob.cache_control = cache_control
+    meta_blob.content_type = "application/json"
+    meta_blob.upload_from_filename(str(local_meta_path))
+    meta_blob.make_public()
+    print(f"Uploaded {local_meta_path.name} → gs://{bucket_name}/podcast-index-meta.json")
+    print(f"  Public URL: https://storage.googleapis.com/{bucket_name}/podcast-index-meta.json")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def build_index(
     output_path="docs/podcast-index.json.gz",
     max_episodes=MAX_EPISODES_PER_PODCAST,
     workers=DEFAULT_WORKERS,
+    gcs_bucket: str = "",
 ):
-    """Fetch BBC OPML, then all RSS feeds concurrently, and write the JSON index."""
+    """Fetch BBC OPML, then all RSS feeds concurrently, write the JSON index,
+    and optionally upload the result to Google Cloud Storage."""
     print(f"Fetching OPML from {BBC_OPML_URL} ...")
     raw_podcasts = parse_opml(fetch_bytes(BBC_OPML_URL))
     print(f"Found {len(raw_podcasts)} podcasts in OPML\n")
@@ -258,15 +325,29 @@ def build_index(
     if failed:
         print(f"{failed} podcasts failed (see warnings above)")
 
+    # Optionally upload to Google Cloud Storage.
+    if gcs_bucket:
+        print(f"\nUploading to GCS bucket '{gcs_bucket}' ...")
+        upload_to_gcs(gcs_bucket, out, meta_path)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Build BBC podcast index for GitHub Pages"
+        description="Build BBC podcast index and optionally upload to Google Cloud Storage"
     )
     parser.add_argument(
         "--output",
         default="docs/podcast-index.json.gz",
         help="Output gzip-compressed JSON path (default: docs/podcast-index.json.gz)",
+    )
+    parser.add_argument(
+        "--bucket",
+        default="",
+        help=(
+            "Google Cloud Storage bucket name to upload the index and metadata to. "
+            "When set the objects are made public so the Android app can download them. "
+            "Requires google-cloud-storage and Application Default Credentials."
+        ),
     )
     parser.add_argument(
         "--max-episodes",
@@ -281,4 +362,4 @@ if __name__ == "__main__":
         help=f"Parallel fetch threads (default: {DEFAULT_WORKERS})",
     )
     args = parser.parse_args()
-    build_index(args.output, args.max_episodes, args.workers)
+    build_index(args.output, args.max_episodes, args.workers, args.bucket)
