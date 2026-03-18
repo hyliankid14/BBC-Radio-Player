@@ -14,7 +14,6 @@ object SavedSearchManager {
                 if (searches.isEmpty()) return@withContext
 
                 val index = IndexStore.getInstance(context)
-                if (!index.hasAnyEpisodes()) return@withContext
 
                 val repo = PodcastRepository(context)
                 val allPodcasts = try { repo.fetchPodcasts(forceRefresh = true) } catch (_: Exception) { emptyList() }
@@ -96,10 +95,9 @@ object SavedSearchManager {
                 if (searches.isEmpty()) return@withContext
 
                 val index = IndexStore.getInstance(context)
-                if (!index.hasAnyEpisodes()) return@withContext
 
                 val repo = PodcastRepository(context)
-                val allPodcasts = try { repo.fetchPodcasts(forceRefresh = false) } catch (_: Exception) {
+                val allPodcasts = try { repo.fetchPodcasts(forceRefresh = true) } catch (_: Exception) {
                     emptyList()
                 }
                 if (allPodcasts.isEmpty()) return@withContext

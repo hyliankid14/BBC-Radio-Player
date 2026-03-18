@@ -91,6 +91,8 @@ class RemoteIndexClient(private val context: Context) {
 
         private const val CONNECT_TIMEOUT_MS = 10_000
         private const val READ_TIMEOUT_MS = 30_000
+        private const val LIVE_SEARCH_CONNECT_TIMEOUT_MS = 4_000
+        private const val LIVE_SEARCH_READ_TIMEOUT_MS = 8_000
 
         // Re-download the static index at most once every 6 hours.
         private const val INDEX_CACHE_TTL_MS = 6 * 60 * 60 * 1_000L
@@ -465,7 +467,11 @@ class RemoteIndexClient(private val context: Context) {
         if (query.isBlank()) return emptyList()
         return try {
             val url = "$LIVE_SEARCH_URL/search/podcasts?q=${encode(query)}&limit=$limit"
-            val array = getJsonArray(url) ?: return emptyList()
+            val array = getJsonArray(
+                url,
+                connectTimeoutMs = LIVE_SEARCH_CONNECT_TIMEOUT_MS,
+                readTimeoutMs = LIVE_SEARCH_READ_TIMEOUT_MS
+            ) ?: return emptyList()
             (0 until array.length()).mapNotNull { i ->
                 val obj = array.optJSONObject(i) ?: return@mapNotNull null
                 PodcastFts(
@@ -488,7 +494,11 @@ class RemoteIndexClient(private val context: Context) {
         if (query.isBlank()) return emptyList()
         return try {
             val url = "$LIVE_SEARCH_URL/search/episodes?q=${encode(query)}&limit=$limit&offset=$offset"
-            val array = getJsonArray(url) ?: return emptyList()
+            val array = getJsonArray(
+                url,
+                connectTimeoutMs = LIVE_SEARCH_CONNECT_TIMEOUT_MS,
+                readTimeoutMs = LIVE_SEARCH_READ_TIMEOUT_MS
+            ) ?: return emptyList()
             (0 until array.length()).mapNotNull { i ->
                 val obj = array.optJSONObject(i) ?: return@mapNotNull null
                 EpisodeFts(
@@ -507,8 +517,12 @@ class RemoteIndexClient(private val context: Context) {
 
     // ── HTTP helpers ──────────────────────────────────────────────────────────
 
-    private fun getJson(urlStr: String): JSONObject? {
-        val conn = openConnection(urlStr)
+    private fun getJson(
+        urlStr: String,
+        connectTimeoutMs: Int = CONNECT_TIMEOUT_MS,
+        readTimeoutMs: Int = READ_TIMEOUT_MS
+    ): JSONObject? {
+        val conn = openConnection(urlStr, connectTimeoutMs = connectTimeoutMs, readTimeoutMs = readTimeoutMs)
         conn.requestMethod = "GET"
         if (conn.responseCode == HttpURLConnection.HTTP_OK) {
             return JSONObject(readBody(conn))
@@ -517,8 +531,12 @@ class RemoteIndexClient(private val context: Context) {
         return null
     }
 
-    private fun getJsonArray(urlStr: String): JSONArray? {
-        val conn = openConnection(urlStr)
+    private fun getJsonArray(
+        urlStr: String,
+        connectTimeoutMs: Int = CONNECT_TIMEOUT_MS,
+        readTimeoutMs: Int = READ_TIMEOUT_MS
+    ): JSONArray? {
+        val conn = openConnection(urlStr, connectTimeoutMs = connectTimeoutMs, readTimeoutMs = readTimeoutMs)
         conn.requestMethod = "GET"
         if (conn.responseCode == HttpURLConnection.HTTP_OK) {
             return JSONArray(readBody(conn))
@@ -527,10 +545,15 @@ class RemoteIndexClient(private val context: Context) {
         return null
     }
 
-    private fun openConnection(urlStr: String, bypassCaches: Boolean = false): HttpURLConnection {
+    private fun openConnection(
+        urlStr: String,
+        bypassCaches: Boolean = false,
+        connectTimeoutMs: Int = CONNECT_TIMEOUT_MS,
+        readTimeoutMs: Int = READ_TIMEOUT_MS
+    ): HttpURLConnection {
         val conn = URL(urlStr).openConnection() as HttpURLConnection
-        conn.connectTimeout = CONNECT_TIMEOUT_MS
-        conn.readTimeout = READ_TIMEOUT_MS
+        conn.connectTimeout = connectTimeoutMs
+        conn.readTimeout = readTimeoutMs
         if (bypassCaches) {
             conn.useCaches = false
             conn.setRequestProperty("Cache-Control", "no-cache")

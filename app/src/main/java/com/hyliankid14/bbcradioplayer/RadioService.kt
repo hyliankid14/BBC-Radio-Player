@@ -269,7 +269,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 Log.d(TAG, "onPlayFromMediaId called with mediaId: $mediaId")
                 mediaId?.let { id ->
                     if (id == MEDIA_ID_PODCASTS_RANDOM) {
-                        playRandomPodcastFromAuto()
+                        playRandomPodcastMostRecentFromAuto()
                     } else if (id.startsWith("podcast_episode_")) {
                         val episodeId = id.removePrefix("podcast_episode_")
                         serviceScope.launch {
@@ -865,21 +865,19 @@ class RadioService : MediaBrowserServiceCompat() {
                 MEDIA_ID_PODCASTS -> {
                     // Present four folders: Subscribed Podcasts, Saved Episodes, Downloaded Episodes, and History
                     val itemsPodcasts = mutableListOf<MediaItem>()
+                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_subscribed").setTitle("Subscribed Podcasts").build(), MediaItem.FLAG_BROWSABLE))
+                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_saved_episodes").setTitle("Saved Episodes").build(), MediaItem.FLAG_BROWSABLE))
+                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId(MEDIA_ID_PODCASTS_DOWNLOADED).setTitle("Downloaded Episodes").build(), MediaItem.FLAG_BROWSABLE))
+                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_history").setTitle("History").build(), MediaItem.FLAG_BROWSABLE))
                     itemsPodcasts.add(
                         MediaItem(
                             MediaDescriptionCompat.Builder()
                                 .setMediaId(MEDIA_ID_PODCASTS_RANDOM)
                                 .setTitle(getString(R.string.random_podcast_title))
-                                .setSubtitle(getString(R.string.shuffle_podcast_desc))
-                                .setIconBitmap(loadDrawableAsBitmap(R.drawable.ic_shuffle))
                                 .build(),
                             MediaItem.FLAG_PLAYABLE
                         )
                     )
-                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_subscribed").setTitle("Subscribed Podcasts").build(), MediaItem.FLAG_BROWSABLE))
-                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_saved_episodes").setTitle("Saved Episodes").build(), MediaItem.FLAG_BROWSABLE))
-                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId(MEDIA_ID_PODCASTS_DOWNLOADED).setTitle("Downloaded Episodes").build(), MediaItem.FLAG_BROWSABLE))
-                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_history").setTitle("History").build(), MediaItem.FLAG_BROWSABLE))
                     result.sendResult(itemsPodcasts)
                 }
                 else -> {
@@ -928,12 +926,12 @@ class RadioService : MediaBrowserServiceCompat() {
                         try {
                             val downloaded = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
                             val downloadedItems = downloaded.map { d ->
-                                val subtitle = if (d.podcastTitle.isNotBlank()) d.podcastTitle else ""
+                                val status = if (d.podcastTitle.isNotBlank()) d.podcastTitle else ""
                                 MediaItem(
                                     MediaDescriptionCompat.Builder()
                                         .setMediaId("podcast_episode_${d.id}")
                                         .setTitle(d.title)
-                                        .setSubtitle(subtitle)
+                                        .setSubtitle(buildAutoEpisodeSubtitle(d.pubDate, status))
                                         .setIconUri(android.net.Uri.parse(d.imageUrl))
                                         .build(),
                                     MediaItem.FLAG_PLAYABLE
@@ -970,7 +968,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                     MediaDescriptionCompat.Builder()
                                         .setMediaId("podcast_episode_${h.id}")
                                         .setTitle(h.title)
-                                        .setSubtitle(subtitle)
+                                        .setSubtitle(buildAutoEpisodeSubtitle(h.pubDate, subtitle))
                                         .setIconUri(android.net.Uri.parse(h.imageUrl))
                                         .build(),
                                     MediaItem.FLAG_PLAYABLE
@@ -989,7 +987,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                     MediaDescriptionCompat.Builder()
                                         .setMediaId("podcast_episode_${s.id}")
                                         .setTitle(s.title)
-                                        .setSubtitle(s.podcastTitle)
+                                        .setSubtitle(buildAutoEpisodeSubtitle(s.pubDate, s.podcastTitle))
                                         .setIconUri(android.net.Uri.parse(s.imageUrl))
                                         .build(),
                                     MediaItem.FLAG_PLAYABLE
@@ -1217,45 +1215,31 @@ class RadioService : MediaBrowserServiceCompat() {
         return autoEpisodeDateFormat.get()?.format(Date(epoch)) ?: ""
     }
 
-    private fun playRandomPodcastFromAuto() {
+    private fun playRandomPodcastMostRecentFromAuto() {
         serviceScope.launch {
             try {
                 val repo = PodcastRepository(this@RadioService)
                 val allPodcasts = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
-                val subscribedIds = PodcastSubscriptions.getSubscribedIds(this@RadioService)
-                val candidatePodcasts = allPodcasts.filter { it.id in subscribedIds }.ifEmpty { allPodcasts }
 
-                for (podcast in candidatePodcasts.shuffled()) {
+                for (podcast in allPodcasts.shuffled()) {
                     val episodes = withContext(Dispatchers.IO) {
                         repo.fetchEpisodesPaged(podcast, 0, AUTO_MAX_EPISODES)
                     }
-                    if (episodes.isNotEmpty()) {
-                        autoEpisodesCache[podcast.id] = episodes
-                    }
-                    val pickedEpisode = filterAndSortEpisodesForAuto(episodes, podcast.id).firstOrNull()
-                    if (pickedEpisode != null) {
-                        playPodcastEpisode(
-                            pickedEpisode,
-                            Intent().apply {
-                                putExtra(EXTRA_PODCAST_ID, podcast.id)
-                                putExtra(EXTRA_PODCAST_TITLE, podcast.title)
-                                putExtra(EXTRA_PODCAST_IMAGE, podcast.imageUrl)
-                            }
-                        )
-                        return@launch
-                    }
-                }
+                    if (episodes.isEmpty()) continue
 
-                val downloaded = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
-                val downloadedByPodcast = downloaded.groupBy { it.podcastId }
-                for ((podcastId, entries) in downloadedByPodcast.entries.shuffled()) {
-                    val pickedEntry = sortDownloadedEpisodesForPodcast(entries, podcastId).firstOrNull() ?: continue
+                    autoEpisodesCache[podcast.id] = episodes
+
+                    val mostRecent = episodes.maxWithOrNull(
+                        compareBy<Episode> { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+                            .thenBy { it.title }
+                    ) ?: episodes.first()
+
                     playPodcastEpisode(
-                        downloadedEntryToEpisode(pickedEntry),
+                        mostRecent,
                         Intent().apply {
-                            putExtra(EXTRA_PODCAST_ID, podcastId)
-                            putExtra(EXTRA_PODCAST_TITLE, pickedEntry.podcastTitle)
-                            putExtra(EXTRA_PODCAST_IMAGE, pickedEntry.imageUrl)
+                            putExtra(EXTRA_PODCAST_ID, podcast.id)
+                            putExtra(EXTRA_PODCAST_TITLE, podcast.title)
+                            putExtra(EXTRA_PODCAST_IMAGE, podcast.imageUrl)
                         }
                     )
                     return@launch
@@ -1269,7 +1253,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     ).show()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error starting random podcast for Android Auto", e)
+                Log.e(TAG, "Error playing random podcast for Android Auto", e)
                 handler.post {
                     android.widget.Toast.makeText(
                         this@RadioService,

@@ -98,8 +98,13 @@ def _load_index(force: bool = False) -> None:
     client = gcs.Client()
     bucket = client.bucket(GCS_BUCKET)
     blob = bucket.blob(INDEX_OBJECT)
-    compressed = blob.download_as_bytes()
-    raw = gzip.decompress(compressed)
+    payload = blob.download_as_bytes()
+    # Support both historical gzip objects and plain JSON uploads.
+    # Some storage/proxy paths may return already-decoded bytes.
+    if payload[:2] == b"\x1f\x8b":
+        raw = gzip.decompress(payload)
+    else:
+        raw = payload
     index = json.loads(raw)
 
     _podcasts = index.get("podcasts", [])
@@ -225,7 +230,11 @@ def _cors_response(data: Any, status: int = 200):
     """Wrap *data* in a JSON response with permissive CORS headers."""
     resp = make_response(jsonify(data), status)
     resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Cache-Control"] = "public, max-age=300"  # 5-min CDN cache
+    if status >= 400:
+        # Do not cache transient backend errors.
+        resp.headers["Cache-Control"] = "no-store"
+    else:
+        resp.headers["Cache-Control"] = "public, max-age=300"  # 5-min CDN cache
     return resp
 
 
