@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || (cd "$SCRIPT_DIR/../../.." && pwd))"
 cd "$PROJECT_ROOT"
 
 PROPS_FILE="gradle.properties"
@@ -70,28 +70,58 @@ fi
 
 cp "$SIGNED_APK" "$APK_OUTPUT_PATH"
 
-LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
-if [[ -n "$LAST_TAG" ]]; then
-    COMMITS="$(git log --pretty=format:'- %s' "${LAST_TAG}"..HEAD --no-merges)"
+PREV_TAG="$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -1)"
+if [[ -n "$PREV_TAG" ]]; then
+    COMMITS="$(git log --pretty=format:'%s' "${PREV_TAG}"..HEAD --no-merges)"
 else
-    COMMITS="$(git log --pretty=format:'- %s' -n 40 --no-merges)"
+    COMMITS="$(git log --pretty=format:'%s' -n 40 --no-merges)"
 fi
 
-if [[ -z "$COMMITS" ]]; then
-    COMMITS="- Maintenance release"
-fi
+collect_matches() {
+    local pattern="$1"
+    local fallback="$2"
+    local result
+    result="$(printf '%s\n' "$COMMITS" | grep -E "$pattern" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' || true)"
+    if [[ -z "$result" ]]; then
+        echo "- $fallback"
+    else
+        printf '%s\n' "$result" | sed 's/^/- /'
+    fi
+}
+
+UI_ITEMS="$(collect_matches 'ui|layout|theme|settings|browse|search|filter|pagination|station|podcast' 'Improved interface polish and browsing reliability across radio and podcast sections.')"
+PLAYBACK_ITEMS="$(collect_matches 'playback|audio|download|episode|stream|resume|buffer|notification' 'Playback and media handling improvements for more reliable listening.')"
+AUTO_ITEMS="$(collect_matches 'android auto|auto|car|mini-player|mini player' 'General in-car and mini-player stability improvements.')"
+SECURITY_ITEMS="$(collect_matches 'security|permission|keystore|storage|file|filesystem|provider' 'Storage and security hardening updates for release builds.')"
+MAINT_ITEMS="$(collect_matches 'build|release|version|script|gradle|metadata|chore|refactor|fix' 'Release tooling and maintenance updates.')"
 
 NOTES_FILE="$(mktemp)"
 {
     echo "## BBC Radio Player ${TAG}"
     echo
-    echo "### Highlights"
-    echo "$COMMITS"
+    echo "### ✨ UI Redesign & Browsing"
+    echo "$UI_ITEMS"
     echo
-    echo "### Build"
-    echo "- Version: ${VERSION_NAME}"
-    echo "- Version code: ${VERSION_CODE}"
-    echo "- Distribution: GitHub"
+    echo "### 🎧 Playback & Media Management"
+    echo "$PLAYBACK_ITEMS"
+    echo
+    echo "### 🚗 Android Auto & Mini-Player"
+    echo "$AUTO_ITEMS"
+    echo
+    echo "### 📂 Storage & Security"
+    echo "$SECURITY_ITEMS"
+    echo
+    echo "### 🔒 Maintenance & Release"
+    echo "$MAINT_ITEMS"
+    echo "- Version bump: ${TAG} (Build ${VERSION_CODE})."
+    echo
+    echo "### 📦 Release Artifacts"
+    echo "- ${RELEASE_ASSET_NAME}: A single, unified, installable APK for all supported devices."
+    echo
+    echo "Release Version: ${TAG} (Build ${VERSION_CODE})"
+    if [[ -n "$PREV_TAG" ]]; then
+        echo "Full Changelog: https://github.com/hyliankid14/British-Radio-Player/compare/${PREV_TAG}...${TAG}"
+    fi
 } > "$NOTES_FILE"
 
 if ! git rev-parse "$TAG" >/dev/null 2>&1; then
@@ -104,6 +134,7 @@ fi
 
 if gh release view "$TAG" >/dev/null 2>&1; then
     gh release upload "$TAG" "$APK_OUTPUT_PATH#${RELEASE_ASSET_NAME}" --clobber
+    gh release edit "$TAG" --title "$TAG" --notes-file "$NOTES_FILE"
 else
     gh release create "$TAG" "$APK_OUTPUT_PATH#${RELEASE_ASSET_NAME}" \
         --title "$TAG" \

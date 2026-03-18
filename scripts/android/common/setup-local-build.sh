@@ -3,7 +3,7 @@ set -euo pipefail
 
 JAVA_VERSION="21"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || cd "$SCRIPT_DIR/../../.." && pwd)"
+PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || (cd "$SCRIPT_DIR/../../.." && pwd))"
 SYSROOT_DIR="$PROJECT_ROOT/scripts/android/common/sysroot"
 DEBS_DIR="$PROJECT_ROOT/scripts/android/common/debs"
 OS_NAME="$(uname -s)"
