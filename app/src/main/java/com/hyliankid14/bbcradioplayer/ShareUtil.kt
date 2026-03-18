@@ -10,6 +10,7 @@ import android.os.Looper
 import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
+import java.util.Locale
 
 /**
  * Utility for sharing podcasts and episodes with proper fallback support.
@@ -22,7 +23,8 @@ import java.net.URLEncoder
 object ShareUtil {
 
     // GitHub Pages URL for web player
-    private const val WEB_BASE_URL = "https://hyliankid14.github.io/BBC-Radio-Player"
+    private const val WEB_BASE_URL = "https://hyliankid14.github.io/British-Radio-Player"
+    private const val DEFAULT_CLOUD_FUNCTION_URL = "https://podcast-search-tcy4hnuh2q-nw.a.run.app"
     private const val APP_SCHEME = "app"
     private const val SHORT_URL_API = "https://is.gd/create.php"
     
@@ -105,28 +107,6 @@ object ShareUtil {
         // Shorten URL on background thread
         Thread {
             try {
-                // Try to refresh episode metadata from repository so we don't summarize stale/truncated text
-                try {
-                    val repo = PodcastRepository(context)
-                    val podcasts = kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) }
-                    val matchedPodcast = podcasts.firstOrNull { it.id == episode.podcastId }
-                    if (matchedPodcast != null) {
-                        if (sharePodcastTitle.isBlank()) sharePodcastTitle = matchedPodcast.title
-                        val episodes = kotlinx.coroutines.runBlocking { repo.fetchEpisodesIfNeeded(matchedPodcast) }
-                        val matchedEpisode = episodes.firstOrNull { ep ->
-                            ep.id == episode.id ||
-                            (ep.audioUrl.isNotEmpty() && ep.audioUrl == episode.audioUrl) ||
-                            ep.title.equals(episode.title, ignoreCase = true)
-                        }
-                        if (matchedEpisode != null) {
-                            shareEpisode = matchedEpisode
-                            cleanDesc = stripHtmlTags(matchedEpisode.description)
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("ShareUtil", "Could not refresh episode details before sharing: ${e.message}")
-                }
-
                 val summaryDesc = summarizeTextWithAI(cleanDesc)
 
                 val encodedTitle = Uri.encode(shareEpisode.title)
@@ -204,9 +184,10 @@ object ShareUtil {
                 ShareContentType.EPISODE to episodeId
             }
             uri.scheme == "https" && uri.host == "hyliankid14.github.io" -> {
-                // GitHub Pages URL format: /BBC-Radio-Player/p/{id} or /BBC-Radio-Player/e/{id}
+                // GitHub Pages URL format: /British-Radio-Player/p/{id} or /British-Radio-Player/e/{id}
+                // Also accept legacy /BBC-Radio-Player paths for backward compatibility.
                 val segments = uri.pathSegments
-                if (segments.getOrNull(0) == "BBC-Radio-Player") {
+                if (segments.getOrNull(0) == "British-Radio-Player" || segments.getOrNull(0) == "BBC-Radio-Player") {
                     when (segments.getOrNull(1)) {
                         "p" -> {
                             val podcastId = segments.getOrNull(2) ?: return null
@@ -237,27 +218,29 @@ object ShareUtil {
     }
 
     /**
-     * Summarize text using Vercel serverless function with Together.ai
-     * API key is stored server-side and never exposed
+     * Summarize text via the Google Cloud Function backend.
+     * Falls back to simple local truncation when the API is unavailable.
      */
     private fun summarizeTextWithAI(text: String): String {
         if (text.isBlank()) return ""
         
         val plain = stripHtmlTags(text)
         if (plain.isBlank()) return ""
+
+        val configuredBaseUrl = BuildConfig.CLOUD_FUNCTION_URL.trim().trimEnd('/')
+        val baseUrl = if (configuredBaseUrl.isNotBlank()) configuredBaseUrl else DEFAULT_CLOUD_FUNCTION_URL
         
         return try {
-            // Build JSON payload safely using JSONObject
             val payload = JSONObject().apply {
                 put("text", plain.take(2000))
             }.toString()
-            val url = "https://bbc-radio-player.vercel.app/api/summarize"
+            val url = "$baseUrl/summarize"
             
-            android.util.Log.d("ShareUtil", "Calling Vercel API for summary (length=${plain.length})")
+            android.util.Log.d("ShareUtil", "Calling Cloud Function summary API (length=${plain.length})")
             
             val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
+                connectTimeout = 3000
+                readTimeout = 3000
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("User-Agent", "BBC-Radio-Player/1.0")
@@ -267,41 +250,90 @@ object ShareUtil {
             connection.outputStream.write(payload.toByteArray(Charsets.UTF_8))
             
             val responseCode = connection.responseCode
-            android.util.Log.d("ShareUtil", "Vercel API returned code: $responseCode")
+            android.util.Log.d("ShareUtil", "Cloud Function summary API returned code: $responseCode")
             
             if (responseCode != 200) {
-                android.util.Log.w("ShareUtil", "Vercel API returned $responseCode, using fallback")
+                android.util.Log.w("ShareUtil", "Cloud Function summary API returned $responseCode, using fallback")
                 connection.disconnect()
-                return limitToWords(plain, 30)
+                return summarizeTextLocally(plain)
             }
             
             val responseText = connection.inputStream.bufferedReader().use { it.readText() }.trim()
             connection.disconnect()
             
-            // Parse JSON response safely
             val responseJson = JSONObject(responseText)
             val summary = responseJson.optString("summary", "").trim()
             val cached = responseJson.optBoolean("cached", false)
             
-            android.util.Log.d("ShareUtil", "Vercel response received (${summary.length} chars, cached=$cached)")
+            android.util.Log.d("ShareUtil", "Cloud Function summary response received (${summary.length} chars, cached=$cached)")
 
             if (summary.isNotBlank() && summary.length < 500 && summary.length > 3) {
                 android.util.Log.d("ShareUtil", "Using AI summary")
-                limitToWords(summary, 50)
+                summary
             } else {
                 android.util.Log.w("ShareUtil", "Summary invalid or too long (${summary.length} chars), using fallback")
-                limitToWords(plain, 50)
+                summarizeTextLocally(plain)
             }
         } catch (e: java.net.SocketTimeoutException) {
-            android.util.Log.w("ShareUtil", "Vercel API timeout (${e.message}), using fallback")
-            limitToWords(plain, 50)
+            android.util.Log.w("ShareUtil", "Cloud Function summary API timeout (${e.message}), using fallback")
+            summarizeTextLocally(plain)
         } catch (e: java.net.ConnectException) {
-            android.util.Log.w("ShareUtil", "Vercel API connection failed (${e.message}), using fallback")
-            limitToWords(plain, 50)
+            android.util.Log.w("ShareUtil", "Cloud Function summary API connection failed (${e.message}), using fallback")
+            summarizeTextLocally(plain)
         } catch (e: Exception) {
             android.util.Log.w("ShareUtil", "AI summary unavailable (${e.javaClass.simpleName}: ${e.message}), using fallback")
-            limitToWords(plain, 50)
+            summarizeTextLocally(plain)
         }
+    }
+
+    private fun summarizeTextLocally(text: String): String {
+        val cleanText = text.take(2000).trim()
+        if (cleanText.isBlank()) return ""
+
+        val sentenceRegex = Regex("(?<=[.!?])\\s+(?=[A-Z])|(?<=[.!?])$")
+        var sentences = cleanText.split(sentenceRegex)
+            .map { it.trim() }
+            .filter { it.length > 10 }
+
+        if (sentences.isEmpty() || (sentences.size == 1 && sentences.first() == cleanText)) {
+            val clauseParts = cleanText.split(Regex("[,;:]+"))
+                .map { it.trim().trim(',', ';', ':', '-', ' ') }
+                .filter { it.length > 10 }
+            if (clauseParts.size > 1) {
+                return clauseParts.take(2).joinToString(", ").let {
+                    if (it.endsWith('.')) it else "$it."
+                }
+            }
+            sentences = cleanText.split(Regex("[.!?]+"))
+                .map { it.trim() }
+                .filter { it.length > 10 }
+        }
+
+        if (sentences.isEmpty()) return limitToWords(cleanText, 30)
+        if (sentences.size == 1) return limitToWords(sentences[0], 30).trimEnd('.') + "."
+
+        val stopWords = setOf(
+            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from",
+            "as", "is", "was", "are", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will",
+            "would", "should", "could", "may", "might", "must", "can", "this", "that", "these", "those", "we", "they"
+        )
+
+        val wordFreq = mutableMapOf<String, Int>()
+        Regex("\\b\\w+\\b").findAll(cleanText.lowercase(Locale.getDefault())).forEach { m ->
+            val w = m.value
+            if (w.length > 3 && w !in stopWords) wordFreq[w] = (wordFreq[w] ?: 0) + 1
+        }
+
+        val scored = sentences.mapIndexed { idx, s ->
+            val words = Regex("\\b\\w+\\b").findAll(s.lowercase(Locale.getDefault())).map { it.value }.toList()
+            val important = words.filter { it.length > 3 && it !in stopWords }
+            val freqScore = important.sumOf { wordFreq[it] ?: 0 }
+            val positionBonus = if (idx == 0) 1.3 else 1.0
+            Triple(s, (freqScore.toDouble() / (important.size.coerceAtLeast(1))) * positionBonus, idx)
+        }.sortedByDescending { it.second }
+
+        val best = scored.take(2).sortedBy { it.third }.joinToString(". ") { it.first.trim().trimEnd('.', '!', '?') }
+        return if (best.isBlank()) limitToWords(cleanText, 30) else best + "."
     }
 
     private fun limitToWords(text: String, maxWords: Int): String {
@@ -319,8 +351,8 @@ object ShareUtil {
             val encodedUrl = URLEncoder.encode(longUrl, "UTF-8")
             val urlStr = "$SHORT_URL_API?format=json&url=$encodedUrl"
             val connection = (URL(urlStr).openConnection() as java.net.HttpURLConnection).apply {
-                connectTimeout = 10000
-                readTimeout = 10000
+                connectTimeout = 4000
+                readTimeout = 4000
                 requestMethod = "GET"
                 setRequestProperty("User-Agent", "British Radio Player/1.0")
             }

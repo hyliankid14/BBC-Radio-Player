@@ -2883,8 +2883,7 @@
             }
 
             /**
-             * Shorten description text to ~30 words using Vercel serverless function.
-             * Together.ai API key is stored server-side and never exposed.
+             * Shorten description text to ~30 words using the Google Cloud summarize endpoint.
              */
             async shortenTextWithAI(text) {
                 if (!text) return '';
@@ -2895,9 +2894,10 @@
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 8000);
+                    const summarizeUrl = 'https://podcast-search-tcy4hnuh2q-nw.a.run.app/summarize';
 
-                    console.log('Calling Vercel API for summary...');
-                    const response = await fetch('https://bbc-radio-player.vercel.app/api/summarize', {
+                    console.log('Calling Cloud Function API for summary...');
+                    const response = await fetch(summarizeUrl, {
                         method: 'POST',
                         signal: controller.signal,
                         headers: {
@@ -2910,10 +2910,10 @@
                     });
 
                     clearTimeout(timeoutId);
-                    console.log(`Vercel API returned ${response.status}`);
+                    console.log(`Cloud Function API returned ${response.status}`);
 
                     if (!response.ok) {
-                        console.warn(`Vercel API returned ${response.status}, using local fallback`);
+                        console.warn(`Cloud Function API returned ${response.status}, using local fallback`);
                         return this.limitToWords(plainText, 30);
                     }
 
@@ -2930,7 +2930,7 @@
                     }
                 } catch (err) {
                     const errType = err?.name || err?.constructor?.name || 'Unknown';
-                    console.warn(`Vercel API unavailable (${errType}): ${err?.message || ''}, using local fallback`);
+                    console.warn(`Cloud Function API unavailable (${errType}): ${err?.message || ''}, using local fallback`);
                 }
 
                 return this.limitToWords(plainText, 30);

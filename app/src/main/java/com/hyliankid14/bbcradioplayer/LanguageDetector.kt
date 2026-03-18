@@ -3,10 +3,14 @@ package com.hyliankid14.bbcradioplayer
 import android.content.Context
 import android.util.Log
 import android.util.Xml
+import com.google.mlkit.nl.languageid.LanguageIdentification
+import com.google.mlkit.nl.languageid.LanguageIdentifier
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
 import java.net.URL
+import kotlin.coroutines.resume
 
 object LanguageDetector {
     // A small set of common English stopwords used to help detect English language text.
@@ -33,6 +37,13 @@ object LanguageDetector {
     private val memoryCache: MutableMap<String, Pair<Boolean, Long>> = mutableMapOf()
     private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
     private const val PREFS_NAME = "language_detector_cache_v4"
+    private val languageIdentifier: LanguageIdentifier by lazy {
+        LanguageIdentification.getClient(
+            com.google.mlkit.nl.languageid.LanguageIdentificationOptions.Builder()
+                .setConfidenceThreshold(0.55f)
+                .build()
+        )
+    }
 
     fun isLikelyEnglish(text: String?): Boolean {
         if (text.isNullOrBlank()) return false
@@ -73,7 +84,7 @@ object LanguageDetector {
         return (latinRatio >= 0.75 && stopwordRatio >= 0.08) || (latinRatio >= 0.92 && stopwordRatio >= 0.05) || stopwordRatio >= 0.14
     }
 
-    // Fully FOSS language detection using RSS language, script checks and text heuristics.
+    // Google ML Kit language detection with RSS/script/heuristic fallbacks.
     suspend fun isPodcastEnglish(context: Context, podcast: Podcast): Boolean {
         // Fast check: if cached recently, honour the cached result
         val key = podcast.rssUrl.ifEmpty { podcast.htmlUrl }
@@ -111,7 +122,30 @@ object LanguageDetector {
 
             val nonEmptySamples = samples.filter { it.isNotBlank() }
             if (nonEmptySamples.isNotEmpty()) {
-                // Heuristic vote across sampled RSS entries
+                // First try ML Kit voting across RSS samples.
+                val mlVotes = mutableListOf<Boolean>()
+                for (sample in nonEmptySamples.take(4)) {
+                    if (hasStrongNonLatinSignal(sample)) {
+                        mlVotes.add(false)
+                        continue
+                    }
+                    when (detectIsEnglishWithMlKit(sample)) {
+                        true -> mlVotes.add(true)
+                        false -> mlVotes.add(false)
+                        null -> {}
+                    }
+                }
+
+                if (mlVotes.isNotEmpty()) {
+                    val yes = mlVotes.count { it }
+                    val requiredYes = if (mlVotes.size <= 2) mlVotes.size else kotlin.math.ceil(mlVotes.size * 0.67).toInt()
+                    val result = yes >= requiredYes
+                    Log.d("LanguageDetector", "ML Kit sample vote for key=$key -> yes=$yes total=${mlVotes.size} english=$result")
+                    putCachedResult(context, key, result)
+                    return result
+                }
+
+                // Fallback: heuristic vote across sampled RSS entries
                 val votes = nonEmptySamples.map { sample ->
                     !hasStrongNonLatinSignal(sample) && isLikelyEnglish(sample)
                 }
@@ -125,6 +159,21 @@ object LanguageDetector {
             }
         } catch (e: Exception) {
             Log.w("LanguageDetector", "RSS language/sample detection failed for ${podcast.rssUrl}: ${e.message}")
+        }
+
+        // Try ML Kit on the heading when RSS sampling is unavailable.
+        if (!hasStrongNonLatinSignal(heading)) {
+            when (detectIsEnglishWithMlKit(heading)) {
+                true -> {
+                    putCachedResult(context, key, true)
+                    return true
+                }
+                false -> {
+                    putCachedResult(context, key, false)
+                    return false
+                }
+                null -> {}
+            }
         }
 
         // Final fallback: conservative to avoid letting non-English feeds through when exclude is enabled.
@@ -207,6 +256,34 @@ object LanguageDetector {
             return@withContext null to emptyList()
         }
     }
+
+    private suspend fun detectIsEnglishWithMlKit(text: String): Boolean? {
+        val input = text.trim()
+        if (input.length < 20) return null
+        return try {
+            val code = identifyLanguageSuspending(input.take(4000)) ?: return null
+            when {
+                code.equals("und", ignoreCase = true) -> null
+                code.equals("en", ignoreCase = true) -> true
+                code.startsWith("en-", ignoreCase = true) -> true
+                else -> false
+            }
+        } catch (e: Exception) {
+            Log.w("LanguageDetector", "ML Kit language detection failed: ${e.message}")
+            null
+        }
+    }
+
+    private suspend fun identifyLanguageSuspending(text: String): String? =
+        suspendCancellableCoroutine { cont ->
+            languageIdentifier.identifyLanguage(text)
+                .addOnSuccessListener { lang ->
+                    if (cont.isActive) cont.resume(lang)
+                }
+                .addOnFailureListener { _ ->
+                    if (cont.isActive) cont.resume(null)
+                }
+        }
 
     private fun getCachedResult(context: Context, key: String): Pair<Boolean, Long>? {
         memoryCache[key]?.let {

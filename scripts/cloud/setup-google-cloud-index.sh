@@ -429,4 +429,5 @@ Quick checks:
   curl "${FUNCTION_URL}/index/status"
   curl "${FUNCTION_URL}/search/podcasts?q=Today"
   curl "${FUNCTION_URL}/search/episodes?q=parliament&limit=5"
+    curl -X POST "${FUNCTION_URL}/summarize" -H "Content-Type: application/json" -d '{"text":"Sample podcast text"}'
 EOF

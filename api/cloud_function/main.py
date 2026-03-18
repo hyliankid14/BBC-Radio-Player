@@ -21,6 +21,10 @@ GET /search/episodes?q=QUERY[&limit=100][&offset=0]
     Full-text search over episode titles and descriptions.  Returns a JSON
     array of { episodeId, podcastId, title, description, pubDate } objects.
 
+POST /summarize
+    Returns a short summary for episode/podcast share text using extractive
+    summarization. Request body: { "text": "..." }.
+
 Environment variables
 ---------------------
 GCS_BUCKET   (required) — name of the GCS bucket that holds the index files.
@@ -67,6 +71,10 @@ _episode_search: list[str] = []
 _meta: dict = {}
 _loaded_at: float = 0.0
 INDEX_CACHE_TTL_S = 6 * 3600  # 6 hours — matches Android app TTL
+
+_summary_cache: dict[str, tuple[str, float]] = {}
+SUMMARY_CACHE_TTL_S = 3600  # 1 hour
+SUMMARY_CACHE_MAX = 100
 
 GCS_BUCKET = os.environ.get("GCS_BUCKET", "")
 INDEX_OBJECT = os.environ.get("INDEX_OBJECT", "podcast-index.json.gz")
@@ -224,6 +232,174 @@ def _matches_query(searchable: str, clauses: list[list[str]]) -> bool:
     return any(all(term in searchable for term in clause) for clause in clauses)
 
 
+def _summary_cache_get(key: str) -> str | None:
+    hit = _summary_cache.get(key)
+    if not hit:
+        return None
+    value, ts = hit
+    if (time.monotonic() - ts) < SUMMARY_CACHE_TTL_S:
+        return value
+    _summary_cache.pop(key, None)
+    return None
+
+
+def _summary_cache_put(key: str, value: str) -> None:
+    _summary_cache[key] = (value, time.monotonic())
+    if len(_summary_cache) > SUMMARY_CACHE_MAX:
+        oldest = min(_summary_cache.items(), key=lambda kv: kv[1][1])[0]
+        _summary_cache.pop(oldest, None)
+
+
+def _limit_to_words(text: str, max_words: int) -> str:
+    words = [w for w in text.strip().split() if w]
+    if len(words) <= max_words:
+        return " ".join(words)
+    return " ".join(words[:max_words]) + "..."
+
+
+def _compress_single_sentence(sentence: str, max_words: int = 35) -> str:
+    """Compress a long single sentence by selecting informative clauses.
+
+    Many podcast descriptions are one very long sentence, where naive word
+    limits look like truncation. This clause-based scorer keeps salient parts
+    (typically proper nouns, numbers and content words) for a concise summary.
+    """
+    text = sentence.strip()
+    if not text:
+        return ""
+
+    parts = [p.strip(" ,;:-") for p in re.split(r"[,;:]+", text) if p.strip(" ,;:-")]
+    if len(parts) <= 1:
+        return _limit_to_words(text, max_words)
+
+    stop_words = {
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+        "of", "with", "by", "from", "as", "is", "was", "are", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "will", "would", "should", "could",
+        "may", "might", "must", "can", "this", "that", "these", "those", "it", "we",
+        "they", "about", "into", "through", "during", "before", "after", "then", "once",
+    }
+
+    def score(part: str, index: int) -> float:
+        words = re.findall(r"\b\w+\b", part)
+        if not words:
+            return 0.0
+        lowered = [w.lower() for w in words]
+        content_words = [w for w in lowered if len(w) > 3 and w not in stop_words]
+        caps = len(re.findall(r"\b[A-Z][a-z]{2,}\b", part))
+        nums = len(re.findall(r"\b\d+[\d,.]*\b", part))
+        length_penalty = 1.0 if len(words) <= 16 else 0.65
+        position_bonus = 1.25 if index == 0 else 1.0
+        return (len(content_words) + (caps * 0.8) + (nums * 0.6)) * length_penalty * position_bonus
+
+    ranked = sorted(
+        [(idx, part, score(part, idx), len(re.findall(r"\b\w+\b", part))) for idx, part in enumerate(parts)],
+        key=lambda row: row[2],
+        reverse=True,
+    )
+
+    selected: list[tuple[int, str, float, int]] = []
+    total = 0
+    for row in ranked:
+        if total + row[3] <= max_words:
+            selected.append(row)
+            total += row[3]
+
+    if not selected:
+        return _limit_to_words(parts[0], max_words)
+
+    selected.sort(key=lambda row: row[0])
+    summary = ", ".join(r[1] for r in selected).strip()
+    if not summary:
+        return _limit_to_words(text, max_words)
+    return summary if summary.endswith(('.', '!', '?')) else summary + "."
+
+
+def _summarize_extractively(text: str) -> str:
+    clean_text = text[:2000].strip()
+    if not clean_text:
+        return ""
+
+    sentences = [
+        s.strip()
+        for s in re.split(r"(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])$", clean_text)
+        if s.strip() and len(s.strip()) > 10
+    ]
+
+    if not sentences or (len(sentences) == 1 and sentences[0] == clean_text):
+        sentences = [
+            s.strip()
+            for s in re.split(r"[.!?]+", clean_text)
+            if s.strip() and len(s.strip()) > 10
+        ]
+
+    if not sentences:
+        return _limit_to_words(clean_text, 50)
+
+    if len(sentences) == 1:
+        return _compress_single_sentence(sentences[0], 35)
+
+    stop_words = {
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+        "of", "with", "by", "from", "as", "is", "was", "are", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "will", "would", "should", "could",
+        "may", "might", "must", "can", "this", "that", "these", "those", "i", "you",
+        "he", "she", "it", "we", "they", "what", "which", "who", "when", "where",
+        "why", "how", "about", "into", "through", "during", "before", "after", "above",
+        "below", "between", "under", "again", "further", "then", "once",
+    }
+
+    words = re.findall(r"\b\w+\b", clean_text.lower())
+    word_freq: dict[str, int] = {}
+    for w in words:
+        if len(w) > 3 and w not in stop_words:
+            word_freq[w] = word_freq.get(w, 0) + 1
+
+    scored: list[tuple[str, float, int, int]] = []
+    for index, sentence in enumerate(sentences):
+        sentence_words = re.findall(r"\b\w+\b", sentence.lower())
+        word_count = len(sentence_words)
+        important = [w for w in sentence_words if len(w) > 3 and w not in stop_words]
+
+        freq_score = sum(word_freq.get(w, 0) for w in important)
+
+        if word_count <= 15:
+            length_score = 2.0
+        elif word_count <= 20:
+            length_score = 1.2
+        else:
+            length_score = 0.5
+
+        position_bonus = 1.5 if index == 0 else 1.2 if index == 1 else 1.0
+        denom = max(len(important), 1)
+        score = (freq_score / denom) * length_score * position_bonus
+        scored.append((sentence.strip(), score, index, word_count))
+
+    scored.sort(key=lambda row: row[1], reverse=True)
+
+    selected: list[tuple[str, float, int, int]] = []
+    total_words = 0
+    max_words = 50
+    for candidate in scored:
+        if total_words + candidate[3] <= max_words:
+            selected.append(candidate)
+            total_words += candidate[3]
+
+    if not selected:
+        best = scored[0][0]
+        return _compress_single_sentence(best, 35)
+
+    selected.sort(key=lambda row: row[2])
+    sentence_texts = [re.sub(r"[.!?]+$", "", s[0]) for s in selected]
+    combined = ". ".join(sentence_texts).strip()
+    if not combined:
+        return _limit_to_words(clean_text, 50)
+
+    last_word = combined.split()[-1] if combined.split() else ""
+    has_email_or_url = "@" in last_word or "://" in last_word or "www." in last_word
+    return combined if has_email_or_url else (combined + ".")
+
+
 # ── CORS helper ────────────────────────────────────────────────────────────────
 
 def _cors_response(data: Any, status: int = 200):
@@ -248,16 +424,21 @@ def search(request: Request):
     if request.method == "OPTIONS":
         resp = make_response("", 204)
         resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
         return resp
+
+    path = request.path.rstrip("/")
+
+    if path == "/summarize":
+        if request.method != "POST":
+            return _cors_response({"error": "Method not allowed"}, 405)
+        return _handle_summarize(request)
 
     if request.method != "GET":
         return _cors_response({"error": "Method not allowed"}, 405)
 
     # Route on path
-    path = request.path.rstrip("/")
-
     try:
         _load_index()
     except Exception as exc:
@@ -274,6 +455,34 @@ def search(request: Request):
         return _handle_search_episodes(request)
 
     return _cors_response({"error": "Not found"}, 404)
+
+
+def _handle_summarize(request: Request):
+    try:
+        body = request.get_json(silent=True) or {}
+    except Exception:
+        body = {}
+
+    text = body.get("text")
+    if not isinstance(text, str):
+        return _cors_response({"error": "Invalid text provided"}, 400)
+
+    text = text.strip()
+    if not text:
+        return _cors_response({"error": "Text cannot be empty"}, 400)
+
+    key = str(hash(text))
+    cached = _summary_cache_get(key)
+    if cached is not None:
+        return _cors_response({"summary": cached, "cached": True})
+
+    try:
+        summary = _summarize_extractively(text)
+        _summary_cache_put(key, summary)
+        return _cors_response({"summary": summary, "cached": False})
+    except Exception as exc:
+        logger.exception("Summarization failed")
+        return _cors_response({"error": str(exc) or "Failed to summarize"}, 500)
 
 
 def _handle_search_podcasts(request: Request):
