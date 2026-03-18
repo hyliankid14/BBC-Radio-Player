@@ -119,6 +119,10 @@ android {
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
+            ndk {
+                // Generate compact native symbol tables for Play Console crash/ANR symbolication.
+                debugSymbolLevel 'SYMBOL_TABLE'
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

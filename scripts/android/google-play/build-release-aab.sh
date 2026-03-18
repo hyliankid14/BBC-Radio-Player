@@ -45,10 +45,39 @@ echo "--------------------------------------------------"
 # -------------------------------------------------------
 AAB_FILE=$(find app/build/outputs/bundle/playRelease -name "*.aab" | sort | head -1)
 MAPPING_FILE="app/build/outputs/mapping/playRelease/mapping.txt"
+SYMBOLS_FILE="app/build/outputs/native-debug-symbols/playRelease/native-debug-symbols.zip"
+NATIVE_LIBS_ROOT="app/build/intermediates/merged_native_libs/playRelease/mergePlayReleaseNativeLibs/out"
 
 if [ -z "$AAB_FILE" ]; then
     echo "❌ Build failed: No AAB found in app/build/outputs/bundle/playRelease/"
     exit 1
+fi
+
+if [ ! -f "$SYMBOLS_FILE" ]; then
+    SYMBOLS_FILE=$(find app/build/outputs -path "*/native-debug-symbols/*/native-debug-symbols.zip" | sort | head -1 || true)
+fi
+
+# Some AGP/dependency combinations do not emit native-debug-symbols.zip automatically.
+# In that case, package merged native .so files into the expected archive format.
+if [ -z "${SYMBOLS_FILE:-}" ] || [ ! -f "$SYMBOLS_FILE" ]; then
+    if [ -d "$NATIVE_LIBS_ROOT/lib" ] && find "$NATIVE_LIBS_ROOT/lib" -name "*.so" | grep -q .; then
+        SYMBOLS_FILE="app/build/outputs/native-debug-symbols/playRelease/native-debug-symbols.zip"
+        mkdir -p "$(dirname "$SYMBOLS_FILE")"
+        rm -f "$SYMBOLS_FILE"
+
+        if command -v zip >/dev/null 2>&1; then
+            (
+                cd "$NATIVE_LIBS_ROOT"
+                zip -rq "$PROJECT_ROOT/$SYMBOLS_FILE" lib
+            )
+        else
+            # macOS fallback if zip is unavailable.
+            (
+                cd "$NATIVE_LIBS_ROOT"
+                ditto -c -k --sequesterRsrc --keepParent lib "$PROJECT_ROOT/$SYMBOLS_FILE"
+            )
+        fi
+    fi
 fi
 
 # -------------------------------------------------------
@@ -80,5 +109,11 @@ if [ -f "$MAPPING_FILE" ]; then
     echo "   Upload mapping.txt in Play Console deobfuscation section"
 else
     echo "   Mapping : Not generated"
+fi
+if [ -n "${SYMBOLS_FILE:-}" ] && [ -f "$SYMBOLS_FILE" ]; then
+    echo "   Native symbols : $SYMBOLS_FILE"
+    echo "   Upload native-debug-symbols.zip in Play Console to resolve native crash/ANR symbols"
+else
+    echo "   Native symbols : Not generated"
 fi
 echo "=================================================="
