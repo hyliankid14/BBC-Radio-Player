@@ -67,7 +67,7 @@ class RadioService : MediaBrowserServiceCompat() {
     }
     
     private var currentStationTitle: String = ""
-    private var currentStationId: String = ""
+    @Volatile private var currentStationId: String = ""
     private var currentPodcastId: String? = null
     private var matchedPodcast: Podcast? = null  // Podcast matching currently playing radio show for Android Auto
     private var matchPodcastJob: kotlinx.coroutines.Job? = null
@@ -1770,6 +1770,10 @@ class RadioService : MediaBrowserServiceCompat() {
                     return@Thread
                 }
 
+                // Capture the station ID at thread-start so we can discard results if the user
+                // switches stations while the image is loading (race condition guard).
+                val capturedStationId = currentStationId
+
                 // Use image_url from API if available and valid, otherwise fall back to station logo
                 var imageUrl: String = when {
                     !currentShowInfo.imageUrl.isNullOrEmpty() && currentShowInfo.imageUrl?.startsWith("http") == true -> currentShowInfo.imageUrl!!
@@ -1815,6 +1819,16 @@ class RadioService : MediaBrowserServiceCompat() {
                             Log.w(TAG, "Failed to load fallback station logo: ${e2.message}")
                         }
                     }
+                }
+
+                // Guard: discard if the station changed while the image was loading.
+                // Without this, a podcast artwork fetch that completes after playStation() has
+                // already switched to a radio station would overwrite currentArtworkUri /
+                // currentArtworkBitmap with stale podcast data and post a notification with
+                // the wrong image — causing podcast artwork to persist in the notification shade.
+                if (capturedStationId != currentStationId) {
+                    Log.d(TAG, "Station changed during artwork load (was: $capturedStationId, now: $currentStationId), discarding result")
+                    return@Thread
                 }
 
                 if (bitmap != null) {
@@ -1956,8 +1970,8 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     // completing and stopPlayback() cancelling the notification causes the
                     // notification to reappear in the shade even after the user taps Stop.
                     handler.post {
-                        if (isStopped || currentStationId.isBlank()) {
-                            // stopPlayback() ran while we were loading – discard the result
+                        if (isStopped || currentStationId.isBlank() || capturedStationId != currentStationId) {
+                            // stopPlayback() ran while we were loading, or station changed – discard the result
                             return@post
                         }
                         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -1969,7 +1983,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 } else {
                     // If bitmap load failed completely, still update metadata with the fallback URI
                     // This ensures AA at least has a valid URI to try, rather than the broken one or the placeholder
-                    if (finalUrl.isNotEmpty()) {
+                    if (finalUrl.isNotEmpty() && capturedStationId == currentStationId) {
                          Log.d(TAG, "Bitmap load failed, updating metadata with URI only: $finalUrl")
                          currentArtworkBitmap = null
                          currentArtworkUri = finalUrl
@@ -2144,8 +2158,6 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         // Rebuild & re-post the foreground notification (will not include progress for live streams)
         startForegroundNotification()
         
-        startForegroundNotification()
-        
         // Indicate buffering immediately to prevent UI from showing "Stopped"
         updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
 
@@ -2244,7 +2256,9 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
                 // Always update the playback helper's idea of current show so listeners get the new value immediately
                 // (but don't update UI/metadata for streams until the delay passes)
-                val isPodcast = currentStationId.startsWith("podcast_")
+                // Use the immutable fetch parameter (not the mutable service field) so classification
+                // is stable even if playStation() switches away while this thread was fetching.
+                val isPodcast = stationId.startsWith("podcast_")
 
                 if (isPodcast) {
                     // For podcasts, guard against overwriting authoritative podcast series metadata
@@ -2268,6 +2282,8 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
                     // Update PlaybackStateHelper with the merged, authoritative show so other consumers
                     // never see the placeholder value unexpectedly.
+                    // Guard: discard if the station changed while we were fetching (race condition).
+                    if (stationId != currentStationId) return@Thread
                     PlaybackStateHelper.setCurrentShow(mergedShow)
 
                     if (titleChanged || episodeChanged || imageChanged || songDataChanged) {
@@ -2298,6 +2314,12 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     // For live streams, apply immediately if this is the first fetch after switching stations.
                     val isInitialApply = currentShowInfo.title.isNullOrEmpty() && currentShowName.isEmpty()
                     if (isInitialApply) {
+                        // Guard: discard if the station changed while we were fetching.
+                        // Without this, a podcast fetch that completes after playStation() has
+                        // already switched to a radio station would write podcast show data into
+                        // currentShowInfo/currentShowName and PlaybackStateHelper, causing the
+                        // mini player subtitle and artwork to show stale podcast details.
+                        if (stationId != currentStationId) return@Thread
                         // Apply immediately so the now playing field isn't blank on first play/switch
                         currentShowInfo = finalShow
                         currentShowName = finalShow.title
