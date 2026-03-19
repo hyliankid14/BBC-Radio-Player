@@ -53,9 +53,7 @@ jobs:
           gh release delete "$TAG" --yes 2>/dev/null || true
           git push origin ":refs/tags/$TAG" 2>/dev/null || true
 
-          NOTES="Rolling debug build — branch \`${{ github.ref_name }}\`, commit \`${{ github.sha }}\`.
-
-This is a pre-release used for sideloading only. It is not a production release."
+          NOTES="Rolling debug build — branch \`${{ github.ref_name }}\`, commit \`${{ github.sha }}\`."$'\n\n'"This is a pre-release used for sideloading only. It is not a production release."
 
           # Create a fresh pre-release and attach the APK directly (not zipped).
           gh release create "$TAG" "$DEST" \
