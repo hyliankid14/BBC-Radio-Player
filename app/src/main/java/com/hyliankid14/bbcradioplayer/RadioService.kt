@@ -1421,7 +1421,7 @@ class RadioService : MediaBrowserServiceCompat() {
             MediaDescriptionCompat.Builder()
                 .setMediaId("podcast_episode_${ep.id}")
                 .setTitle(ep.title)
-                .setSubtitle(subtitle)
+                .setSubtitle(buildAutoEpisodeSubtitle(ep.pubDate, subtitle))
                 .setIconUri(android.net.Uri.parse(ep.imageUrl))
                 .build(),
             MediaItem.FLAG_PLAYABLE
