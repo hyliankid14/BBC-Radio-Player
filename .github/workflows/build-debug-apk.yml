@@ -1,16 +1,15 @@
 name: Build Debug APK
 
 # Builds a debug APK for sideloading on a device.  No signing keys are needed
-# for debug builds — the APK is signed automatically with the Android debug
-# keystore.  The resulting APK is uploaded as a workflow artifact AND published
-# as a GitHub pre-release so it can be downloaded via a direct link without
-# needing to navigate through the Actions UI.
+# for debug builds — the APK is signed with the shared debug keystore committed
+# at keystore/debug.keystore (same key used by the local-deploy script) so that
+# CI-built APKs can upgrade-in-place over locally installed debug builds.
 
 on:
   workflow_dispatch:       # allow manual trigger from the Actions tab
 
 permissions:
-  contents: write          # needed to create/update the rolling per-branch pre-release
+  contents: read           # read-only checkout; no write access needed
 
 jobs:
   build-debug:
@@ -32,45 +31,30 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build debug APKs
-        run: ./gradlew assembleDebug
+      - name: Build github debug APK
+        run: ./gradlew assembleGithubDebug
 
-      - name: Upload debug APKs as artifact
+      - name: Upload debug APK
+        id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apks
-          path: app/build/outputs/apk/**/debug/*.apk
+          name: debug-apk
+          path: app/build/outputs/apk/github/debug/*.apk
           retention-days: 14
 
-      - name: Publish debug APK as pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Print download instructions
         run: |
-          # Derive a safe git tag from the branch name (replace / and other
-          # characters that are invalid in git refs with hyphens).
-          BRANCH="${{ github.ref_name }}"
-          TAG="debug-apk-${BRANCH//\//-}"
-          TAG="${TAG//[^a-zA-Z0-9._-]/-}"
-
-          APK=$(find app/build/outputs/apk -name "*debug*.apk" | head -1)
-
-          # Replace any previous release/tag for this branch so the tag always
-          # points to the latest build.
-          gh release delete "$TAG" --yes 2>/dev/null || true
-          git push origin ":refs/tags/$TAG" 2>/dev/null || true
-
-          # Create a new pre-release and attach the APK.
-          gh release create "$TAG" "$APK" \
-            --title "Debug APK · $BRANCH" \
-            --notes "Debug build from branch \`$BRANCH\`, commit \`${{ github.sha }}\`." \
-            --prerelease
-
-          APK_URL=$(gh release view "$TAG" --json assets -q '.assets[0].browserDownloadUrl')
-
           {
             echo "## 📱 Debug APK"
             echo ""
-            echo "**[⬇️ Direct download]($APK_URL)**"
+            echo "The APK was uploaded as a workflow artifact named **debug-apk**."
             echo ""
-            echo "Branch: \`$BRANCH\`  |  Commit: \`${{ github.sha }}\`"
+            echo "**How to download:**"
+            echo "1. Go to the [Actions run summary](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "2. Scroll to the **Artifacts** section at the bottom of the page"
+            echo "3. Click **debug-apk** to download the zip containing the APK"
+            echo ""
+            echo "This APK is signed with the shared \`keystore/debug.keystore\` — the same"
+            echo "key used by the local-deploy script — so it installs over an existing"
+            echo "debug build without needing to uninstall first."
           } >> "$GITHUB_STEP_SUMMARY"
