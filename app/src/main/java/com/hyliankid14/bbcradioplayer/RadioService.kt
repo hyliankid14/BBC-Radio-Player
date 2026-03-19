@@ -1211,8 +1211,10 @@ class RadioService : MediaBrowserServiceCompat() {
 
     private fun formatAutoEpisodeDate(raw: String?): String {
         val epoch = EpisodeDateParser.parsePubDateToEpoch(raw)
-        if (epoch <= 0L) return ""
-        return autoEpisodeDateFormat.get()?.format(Date(epoch)) ?: ""
+        if (epoch > 0L) {
+            return autoEpisodeDateFormat.get()?.format(Date(epoch)) ?: ""
+        }
+        return raw?.trim().orEmpty()
     }
 
     private fun playRandomPodcastMostRecentFromAuto() {
