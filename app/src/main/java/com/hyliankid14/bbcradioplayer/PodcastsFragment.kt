@@ -99,6 +99,9 @@ class PodcastsFragment : Fragment() {
     private var lastDisplaySnapshot: DisplaySnapshot? = null
     private var lastActiveQueryNorm: String = ""
 
+    // Track the language filter preference value that was active when the podcast list was last loaded
+    private var lastLoadedExcludeNonEnglish: Boolean? = null
+
     private fun currentFilterHash(): Int = (currentFilter.hashCode() * 31) xor currentSort.hashCode()
 
     /** Update the search field's end icon based on whether the field is empty.
@@ -721,6 +724,7 @@ class PodcastsFragment : Fragment() {
         genreSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView,
         sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView
     ) {
+        lastLoadedExcludeNonEnglish = PodcastFilterPreference.excludeNonEnglish(requireContext())
         loadingIndicator.visibility = View.VISIBLE
         emptyState.text = "No podcasts found"
         viewLifecycleOwner.lifecycleScope.launch {
@@ -1048,6 +1052,14 @@ class PodcastsFragment : Fragment() {
                     // No active persisted search — if we're already showing the main podcasts list, skip reapplying filters
                     if (searchQuery.isBlank() && podcastsRecycler.adapter == podcastAdapter) {
                         android.util.Log.d("PodcastsFragment", "onResume: no active search and already showing podcasts, ensuring visibility")
+                        // If the language filter preference changed since the list was last loaded,
+                        // reload the list immediately so the setting takes effect.
+                        val currentExclude = PodcastFilterPreference.excludeNonEnglish(requireContext())
+                        if (lastLoadedExcludeNonEnglish?.let { it != currentExclude } == true) {
+                            android.util.Log.d("PodcastsFragment", "onResume: language filter preference changed ($lastLoadedExcludeNonEnglish -> $currentExclude), refreshing podcast list")
+                            refreshPodcastsDueToPreferenceChange()
+                            return
+                        }
                         // Ensure the list is visible (it may have been hidden when navigating away)
                         podcastsRecycler.visibility = View.VISIBLE
                         view?.findViewById<TextView>(R.id.empty_state_text)?.visibility = View.GONE
