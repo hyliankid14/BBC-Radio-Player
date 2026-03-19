@@ -255,7 +255,9 @@ class PodcastRepository(private val context: Context) {
                     }
                     results
                 } else podcasts
-                cachePodcasts(filtered)
+                // Always cache the full unfiltered list so that toggling the language
+                // filter does not permanently lose non-English podcasts from the cache.
+                cachePodcasts(podcasts)
                 filtered
             } else {
                 // Try cache as fallback

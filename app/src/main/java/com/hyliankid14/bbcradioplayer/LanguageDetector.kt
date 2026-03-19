@@ -29,7 +29,9 @@ object LanguageDetector {
         "的", "了", "在", "是", "我", "你", // zh
         "の", "に", "は", "を", "です", // ja
         "이", "가", "은", "는", "을", "를", // ko
-        "yr", "yn", "ac", "mae", "newyddion", "cymru", "peldroed" // cy
+        "yr", "yn", "ac", "mae", "newyddion", "cymru", "peldroed", // cy (Welsh)
+        "agus", "tha", "bha", "ann", "nach", "ach", "dhan", "aig", "nam", "nan", // gd (Scottish Gaelic)
+        "orm", "faoi" // ga (Irish Gaelic) — accent-free distinctive words; accented forms (tá, níl, féin) are stripped by normalization
     )
     private val knownEnglishLanguageCodes = setOf("en", "en-gb", "en-us", "en-au", "en-ca", "eng")
 
