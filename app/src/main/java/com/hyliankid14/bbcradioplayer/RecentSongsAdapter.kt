@@ -41,12 +41,16 @@ class RecentSongsAdapter(
         holder.station.text = song.stationName
         holder.time.text = formatRelativeTime(song.playedAtMs)
 
-        if (song.imageUrl.isNotBlank()) {
-            Glide.with(context)
-                .load(song.imageUrl)
-                .placeholder(R.drawable.ic_music_note)
-                .error(R.drawable.ic_music_note)
-                .into(holder.artwork)
+        val stationLogoUrl = StationRepository.getStationById(song.stationId)?.logoUrl
+        val artworkUrl = song.imageUrl.ifBlank { stationLogoUrl }
+        if (artworkUrl != null) {
+            val request = Glide.with(context).load(artworkUrl)
+            val withFallback = if (song.imageUrl.isNotBlank() && stationLogoUrl != null) {
+                request.error(Glide.with(context).load(stationLogoUrl).error(R.drawable.ic_music_note))
+            } else {
+                request.error(R.drawable.ic_music_note)
+            }
+            withFallback.placeholder(R.drawable.ic_music_note).into(holder.artwork)
         } else {
             Glide.with(context).clear(holder.artwork)
             holder.artwork.setImageResource(R.drawable.ic_music_note)
