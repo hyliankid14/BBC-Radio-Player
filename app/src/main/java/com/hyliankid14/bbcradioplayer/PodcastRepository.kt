@@ -108,6 +108,18 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
+    /**
+     * For FTS podcast results, determine whether the match is in the description.
+     * Mirrors ftsMatchesTitle but operates on the description field.
+     */
+    private fun ftsMatchesDescription(fts: com.hyliankid14.bbcradioplayer.db.PodcastFts, query: String): Boolean {
+        if (!isAdvancedQuery(query)) return textMatchesNormalized(fts.description, query)
+        val descLower = fts.description.lowercase(Locale.getDefault())
+        return extractPlainTermsFromQuery(query).any { term ->
+            term.isNotEmpty() && containsPhraseOrAllTokens(descLower, term)
+        }
+    }
+
     private fun isAdvancedQuery(query: String): Boolean {
         val q = query.trim()
         if (q.isEmpty()) return false
@@ -506,7 +518,7 @@ class PodcastRepository(private val context: Context) {
                 val pMatches = remote.searchPodcasts(q, 50)
                 android.util.Log.d("PodcastRepository", "Remote searchPodcasts q='$q' returned ${pMatches.size}")
                 val pTitleIds = pMatches.filter { ftsMatchesTitle(it, q) }.map { it.podcastId }.toSet()
-                val pDescIds  = pMatches.filter { !ftsMatchesTitle(it, q) }.map { it.podcastId }.toSet()
+                val pDescIds  = pMatches.filter { !ftsMatchesTitle(it, q) && ftsMatchesDescription(it, q) }.map { it.podcastId }.toSet()
 
                 val eMatches = remote.searchEpisodes(q, 200)
                 val eTitleIds = eMatches.filter { textMatchesNormalized(it.title, q) }.map { it.podcastId }.toSet()
@@ -544,8 +556,8 @@ class PodcastRepository(private val context: Context) {
             val pMatches = index.searchPodcasts(q, 50)
             android.util.Log.d("PodcastRepository", "searchPodcasts q='$q' returned ${pMatches.size}: ${pMatches.map { it.podcastId + '/' + it.title }}")
             val pTitleIds = pMatches.filter { ftsMatchesTitle(it, q) }.map { it.podcastId }.toSet()
-            // If FTS found it and it's not a title match, it's a description match
-            val pDescIds = pMatches.filter { !ftsMatchesTitle(it, q) }.map { it.podcastId }.toSet()
+            // Only include as a description match if the description actually has a word-boundary match
+            val pDescIds = pMatches.filter { !ftsMatchesTitle(it, q) && ftsMatchesDescription(it, q) }.map { it.podcastId }.toSet()
             android.util.Log.d("PodcastRepository", "pTitleIds=$pTitleIds pDescIds=$pDescIds")
             val extractedTerms = extractPlainTermsFromQuery(q)
             android.util.Log.d("PodcastRepository", "extractedTerms=$extractedTerms")
@@ -585,16 +597,18 @@ class PodcastRepository(private val context: Context) {
                 // determine whether it matched title or description first
                 val pair = podcastSearchIndex[p.id]
                 if (pair != null) {
-                    if (pair.first.contains(qLower)) titleMatches.add(p)
+                    if (containsPhraseOrAllTokens(pair.first, qLower)) titleMatches.add(p)
                     else descMatches.add(p)
                     continue
                 } else {
-                    // fallback to original contains checks
-                    if (p.title.contains(q, ignoreCase = true)) {
+                    // fallback: check title then description with word-boundary
+                    val tl = p.title.lowercase(Locale.getDefault())
+                    val dl = p.description.lowercase(Locale.getDefault())
+                    if (containsPhraseOrAllTokens(tl, qLower)) {
                         titleMatches.add(p)
                         continue
                     }
-                    if (p.description.contains(q, ignoreCase = true)) {
+                    if (containsPhraseOrAllTokens(dl, qLower)) {
                         descMatches.add(p)
                         continue
                     }
