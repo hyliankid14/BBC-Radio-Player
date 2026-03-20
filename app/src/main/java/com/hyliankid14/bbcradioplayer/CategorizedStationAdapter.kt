@@ -19,7 +19,7 @@ class CategorizedStationAdapter(
     private val onFavoriteToggle: ((String) -> Unit)? = null
 ) : RecyclerView.Adapter<CategorizedStationAdapter.StationViewHolder>() {
     
-    private val adapterScope = CoroutineScope(Dispatchers.Main + Job())
+    private var adapterScope = CoroutineScope(Dispatchers.Main + Job())
     private val showCache = mutableMapOf<String, Pair<String, Long>>()
     private val fetchingIds = mutableSetOf<String>()
     private val CACHE_DURATION_MS = 120_000L // 2 minutes
@@ -32,6 +32,14 @@ class CategorizedStationAdapter(
         val textView: TextView = view.findViewById(R.id.station_title)
         val subtitleView: TextView = view.findViewById(R.id.station_subtitle)
         val starView: ImageView = view.findViewById(R.id.station_favorite_star)
+    }
+    
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        // Recreate the scope if it was cancelled by a previous detach, so coroutines can run again
+        if (adapterScope.coroutineContext[Job]?.isActive == false) {
+            adapterScope = CoroutineScope(Dispatchers.Main + Job())
+        }
     }
     
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {

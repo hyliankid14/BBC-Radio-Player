@@ -83,11 +83,14 @@ class MainActivity : AppCompatActivity() {
     private var filterButtonsContainer: View? = null
     private lateinit var tabLayout: TabLayout
     private var categorizedAdapter: CategorizedStationAdapter? = null
+    private val categoryAdapters = mutableMapOf<StationCategory, CategorizedStationAdapter>()
     private var currentTabIndex = 0
     private var savedItemAnimator: androidx.recyclerview.widget.RecyclerView.ItemAnimator? = null
     private var selectionFromSwipe = false
     // Reference to the active swipe listener so it can be removed when not in the All Stations view
     private var stationsSwipeListener: RecyclerView.OnItemTouchListener? = null
+    // Track any in-flight transition overlay so it can be cleaned up before starting a new one
+    private var activeOverlayView: View? = null
 
     // Track whether a swipe-to-delete ItemTouchHelper has been attached to the Saved Episodes recycler
     private var savedItemTouchHelper: ItemTouchHelper? = null
@@ -594,8 +597,8 @@ class MainActivity : AppCompatActivity() {
         // Clear show cache in the current adapter and refresh the view
         when (currentMode) {
             "list" -> {
-                // Clear cache in categorized adapter if it exists
-                categorizedAdapter?.clearShowCache()
+                // Clear cache in all cached category adapters and refresh the active one
+                categoryAdapters.values.forEach { it.clearShowCache() }
                 categorizedAdapter?.notifyDataSetChanged()
             }
             "favorites" -> {
@@ -2163,8 +2166,7 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            android.util.Log.w("MainActivity", "TabLayout not found after retry; filter buttons disabled, but swipe navigation will still be enabled")
-            // Ensure swipe navigation is enabled even if the tabs are missing
+            android.util.Log.w("MainActivity", "TabLayout not found after retry; filter buttons disabled")
             setupSwipeNavigation()
             return
         }
@@ -2256,6 +2258,18 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        // Clean up any previous overlay immediately to prevent memory accumulation during rapid tab switches
+        activeOverlayView?.let { prev ->
+            prev.animate().cancel()
+            try { (prev.parent as? android.view.ViewGroup)?.removeView(prev) } catch (_: Exception) {}
+            if (prev is ImageView) {
+                val bmp = (prev.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                prev.setImageDrawable(null)
+                try { bmp?.recycle() } catch (_: Exception) {}
+            }
+        }
+        activeOverlayView = null
+
         // Create a snapshot overlay (or fallback view) of the outgoing content so we can swap the RecyclerView's adapter
         val parent = staticContentContainer as? android.view.ViewGroup
         val bitmap = try {
@@ -2293,6 +2307,7 @@ class MainActivity : AppCompatActivity() {
             val insertIndex = parent?.indexOfChild(stationsContent)?.plus(1) ?: -1
             if (insertIndex >= 0) parent?.addView(overlayView, insertIndex) else parent?.addView(overlayView)
         } catch (_: Exception) {}
+        activeOverlayView = overlayView
 
         // Use hardware layer and disable nested scrolling during the animation to avoid blurring/jitter
         stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
@@ -2337,12 +2352,15 @@ class MainActivity : AppCompatActivity() {
                     // Restore normal rendering after animation completes
                     stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
                     stationsList.isNestedScrollingEnabled = true
-                    // Remove overlay and recycle bitmap
+                    // Remove overlay, clear active reference, and recycle bitmap
+                    if (activeOverlayView === overlayView) activeOverlayView = null
                     try {
                         parent?.removeView(overlayView)
                     } catch (_: Exception) {}
-                    (overlayView as? ImageView)?.drawable?.let { d ->
-                        (d as? android.graphics.drawable.BitmapDrawable)?.bitmap?.recycle()
+                    (overlayView as? ImageView)?.let { iv ->
+                        val bmp = (iv.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                        iv.setImageDrawable(null)
+                        try { bmp?.recycle() } catch (_: Exception) {}
                     }
                     // Restore animator
                     try {
@@ -2360,13 +2378,17 @@ class MainActivity : AppCompatActivity() {
         try { findViewById<View>(R.id.recent_songs_list).visibility = View.GONE } catch (_: Exception) { }
         try { findViewById<View>(R.id.recent_songs_empty).visibility = View.GONE } catch (_: Exception) { }
         stationsList.visibility = View.VISIBLE
-        val stations = StationRepository.getStationsByCategory(category)
-        categorizedAdapter = CategorizedStationAdapter(this, stations, { stationId ->
-            playStation(stationId)
-        }, { _ ->
-            // Do nothing to prevent list jump
-        })
-        stationsList.adapter = categorizedAdapter
+        // Reuse the cached adapter for this category to avoid repeated network requests and GC pressure
+        val adapter = categoryAdapters.getOrPut(category) {
+            val stations = StationRepository.getStationsByCategory(category)
+            CategorizedStationAdapter(this, stations, { stationId ->
+                playStation(stationId)
+            }, { _ ->
+                // Do nothing to prevent list jump
+            })
+        }
+        categorizedAdapter = adapter
+        stationsList.adapter = adapter
         stationsList.scrollToPosition(0)
     }
 
@@ -2478,184 +2500,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSwipeNavigation() {
-        // Remove any existing listener first (allows safe re-entry). Then only attach the swipe handler
-        // when the All Stations view is active — disable for Favorites/Podcasts/Settings.
-        try {
-            stationsSwipeListener?.let { stationsList.removeOnItemTouchListener(it) }
-        } catch (_: Exception) { }
-        stationsSwipeListener = null
-
-        if (currentMode != "list") {
-            // Ensure UI state is reset when not in 'All Stations'
-            try {
-                stationsContent.translationX = 0f
-                stationsList.isNestedScrollingEnabled = true
-                stationsList.itemAnimator = savedItemAnimator
-                savedItemAnimator = null
-            } catch (_: Exception) { }
-            return
-        }
-
-        // Use touch slop and velocity to start a drag and make the list follow the finger
-        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
-        val minFlingVelocity = android.view.ViewConfiguration.get(this).scaledMinimumFlingVelocity
-
-        val listener = object : RecyclerView.OnItemTouchListener {
-            private var downX = 0f
-            private var downY = 0f
-            private var activePointerId = MotionEvent.INVALID_POINTER_ID
-            private var dragging = false
-            private var velocityTracker: android.view.VelocityTracker? = null
-            private var lastTranslation = 0f
-
-            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
-                when (e.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        // Start tracking this pointer explicitly
-                        activePointerId = e.getPointerId(0)
-                        downX = e.getX(0)
-                        downY = e.getY(0)
-                        dragging = false
-                        lastTranslation = 0f
-                        velocityTracker?.recycle()
-                        velocityTracker = android.view.VelocityTracker.obtain()
-                        velocityTracker?.addMovement(e)
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val idx = try { e.findPointerIndex(activePointerId) } catch (_: Exception) { 0 }
-                        val px = if (idx >= 0) e.getX(idx) else e.x
-                        val py = if (idx >= 0) e.getY(idx) else e.y
-                        val dx = px - downX
-                        val dy = py - downY
-                        val maxIndex = if (::tabLayout.isInitialized) tabLayout.tabCount - 1 else 2
-
-                        if (!dragging) {
-                            val horizontalEnough = Math.abs(dx) > Math.abs(dy) * 1.5f && Math.abs(dx) > touchSlop
-                            if (horizontalEnough) {
-                                // Do not start a horizontal drag if it would move past the first or last tab
-                                if ((dx > 0 && currentTabIndex == 0) || (dx < 0 && currentTabIndex == maxIndex)) {
-                                    return false
-                                }
-
-                                // Start dragging: take over touch events and prepare for smooth animation
-                                dragging = true
-                                lastTranslation = stationsContent.translationX
-                                // Disable RecyclerView item animations to avoid layout jitter during drag
-                                try {
-                                    savedItemAnimator = stationsList.itemAnimator
-                                    stationsList.itemAnimator = null
-                                } catch (_: Exception) {}
-                                rv.stopScroll() // stop any ongoing fling to avoid jitter
-                                rv.parent?.requestDisallowInterceptTouchEvent(true)
-                                rv.isNestedScrollingEnabled = false
-                                stationsContent.animate().cancel()
-                                stationsContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                                return true
-                            }
-                        } else {
-                            // already dragging; intercept
-                            return true
-                        }
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        // Clean up even if we never started dragging
-                        velocityTracker?.recycle()
-                        velocityTracker = null
-                        dragging = false
-                        rv.parent?.requestDisallowInterceptTouchEvent(false)
-                        rv.isNestedScrollingEnabled = true
-                        stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
-                        activePointerId = MotionEvent.INVALID_POINTER_ID
-                    }
-                }
-                return false
-            }
-
-            override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {
-                velocityTracker?.addMovement(e)
-                when (e.actionMasked) {
-                    MotionEvent.ACTION_MOVE -> {
-                        if (!dragging) return
-                        val idx = try { e.findPointerIndex(activePointerId) } catch (_: Exception) { 0 }
-                        val px = if (idx >= 0) e.getX(idx) else e.x
-                        val dx = px - downX
-                        val maxTrans = stationsContent.width.toFloat().takeIf { it > 0f } ?: rv.width.toFloat()
-                        // Use float translation for smooth tracking; avoid aggressive rounding which can cause jitter
-                        val trans = (dx).coerceIn(-maxTrans, maxTrans)
-                        // Apply slight exponential smoothing to reduce micro-jitter while still following finger
-                        val smoothed = lastTranslation + (trans - lastTranslation) * 0.35f
-                        if (Math.abs(smoothed - lastTranslation) > 0.25f) {
-                            stationsContent.translationX = smoothed
-                            lastTranslation = smoothed
-                        }
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        if (!dragging) {
-                            activePointerId = MotionEvent.INVALID_POINTER_ID
-                            return
-                        }
-                        velocityTracker?.computeCurrentVelocity(1000)
-                        val vx = try { velocityTracker?.getXVelocity(activePointerId) ?: 0f } catch (_: Exception) { velocityTracker?.xVelocity ?: 0f }
-                        val idx = try { e.findPointerIndex(activePointerId) } catch (_: Exception) { -1 }
-                        val px = if (idx >= 0) e.getX(idx) else e.x
-                        val dxTotal = px - downX
-                        val threshold = (stationsContent.width.takeIf { it > 0 } ?: rv.width) * 0.25f
-                        val maxIndex = if (::tabLayout.isInitialized) tabLayout.tabCount - 1 else 2
-                        val target = if (dxTotal < 0) currentTabIndex + 1 else currentTabIndex - 1
-                        val shouldNavigate = Math.abs(dxTotal) > threshold || Math.abs(vx) > Math.max(minFlingVelocity, 1000)
-
-                        // Restore parent handling after the gesture is finished
-                        rv.parent?.requestDisallowInterceptTouchEvent(false)
-                        rv.isNestedScrollingEnabled = true
-                        // Restore RecyclerView item animator
-                        try {
-                            stationsList.itemAnimator = savedItemAnimator
-                            savedItemAnimator = null
-                        } catch (_: Exception) {}
-
-                        if (shouldNavigate && target in 0..maxIndex) {
-                            // Animate off-screen in the swipe direction for a smooth feel, then navigate
-                            val off = if (dxTotal < 0) -stationsContent.width.toFloat() else stationsContent.width.toFloat()
-                            stationsContent.animate().translationX(off).setDuration(180).withEndAction {
-                                if (dxTotal < 0) {
-                                    selectionFromSwipe = true
-                                    navigateToTab(currentTabIndex + 1)
-                                } else {
-                                    selectionFromSwipe = true
-                                    navigateToTab(currentTabIndex - 1)
-                                }
-                                // Ensure translation reset after navigation (animateListTransition will animate new content)
-                                stationsContent.translationX = 0f
-                                stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
-                                lastTranslation = 0f
-                            }.start()
-                        } else {
-                            // animate back into place (apply to stationsContent, which is what we translate during the gesture)
-                            stationsContent.animate().translationX(0f).setDuration(200).withEndAction {
-                                stationsContent.setLayerType(View.LAYER_TYPE_NONE, null)
-                                lastTranslation = 0f
-                                // Restore animator if not already restored
-                                try {
-                                    stationsList.itemAnimator = savedItemAnimator
-                                    savedItemAnimator = null
-                                } catch (_: Exception) {}
-                            }.start()
-                        }
-                        velocityTracker?.recycle()
-                        velocityTracker = null
-                        dragging = false
-                        activePointerId = MotionEvent.INVALID_POINTER_ID
-                    }
-                }
-            }
-
-            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
-                // No-op
-            }
-        }
-
-        stationsSwipeListener = listener
-        stationsList.addOnItemTouchListener(listener)
+        // Swipe-to-navigate between tabs is disabled; just ensure any existing listener is removed.
+        disableSwipeNavigation()
     }
 
     // Disable and remove swipe navigation listener (used when not in All Stations)
