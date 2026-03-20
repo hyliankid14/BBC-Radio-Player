@@ -1750,17 +1750,20 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        val receiverFlags = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            android.content.Context.RECEIVER_NOT_EXPORTED
+        } else 0
         try {
-            registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED))
+            registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED), receiverFlags)
         } catch (_: Exception) {}
         try {
-            registerReceiver(historyChangedReceiver, android.content.IntentFilter(PlayedHistoryPreference.ACTION_HISTORY_CHANGED))
+            registerReceiver(historyChangedReceiver, android.content.IntentFilter(PlayedHistoryPreference.ACTION_HISTORY_CHANGED), receiverFlags)
         } catch (_: Exception) {}
         try {
-            registerReceiver(downloadCompleteReceiver, android.content.IntentFilter(EpisodeDownloadManager.ACTION_DOWNLOAD_COMPLETE))
+            registerReceiver(downloadCompleteReceiver, android.content.IntentFilter(EpisodeDownloadManager.ACTION_DOWNLOAD_COMPLETE), receiverFlags)
         } catch (_: Exception) {}
         try {
-            registerReceiver(recentSongsChangedReceiver, android.content.IntentFilter(RecentSongsPreference.ACTION_RECENT_SONGS_CHANGED))
+            registerReceiver(recentSongsChangedReceiver, android.content.IntentFilter(RecentSongsPreference.ACTION_RECENT_SONGS_CHANGED), receiverFlags)
         } catch (_: Exception) {}
     }
 
