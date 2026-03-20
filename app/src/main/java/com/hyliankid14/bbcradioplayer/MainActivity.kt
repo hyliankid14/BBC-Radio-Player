@@ -1048,6 +1048,9 @@ class MainActivity : AppCompatActivity() {
         stationsList.visibility = View.VISIBLE
         filterButtonsContainer?.visibility = View.GONE
         settingsContainer.visibility = View.GONE
+        // Hide recent songs views so they don't bleed into the empty space of the Favourites section
+        try { findViewById<View>(R.id.recent_songs_list).visibility = View.GONE } catch (_: Exception) { }
+        try { findViewById<View>(R.id.recent_songs_empty).visibility = View.GONE } catch (_: Exception) { }
         // Ensure action bar reflects the section and clear any podcast-specific up affordance
         supportActionBar?.apply {
             show()
@@ -1574,6 +1577,9 @@ class MainActivity : AppCompatActivity() {
             "stations" -> {
                 supportActionBar?.title = "Favourite Stations"
                 refreshFavoriteStationsEmptyState()
+                // Hide recent songs views so they don't persist into the blank space below favourite stations
+                try { findViewById<View>(R.id.recent_songs_list).visibility = View.GONE } catch (_: Exception) { }
+                try { findViewById<View>(R.id.recent_songs_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE
                 try { findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE } catch (_: Exception) { }
                 findViewById<View>(R.id.saved_episodes_container).visibility = View.GONE
