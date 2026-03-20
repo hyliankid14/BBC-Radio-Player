@@ -403,22 +403,37 @@ class PodcastRepository(private val context: Context) {
 
     suspend fun fetchLatestUpdates(podcasts: List<Podcast>, forceRefresh: Boolean = false): Map<String, Long> = withContext(Dispatchers.IO) {
         try {
-            // Try cache first
             val cached = readUpdatesCache()
             val now = System.currentTimeMillis()
             val result = mutableMapOf<String, Long>()
+
+            // Separate podcasts that can be served from cache from those that need a network fetch.
+            val needsFetch = mutableListOf<Podcast>()
             podcasts.forEach { p ->
                 val cachedVal = cached[p.id]
                 if (!forceRefresh && cachedVal != null && (now - cachedVal.second) < updatesCacheTTL) {
                     result[p.id] = cachedVal.first
                 } else {
-                    val latest = RSSParser.fetchLatestPubDateEpoch(p.rssUrl)
+                    needsFetch.add(p)
+                }
+            }
+
+            // Fetch all stale / missing entries in parallel to avoid sequential network delays.
+            if (needsFetch.isNotEmpty()) {
+                Log.d("PodcastRepository", "Fetching latest update timestamps for ${needsFetch.size} podcasts in parallel")
+                val fetched = coroutineScope {
+                    needsFetch.map { p ->
+                        async { p.id to RSSParser.fetchLatestPubDateEpoch(p.rssUrl) }
+                    }.awaitAll()
+                }
+                fetched.forEach { (id, latest) ->
                     if (latest != null) {
-                        result[p.id] = latest
-                        cached[p.id] = latest to now
+                        result[id] = latest
+                        cached[id] = latest to now
                     }
                 }
             }
+
             writeUpdatesCache(cached)
             result
         } catch (e: Exception) {
@@ -735,6 +750,19 @@ class PodcastRepository(private val context: Context) {
         return raw.filter { p ->
             LanguageDetector.persistedIsPodcastEnglish(context, p) != false
         }
+    }
+
+    /**
+     * Return the last-known latest-episode epoch for each podcast ID that has been
+     * cached on disk, regardless of cache age.  No network I/O is performed, so this
+     * returns quickly and is safe to call from any background thread.  Avoid calling
+     * this on the main thread as it performs file I/O.
+     *
+     * Intended for use alongside [getAvailablePodcastsNow] to provide an instant
+     * first render of the subscription list before the background refresh completes.
+     */
+    fun getAvailableUpdatesNow(): Map<String, Long> {
+        return readUpdatesCache().mapValues { it.value.first }
     }
 
     /**

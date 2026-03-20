@@ -1268,10 +1268,179 @@ class MainActivity : AppCompatActivity() {
             refreshSavedEpisodesSection()
 
             val repo = PodcastRepository(this)
+
+            // Create the adapter up-front on the UI thread so cached data can populate it
+            // the moment the background thread finishes reading from disk — no spinner needed.
+            val favPodcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
+                // Show app bar so podcast title and back button are visible
+                supportActionBar?.show()
+                // Navigate to podcast detail
+                fragmentContainer.visibility = View.VISIBLE
+                staticContentContainer.visibility = View.GONE
+                // Ensure the main navigation reflects the Podcasts context
+                currentMode = "podcasts"
+                // Mark origin so back returns to Favorites
+                returnToFavoritesOnBack = true
+                // Disable swipe navigation when leaving All Stations
+                disableSwipeNavigation()
+                // Programmatic selection should not trigger the bottom-nav listener (it would replace our fragment)
+                suppressBottomNavSelection = true
+                try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
+                suppressBottomNavSelection = false
+                updateActionBarTitle()
+                // Hide the favourites toggle when showing a fragment/detail view
+                updateFavoritesToggleVisibility()
+                val detailFragment = PodcastDetailFragment().apply {
+                    arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) }
+                }
+                supportFragmentManager.beginTransaction().apply {
+                    replace(R.id.fragment_container, detailFragment)
+                    addToBackStack(null)
+                    commit()
+                }
+            }, highlightSubscribed = true, showSubscribedIcon = false)
+
+            favoritesPodcastsRecycler.adapter = favPodcastAdapter
+
+            // Attach swipe-to-unsubscribe (only once)
+            if (podcastsItemTouchHelper == null) {
+                val swipeCallbackPodcasts = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+                    override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
+
+                    override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                        val pos = viewHolder.bindingAdapterPosition
+                        if (pos != RecyclerView.NO_POSITION) {
+                            val podcastAdapterForSwipe = favoritesPodcastsRecycler.adapter as? PodcastAdapter
+                            val removedPodcast = podcastAdapterForSwipe?.removePodcastAt(pos)
+                            removedPodcast?.let { p ->
+                                // Toggle subscription (unsub)
+                                PodcastSubscriptions.toggleSubscription(this@MainActivity, p.id)
+                            }
+
+                            // Show Undo Snackbar
+                            com.google.android.material.snackbar.Snackbar
+                                .make(findViewById(android.R.id.content), "Unsubscribed", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                                .setAction("Undo") {
+                                    removedPodcast?.let { p ->
+                                        PodcastSubscriptions.toggleSubscription(this@MainActivity, p.id)
+                                        // Re-insert into adapter at the original position
+                                        favoritesPodcastsRecycler.adapter?.let { (it as? PodcastAdapter)?.insertPodcastAt(pos, p) }
+                                    }
+                                }
+                                .setAnchorView(findViewById(R.id.favorites_podcasts_container))
+                                .show()
+                        }
+                    }
+
+                    override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                        super.clearView(recyclerView, viewHolder)
+                        viewHolder.itemView.invalidate()
+                        try { viewHolder.itemView.setTag(R.id.swipe_haptic_trigger, false) } catch (_: Exception) { }
+                    }
+
+                    override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
+                        if (kotlin.math.abs(dX) < 0.5f && !isCurrentlyActive) {
+                            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                            return
+                        }
+
+                        val itemView = viewHolder.itemView
+                        val triggerThreshold = itemView.width * 0.25f
+                        val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
+                        if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
+                            try {
+                                itemView.isHapticFeedbackEnabled = true
+                                val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                if (!performed) {
+                                    try {
+                                        val vib = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                            itemView.context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+                                        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                            itemView.context.getSystemService(android.os.Vibrator::class.java)
+                                        } else {
+                                            @Suppress("DEPRECATION")
+                                            itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                        }
+                                        if (vib != null) {
+                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                                vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                vib.vibrate(20)
+                                            }
+                                        }
+                                    } catch (_: Exception) { }
+                                }
+                                itemView.setTag(R.id.swipe_haptic_trigger, true)
+                            } catch (_: Exception) { }
+                        }
+
+                        val paint = android.graphics.Paint()
+                        val icon = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.ic_menu_delete)
+                        val backgroundColor = android.graphics.Color.parseColor("#f44336") // material red 500
+                        paint.color = backgroundColor
+
+                        if (dX > 0) {
+                            val rect = android.graphics.RectF(itemView.left.toFloat(), itemView.top.toFloat(), itemView.left + dX, itemView.bottom.toFloat())
+                            c.drawRect(rect, paint)
+                            icon?.let {
+                                val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                val iconLeft = itemView.left + iconMargin
+                                val iconRight = iconLeft + it.intrinsicWidth
+                                val iconBottom = iconTop + it.intrinsicHeight
+                                it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                it.draw(c)
+                            }
+                        } else {
+                            val rect = android.graphics.RectF(itemView.right + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
+                            c.drawRect(rect, paint)
+                            icon?.let {
+                                val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                val iconRight = itemView.right - iconMargin
+                                val iconLeft = iconRight - it.intrinsicWidth
+                                val iconBottom = iconTop + it.intrinsicHeight
+                                it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                it.draw(c)
+                            }
+                        }
+
+                        super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                    }
+                }
+                podcastsItemTouchHelper = ItemTouchHelper(swipeCallbackPodcasts).also { it.attachToRecyclerView(favoritesPodcastsRecycler) }
+            }
+
             Thread {
+                // ── Phase 1: instant render from local disk caches (no network I/O) ───────────
+                // Reads the podcast list from the on-disk / bundled seed cache and the persisted
+                // update timestamps.  Both are synchronous disk reads (< 50 ms) so the
+                // subscription list appears almost immediately, without a visible loading spinner.
+                val fastSubs = repo.getAvailablePodcastsNow().filter { subscribedIds.contains(it.id) }
+                val fastUpdates = repo.getAvailableUpdatesNow()
+                if (fastSubs.isNotEmpty()) {
+                    val fastSorted = fastSubs.sortedByDescending { fastUpdates[it.id] ?: 0L }
+                    val fastNewSet = fastSorted.filter { p ->
+                        (fastUpdates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this, p.id)
+                    }.map { it.id }.toSet()
+                    runOnUiThread {
+                        setSubscribedPodcastsLoading(false)
+                        favPodcastAdapter.updatePodcasts(fastSorted)
+                        favPodcastAdapter.updateNewEpisodes(fastNewSet)
+                        val subscribedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_subscribed))
+                        if (subscribedTabActive) {
+                            favoritesPodcastsRecycler.visibility = View.VISIBLE
+                            favoritesPodcastsContainer.visibility = View.VISIBLE
+                        }
+                    }
+                }
+
+                // ── Phase 2: fetch fresh data ─────────────────────────────────────────────────
+                // fetchLatestUpdates now runs all stale RSS lookups in parallel, so this
+                // completes quickly even with many subscriptions.
                 val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
                 var subs = all.filter { subscribedIds.contains(it.id) }
-                // Fetch cached latest update epochs and sort subscribed podcasts by newest update first
                 val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
                 subs = subs.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
                 // Determine which subscriptions have unseen episodes (latest update > last played epoch)
@@ -1282,149 +1451,8 @@ class MainActivity : AppCompatActivity() {
                 }.map { it.id }.toSet()
                 runOnUiThread {
                     setSubscribedPodcastsLoading(false)
-                    val podcastAdapter = PodcastAdapter(this, onPodcastClick = { podcast ->
-                        // Show app bar so podcast title and back button are visible
-                        supportActionBar?.show()
-                        // Navigate to podcast detail
-                        fragmentContainer.visibility = View.VISIBLE
-                        staticContentContainer.visibility = View.GONE
-                        // Ensure the main navigation reflects the Podcasts context
-                        currentMode = "podcasts"
-                        // Mark origin so back returns to Favorites
-                        returnToFavoritesOnBack = true
-                        // Disable swipe navigation when leaving All Stations
-                        disableSwipeNavigation()
-                        // Programmatic selection should not trigger the bottom-nav listener (it would replace our fragment)
-                        suppressBottomNavSelection = true
-                        try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
-                        suppressBottomNavSelection = false
-                        updateActionBarTitle()
-                        // Hide the favourites toggle when showing a fragment/detail view
-                        updateFavoritesToggleVisibility()
-                        val detailFragment = PodcastDetailFragment().apply {
-                            arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) }
-                        }
-                        supportFragmentManager.beginTransaction().apply {
-                            replace(R.id.fragment_container, detailFragment)
-                            addToBackStack(null)
-                            commit()
-                        }
-                    }, highlightSubscribed = true, showSubscribedIcon = false)
-
-                    favoritesPodcastsRecycler.adapter = podcastAdapter
-                    podcastAdapter.updatePodcasts(subs)
-                    podcastAdapter.updateNewEpisodes(newSet)
-
-                    // Attach swipe-to-unsubscribe (only once)
-                    if (podcastsItemTouchHelper == null) {
-                        val swipeCallbackPodcasts = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-                            override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
-
-                            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                                val pos = viewHolder.bindingAdapterPosition
-                                if (pos != RecyclerView.NO_POSITION) {
-                                    val podcastAdapterForSwipe = favoritesPodcastsRecycler.adapter as? PodcastAdapter
-                                    val removedPodcast = podcastAdapterForSwipe?.removePodcastAt(pos)
-                                    removedPodcast?.let { p ->
-                                        // Toggle subscription (unsub)
-                                        PodcastSubscriptions.toggleSubscription(this@MainActivity, p.id)
-                                    }
-
-                                    // Show Undo Snackbar
-                                    com.google.android.material.snackbar.Snackbar
-                                        .make(findViewById(android.R.id.content), "Unsubscribed", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
-                                        .setAction("Undo") {
-                                            removedPodcast?.let { p ->
-                                                PodcastSubscriptions.toggleSubscription(this@MainActivity, p.id)
-                                                // Re-insert into adapter at the original position
-                                                favoritesPodcastsRecycler.adapter?.let { (it as? PodcastAdapter)?.insertPodcastAt(pos, p) }
-                                            }
-                                        }
-                                        .setAnchorView(findViewById(R.id.favorites_podcasts_container))
-                                        .show()
-                                }
-                            }
-
-                            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
-                                super.clearView(recyclerView, viewHolder)
-                                viewHolder.itemView.invalidate()
-                                try { viewHolder.itemView.setTag(R.id.swipe_haptic_trigger, false) } catch (_: Exception) { }
-                            }
-
-                            override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
-                                if (kotlin.math.abs(dX) < 0.5f && !isCurrentlyActive) {
-                                    super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-                                    return
-                                }
-
-                                val itemView = viewHolder.itemView
-                                val triggerThreshold = itemView.width * 0.25f
-                                val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
-                                if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
-                                    try {
-                                        itemView.isHapticFeedbackEnabled = true
-                                        val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-                                        if (!performed) {
-                                            try {
-                                                val vib = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                                    itemView.context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
-                                                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                                    itemView.context.getSystemService(android.os.Vibrator::class.java)
-                                                } else {
-                                                    @Suppress("DEPRECATION")
-                                                    itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-                                                }
-                                                if (vib != null) {
-                                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                                        vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
-                                                    } else {
-                                                        @Suppress("DEPRECATION")
-                                                        vib.vibrate(20)
-                                                    }
-                                                }
-                                            } catch (_: Exception) { }
-                                        }
-                                        itemView.setTag(R.id.swipe_haptic_trigger, true)
-                                    } catch (_: Exception) { }
-                                }
-
-                                val paint = android.graphics.Paint()
-                                val icon = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.ic_menu_delete)
-                                val backgroundColor = android.graphics.Color.parseColor("#f44336") // material red 500
-                                paint.color = backgroundColor
-
-                                if (dX > 0) {
-                                    val rect = android.graphics.RectF(itemView.left.toFloat(), itemView.top.toFloat(), itemView.left + dX, itemView.bottom.toFloat())
-                                    c.drawRect(rect, paint)
-                                    icon?.let {
-                                        val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
-                                        val iconMargin = (itemView.height - it.intrinsicHeight) / 2
-                                        val iconLeft = itemView.left + iconMargin
-                                        val iconRight = iconLeft + it.intrinsicWidth
-                                        val iconBottom = iconTop + it.intrinsicHeight
-                                        it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
-                                        it.draw(c)
-                                    }
-                                } else {
-                                    val rect = android.graphics.RectF(itemView.right + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
-                                    c.drawRect(rect, paint)
-                                    icon?.let {
-                                        val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
-                                        val iconMargin = (itemView.height - it.intrinsicHeight) / 2
-                                        val iconRight = itemView.right - iconMargin
-                                        val iconLeft = iconRight - it.intrinsicWidth
-                                        val iconBottom = iconTop + it.intrinsicHeight
-                                        it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
-                                        it.draw(c)
-                                    }
-                                }
-
-                                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-                            }
-                        }
-                        podcastsItemTouchHelper = ItemTouchHelper(swipeCallbackPodcasts).also { it.attachToRecyclerView(favoritesPodcastsRecycler) }
-                    }
-
+                    favPodcastAdapter.updatePodcasts(subs)
+                    favPodcastAdapter.updateNewEpisodes(newSet)
                     // Reveal recycler only if the Subscribed tab is actually selected right now
                     val subscribedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_subscribed))
                     if (subscribedTabActive) {
@@ -1578,6 +1606,32 @@ class MainActivity : AppCompatActivity() {
                         }
 
                         val repo = PodcastRepository(this@MainActivity)
+
+                        // Phase 1: instant render from local disk caches (no network I/O).
+                        // Only needed when the adapter is empty (e.g. first switch to this tab
+                        // before the initial background load has finished).
+                        val rv = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
+                        val currentAdapter = rv.adapter as? PodcastAdapter
+                        if (currentAdapter == null || currentAdapter.itemCount == 0) {
+                            val fastSubs = repo.getAvailablePodcastsNow().filter { ids.contains(it.id) }
+                            val fastUpdates = repo.getAvailableUpdatesNow()
+                            if (fastSubs.isNotEmpty()) {
+                                val fastSorted = fastSubs.sortedByDescending { fastUpdates[it.id] ?: 0L }
+                                val fastNewSet = fastSorted.filter { p ->
+                                    (fastUpdates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
+                                }.map { it.id }.toSet()
+                                runOnUiThread {
+                                    setSubscribedPodcastsLoading(false)
+                                    val adapter = rv.adapter as? PodcastAdapter
+                                    adapter?.updatePodcasts(fastSorted)
+                                    adapter?.updateNewEpisodes(fastNewSet)
+                                    findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE
+                                    rv.visibility = View.VISIBLE
+                                }
+                            }
+                        }
+
+                        // Phase 2: fetch fresh data (parallel network for stale cache entries).
                         val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
                         val podcasts = all.filter { ids.contains(it.id) }
                         val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(podcasts) } } catch (e: Exception) { emptyMap<String, Long>() }
@@ -1589,37 +1643,39 @@ class MainActivity : AppCompatActivity() {
                         }.map { it.id }.toSet()
                         runOnUiThread {
                             setSubscribedPodcastsLoading(false)
-                            val rv = try { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler) } catch (_: Exception) { null }
-                            rv?.layoutManager = LinearLayoutManager(this@MainActivity)
-                            val podcastAdapter = PodcastAdapter(this@MainActivity, onPodcastClick = { podcast ->
-                                supportActionBar?.show()
-                                fragmentContainer.visibility = View.VISIBLE
-                                staticContentContainer.visibility = View.GONE
-                                // Ensure the main navigation reflects the Podcasts context
-                                currentMode = "podcasts"
-                                // Mark origin so back returns to Favorites
-                                returnToFavoritesOnBack = true
-                                // Disable swipe navigation when leaving All Stations
-                                disableSwipeNavigation()
-                                // Programmatic selection should not trigger the bottom-nav listener
-                                suppressBottomNavSelection = true
-                                try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
-                                suppressBottomNavSelection = false
-                                updateActionBarTitle()
-                                // Hide the favourites toggle when showing a fragment/detail view
-                                updateFavoritesToggleVisibility()
-                                val detailFragment = PodcastDetailFragment().apply { arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) } }
-                                supportFragmentManager.beginTransaction().apply {
-                                    replace(R.id.fragment_container, detailFragment)
-                                    addToBackStack(null)
-                                    commit()
-                                }
-                            }, highlightSubscribed = true, showSubscribedIcon = false)
-                            rv?.adapter = podcastAdapter
-                            podcastAdapter.updatePodcasts(sorted)
-                            podcastAdapter.updateNewEpisodes(newSet)
+                            val adapter = rv.adapter as? PodcastAdapter
+                            if (adapter != null) {
+                                // Update the existing adapter in place — no need to recreate it.
+                                adapter.updatePodcasts(sorted)
+                                adapter.updateNewEpisodes(newSet)
+                            } else {
+                                // Adapter was removed (e.g. unsubscribed from all) — set up fresh.
+                                rv.layoutManager = LinearLayoutManager(this@MainActivity)
+                                val podcastAdapter = PodcastAdapter(this@MainActivity, onPodcastClick = { podcast ->
+                                    supportActionBar?.show()
+                                    fragmentContainer.visibility = View.VISIBLE
+                                    staticContentContainer.visibility = View.GONE
+                                    currentMode = "podcasts"
+                                    returnToFavoritesOnBack = true
+                                    disableSwipeNavigation()
+                                    suppressBottomNavSelection = true
+                                    try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
+                                    suppressBottomNavSelection = false
+                                    updateActionBarTitle()
+                                    updateFavoritesToggleVisibility()
+                                    val detailFragment = PodcastDetailFragment().apply { arguments = android.os.Bundle().apply { putParcelable("podcast", podcast) } }
+                                    supportFragmentManager.beginTransaction().apply {
+                                        replace(R.id.fragment_container, detailFragment)
+                                        addToBackStack(null)
+                                        commit()
+                                    }
+                                }, highlightSubscribed = true, showSubscribedIcon = false)
+                                rv.adapter = podcastAdapter
+                                podcastAdapter.updatePodcasts(sorted)
+                                podcastAdapter.updateNewEpisodes(newSet)
+                            }
                             findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE
-                            rv?.visibility = View.VISIBLE
+                            rv.visibility = View.VISIBLE
                         }
                     } catch (_: Exception) {
                         runOnUiThread { setSubscribedPodcastsLoading(false) }
