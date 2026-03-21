@@ -16,7 +16,8 @@ class CategorizedStationAdapter(
     private val context: Context,
     private val stations: List<Station>,
     private val onStationClick: (String) -> Unit,
-    private val onFavoriteToggle: ((String) -> Unit)? = null
+    private val onFavoriteToggle: ((String) -> Unit)? = null,
+    private val onScheduleClick: ((Station) -> Unit)? = null
 ) : RecyclerView.Adapter<CategorizedStationAdapter.StationViewHolder>() {
     
     private var adapterScope = CoroutineScope(Dispatchers.Main + Job())
@@ -32,6 +33,7 @@ class CategorizedStationAdapter(
         val textView: TextView = view.findViewById(R.id.station_title)
         val subtitleView: TextView = view.findViewById(R.id.station_subtitle)
         val starView: ImageView = view.findViewById(R.id.station_favorite_star)
+        val scheduleButton: ImageView = view.findViewById(R.id.station_schedule_button)
     }
     
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
@@ -118,6 +120,17 @@ class CategorizedStationAdapter(
                 holder.starView.clearColorFilter()
             }
             onFavoriteToggle?.invoke(station.id)
+        }
+
+        holder.scheduleButton.setOnClickListener {
+            if (onScheduleClick != null) {
+                onScheduleClick.invoke(station)
+            } else {
+                val intent = android.content.Intent(context, ScheduleActivity::class.java)
+                intent.putExtra(ScheduleActivity.EXTRA_STATION_ID, station.id)
+                intent.putExtra(ScheduleActivity.EXTRA_STATION_TITLE, station.title)
+                context.startActivity(intent)
+            }
         }
         
         // Safer tap handling: gate clicks by movement slop; keep scrolling responsive

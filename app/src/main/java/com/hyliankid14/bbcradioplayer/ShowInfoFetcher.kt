@@ -4,6 +4,14 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+data class ScheduleEntry(
+    val title: String,
+    val episodeTitle: String?,
+    val startTimeMs: Long,
+    val endTimeMs: Long,
+    val imageUrl: String?
+)
+
 data class CurrentShow(
     val title: String, // Show Name (Programme)
     val episodeTitle: String? = null, // Episode title (from ESS)
@@ -134,6 +142,84 @@ object ShowInfoFetcher {
     suspend fun getScheduleCurrentShow(stationId: String): CurrentShow = withContext(Dispatchers.IO) {
         val serviceId = serviceIdMap[stationId] ?: return@withContext CurrentShow("BBC Radio")
         return@withContext fetchShowFromEss(serviceId)
+    }
+
+    suspend fun fetchFullSchedule(stationId: String): List<ScheduleEntry> = withContext(Dispatchers.IO) {
+        val serviceId = serviceIdMap[stationId] ?: return@withContext emptyList()
+        return@withContext fetchScheduleEntriesFromEss(serviceId)
+    }
+
+    private suspend fun fetchScheduleEntriesFromEss(serviceId: String): List<ScheduleEntry> {
+        return try {
+            val url = "https://ess.api.bbci.co.uk/schedules?serviceId=$serviceId&mediatypes=audio"
+            Log.d(TAG, "Fetching full schedule from ESS API: $url")
+
+            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 8000
+            connection.readTimeout = 8000
+            connection.setRequestProperty("User-Agent", "AndroidAutoRadioPlayer/1.0")
+
+            val responseCode = connection.responseCode
+            if (responseCode != 200) {
+                connection.disconnect()
+                return emptyList()
+            }
+
+            val response = connection.inputStream.bufferedReader().readText()
+            connection.disconnect()
+
+            parseScheduleEntriesFromEssResponse(response)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching full schedule: ${e.message}")
+            emptyList()
+        }
+    }
+
+    private fun parseScheduleEntriesFromEssResponse(json: String): List<ScheduleEntry> {
+        val entries = mutableListOf<ScheduleEntry>()
+        try {
+            val jsonObject = org.json.JSONObject(json)
+            val items = jsonObject.optJSONArray("items") ?: return entries
+
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US)
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+
+            for (i in 0 until items.length()) {
+                val item = items.getJSONObject(i)
+                val publishedTime = item.optJSONObject("published_time") ?: continue
+
+                val startStr = publishedTime.optString("start")
+                val endStr = publishedTime.optString("end")
+
+                if (startStr.isEmpty() || endStr.isEmpty()) continue
+
+                try {
+                    val start = sdf.parse(startStr)?.time ?: continue
+                    val end = sdf.parse(endStr)?.time ?: continue
+
+                    val brand = item.optJSONObject("brand")
+                    val episode = item.optJSONObject("episode")
+
+                    val brandTitle = brand?.optString("title")
+                    val episodeTitle = episode?.optString("title")
+
+                    val title = if (!brandTitle.isNullOrEmpty()) brandTitle else episodeTitle ?: continue
+                    val epTitle = if (!brandTitle.isNullOrEmpty() && !episodeTitle.isNullOrEmpty()) episodeTitle else null
+
+                    val imageObj = episode?.optJSONObject("image") ?: brand?.optJSONObject("image")
+                    val imageTemplate = imageObj?.optString("template_url")
+                    val imageUrl = if (!imageTemplate.isNullOrEmpty()) imageTemplate.replace("{recipe}", "320x320") else null
+
+                    entries.add(ScheduleEntry(title = title, episodeTitle = epTitle, startTimeMs = start, endTimeMs = end, imageUrl = imageUrl))
+                } catch (e: java.text.ParseException) {
+                    Log.w(TAG, "Date parse error in schedule: ${e.message}")
+                    continue
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error parsing ESS schedule response: ${e.message}")
+        }
+        return entries
     }
     
     private suspend fun fetchShowFromEss(serviceId: String): CurrentShow {

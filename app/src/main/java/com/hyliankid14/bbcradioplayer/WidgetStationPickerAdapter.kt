@@ -62,12 +62,14 @@ class WidgetStationPickerAdapter(
         private val subtitle: TextView = view.findViewById(R.id.station_subtitle)
         private val star: ImageView = view.findViewById(R.id.station_favorite_star)
         private val dragHandle: ImageView = view.findViewById(R.id.drag_handle)
+        private val scheduleButton: ImageView = view.findViewById(R.id.station_schedule_button)
 
         fun bind(station: Station) {
             title.text = station.title
             subtitle.visibility = View.GONE
             star.visibility = View.GONE
             dragHandle.visibility = View.GONE
+            scheduleButton.visibility = View.GONE
 
             Glide.with(context)
                 .load(station.logoUrl)
