@@ -51,17 +51,21 @@ class RadioService : MediaBrowserServiceCompat() {
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     private var audioFocusRequest: AudioFocusRequest? = null
     
-    // Minimal audio focus listener - only stops player on permanent loss
+    // Audio focus listener — fully stops playback on permanent loss so that switching
+    // to another audio app leaves no lingering notification or service.
+    // Note: ExoPlayer also manages audio focus internally (handleAudioFocus = true),
+    // so this listener receives AUDIOFOCUS_LOSS both from external apps AND from
+    // ExoPlayer's own focus request during startup. The player?.isPlaying guard
+    // prevents a false stopPlayback() during the startup window before playback begins.
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
-            Log.d(TAG, "Audio focus permanently lost — stopping player")
+            Log.d(TAG, "Audio focus permanently lost — stopping playback")
             try {
-                // Only stop if player is currently playing (not during initialization)
                 if (player?.isPlaying == true) {
-                    player?.stop()
+                    stopPlayback()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error stopping player on focus loss: ${e.message}")
+                Log.e(TAG, "Error stopping playback on focus loss: ${e.message}")
             }
         }
     }
