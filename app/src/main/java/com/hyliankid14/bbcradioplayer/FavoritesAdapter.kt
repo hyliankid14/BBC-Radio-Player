@@ -20,7 +20,8 @@ class FavoritesAdapter(
     private val onStationClick: (String) -> Unit,
     private val onFavoriteToggle: ((String) -> Unit)? = null,
     private val onOrderChanged: () -> Unit = {},
-    private val onFavoriteRemoved: ((Station, Int) -> Unit)? = null
+    private val onFavoriteRemoved: ((Station, Int) -> Unit)? = null,
+    private val onScheduleClick: ((Station) -> Unit)? = null
 ) : RecyclerView.Adapter<FavoritesAdapter.StationViewHolder>() {
     
     private val adapterScope = CoroutineScope(Dispatchers.Main + Job())
@@ -39,6 +40,7 @@ class FavoritesAdapter(
         val subtitleView: TextView = view.findViewById(R.id.station_subtitle)
         val starView: ImageView = view.findViewById(R.id.station_favorite_star)
         val dragHandle: ImageView = view.findViewById(R.id.drag_handle)
+        val scheduleButton: ImageView = view.findViewById(R.id.station_schedule_button)
     }
     
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
@@ -131,6 +133,17 @@ class FavoritesAdapter(
                 holder.starView.setImageResource(R.drawable.ic_star_filled)
                 holder.starView.setColorFilter(ContextCompat.getColor(context, R.color.favorite_star_color))
                 onFavoriteToggle?.invoke(station.id)
+            }
+        }
+
+        holder.scheduleButton.setOnClickListener {
+            if (onScheduleClick != null) {
+                onScheduleClick.invoke(station)
+            } else {
+                val intent = android.content.Intent(context, ScheduleActivity::class.java)
+                intent.putExtra(ScheduleActivity.EXTRA_STATION_ID, station.id)
+                intent.putExtra(ScheduleActivity.EXTRA_STATION_TITLE, station.title)
+                context.startActivity(intent)
             }
         }
         
