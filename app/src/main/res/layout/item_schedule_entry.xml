@@ -84,7 +84,7 @@
         android:padding="6dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_podcast_outline"
-        android:imageTintList="?attr/colorPrimary"
+        android:tint="?attr/colorPrimary"
         android:visibility="gone"
         android:contentDescription="@string/schedule_open_podcast" />
 
