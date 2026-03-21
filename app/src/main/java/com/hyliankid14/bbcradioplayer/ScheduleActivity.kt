@@ -46,11 +46,16 @@ class ScheduleActivity : AppCompatActivity() {
 
         recycler.layoutManager = LinearLayoutManager(this)
 
-        ViewCompat.setOnApplyWindowInsetsListener(recycler) { v, insets ->
+        // Apply top inset to the toolbar so it sits below the status bar,
+        // and bottom inset to the list so content isn't clipped by the nav bar.
+        val rootLayout = findViewById<android.view.View>(R.id.schedule_root)
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.updatePadding(bottom = bars.bottom + 16)
+            v.updatePadding(top = bars.top)
+            recycler.updatePadding(bottom = bars.bottom + 16)
             insets
         }
+        ViewCompat.requestApplyInsets(rootLayout)
 
         activityScope.launch {
             try {
