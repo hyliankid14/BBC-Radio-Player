@@ -109,6 +109,10 @@ class MainActivity : AppCompatActivity() {
     private var returnToFavoritesOnBack: Boolean = false
     // When opening a saved search from Favorites, return back to the Saved Searches list on back press
     private var returnToSavedSearchesOnBack: Boolean = false
+    // When opening a podcast from the radio schedule, return back to that schedule on back press
+    private var returnToScheduleOnBack: Boolean = false
+    private var scheduleReturnStationId: String? = null
+    private var scheduleReturnStationTitle: String? = null
 
     // Track the last visible percent for the episode/index progress bar so we can
     // defensively ignore any stray regressions emitted by background components.
@@ -315,6 +319,22 @@ class MainActivity : AppCompatActivity() {
                         try { getPreferences(android.content.Context.MODE_PRIVATE).edit()
                             .putInt("last_fav_tab_id", R.id.fav_tab_searches).apply() } catch (_: Exception) { }
                         showFavorites()
+                        return
+                    }
+                    if (returnToScheduleOnBack && top is PodcastDetailFragment) {
+                        returnToScheduleOnBack = false
+                        val stationId = scheduleReturnStationId
+                        val stationTitle = scheduleReturnStationTitle
+                        scheduleReturnStationId = null
+                        scheduleReturnStationTitle = null
+                        try { supportFragmentManager.popBackStack() } catch (_: Exception) { }
+                        if (!stationId.isNullOrEmpty()) {
+                            val scheduleIntent = Intent(this@MainActivity, ScheduleActivity::class.java).apply {
+                                putExtra(ScheduleActivity.EXTRA_STATION_ID, stationId)
+                                putExtra(ScheduleActivity.EXTRA_STATION_TITLE, stationTitle ?: "Schedule")
+                            }
+                            startActivity(scheduleIntent)
+                        }
                         return
                     }
                 } catch (_: Exception) { }
@@ -1881,6 +1901,9 @@ class MainActivity : AppCompatActivity() {
         currentMode = "podcasts"
         returnToFavoritesOnBack = false
         returnToSavedSearchesOnBack = false
+        returnToScheduleOnBack = false
+        scheduleReturnStationId = null
+        scheduleReturnStationTitle = null
         fragmentContainer.visibility = View.VISIBLE
         staticContentContainer.visibility = View.GONE
         // Hide the global action bar since the fragment has its own title bar
@@ -1919,8 +1942,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleOpenPodcastIntent(intent: Intent?) {
         val podcastId = intent?.getStringExtra("open_podcast_id") ?: return
+        // Check if this navigation came from the radio schedule so back can return there
+        val backSource = intent.getStringExtra("back_source")
+        val fromSchedule = backSource == "schedule"
+        val scheduleStationId = if (fromSchedule) intent.getStringExtra("schedule_station_id") else null
+        val scheduleStationTitle = if (fromSchedule) intent.getStringExtra("schedule_station_title") else null
         // Ensure podcasts UI is shown
         showPodcasts()
+        if (fromSchedule && !scheduleStationId.isNullOrEmpty()) {
+            returnToScheduleOnBack = true
+            scheduleReturnStationId = scheduleStationId
+            scheduleReturnStationTitle = scheduleStationTitle
+        }
         // Fetch podcasts and open the matching podcast detail when available
         val repo = PodcastRepository(this)
         Thread {
