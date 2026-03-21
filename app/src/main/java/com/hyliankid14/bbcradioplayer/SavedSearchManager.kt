@@ -69,14 +69,21 @@ object SavedSearchManager {
 
                     if (search.notificationsEnabled) {
                         val lastSeen = search.lastSeenEpisodeIds.toSet()
-                        val newIds = if (lastSeen.isEmpty()) ids else ids.filterNot { lastSeen.contains(it) }
 
-                        if (newIds.isNotEmpty()) {
-                            val exampleTitle = filtered.firstOrNull { newIds.contains(it.episodeId) }?.title ?: ""
-                            SavedSearchNotifier.notifyNewMatches(context, search, exampleTitle, newIds.size)
+                        if (lastSeen.isEmpty()) {
+                            // First run or after reinstall: seed state without notifying so that
+                            // only genuinely new episodes trigger a notification next time.
+                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, latestEpoch)
+                        } else {
+                            val newIds = ids.filterNot { lastSeen.contains(it) }
+
+                            if (newIds.isNotEmpty()) {
+                                val exampleTitle = filtered.firstOrNull { newIds.contains(it.episodeId) }?.title ?: ""
+                                SavedSearchNotifier.notifyNewMatches(context, search, exampleTitle, newIds.size)
+                            }
+
+                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, latestEpoch)
                         }
-
-                        SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, latestEpoch)
                     } else {
                         SavedSearchesPreference.updateLastMatchEpoch(context, search.id, latestEpoch)
                     }
