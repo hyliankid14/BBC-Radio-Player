@@ -13,6 +13,7 @@
         <include domain="sharedpref" path="download_manager_prefs.xml" />
         <include domain="sharedpref" path="downloaded_episodes_prefs.xml" />
         <include domain="sharedpref" path="index_prefs.xml" />
+        <include domain="sharedpref" path="saved_searches_prefs.xml" />
         <include domain="sharedpref" path="subscription_refresh_prefs.xml" />
         <include domain="sharedpref" path="podcast_filter_prefs.xml" />
         <include domain="sharedpref" path="theme_prefs.xml" />
@@ -40,6 +41,7 @@
         <include domain="sharedpref" path="download_manager_prefs.xml" />
         <include domain="sharedpref" path="downloaded_episodes_prefs.xml" />
         <include domain="sharedpref" path="index_prefs.xml" />
+        <include domain="sharedpref" path="saved_searches_prefs.xml" />
         <include domain="sharedpref" path="subscription_refresh_prefs.xml" />
         <include domain="sharedpref" path="podcast_filter_prefs.xml" />
         <include domain="sharedpref" path="theme_prefs.xml" />
