@@ -68,13 +68,18 @@ object SavedSearchManager {
                         latestEpoch = index.getLatestEpisodePubDateEpoch(ids)
                     }
 
+                    // Only persist a non-zero epoch to avoid overwriting a valid stored date with 0
+                    // when pubDate strings are missing or unparseable. Passing null to
+                    // updateLastSeenEpisodeIds preserves the existing lastMatchEpoch value.
+                    val epochToStore = latestEpoch.takeIf { it > 0L }
+
                     if (search.notificationsEnabled) {
                         val lastSeen = search.lastSeenEpisodeIds.toSet()
 
                         if (lastSeen.isEmpty()) {
                             // First run or after reinstall: seed state without notifying so that
                             // only genuinely new episodes trigger a notification next time.
-                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, latestEpoch)
+                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, epochToStore)
                         } else {
                             val newIds = ids.filterNot { lastSeen.contains(it) }
 
@@ -83,12 +88,10 @@ object SavedSearchManager {
                                 SavedSearchNotifier.notifyNewMatches(context, search, exampleTitle, newIds.size)
                             }
 
-                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, latestEpoch)
+                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, epochToStore)
                         }
-                    } else if (latestEpoch > 0L) {
-                        // Only persist when we have a confirmed positive epoch to avoid
-                        // overwriting a valid stored date with 0 due to a transient failure.
-                        SavedSearchesPreference.updateLastMatchEpoch(context, search.id, latestEpoch)
+                    } else if (epochToStore != null) {
+                        SavedSearchesPreference.updateLastMatchEpoch(context, search.id, epochToStore)
                     }
                 }
             } catch (_: Exception) {
