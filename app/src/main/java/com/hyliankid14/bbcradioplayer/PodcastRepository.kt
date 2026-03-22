@@ -97,9 +97,15 @@ class PodcastRepository(private val context: Context) {
         return true
     }
 
-    // Public helper so other classes can check normalized phrase/token-AND matches using repository logic
+    // Public helper so other classes can check normalized phrase/token-AND matches using repository logic.
+    // For advanced queries containing NOT terms (e.g. "Nestle -noodles"), this returns false if the
+    // text contains any excluded term, ensuring the post-FTS filter honours the - operator.
     fun textMatchesNormalized(text: String, query: String): Boolean {
-        if (isAdvancedQuery(query)) return true
+        if (isAdvancedQuery(query)) {
+            val notTerms = extractNotTerms(query)
+            if (notTerms.isNotEmpty() && !textPassesNotFilter(text, notTerms)) return false
+            return true
+        }
         val textLower = text.lowercase(Locale.getDefault())
         val queryLower = query.lowercase(Locale.getDefault())
         return containsPhraseOrAllTokens(textLower, queryLower)
@@ -125,13 +131,18 @@ class PodcastRepository(private val context: Context) {
 
     /**
      * For FTS podcast results, determine whether the match is in the title.
-     * For advanced/OR queries, checks if any plain term extracted from the query
-     * appears in the title — avoids the always-true shortcut of textMatchesNormalized.
+     * For advanced/OR queries, checks if any plain term extracted from the positive part of the
+     * query appears in the title — avoids the always-true shortcut of textMatchesNormalized.
+     * NOT terms are also enforced so that excluded terms block the match.
      */
     private fun ftsMatchesTitle(fts: com.hyliankid14.bbcradioplayer.db.PodcastFts, query: String): Boolean {
         if (!isAdvancedQuery(query)) return textMatchesNormalized(fts.title, query)
+        val notTerms = extractNotTerms(query)
+        if (!textPassesNotFilter(fts.title, notTerms)) return false
+        val positiveQuery = if (notTerms.isNotEmpty()) extractPositiveQuery(query) else query
+        if (positiveQuery.isBlank()) return true
         val titleLower = fts.title.lowercase(Locale.getDefault())
-        return extractPlainTermsFromQuery(query).any { term ->
+        return extractPlainTermsFromQuery(positiveQuery).any { term ->
             term.isNotEmpty() && containsPhraseOrAllTokens(titleLower, term)
         }
     }
@@ -142,8 +153,12 @@ class PodcastRepository(private val context: Context) {
      */
     private fun ftsMatchesDescription(fts: com.hyliankid14.bbcradioplayer.db.PodcastFts, query: String): Boolean {
         if (!isAdvancedQuery(query)) return textMatchesNormalized(fts.description, query)
+        val notTerms = extractNotTerms(query)
+        if (!textPassesNotFilter(fts.description, notTerms)) return false
+        val positiveQuery = if (notTerms.isNotEmpty()) extractPositiveQuery(query) else query
+        if (positiveQuery.isBlank()) return true
         val descLower = fts.description.lowercase(Locale.getDefault())
-        return extractPlainTermsFromQuery(query).any { term ->
+        return extractPlainTermsFromQuery(positiveQuery).any { term ->
             term.isNotEmpty() && containsPhraseOrAllTokens(descLower, term)
         }
     }
@@ -160,14 +175,57 @@ class PodcastRepository(private val context: Context) {
     }
 
     /**
+     * Extract NOT terms (prefixed with -) from a query.
+     * e.g. "Nestle -noodles -pasta" → ["noodles", "pasta"]
+     */
+    private fun extractNotTerms(query: String): List<String> {
+        val result = mutableListOf<String>()
+        for (token in query.trim().split(Regex("\\s+"))) {
+            if (token.startsWith("-") && token.length > 1) {
+                val term = token.removePrefix("-").trim('"', '*').lowercase(Locale.getDefault())
+                if (term.isNotEmpty()) result.add(term)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Returns the query with all NOT terms (prefixed with -) removed,
+     * leaving only positive search terms.
+     * e.g. "Nestle -noodles" → "Nestle"
+     */
+    private fun extractPositiveQuery(query: String): String =
+        query.trim().split(Regex("\\s+")).filter { !it.startsWith("-") }.joinToString(" ").trim()
+
+    /**
+     * Returns true if the text does NOT contain any of the given NOT terms at a word boundary.
+     * Both text and NOT terms are compared after diacritic-stripping.
+     */
+    private fun textPassesNotFilter(text: String, notTerms: List<String>): Boolean {
+        if (notTerms.isEmpty()) return true
+        val textNorm = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(Regex("[^\\p{L}0-9\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .lowercase(Locale.getDefault())
+        return notTerms.none { term -> textNorm.contains(Regex("\\b${Regex.escape(term)}\\b")) }
+    }
+
+    /**
      * Check whether text matches any clause of a (possibly OR-compound) query.
      * Splits on OR boundaries so that "donald trump" or "president trump" each
      * get checked individually rather than as a single all-tokens expression.
+     * NOT terms (prefixed with -) are enforced: text containing an excluded term returns false.
      */
     private fun textMatchesAnyClauses(text: String, queryLower: String): Boolean {
-        val clauses = extractPlainTermsFromQuery(queryLower)
+        val notTerms = extractNotTerms(queryLower)
+        if (!textPassesNotFilter(text, notTerms)) return false
+        val positiveQuery = if (notTerms.isNotEmpty()) extractPositiveQuery(queryLower) else queryLower
+        if (positiveQuery.isBlank()) return true
+        val clauses = extractPlainTermsFromQuery(positiveQuery)
         if (clauses.size > 1) return clauses.any { containsPhraseOrAllTokens(text, it) }
-        return containsPhraseOrAllTokens(text, queryLower)
+        return containsPhraseOrAllTokens(text, positiveQuery)
     }
 
     fun podcastMatches(podcast: Podcast, queryLower: String): Boolean {
@@ -203,15 +261,19 @@ class PodcastRepository(private val context: Context) {
     fun searchCachedEpisodes(podcastId: String, queryLower: String, maxResults: Int = 3): List<Episode> {
         val eps = episodesCache[podcastId] ?: return emptyList()
         val idx = episodesIndex[podcastId] ?: return emptyList()
+        val notTerms = extractNotTerms(queryLower)
+        val positiveQuery = if (notTerms.isNotEmpty()) extractPositiveQuery(queryLower) else queryLower
         val titleMatches = mutableListOf<Episode>()
         val descMatches = mutableListOf<Episode>()
 
         for (i in idx.indices) {
             val (titleLower, descLower) = idx[i]
-            if (containsPhraseOrAllTokens(titleLower, queryLower)) {
+            // Exclude episodes whose title or description contains a NOT term.
+            if (!textPassesNotFilter(titleLower, notTerms) || !textPassesNotFilter(descLower, notTerms)) continue
+            if (containsPhraseOrAllTokens(titleLower, positiveQuery)) {
                 titleMatches.add(eps[i])
                 android.util.Log.d("PodcastRepository", "searchCachedEpisodes: title matched podcast=$podcastId episode='${eps[i].title}' for query='$queryLower'")
-            } else if (containsPhraseOrAllTokens(descLower, queryLower)) {
+            } else if (containsPhraseOrAllTokens(descLower, positiveQuery)) {
                 descMatches.add(eps[i])
                 android.util.Log.d("PodcastRepository", "searchCachedEpisodes: description matched podcast=$podcastId episode='${eps[i].title}' for query='$queryLower'")
             }
