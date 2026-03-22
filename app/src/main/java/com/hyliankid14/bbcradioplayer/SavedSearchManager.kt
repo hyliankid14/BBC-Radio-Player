@@ -17,9 +17,12 @@ object SavedSearchManager {
 
                 val repo = PodcastRepository(context)
                 val allPodcasts = try { repo.fetchPodcasts(forceRefresh = true) } catch (_: Exception) { emptyList() }
-                if (allPodcasts.isEmpty()) return@withContext
+                    .ifEmpty { repo.getAvailablePodcastsNow() }
+                if (allPodcasts.isEmpty()) {
+                    android.util.Log.w("SavedSearchManager", "checkForUpdates: no podcast list available, skipping")
+                    return@withContext
+                }
 
-                fun parseEpoch(raw: String?): Long = IndexStore.parsePubEpoch(raw)
                 val remote = RemoteIndexClient(context)
 
                 for (search in searches) {
@@ -39,10 +42,11 @@ object SavedSearchManager {
                         try { index.searchEpisodes(search.query, 500) } catch (_: Exception) { emptyList() }
                     }
                     if (matches.isEmpty()) {
+                        // Don't reset lastMatchEpoch to 0 for non-notification searches — an empty
+                        // result may be transient (network error, FTS failure). Wiping the stored date
+                        // would cause "No matches yet" to appear until the next successful check.
                         if (search.notificationsEnabled) {
                             SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, emptyList(), 0L)
-                        } else {
-                            SavedSearchesPreference.updateLastMatchEpoch(context, search.id, 0L)
                         }
                         continue
                     }
@@ -53,19 +57,21 @@ object SavedSearchManager {
                     if (ids.isEmpty()) {
                         if (search.notificationsEnabled) {
                             SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, emptyList(), 0L)
-                        } else {
-                            SavedSearchesPreference.updateLastMatchEpoch(context, search.id, 0L)
                         }
                         continue
                     }
 
-                    var latestEpoch = filtered.maxOfOrNull { parseEpoch(it.pubDate) } ?: 0L
+                    var latestEpoch = filtered.maxOfOrNull { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) } ?: 0L
                     if (latestEpoch == 0L) {
-                        for (hit in filtered) {
-                            val epoch = parseEpoch(hit.pubDate)
-                            if (epoch > latestEpoch) latestEpoch = epoch
-                        }
+                        // pubDate strings were missing or unparseable — fall back to the
+                        // pre-computed pubEpoch values stored in the local SQLite index.
+                        latestEpoch = index.getLatestEpisodePubDateEpoch(ids)
                     }
+
+                    // Only persist a non-zero epoch to avoid overwriting a valid stored date with 0
+                    // when pubDate strings are missing or unparseable. Passing null to
+                    // updateLastSeenEpisodeIds preserves the existing lastMatchEpoch value.
+                    val epochToStore = latestEpoch.takeIf { it > 0L }
 
                     if (search.notificationsEnabled) {
                         val lastSeen = search.lastSeenEpisodeIds.toSet()
@@ -73,7 +79,7 @@ object SavedSearchManager {
                         if (lastSeen.isEmpty()) {
                             // First run or after reinstall: seed state without notifying so that
                             // only genuinely new episodes trigger a notification next time.
-                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, latestEpoch)
+                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, epochToStore)
                         } else {
                             val newIds = ids.filterNot { lastSeen.contains(it) }
 
@@ -82,10 +88,10 @@ object SavedSearchManager {
                                 SavedSearchNotifier.notifyNewMatches(context, search, exampleTitle, newIds.size)
                             }
 
-                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, latestEpoch)
+                            SavedSearchesPreference.updateLastSeenEpisodeIds(context, search.id, ids, epochToStore)
                         }
-                    } else {
-                        SavedSearchesPreference.updateLastMatchEpoch(context, search.id, latestEpoch)
+                    } else if (epochToStore != null) {
+                        SavedSearchesPreference.updateLastMatchEpoch(context, search.id, epochToStore)
                     }
                 }
             } catch (_: Exception) {
@@ -104,12 +110,16 @@ object SavedSearchManager {
                 val index = IndexStore.getInstance(context)
 
                 val repo = PodcastRepository(context)
+                // Try a fresh network fetch; if it fails fall back to the on-disk cache so
+                // the refresh succeeds even when the device is temporarily offline.
                 val allPodcasts = try { repo.fetchPodcasts(forceRefresh = true) } catch (_: Exception) {
                     emptyList()
+                }.ifEmpty { repo.getAvailablePodcastsNow() }
+                if (allPodcasts.isEmpty()) {
+                    android.util.Log.w("SavedSearchManager", "refreshLatestMatchDates: no podcast list available, skipping")
+                    return@withContext
                 }
-                if (allPodcasts.isEmpty()) return@withContext
 
-                fun parseEpoch(raw: String?): Long = IndexStore.parsePubEpoch(raw)
                 val remote = RemoteIndexClient(context)
 
                 for (search in searches) {
@@ -133,12 +143,20 @@ object SavedSearchManager {
                     val filtered = matches.filter { allowed.contains(it.podcastId) }
                     if (filtered.isEmpty()) continue
 
-                    var latestEpoch = filtered.maxOfOrNull { parseEpoch(it.pubDate) } ?: 0L
+                    val ids = filtered.map { it.episodeId }.distinct().take(50)
+                    // Use EpisodeDateParser which normalises timezone strings (GMT, UTC, +HH:MM)
+                    // and supports more date formats than IndexStore.parsePubEpoch.
+                    var latestEpoch = filtered.maxOfOrNull { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) } ?: 0L
+                    if (latestEpoch == 0L && ids.isNotEmpty()) {
+                        // pubDate strings were missing or unparseable — fall back to the
+                        // pre-computed pubEpoch values stored in the local SQLite index.
+                        latestEpoch = index.getLatestEpisodePubDateEpoch(ids)
+                    }
                     if (latestEpoch == 0L) {
                         for (hit in filtered) {
                             val cached = repo.getEpisodesFromCache(hit.podcastId) ?: continue
                             val candidate = cached.firstOrNull { it.id == hit.episodeId } ?: continue
-                            val epoch = parseEpoch(candidate.pubDate)
+                            val epoch = EpisodeDateParser.parsePubDateToEpoch(candidate.pubDate)
                             if (epoch > latestEpoch) latestEpoch = epoch
                         }
                     }

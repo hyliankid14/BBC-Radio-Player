@@ -2825,7 +2825,14 @@ class MainActivity : AppCompatActivity() {
         recycler: RecyclerView,
         empty: TextView
     ) {
-        if (savedSearchDateRefreshJob?.isActive == true) return
+        if (savedSearchDateRefreshJob?.isActive == true) {
+            // If there are newly saved searches with no date yet, cancel the current job so the
+            // new job (started below) picks them up. Searches with genuine zero results also have
+            // lastMatchEpoch == 0, but re-running is harmless and ensures the UI stays up-to-date.
+            val searches = SavedSearchesPreference.getSavedSearches(this)
+            if (searches.none { it.lastMatchEpoch == 0L && it.query.isNotBlank() }) return
+            savedSearchDateRefreshJob?.cancel()
+        }
 
         savedSearchDateRefreshJob = lifecycleScope.launch(Dispatchers.IO) {
             SavedSearchManager.refreshLatestMatchDates(this@MainActivity)
