@@ -222,7 +222,7 @@ class PodcastRepository(private val context: Context) {
      * leaving only positive search terms.
      * e.g. "Nestle -noodles" → "Nestle"
      */
-    private fun extractPositiveQuery(query: String): String =
+    fun extractPositiveQuery(query: String): String =
         query.trim().split(Regex("\\s+")).filter { !it.startsWith("-") }.joinToString(" ").trim()
 
     /**
@@ -291,6 +291,8 @@ class PodcastRepository(private val context: Context) {
         val idx = episodesIndex[podcastId] ?: return emptyList()
         val notTerms = extractNotTerms(queryLower)
         val positiveQuery = if (notTerms.isNotEmpty()) extractPositiveQuery(queryLower) else queryLower
+        // If there are only NOT terms and no positive query, nothing to match against.
+        if (positiveQuery.isBlank()) return emptyList()
         // If the podcast name itself contains a NOT term, skip the entire podcast for this query.
         if (notTerms.isNotEmpty()) {
             val podcastTitle = podcastSearchIndex[podcastId]?.first ?: ""
@@ -625,6 +627,9 @@ class PodcastRepository(private val context: Context) {
         // Ensure we have indexed data for fast checks
         indexPodcasts(baseFiltered)
         val qLower = q.lowercase(Locale.getDefault())
+        // Strip NOT terms (e.g. "-football") before sending to FTS so that the FTS engine only
+        // receives positive search terms. NOT filtering is handled in-memory by our helpers.
+        val qPositive = extractPositiveQuery(q)
 
         // Attempt to use the remote server index first, then fall back to the on-disk
         // SQLite FTS index, and finally fall back to the in-memory cache.
@@ -638,12 +643,12 @@ class PodcastRepository(private val context: Context) {
         try {
             val remote = RemoteIndexClient(context)
             if (remote.isServerAvailable()) {
-                val pMatches = remote.searchPodcasts(q, 50)
-                android.util.Log.d("PodcastRepository", "Remote searchPodcasts q='$q' returned ${pMatches.size}")
+                val pMatches = remote.searchPodcasts(qPositive, 50)
+                android.util.Log.d("PodcastRepository", "Remote searchPodcasts qPositive='$qPositive' returned ${pMatches.size}")
                 val pTitleIds = pMatches.filter { ftsMatchesTitle(it, q) }.map { it.podcastId }.toSet()
                 val pDescIds  = pMatches.filter { !ftsMatchesTitle(it, q) && ftsMatchesDescription(it, q) }.map { it.podcastId }.toSet()
 
-                val eMatches = remote.searchEpisodes(q, 200)
+                val eMatches = remote.searchEpisodes(qPositive, 200)
                 val eTitleIds = eMatches.filter { textMatchesNormalized(it.title, q) }.map { it.podcastId }.toSet()
                 val eDescIds  = eMatches.filter { !textMatchesNormalized(it.title, q) && textMatchesNormalized(it.description, q) }.map { it.podcastId }.toSet()
 
@@ -676,8 +681,8 @@ class PodcastRepository(private val context: Context) {
         try {
             val index = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(context)
 
-            val pMatches = index.searchPodcasts(q, 50)
-            android.util.Log.d("PodcastRepository", "searchPodcasts q='$q' returned ${pMatches.size}: ${pMatches.map { it.podcastId + '/' + it.title }}")
+            val pMatches = index.searchPodcasts(qPositive, 50)
+            android.util.Log.d("PodcastRepository", "searchPodcasts qPositive='$qPositive' returned ${pMatches.size}: ${pMatches.map { it.podcastId + '/' + it.title }}")
             val pTitleIds = pMatches.filter { ftsMatchesTitle(it, q) }.map { it.podcastId }.toSet()
             // Only include as a description match if the description actually has a word-boundary match
             val pDescIds = pMatches.filter { !ftsMatchesTitle(it, q) && ftsMatchesDescription(it, q) }.map { it.podcastId }.toSet()
@@ -688,7 +693,7 @@ class PodcastRepository(private val context: Context) {
                 android.util.Log.d("PodcastRepository", "  fts pid=${fts.podcastId} title='${fts.title}' ftsMatchesTitle=${ftsMatchesTitle(fts, q)} terms check: ${extractedTerms.map { term -> term to containsPhraseOrAllTokens(fts.title.lowercase(Locale.getDefault()), term) }}")
             }
 
-            val eMatches = index.searchEpisodes(q, 200)
+            val eMatches = index.searchEpisodes(qPositive, 200)
             val eTitleIds = eMatches.filter { textMatchesNormalized(it.title, q) }.map { it.podcastId }.toSet()
             val eDescIds = eMatches.filter { !textMatchesNormalized(it.title, q) && textMatchesNormalized(it.description, q) }.map { it.podcastId }.toSet()
 
