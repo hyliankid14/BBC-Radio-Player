@@ -60,11 +60,10 @@ object SavedSearchManager {
                     }
 
                     var latestEpoch = filtered.maxOfOrNull { parseEpoch(it.pubDate) } ?: 0L
-                    if (latestEpoch == 0L) {
-                        for (hit in filtered) {
-                            val epoch = parseEpoch(hit.pubDate)
-                            if (epoch > latestEpoch) latestEpoch = epoch
-                        }
+                    if (latestEpoch == 0L && ids.isNotEmpty()) {
+                        // pubDate strings were missing or unparseable — fall back to the
+                        // pre-computed pubEpoch values stored in the local SQLite index.
+                        latestEpoch = index.getLatestEpisodePubDateEpoch(ids)
                     }
 
                     if (search.notificationsEnabled) {
@@ -133,7 +132,13 @@ object SavedSearchManager {
                     val filtered = matches.filter { allowed.contains(it.podcastId) }
                     if (filtered.isEmpty()) continue
 
+                    val ids = filtered.map { it.episodeId }.distinct().take(50)
                     var latestEpoch = filtered.maxOfOrNull { parseEpoch(it.pubDate) } ?: 0L
+                    if (latestEpoch == 0L && ids.isNotEmpty()) {
+                        // pubDate strings were missing or unparseable — fall back to the
+                        // pre-computed pubEpoch values stored in the local SQLite index.
+                        latestEpoch = index.getLatestEpisodePubDateEpoch(ids)
+                    }
                     if (latestEpoch == 0L) {
                         for (hit in filtered) {
                             val cached = repo.getEpisodesFromCache(hit.podcastId) ?: continue
