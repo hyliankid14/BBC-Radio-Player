@@ -11,6 +11,19 @@ object ThemePreference {
     const val THEME_LIGHT = "light"
     const val THEME_DARK = "dark"
     const val THEME_SYSTEM = "system"
+
+    enum class AudioQuality(val storageValue: String, val bitrate: String) {
+        HIGH_320("320kbps", "320000"),
+        STANDARD_128("128kbps", "128000"),
+        DATA_SAVER_96("96kbps", "96000"),
+        DATA_SAVER_48("48kbps", "48000");
+
+        companion object {
+            fun fromStorageValue(value: String?): AudioQuality {
+                return entries.firstOrNull { it.storageValue == value } ?: HIGH_320
+            }
+        }
+    }
     
     fun getTheme(context: Context): String {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -31,19 +44,23 @@ object ThemePreference {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         prefs.edit().putBoolean(AUTO_QUALITY_KEY, autoDetect).apply()
     }
-    
-    fun getHighQuality(context: Context): Boolean {
+
+    fun getManualAudioQuality(context: Context): AudioQuality {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        return AudioQuality.fromStorageValue(prefs.getString(QUALITY_KEY, AudioQuality.HIGH_320.storageValue))
+    }
+
+    fun setManualAudioQuality(context: Context, quality: AudioQuality) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(QUALITY_KEY, quality.storageValue).apply()
+    }
+
+    fun getEffectiveAudioQuality(context: Context): AudioQuality {
         val autoDetect = getAutoDetectQuality(context)
         return if (autoDetect) {
-            NetworkQualityDetector.shouldUseHighQuality(context)
+            NetworkQualityDetector.getRecommendedAudioQuality(context)
         } else {
-            val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-            prefs.getBoolean(QUALITY_KEY, true) // Default to high quality when not auto-detecting
+            getManualAudioQuality(context)
         }
-    }
-    
-    fun setHighQuality(context: Context, highQuality: Boolean) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putBoolean(QUALITY_KEY, highQuality).apply()
     }
 }

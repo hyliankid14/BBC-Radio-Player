@@ -2122,11 +2122,10 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
 
         PlaybackPreference.setLastStationId(this, station.id)
         
-        // Get quality preference
-        val highQuality = ThemePreference.getHighQuality(this)
-        val streamUri = station.getUri(highQuality)
-        
-        Log.d(TAG, "Playing station: ${station.title} - $streamUri (HQ: $highQuality)")
+        val audioQuality = ThemePreference.getEffectiveAudioQuality(this)
+        val streamUri = station.getUri(audioQuality)
+
+        Log.d(TAG, "Playing station: ${station.title} - $streamUri (quality: ${audioQuality.storageValue})")
         
         currentStationTitle = station.title
         currentStationId = station.id
@@ -2218,10 +2217,10 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             return
         }
 
-        val highQuality = ThemePreference.getHighQuality(this)
-        val streamUri = station.getUri(highQuality)
+        val audioQuality = ThemePreference.getEffectiveAudioQuality(this)
+        val streamUri = station.getUri(audioQuality)
 
-        Log.d(TAG, "Refreshing stream due to $reason. Station=${station.title}, HQ=$highQuality")
+        Log.d(TAG, "Refreshing stream due to $reason. Station=${station.title}, quality=${audioQuality.storageValue}")
         lastSongSignature = null
         lastSavedSongSignature = null
 

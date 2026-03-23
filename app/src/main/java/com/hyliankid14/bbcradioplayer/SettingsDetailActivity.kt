@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.RadioGroup
 import android.widget.TextView
@@ -24,6 +25,7 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import kotlinx.coroutines.launch
 
 class SettingsDetailActivity : AppCompatActivity() {
@@ -187,34 +189,63 @@ class SettingsDetailActivity : AppCompatActivity() {
     }
 
     private fun setupPlaybackSettings() {
-        // Setup Audio Quality settings
-        val qualityGroup: RadioGroup = findViewById(R.id.quality_radio_group)
         val autoQualityCheckbox: android.widget.CheckBox = findViewById(R.id.auto_quality_checkbox)
-        
-        // Set current auto-detect quality selection
+        val qualityDropdown: MaterialAutoCompleteTextView = findViewById(R.id.quality_dropdown)
+
+        val qualityOptions = listOf(
+            getString(R.string.audio_quality_320),
+            getString(R.string.audio_quality_128),
+            getString(R.string.audio_quality_96),
+            getString(R.string.audio_quality_48)
+        )
+        val qualityAdapter = ArrayAdapter(this, R.layout.dropdown_item_large, qualityOptions)
+        qualityDropdown.setAdapter(qualityAdapter)
+
+        fun qualityLabelFor(quality: ThemePreference.AudioQuality): String {
+            return when (quality) {
+                ThemePreference.AudioQuality.HIGH_320 -> getString(R.string.audio_quality_320)
+                ThemePreference.AudioQuality.STANDARD_128 -> getString(R.string.audio_quality_128)
+                ThemePreference.AudioQuality.DATA_SAVER_96 -> getString(R.string.audio_quality_96)
+                ThemePreference.AudioQuality.DATA_SAVER_48 -> getString(R.string.audio_quality_48)
+            }
+        }
+
+        fun qualityForLabel(label: String): ThemePreference.AudioQuality {
+            return when (label) {
+                getString(R.string.audio_quality_128) -> ThemePreference.AudioQuality.STANDARD_128
+                getString(R.string.audio_quality_96) -> ThemePreference.AudioQuality.DATA_SAVER_96
+                getString(R.string.audio_quality_48) -> ThemePreference.AudioQuality.DATA_SAVER_48
+                else -> ThemePreference.AudioQuality.HIGH_320
+            }
+        }
+
+        fun setQualityInputsEnabled(enabled: Boolean) {
+            qualityDropdown.alpha = if (enabled) 1.0f else 0.5f
+            qualityDropdown.isEnabled = enabled
+        }
+
         val autoDetectQuality = ThemePreference.getAutoDetectQuality(this)
         autoQualityCheckbox.isChecked = autoDetectQuality
-        qualityGroup.alpha = if (autoDetectQuality) 0.5f else 1.0f
-        qualityGroup.isEnabled = !autoDetectQuality
-        
-        // Set manual quality selection (only used if auto-detect is disabled)
-        val highQuality = if (autoDetectQuality) {
-            NetworkQualityDetector.shouldUseHighQuality(this)
+        setQualityInputsEnabled(!autoDetectQuality)
+
+        val selectedQuality = if (autoDetectQuality) {
+            NetworkQualityDetector.getRecommendedAudioQuality(this)
         } else {
-            ThemePreference.getHighQuality(this)
+            ThemePreference.getManualAudioQuality(this)
         }
-        if (highQuality) {
-            qualityGroup.check(R.id.radio_high_quality)
-        } else {
-            qualityGroup.check(R.id.radio_low_quality)
-        }
-        
+        qualityDropdown.setText(qualityLabelFor(selectedQuality), false)
+
         autoQualityCheckbox.setOnCheckedChangeListener { _, isChecked ->
             ThemePreference.setAutoDetectQuality(this, isChecked)
-            qualityGroup.alpha = if (isChecked) 0.5f else 1.0f
-            qualityGroup.isEnabled = !isChecked
-            
-            // If currently playing, reload stream with new quality settings
+            setQualityInputsEnabled(!isChecked)
+
+            val effectiveQuality = if (isChecked) {
+                NetworkQualityDetector.getRecommendedAudioQuality(this)
+            } else {
+                ThemePreference.getManualAudioQuality(this)
+            }
+            qualityDropdown.setText(qualityLabelFor(effectiveQuality), false)
+
             val currentStation = PlaybackStateHelper.getCurrentStation()
             if (currentStation != null && PlaybackStateHelper.getIsPlaying()) {
                 val intent = Intent(this, RadioService::class.java).apply {
@@ -224,12 +255,12 @@ class SettingsDetailActivity : AppCompatActivity() {
                 startService(intent)
             }
         }
-        
-        qualityGroup.setOnCheckedChangeListener { _, checkedId ->
+
+        qualityDropdown.setOnItemClickListener { parent, _, position, _ ->
             if (!autoQualityCheckbox.isChecked) {
-                val isHighQuality = checkedId == R.id.radio_high_quality
-                ThemePreference.setHighQuality(this, isHighQuality)
-                // If currently playing, reload stream with the new quality
+                val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
+                val quality = qualityForLabel(selected)
+                ThemePreference.setManualAudioQuality(this, quality)
                 val currentStation = PlaybackStateHelper.getCurrentStation()
                 if (currentStation != null && PlaybackStateHelper.getIsPlaying()) {
                     val intent = Intent(this, RadioService::class.java).apply {

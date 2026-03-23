@@ -6,45 +6,50 @@ import android.net.NetworkCapabilities
 import android.os.Build
 
 object NetworkQualityDetector {
-    /**
-     * Determines if high quality audio should be used based on current network conditions.
-     * Returns true for high quality if on WiFi or strong cellular connection (4G/5G).
-     * Returns false for low quality if on weak cellular (2G/3G) or metered connection.
-     */
-    fun shouldUseHighQuality(context: Context): Boolean {
+    fun getRecommendedAudioQuality(context: Context): ThemePreference.AudioQuality {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        
+
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val network = connectivityManager.activeNetwork ?: return false
-            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-            
-            // Check if on WiFi - always use high quality
-            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                return true
+            val network = connectivityManager.activeNetwork ?: return ThemePreference.AudioQuality.DATA_SAVER_48
+            val capabilities = connectivityManager.getNetworkCapabilities(network)
+                ?: return ThemePreference.AudioQuality.DATA_SAVER_48
+
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                return ThemePreference.AudioQuality.HIGH_320
             }
-            
-            // Check for metered connection (limited data plan)
+
+            if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                return ThemePreference.AudioQuality.DATA_SAVER_48
+            }
+
             if (connectivityManager.isActiveNetworkMetered) {
-                return false
-            }
-            
-            // Check for strong cellular connections (4G/5G)
-            val hasLte = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-            if (hasLte) {
-                // Check for 5G
-                val has5G = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) &&
-                    capabilities.linkDownstreamBandwidthKbps >= 100000 // Estimate for 5G
-                } else {
-                    false
+                val downstreamKbps = capabilities.linkDownstreamBandwidthKbps
+                return when {
+                    downstreamKbps >= 12_000 -> ThemePreference.AudioQuality.STANDARD_128
+                    downstreamKbps >= 2_500 -> ThemePreference.AudioQuality.DATA_SAVER_96
+                    else -> ThemePreference.AudioQuality.DATA_SAVER_48
                 }
-                return has5G || capabilities.linkDownstreamBandwidthKbps >= 10000 // 4G threshold
             }
-            
-            false
+
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                val downstreamKbps = capabilities.linkDownstreamBandwidthKbps
+                return when {
+                    downstreamKbps >= 30_000 -> ThemePreference.AudioQuality.HIGH_320
+                    downstreamKbps >= 10_000 -> ThemePreference.AudioQuality.STANDARD_128
+                    downstreamKbps >= 2_500 -> ThemePreference.AudioQuality.DATA_SAVER_96
+                    else -> ThemePreference.AudioQuality.DATA_SAVER_48
+                }
+            }
+
+            ThemePreference.AudioQuality.STANDARD_128
         } else {
             @Suppress("DEPRECATION")
-            return connectivityManager.activeNetworkInfo?.type == ConnectivityManager.TYPE_WIFI
+            when (connectivityManager.activeNetworkInfo?.type) {
+                ConnectivityManager.TYPE_WIFI -> ThemePreference.AudioQuality.HIGH_320
+                ConnectivityManager.TYPE_MOBILE -> ThemePreference.AudioQuality.DATA_SAVER_96
+                else -> ThemePreference.AudioQuality.DATA_SAVER_48
+            }
         }
     }
 }

@@ -3,9 +3,49 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || (cd "$SCRIPT_DIR/../../.." && pwd))"
+PROPS_FILE="$PROJECT_ROOT/gradle.properties"
 
 # Always execute Gradle from the repository root.
 cd "$PROJECT_ROOT"
+
+read_prop() {
+    local key="$1"
+    awk -F'=' -v k="$key" '
+        $0 !~ /^[[:space:]]*#/ {
+            name=$1
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+            if (name == k) {
+                val=$0
+                sub(/^[^=]*=/, "", val)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+                print val
+            }
+        }
+    ' "$PROPS_FILE" | tail -1
+}
+
+bump_patch_version() {
+    local version="$1"
+    if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+        echo "❌ Error: APP_VERSION_NAME must use semantic version format x.y.z. Found: $version"
+        exit 1
+    fi
+
+    local major="${BASH_REMATCH[1]}"
+    local minor="${BASH_REMATCH[2]}"
+    local patch="${BASH_REMATCH[3]}"
+    echo "${major}.${minor}.$((patch + 1))"
+}
+
+RELEASE_VERSION_NAME="$(read_prop APP_VERSION_NAME)"
+RELEASE_VERSION_CODE="$(read_prop APP_VERSION_CODE)"
+if [[ -z "$RELEASE_VERSION_NAME" || -z "$RELEASE_VERSION_CODE" ]]; then
+    echo "❌ Error: APP_VERSION_NAME and APP_VERSION_CODE must be set in $PROPS_FILE"
+    exit 1
+fi
+
+DEBUG_VERSION_NAME="$(bump_patch_version "$RELEASE_VERSION_NAME")"
+DEBUG_VERSION_CODE="$((RELEASE_VERSION_CODE + 1))"
 
 resolve_android_home() {
     local candidates=()
@@ -52,6 +92,8 @@ fi
 echo "--------------------------------------------------"
 echo "🔨 Starting Local Build"
 echo "--------------------------------------------------"
+echo "Release version: ${RELEASE_VERSION_NAME} (${RELEASE_VERSION_CODE})"
+echo "Local debug version: ${DEBUG_VERSION_NAME}-debug (${DEBUG_VERSION_CODE})"
 
 # Setup QEMU Sysroot for x86_64 emulation
 export QEMU_LD_PREFIX="$PROJECT_ROOT/scripts/android/common/sysroot"
@@ -65,7 +107,9 @@ if [ ! -x "./gradlew" ]; then
 fi
 
 # Build GitHub debug APK for local sideload flow.
-./gradlew :app:assembleGithubDebug
+./gradlew :app:assembleGithubDebug \
+    -PAPP_VERSION_NAME="$DEBUG_VERSION_NAME" \
+    -PAPP_VERSION_CODE="$DEBUG_VERSION_CODE"
 
 echo "--------------------------------------------------"
 echo "📲 Deploying to Device"
