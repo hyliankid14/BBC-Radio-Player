@@ -7,7 +7,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
 import java.util.Locale
@@ -24,7 +23,6 @@ object ShareUtil {
 
     // GitHub Pages URL for web player
     private const val WEB_BASE_URL = "https://hyliankid14.github.io/British-Radio-Player"
-    private const val DEFAULT_CLOUD_FUNCTION_URL = "https://podcast-search-tcy4hnuh2q-nw.a.run.app"
     private const val APP_SCHEME = "app"
     private const val SHORT_URL_API = "https://is.gd/create.php"
     
@@ -218,72 +216,15 @@ object ShareUtil {
     }
 
     /**
-     * Summarize text via the Google Cloud Function backend.
-     * Falls back to simple local truncation when the API is unavailable.
+     * Summarise text on-device only for privacy and offline resilience.
      */
     private fun summarizeTextWithAI(text: String): String {
         if (text.isBlank()) return ""
-        
+
         val plain = stripHtmlTags(text)
         if (plain.isBlank()) return ""
 
-        val configuredBaseUrl = BuildConfig.CLOUD_FUNCTION_URL.trim().trimEnd('/')
-        val baseUrl = if (configuredBaseUrl.isNotBlank()) configuredBaseUrl else DEFAULT_CLOUD_FUNCTION_URL
-        
-        return try {
-            val payload = JSONObject().apply {
-                put("text", plain.take(2000))
-            }.toString()
-            val url = "$baseUrl/summarize"
-            
-            android.util.Log.d("ShareUtil", "Calling Cloud Function summary API (length=${plain.length})")
-            
-            val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
-                connectTimeout = 3000
-                readTimeout = 3000
-                requestMethod = "POST"
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("User-Agent", "British-Radio-Player/1.0")
-                doOutput = true
-            }
-            
-            connection.outputStream.write(payload.toByteArray(Charsets.UTF_8))
-            
-            val responseCode = connection.responseCode
-            android.util.Log.d("ShareUtil", "Cloud Function summary API returned code: $responseCode")
-            
-            if (responseCode != 200) {
-                android.util.Log.w("ShareUtil", "Cloud Function summary API returned $responseCode, using fallback")
-                connection.disconnect()
-                return summarizeTextLocally(plain)
-            }
-            
-            val responseText = connection.inputStream.bufferedReader().use { it.readText() }.trim()
-            connection.disconnect()
-            
-            val responseJson = JSONObject(responseText)
-            val summary = responseJson.optString("summary", "").trim()
-            val cached = responseJson.optBoolean("cached", false)
-            
-            android.util.Log.d("ShareUtil", "Cloud Function summary response received (${summary.length} chars, cached=$cached)")
-
-            if (summary.isNotBlank() && summary.length < 500 && summary.length > 3) {
-                android.util.Log.d("ShareUtil", "Using AI summary")
-                summary
-            } else {
-                android.util.Log.w("ShareUtil", "Summary invalid or too long (${summary.length} chars), using fallback")
-                summarizeTextLocally(plain)
-            }
-        } catch (e: java.net.SocketTimeoutException) {
-            android.util.Log.w("ShareUtil", "Cloud Function summary API timeout (${e.message}), using fallback")
-            summarizeTextLocally(plain)
-        } catch (e: java.net.ConnectException) {
-            android.util.Log.w("ShareUtil", "Cloud Function summary API connection failed (${e.message}), using fallback")
-            summarizeTextLocally(plain)
-        } catch (e: Exception) {
-            android.util.Log.w("ShareUtil", "AI summary unavailable (${e.javaClass.simpleName}: ${e.message}), using fallback")
-            summarizeTextLocally(plain)
-        }
+        return summarizeTextLocally(plain)
     }
 
     private fun summarizeTextLocally(text: String): String {

@@ -1025,6 +1025,9 @@
             makeStation('radio4', 'BBC Radio 4', 'bbc_radio_fourfm', 'NATIONAL'),
             makeStation('radio4extra', 'BBC Radio 4 Extra', 'bbc_radio_four_extra', 'NATIONAL'),
             makeStation('radio5live', 'BBC Radio 5 Live', 'bbc_radio_five_live', 'NATIONAL'),
+            makeStation('radio5livesportsextra', 'BBC Radio 5 Sports Extra', 'bbc_radio_five_live_sports_extra', 'NATIONAL'),
+            makeStation('radio5livesportsextra2', 'BBC Radio 5 Sports Extra 2', 'bbc_radio_five_sports_extra_2', 'NATIONAL'),
+            makeStation('radio5livesportsextra3', 'BBC Radio 5 Sports Extra 3', 'bbc_radio_five_sports_extra_3', 'NATIONAL'),
             makeStation('radio6', 'BBC Radio 6 Music', 'bbc_6music', 'NATIONAL'),
             makeStation('worldservice', 'BBC World Service', 'bbc_world_service', 'NATIONAL'),
             makeStation('asiannetwork', 'BBC Asian Network', 'bbc_asian_network', 'NATIONAL'),
@@ -2882,7 +2885,7 @@
             }
 
             /**
-             * Shorten description text to ~30 words using the Google Cloud summarize endpoint.
+             * Shorten description text on-device only.
              */
             async shortenTextWithAI(text) {
                 if (!text) return '';
@@ -2890,49 +2893,35 @@
                 const plainText = this.stripHtml(text).replace(/\s+/g, ' ').trim();
                 if (!plainText) return '';
 
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 8000);
-                    const summarizeUrl = 'https://podcast-search-tcy4hnuh2q-nw.a.run.app/summarize';
+                const cleanText = plainText.substring(0, 2000).trim();
+                if (!cleanText) return '';
 
-                    console.log('Calling Cloud Function API for summary...');
-                    const response = await fetch(summarizeUrl, {
-                        method: 'POST',
-                        signal: controller.signal,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'User-Agent': 'British-Radio-Player/1.0'
-                        },
-                        body: JSON.stringify({
-                            text: plainText.substring(0, 2000)
-                        })
-                    });
+                const sentenceSplit = cleanText
+                    .split(/(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])$/)
+                    .map(s => s.trim())
+                    .filter(s => s.length > 10);
 
-                    clearTimeout(timeoutId);
-                    console.log(`Cloud Function API returned ${response.status}`);
-
-                    if (!response.ok) {
-                        console.warn(`Cloud Function API returned ${response.status}, using local fallback`);
-                        return this.limitToWords(plainText, 30);
-                    }
-
-                    const data = await response.json();
-                    const summary = data.summary || '';
-                    console.log(`AI response received (${summary.length} chars, cached=${data.cached})`);
-                    
-                    if (summary && typeof summary === 'string' && summary.length < 500 && summary.length > 3) {
-                        console.log('Using AI summary');
-                        return this.limitToWords(summary.trim(), 50);
-                    } else {
-                        console.warn(`Response invalid or too long (${summary.length} chars), using fallback`);
-                        return this.limitToWords(plainText, 30);
-                    }
-                } catch (err) {
-                    const errType = err?.name || err?.constructor?.name || 'Unknown';
-                    console.warn(`Cloud Function API unavailable (${errType}): ${err?.message || ''}, using local fallback`);
+                if (sentenceSplit.length === 0) {
+                    return this.limitToWords(cleanText, 30);
                 }
 
-                return this.limitToWords(plainText, 30);
+                if (sentenceSplit.length === 1) {
+                    const single = this.limitToWords(sentenceSplit[0], 30);
+                    return single.endsWith('.') ? single : `${single}.`;
+                }
+
+                const combined = sentenceSplit
+                    .slice(0, 2)
+                    .map(s => s.replace(/[.!?]+$/, '').trim())
+                    .filter(Boolean)
+                    .join('. ');
+
+                if (!combined) {
+                    return this.limitToWords(cleanText, 30);
+                }
+
+                const limited = this.limitToWords(combined, 40);
+                return limited.endsWith('.') ? limited : `${limited}.`;
             }
 
             limitToWords(text, maxWords) {
