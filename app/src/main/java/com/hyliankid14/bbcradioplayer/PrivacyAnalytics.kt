@@ -21,6 +21,11 @@ class PrivacyAnalytics(private val context: Context) {
         // Self-hosted analytics endpoint on your Raspberry Pi.
         // Replace with your own Pi hostname/IP and HTTPS reverse-proxy URL.
         private const val ANALYTICS_ENDPOINT = "https://raspberrypi.tailc23afa.ts.net:8443/event"
+
+        fun getAnalyticsBaseUrl(): String {
+            val endpoint = ANALYTICS_ENDPOINT.trim()
+            return if (endpoint.endsWith("/event")) endpoint.removeSuffix("/event") else endpoint
+        }
     }
     
     private val prefs: SharedPreferences = 

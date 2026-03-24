@@ -237,6 +237,8 @@ class SearchResultsAdapter(
         private val imageView: ImageView = itemView.findViewById(R.id.podcast_image)
         private val titleView: TextView = itemView.findViewById(R.id.podcast_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.podcast_description)
+        private val subscribedIcon: ImageView? = itemView.findViewById(R.id.podcast_subscribed_icon)
+        private val notificationBell: ImageView? = itemView.findViewById(R.id.podcast_notification_bell)
 
         fun bind(podcast: Podcast) {
             titleView.text = podcast.title
@@ -257,6 +259,17 @@ class SearchResultsAdapter(
                 // Load placeholder icon for podcasts without artwork
                 imageView.setImageResource(R.drawable.ic_podcast)
             }
+
+            val isSubscribed = PodcastSubscriptions.isSubscribed(itemView.context, podcast.id)
+            if (isSubscribed) {
+                subscribedIcon?.setImageResource(R.drawable.ic_star_filled)
+                subscribedIcon?.visibility = View.VISIBLE
+            } else {
+                subscribedIcon?.visibility = View.GONE
+            }
+
+            // Search results do not expose per-row notification toggles.
+            notificationBell?.visibility = View.GONE
 
             itemView.setOnClickListener { onPodcastClick(podcast) }
             titleView.setOnClickListener { onPodcastClick(podcast) }

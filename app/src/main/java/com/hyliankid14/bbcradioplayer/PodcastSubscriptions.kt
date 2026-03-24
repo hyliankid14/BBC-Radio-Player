@@ -12,6 +12,10 @@ object PodcastSubscriptions {
     private const val KEY_LAST_AUTO_SYNC_MS = "last_auto_sync_ms"
     private const val AUTO_SYNC_MIN_INTERVAL_MS = 15L * 60L * 1000L
 
+    const val ACTION_SUBSCRIPTION_CHANGED = "com.hyliankid14.bbcradioplayer.ACTION_SUBSCRIPTION_CHANGED"
+    const val EXTRA_PODCAST_ID = "extra_podcast_id"
+    const val EXTRA_IS_SUBSCRIBED = "extra_is_subscribed"
+
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun getSubscribedIds(context: Context): Set<String> {
@@ -44,6 +48,15 @@ object PodcastSubscriptions {
             }
         }
         prefs(context).edit().putStringSet(KEY_SUBSCRIBED_IDS, current).apply()
+
+        // Notify any visible lists so star/bell state updates immediately.
+        context.sendBroadcast(
+            android.content.Intent(ACTION_SUBSCRIPTION_CHANGED).apply {
+                setPackage(context.packageName)
+                putExtra(EXTRA_PODCAST_ID, podcastId)
+                putExtra(EXTRA_IS_SUBSCRIBED, !wasSubscribed)
+            }
+        )
     }
 
     /**

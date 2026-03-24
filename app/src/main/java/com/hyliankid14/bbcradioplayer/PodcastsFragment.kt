@@ -29,6 +29,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import android.view.KeyEvent
 import android.widget.Toast
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
 
 class PodcastsFragment : Fragment() {
     private lateinit var viewModel: PodcastsViewModel
@@ -40,6 +43,8 @@ class PodcastsFragment : Fragment() {
     private var currentFilter = PodcastFilter()
     private var currentSort: String = "Most popular"
     private var cachedUpdates: Map<String, Long> = emptyMap()
+    private var analyticsPopularRanks: Map<String, Int> = emptyMap()
+    private var analyticsPopularTitleRanks: Map<String, Int> = emptyMap()
     private var searchQuery = ""
     private var searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView? = null
     private var searchInputLayout: com.google.android.material.textfield.TextInputLayout? = null
@@ -305,6 +310,19 @@ class PodcastsFragment : Fragment() {
     private val RESTORE_ITEM_CHUNK = 100
     private var cachedSearchAdapter: SearchResultsAdapter? = null
 
+    private val subscriptionChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            if (intent?.action != PodcastSubscriptions.ACTION_SUBSCRIPTION_CHANGED) return
+            refreshSubscriptionIndicators()
+        }
+    }
+
+    private fun refreshSubscriptionIndicators() {
+        podcastAdapter.refreshCache()
+        searchAdapter?.notifyDataSetChanged()
+        cachedSearchAdapter?.notifyDataSetChanged()
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -519,6 +537,12 @@ class PodcastsFragment : Fragment() {
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         podcastAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast -> onPodcastClicked(podcast) }, showNotificationBell = false)
         recyclerView.itemAnimator = null
+
+        requireContext().registerReceiver(
+            subscriptionChangedReceiver,
+            IntentFilter(PodcastSubscriptions.ACTION_SUBSCRIPTION_CHANGED),
+            android.content.Context.RECEIVER_NOT_EXPORTED
+        )
 
         // Shuffle helper: open episodes page for a random podcast
         fun shuffleAndOpenRandomPodcastLocal() { shuffleAndOpenRandomPodcast() }
@@ -771,9 +795,19 @@ class PodcastsFragment : Fragment() {
                 // STEP 3 runs after Steps 1 and 2 have completed (all sequential in this coroutine).
                 // Fetch update timestamps in the background for "Most recent" sort.
                 // allPodcasts has been updated by whichever display step ran last.
-                val updates = withContext(Dispatchers.IO) { repository.fetchLatestUpdates(allPodcasts) }
+                val (updates, popularRanks) = coroutineScope {
+                    val updatesDeferred = async { repository.fetchLatestUpdates(allPodcasts) }
+                    val popularDeferred = async { repository.fetchPopularPodcastRanks(days = 30) }
+                    updatesDeferred.await() to popularDeferred.await()
+                }
                 cachedUpdates = updates
+                analyticsPopularRanks = popularRanks.idRanks
+                analyticsPopularTitleRanks = popularRanks.titleRanks
                 viewModel.cachedUpdates = updates
+                android.util.Log.d(
+                    "PodcastsFragment",
+                    "Loaded analytics popularity ranks: ids=${popularRanks.idRanks.size}, titles=${popularRanks.titleRanks.size}"
+                )
                 loadingIndicator.visibility = View.GONE
                 applyFilters(emptyState, recyclerView)
 
@@ -938,6 +972,11 @@ class PodcastsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        try {
+            requireContext().unregisterReceiver(subscriptionChangedReceiver)
+        } catch (_: Exception) {
+            // Receiver may already be unregistered if view teardown races with host lifecycle.
+        }
         sensorManager?.unregisterListener(shakeListener)
         filterDebounceJob?.cancel()
         searchJob?.cancel()
@@ -993,7 +1032,7 @@ class PodcastsFragment : Fragment() {
         android.util.Log.d("PodcastsFragment", "onResume: activeSearchQuery='${viewModel.activeSearchQuery.value}' searchQuery='${searchQuery}' allPodcasts.size=${allPodcasts.size}")
         
         // Refresh the adapter's subscription cache to reflect any changes
-        podcastAdapter.refreshCache()
+        refreshSubscriptionIndicators()
         
         // Super fast-path: if we have a cached adapter from before view destruction, restore it immediately
         val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
@@ -1585,7 +1624,7 @@ class PodcastsFragment : Fragment() {
                     val sortedList = when (currentSort) {
                         "Most popular" -> filtered.sortedWith(
                             compareBy<Podcast> { getPopularRank(it) }
-                                .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
+                                .thenByDescending { if (!hasPopularRank(it)) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
                         )
                         "Most recent" -> filtered.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
                         "Alphabetical (A-Z)" -> filtered.sortedBy { it.title }
@@ -1740,7 +1779,7 @@ class PodcastsFragment : Fragment() {
                     when (currentSort) {
                         "Most popular" -> effectiveTitleMatches.sortedWith(
                             compareBy<Podcast> { getPopularRank(it) }
-                                .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
+                                .thenByDescending { if (!hasPopularRank(it)) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
                         )
                         "Most recent" -> effectiveTitleMatches.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
                         "Alphabetical (A-Z)" -> effectiveTitleMatches.sortedBy { it.title }
@@ -1752,7 +1791,7 @@ class PodcastsFragment : Fragment() {
                     when (currentSort) {
                         "Most popular" -> descMatches.sortedWith(
                             compareBy<Podcast> { getPopularRank(it) }
-                                .thenByDescending { if (getPopularRank(it) > 100) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
+                                .thenByDescending { if (!hasPopularRank(it)) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
                         )
                         "Most recent" -> descMatches.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
                         "Alphabetical (A-Z)" -> descMatches.sortedBy { it.title }
@@ -2226,117 +2265,22 @@ class PodcastsFragment : Fragment() {
     }
 
     private fun getPopularRank(podcast: Podcast): Int {
-        for ((key, rank) in POPULAR_RANKING) {
-            if (podcast.title.equals(key, ignoreCase = true)) return rank
-        }
-        return 101
+        analyticsPopularRanks[podcast.id]?.let { return it }
+        analyticsPopularTitleRanks[normalizePodcastTitle(podcast.title)]?.let { return it }
+        return Int.MAX_VALUE
     }
+
+    private fun hasPopularRank(podcast: Podcast): Boolean {
+        return analyticsPopularRanks.containsKey(podcast.id) ||
+            analyticsPopularTitleRanks.containsKey(normalizePodcastTitle(podcast.title))
+    }
+
+    private fun normalizePodcastTitle(value: String): String =
+        value.trim().lowercase(Locale.getDefault()).replace(Regex("\\s+"), " ")
 
     companion object {
         private const val SHAKE_THRESHOLD_GRAVITY = 2.7f
         private const val SHAKE_DEBOUNCE_MS = 1000L
-        private val POPULAR_RANKING = mapOf(
-            "Global News Podcast" to 1,
-            "Football Daily" to 2,
-            "Newshour" to 3,
-            "Radio 1's All Day Breakfast with Greg James" to 4,
-            "Test Match Special" to 5,
-            "Best of Nolan" to 6,
-            "Rugby Union Weekly" to 7,
-            "Wake Up To Money" to 8,
-            "Ten To The Top" to 9,
-            "Witness History" to 10,
-            "Focus on Africa" to 11,
-            "BBC Music Introducing Mixtape" to 12,
-            "F1: Chequered Flag" to 13,
-            "BBC Introducing in Oxfordshire & Berkshire" to 14,
-            "Business Daily" to 15,
-            "Americast" to 16,
-            "CrowdScience" to 17,
-            "The Interview" to 18,
-            "Six O'Clock News" to 19,
-            "Science In Action" to 20,
-            "Today in Parliament" to 21,
-            "Talkback" to 22,
-            "Access All: Disability News and Mental Health" to 23,
-            "Fighting Talk" to 24,
-            "World Business Report" to 25,
-            "Business Matters" to 26,
-            "Tailenders" to 27,
-            "Moral Maze" to 28,
-            "Any Questions? and Any Answers?" to 29,
-            "Health Check" to 30,
-            "Friday Night Comedy from BBC Radio 4" to 31,
-            "BBC Inside Science" to 32,
-            "People Fixing the World" to 33,
-            "Add to Playlist" to 34,
-            "In Touch" to 35,
-            "Limelight" to 36,
-            "Evil Genius with Russell Kane" to 37,
-            "Africa Daily" to 38,
-            "Broadcasting House" to 39,
-            "From Our Own Correspondent" to 40,
-            "Newscast" to 41,
-            "Derby County" to 42,
-            "Learning English Stories" to 43,
-            "Tech Life" to 44,
-            "World Football" to 45,
-            "Private Passions" to 46,
-            "Sunday Supplement" to 47,
-            "Drama of the Week" to 48,
-            "Sporting Witness" to 49,
-            "File on 4 Investigates" to 50,
-            "Nottingham Forest: Shut Up and Show More Football" to 51,
-            "Soul Music" to 52,
-            "Westminster Hour" to 53,
-            "Inside Health" to 54,
-            "5 Live's World Football Phone-in" to 55,
-            "Over to You" to 56,
-            "Political Thinking with Nick Robinson" to 57,
-            "Sport's Strangest Crimes" to 58,
-            "Inheritance Tracks" to 59,
-            "The Archers" to 60,
-            "Profile" to 61,
-            "Sacked in the Morning" to 62,
-            "The World Tonight" to 63,
-            "Record Review Podcast" to 64,
-            "Composer of the Week" to 65,
-            "Short Cuts" to 66,
-            "The History Hour" to 67,
-            "The Archers Omnibus" to 68,
-            "The Lazarus Heist" to 69,
-            "Bad People" to 70,
-            "Jill Scott's Coffee Club" to 71,
-            "5 Live Boxing with Steve Bunce" to 72,
-            "Unexpected Elements" to 73,
-            "The Inquiry" to 74,
-            "Not by the Playbook" to 75,
-            "The Bottom Line" to 76,
-            "Stumped" to 77,
-            "Sliced Bread" to 78,
-            "Sound of Cinema" to 79,
-            "5 Live News Specials" to 80,
-            "Comedy of the Week" to 81,
-            "Curious Cases" to 82,
-            "Breaking the News" to 83,
-            "The Skewer" to 84,
-            "5 Live Sport: All About..." to 85,
-            "The Briefing Room" to 86,
-            "The Early Music Show" to 87,
-            "The Life Scientific" to 88,
-            "5 Live Rugby League" to 89,
-            "Learning English from the News" to 90,
-            "The GAA Social" to 91,
-            "Sportsworld" to 92,
-            "Assume Nothing" to 93,
-            "The LGBT Sport Podcast" to 94,
-            "Fairy Meadow" to 95,
-            "Kermode and Mayo's Film Review" to 96,
-            "In Our Time: History" to 97,
-            "Digital Planet" to 98,
-            "Just One Thing - with Michael Mosley" to 99,
-            "Scientifically..." to 100
-        )
     } // End of PodcastsFragment class
 
     /**

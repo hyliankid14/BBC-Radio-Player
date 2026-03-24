@@ -53,6 +53,11 @@ import java.util.zip.GZIPInputStream
  */
 class RemoteIndexClient(private val context: Context) {
 
+    data class PopularPodcastRanking(
+        val idRanks: Map<String, Int>,
+        val titleRanks: Map<String, Int>
+    )
+
     companion object {
         private const val TAG = "RemoteIndexClient"
 
@@ -514,6 +519,74 @@ class RemoteIndexClient(private val context: Context) {
             emptyList()
         }
     }
+
+    /**
+     * Fetch podcast popularity ranks from analytics stats.
+     *
+     * Returns a map of podcast ID -> 1-based rank, where lower is more popular.
+     * If stats are unavailable, returns an empty map so callers can fall back.
+     */
+    fun fetchPopularPodcastRanks(days: Int = 30, limit: Int = 200): PopularPodcastRanking {
+        val safeDays = days.coerceAtLeast(1)
+        val safeLimit = limit.coerceAtLeast(1)
+        val statsUrls = listOf(
+            "${PrivacyAnalytics.getAnalyticsBaseUrl()}/stats?days=${encode(safeDays.toString())}",
+            "$LIVE_SEARCH_URL/stats?days=${encode(safeDays.toString())}"
+        )
+
+        for (url in statsUrls) {
+            try {
+                val response = getJson(
+                    url,
+                    connectTimeoutMs = LIVE_SEARCH_CONNECT_TIMEOUT_MS,
+                    readTimeoutMs = LIVE_SEARCH_READ_TIMEOUT_MS
+                ) ?: continue
+
+                val popular = response.optJSONArray("popular_podcasts") ?: continue
+                data class PopularEntry(val id: String, val name: String, val plays: Int)
+                val entries = mutableListOf<PopularEntry>()
+                val max = minOf(popular.length(), safeLimit)
+                for (i in 0 until max) {
+                    val item = popular.optJSONObject(i) ?: continue
+                    val podcastId = item.optString("id", "").trim()
+                    val podcastName = item.optString("name", "").trim()
+                    val plays = item.optInt("plays", 0)
+                    if (podcastId.isBlank() && podcastName.isBlank()) continue
+                    entries.add(PopularEntry(podcastId, podcastName, plays))
+                }
+
+                // Defensive sort by play count in case the endpoint output order changes.
+                val sorted = entries.sortedWith(
+                    compareByDescending<PopularEntry> { it.plays }
+                        .thenBy { it.name }
+                        .thenBy { it.id }
+                )
+
+                val idRanks = linkedMapOf<String, Int>()
+                val titleRanks = linkedMapOf<String, Int>()
+                sorted.forEachIndexed { index, entry ->
+                    val rank = index + 1
+                    if (entry.id.isNotBlank() && !idRanks.containsKey(entry.id)) {
+                        idRanks[entry.id] = rank
+                    }
+                    val normalizedTitle = normalizeTitle(entry.name)
+                    if (normalizedTitle.isNotBlank() && !titleRanks.containsKey(normalizedTitle)) {
+                        titleRanks[normalizedTitle] = rank
+                    }
+                }
+
+                if (idRanks.isNotEmpty() || titleRanks.isNotEmpty()) {
+                    return PopularPodcastRanking(idRanks = idRanks, titleRanks = titleRanks)
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "fetchPopularPodcastRanks failed for $url: ${e.message}")
+            }
+        }
+        return PopularPodcastRanking(idRanks = emptyMap(), titleRanks = emptyMap())
+    }
+
+    private fun normalizeTitle(value: String): String =
+        value.trim().lowercase().replace(Regex("\\s+"), " ")
 
     // ── HTTP helpers ──────────────────────────────────────────────────────────
 
