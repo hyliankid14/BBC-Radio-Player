@@ -11,7 +11,9 @@ name: Export popular podcasts to GCS
 #                         https://raspberrypi.tailc23afa.ts.net:8443
 #   GCS_BUCKET          — name of the GCS bucket, e.g.
 #                         bbc-radio-player-index-20260317-bc149e38
-#   GCS_SA_KEY          — JSON key for a service account with
+#   GCP_WORKLOAD_IDENTITY_PROVIDER — full provider resource name, e.g.
+#                         projects/123456789/locations/global/workloadIdentityPools/github-actions/providers/github
+#   GCP_SERVICE_ACCOUNT — service account email with
 #                         roles/storage.objectAdmin on the bucket
 
 on:
@@ -20,7 +22,9 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:   # allow manual trigger from the Actions tab
 
-permissions: {}   # no GITHUB_TOKEN permissions needed; GCS access uses GCS_SA_KEY secret
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   export:
@@ -64,7 +68,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCS_SA_KEY }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Upload snapshot to GCS
         uses: google-github-actions/upload-cloud-storage@v2
