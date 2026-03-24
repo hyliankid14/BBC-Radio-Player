@@ -682,7 +682,7 @@ class MainActivity : AppCompatActivity() {
             try { supportFragmentManager.executePendingTransactions() } catch (_: Exception) { }
             val existing = supportFragmentManager.findFragmentByTag("podcasts_fragment") as? PodcastsFragment
             if (existing != null) {
-                // Launch the search with "Most recent" sort (forceMostRecent defaults to true)
+                // Launch the search with the recent-episodes sort (forceMostRecent defaults to true)
                 existing.applySavedSearch(search)
                 return
             }
@@ -1537,7 +1537,7 @@ class MainActivity : AppCompatActivity() {
                 // update timestamps.  Both are synchronous disk reads (< 50 ms) so the
                 // subscription list appears almost immediately, without a visible loading spinner.
                 val fastSubs = repo.getAvailablePodcastsNow().filter { subscribedIds.contains(it.id) }
-                val fastUpdates = repo.getAvailableUpdatesNow()
+                val fastUpdates = repo.getAvailableUpdatesNow(fastSubs)
                 if (fastSubs.isNotEmpty()) {
                     val fastSorted = fastSubs.sortedByDescending { fastUpdates[it.id] ?: 0L }
                     val fastNewSet = fastSorted.filter { p ->
@@ -1749,7 +1749,7 @@ class MainActivity : AppCompatActivity() {
                         val currentAdapter = rv.adapter as? PodcastAdapter
                         if (currentAdapter == null || currentAdapter.itemCount == 0) {
                             val fastSubs = repo.getAvailablePodcastsNow().filter { ids.contains(it.id) }
-                            val fastUpdates = repo.getAvailableUpdatesNow()
+                            val fastUpdates = repo.getAvailableUpdatesNow(fastSubs)
                             if (fastSubs.isNotEmpty()) {
                                 val fastSorted = fastSubs.sortedByDescending { fastUpdates[it.id] ?: 0L }
                                 val fastNewSet = fastSorted.filter { p ->

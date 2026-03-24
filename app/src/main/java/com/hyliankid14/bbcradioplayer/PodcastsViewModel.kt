@@ -35,6 +35,8 @@ class PodcastsViewModel : ViewModel() {
     // Cached podcasts list + UI state to avoid visible refresh when returning to the Podcasts page
     var cachedPodcasts: List<Podcast> = emptyList()
     var cachedUpdates: Map<String, Long> = emptyMap()
+    var cachedEarliestUpdates: Map<String, Long> = emptyMap()
+    var cachedNewlyAddedPodcastEpochs: Map<String, Long> = emptyMap()
     var cachedGenres: List<String> = emptyList()
     var cachedFilter: PodcastFilter = PodcastFilter()
     var cachedSort: String = "Most popular"

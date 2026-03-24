@@ -41,14 +41,18 @@ class PodcastsFragment : Fragment() {
     private var searchAdapter: SearchResultsAdapter? = null
     private var allPodcasts: List<Podcast> = emptyList()
     private var currentFilter = PodcastFilter()
-    private var currentSort: String = "Most popular"
+    private var currentSort: String = SORT_MOST_POPULAR
     private var cachedUpdates: Map<String, Long> = emptyMap()
+    private var cachedEarliestUpdates: Map<String, Long> = emptyMap()
+    private var cachedNewlyAddedPodcastEpochs: Map<String, Long> = emptyMap()
     private var analyticsPopularRanks: Map<String, Int> = emptyMap()
     private var analyticsPopularTitleRanks: Map<String, Int> = emptyMap()
     private var searchQuery = ""
     private var searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView? = null
     private var searchInputLayout: com.google.android.material.textfield.TextInputLayout? = null
     private var saveSearchButton: android.widget.Button? = null
+    private var isLoadingNewPodcastBounds: Boolean = false
+    private var hasAttemptedNewPodcastBoundsLoad: Boolean = false
     // Active search state is persisted in the ViewModel while the activity lives
     // Suppress the text watcher when programmatically updating the search EditText
     private var suppressSearchWatcher: Boolean = false
@@ -187,17 +191,22 @@ class PodcastsFragment : Fragment() {
         emptyState: TextView,
         recyclerView: RecyclerView
     ) {
-        val sortOptions = listOf("Most popular", "Most recent", "Alphabetical (A-Z)")
+        val sortOptions = listOf(
+            SORT_MOST_POPULAR,
+            SORT_MOST_RECENT_EPISODES,
+            SORT_NEW_PODCASTS,
+            SORT_ALPHABETICAL
+        )
         val sortAdapter = NoFilterArrayAdapter(requireContext(), R.layout.dropdown_item_large, sortOptions)
         sortAdapter.setDropDownViewResource(R.layout.dropdown_item_large)
         sortSpinner.setAdapter(sortAdapter)
-        sortSpinner.setText(currentSort, false)
+        sortSpinner.setText(normalizeSortValue(currentSort), false)
         sortSpinner.setOnItemClickListener { parent, _, position, _ ->
             if (suppressSearchWatcher) return@setOnItemClickListener
             restoreAppendJob?.cancel()
             usingCachedItemAppend = false
             restoringFromCache = false
-            val selected = parent?.getItemAtPosition(position) as? String ?: return@setOnItemClickListener
+            val selected = normalizeSortValue(parent?.getItemAtPosition(position) as? String)
             android.util.Log.d("PodcastsFragment", "Sort spinner listener: selected='$selected', currentSort='$currentSort'")
             if (selected == currentSort) {
                 android.util.Log.d("PodcastsFragment", "Sort order unchanged, skipping applyFilters")
@@ -607,12 +616,12 @@ class PodcastsFragment : Fragment() {
             lastDisplaySnapshot = null
             lastActiveQueryNorm = ""
             currentFilter = PodcastFilter()
-            currentSort = "Most popular"
+            currentSort = SORT_MOST_POPULAR
             // Set exposed dropdowns back to 'All Genres' / default label
             genreSpinner.setText("All Genres", false)
-            sortSpinner.setText("Most popular", false)
+            sortSpinner.setText(SORT_MOST_POPULAR, false)
             viewModel.cachedFilter = currentFilter
-            viewModel.cachedSort = "Most popular"
+            viewModel.cachedSort = SORT_MOST_POPULAR
             // Reset the title bar to the default Podcasts state (remove back navigation)
             resetTitleBar()
             applyFilters(emptyState, recyclerView)
@@ -681,12 +690,14 @@ class PodcastsFragment : Fragment() {
         if (viewModel.cachedPodcasts.isNotEmpty()) {
             allPodcasts = viewModel.cachedPodcasts
             cachedUpdates = viewModel.cachedUpdates
+            cachedEarliestUpdates = viewModel.cachedEarliestUpdates
+            cachedNewlyAddedPodcastEpochs = viewModel.cachedNewlyAddedPodcastEpochs
             currentFilter = viewModel.cachedFilter
             // Restore sort: use cached sort if available, otherwise use default
             currentSort = if (viewModel.cachedSort.isNotEmpty()) {
-                viewModel.cachedSort
+                normalizeSortValue(viewModel.cachedSort)
             } else {
-                "Most popular"
+                SORT_MOST_POPULAR
             }
 
             // Always rebuild genres from the cached podcasts so the spinner stays populated
@@ -757,13 +768,23 @@ class PodcastsFragment : Fragment() {
             try {
                 // STEP 1: Show any locally available data immediately (stale disk cache or bundled
                 //         seed asset) so the list appears without waiting for a network round-trip.
-                val (immediate, needsRefresh) = withContext(Dispatchers.IO) {
-                    repository.getAvailablePodcastsNow() to repository.needsNetworkRefresh()
+                val (immediate, needsRefresh, immediateEarliest, immediateNewlyAdded) = withContext(Dispatchers.IO) {
+                    val localPodcasts = repository.getAvailablePodcastsNow()
+                    val cachedCloudEarliest = repository.getAvailableCloudEarliestUpdatesNow(localPodcasts)
+                    val knownNewlyAdded = repository.getAvailableNewPodcastEpochsNow(localPodcasts)
+                    Quadruple(
+                        localPodcasts,
+                        repository.needsNetworkRefresh(),
+                        if (cachedCloudEarliest.isNotEmpty()) cachedCloudEarliest else repository.getAvailableEarliestUpdatesNow(localPodcasts),
+                        knownNewlyAdded
+                    )
                 }
 
                 if (immediate.isNotEmpty()) {
                     android.util.Log.d("PodcastsFragment", "Showing ${immediate.size} local podcasts immediately (needsRefresh=$needsRefresh)")
-                    displayPodcasts(immediate, loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
+                    cachedNewlyAddedPodcastEpochs = immediateNewlyAdded
+                    viewModel.cachedNewlyAddedPodcastEpochs = immediateNewlyAdded
+                    displayPodcasts(immediate, immediateEarliest, loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
                 }
 
                 // STEP 2: If the cache is stale or missing, fetch fresh data from the network.
@@ -782,7 +803,16 @@ class PodcastsFragment : Fragment() {
                         return@launch
                     }
 
-                    displayPodcasts(fresh, loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
+                    val (freshEarliest, freshNewlyAdded) = withContext(Dispatchers.IO) {
+                        Pair(
+                            repository.getAvailableCloudEarliestUpdatesNow(fresh)
+                                .ifEmpty { repository.getAvailableEarliestUpdatesNow(fresh) },
+                            repository.getAvailableNewPodcastEpochsNow(fresh)
+                        )
+                    }
+                    cachedNewlyAddedPodcastEpochs = freshNewlyAdded
+                    viewModel.cachedNewlyAddedPodcastEpochs = freshNewlyAdded
+                    displayPodcasts(fresh, freshEarliest, loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
                 } else if (immediate.isEmpty()) {
                     // This branch should not occur in practice: a fresh cache implies data exists.
                     // Handled defensively to avoid leaving the UI in a broken state.
@@ -793,17 +823,36 @@ class PodcastsFragment : Fragment() {
                 }
 
                 // STEP 3 runs after Steps 1 and 2 have completed (all sequential in this coroutine).
-                // Fetch update timestamps in the background for "Most recent" sort.
+                // Fetch per-podcast episode date bounds in the background for sort options.
                 // allPodcasts has been updated by whichever display step ran last.
-                val (updates, popularRanks) = coroutineScope {
-                    val updatesDeferred = async { repository.fetchLatestUpdates(allPodcasts) }
+                val (dateBounds, cloudEarliestUpdates, newlyAddedPodcastEpochs, popularRanks) = coroutineScope {
+                    val dateBoundsDeferred = async { repository.fetchPodcastDateBounds(allPodcasts) }
+                    val cloudEarliestDeferred = async { repository.fetchCloudPodcastDateBounds(allPodcasts) }
+                    val newlyAddedDeferred = async { repository.fetchNewlyAddedPodcastEpochs(allPodcasts) }
                     val popularDeferred = async { repository.fetchPopularPodcastRanks(days = 30) }
-                    updatesDeferred.await() to popularDeferred.await()
+                    Quadruple(
+                        dateBoundsDeferred.await(),
+                        cloudEarliestDeferred.await().mapValues { it.value.earliestEpisodeEpoch },
+                        newlyAddedDeferred.await(),
+                        popularDeferred.await()
+                    )
                 }
-                cachedUpdates = updates
+                val earliestFromDateBounds = dateBounds
+                    .mapValues { it.value.earliestEpisodeEpoch }
+                    .filterValues { it > 0L }
+                val earliestUpdates = when {
+                    cloudEarliestUpdates.isNotEmpty() -> cloudEarliestUpdates
+                    earliestFromDateBounds.isNotEmpty() -> earliestFromDateBounds
+                    else -> repository.getAvailableEarliestUpdatesNow(allPodcasts)
+                }
+                cachedUpdates = dateBounds.mapValues { it.value.latestEpisodeEpoch }
+                cachedEarliestUpdates = earliestUpdates
+                cachedNewlyAddedPodcastEpochs = newlyAddedPodcastEpochs
                 analyticsPopularRanks = popularRanks.idRanks
                 analyticsPopularTitleRanks = popularRanks.titleRanks
-                viewModel.cachedUpdates = updates
+                viewModel.cachedUpdates = cachedUpdates
+                viewModel.cachedEarliestUpdates = cachedEarliestUpdates
+                viewModel.cachedNewlyAddedPodcastEpochs = cachedNewlyAddedPodcastEpochs
                 android.util.Log.d(
                     "PodcastsFragment",
                     "Loaded analytics popularity ranks: ids=${popularRanks.idRanks.size}, titles=${popularRanks.titleRanks.size}"
@@ -845,6 +894,7 @@ class PodcastsFragment : Fragment() {
      */
     private fun displayPodcasts(
         podcasts: List<Podcast>,
+        earliestUpdates: Map<String, Long>,
         loadingIndicator: ProgressBar,
         emptyState: TextView,
         recyclerView: RecyclerView,
@@ -855,12 +905,13 @@ class PodcastsFragment : Fragment() {
         viewModel.cachedGenres = genres
         bindGenreSpinner(genreSpinner, genres, emptyState, recyclerView)
         bindSortSpinner(sortSpinner, emptyState, recyclerView)
+        cachedEarliestUpdates = earliestUpdates
+        viewModel.cachedEarliestUpdates = earliestUpdates
+        hasAttemptedNewPodcastBoundsLoad = earliestUpdates.isNotEmpty()
 
         val hasActiveSearch = !viewModel.activeSearchQuery.value.isNullOrBlank() || searchQuery.isNotBlank()
         allPodcasts = if (!hasActiveSearch) {
-            currentSort = "Most popular"
             currentFilter = PodcastFilter(genres = emptySet(), minDuration = 0, maxDuration = Int.MAX_VALUE, searchQuery = "")
-            viewModel.cachedSort = currentSort
             viewModel.cachedFilter = currentFilter
             podcasts.sortedWith(compareBy { getPopularRank(it) })
         } else {
@@ -876,6 +927,16 @@ class PodcastsFragment : Fragment() {
         emptyState: TextView,
         recyclerView: RecyclerView
     ) {
+        if (normalizeSortValue(currentSort) == SORT_NEW_PODCASTS &&
+            cachedEarliestUpdates.isEmpty() &&
+            allPodcasts.isNotEmpty() &&
+            !isLoadingNewPodcastBounds &&
+            !hasAttemptedNewPodcastBoundsLoad
+        ) {
+            loadNewPodcastBoundsAndReapply(emptyState, recyclerView)
+            return
+        }
+
         // If we're restoring from cache, skip automatic reloads
         val activeNorm = normalizeQuery(viewModel.activeSearchQuery.value ?: searchQuery)
         if (restoringFromCache && activeNorm.isNotEmpty()) {
@@ -966,6 +1027,45 @@ class PodcastsFragment : Fragment() {
                 android.util.Log.e("PodcastsFragment", "Error loading next page", e)
             } finally {
                 isLoadingPage = false
+            }
+        }
+    }
+
+    private fun loadNewPodcastBoundsAndReapply(emptyState: TextView, recyclerView: RecyclerView) {
+        if (isLoadingNewPodcastBounds || allPodcasts.isEmpty()) return
+
+        isLoadingNewPodcastBounds = true
+        hasAttemptedNewPodcastBoundsLoad = true
+        view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.VISIBLE
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val resolvedEarliest = withContext(Dispatchers.IO) {
+                    repository.fetchCloudPodcastDateBounds(allPodcasts)
+                        .mapValues { it.value.earliestEpisodeEpoch }
+                        .ifEmpty {
+                            repository.fetchPodcastDateBounds(allPodcasts)
+                                .mapValues { it.value.earliestEpisodeEpoch }
+                                .filterValues { it > 0L }
+                        }
+                        .ifEmpty { repository.getAvailableEarliestUpdatesNow(allPodcasts) }
+                }
+                val resolvedNewlyAdded = withContext(Dispatchers.IO) {
+                    repository.fetchNewlyAddedPodcastEpochs(allPodcasts)
+                }
+                cachedEarliestUpdates = resolvedEarliest
+                viewModel.cachedEarliestUpdates = resolvedEarliest
+                cachedNewlyAddedPodcastEpochs = resolvedNewlyAdded
+                viewModel.cachedNewlyAddedPodcastEpochs = resolvedNewlyAdded
+            } catch (e: Exception) {
+                android.util.Log.w("PodcastsFragment", "Failed to load New Podcasts bounds: ${e.message}")
+            } finally {
+                isLoadingNewPodcastBounds = false
+                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+            }
+
+            if (isAdded) {
+                applyFilters(emptyState, recyclerView)
             }
         }
     }
@@ -1472,9 +1572,9 @@ class PodcastsFragment : Fragment() {
         // which ensures results are sorted by publication date (most recent episodes first).
         // When opened in-app via SavedSearchAdapter, the same default applies for consistency.
         currentSort = if (forceMostRecent) {
-            "Most recent"
+            SORT_MOST_RECENT_EPISODES
         } else {
-            if (savedSearch.sort.isNotBlank()) savedSearch.sort else "Most popular"
+            normalizeSortValue(savedSearch.sort)
         }
         viewModel.cachedFilter = currentFilter
         viewModel.cachedSort = currentSort
@@ -1621,15 +1721,7 @@ class PodcastsFragment : Fragment() {
                     val effectiveFilter = currentFilter.copy(searchQuery = "")
                     val filtered = withContext(Dispatchers.Default) { repository.filterPodcasts(allPodcasts, effectiveFilter) }
 
-                    val sortedList = when (currentSort) {
-                        "Most popular" -> filtered.sortedWith(
-                            compareBy<Podcast> { getPopularRank(it) }
-                                .thenByDescending { if (!hasPopularRank(it)) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
-                        )
-                        "Most recent" -> filtered.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
-                        "Alphabetical (A-Z)" -> filtered.sortedBy { it.title }
-                        else -> filtered
-                    }
+                    val sortedList = sortPodcasts(filtered)
 
                     filteredList = sortedList
                     currentPage = 0
@@ -1775,29 +1867,9 @@ class PodcastsFragment : Fragment() {
 
                 // Apply sort order to podcast matches
                 android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: applying sort order '$currentSort' to effectiveTitleMatches=${effectiveTitleMatches.size} descMatches=${descMatches.size}")
-                val sortedTitleMatches = withContext(Dispatchers.Default) {
-                    when (currentSort) {
-                        "Most popular" -> effectiveTitleMatches.sortedWith(
-                            compareBy<Podcast> { getPopularRank(it) }
-                                .thenByDescending { if (!hasPopularRank(it)) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
-                        )
-                        "Most recent" -> effectiveTitleMatches.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
-                        "Alphabetical (A-Z)" -> effectiveTitleMatches.sortedBy { it.title }
-                        else -> effectiveTitleMatches
-                    }
-                }
+                val sortedTitleMatches = withContext(Dispatchers.Default) { sortPodcasts(effectiveTitleMatches) }
                 
-                val sortedDescMatches = withContext(Dispatchers.Default) {
-                    when (currentSort) {
-                        "Most popular" -> descMatches.sortedWith(
-                            compareBy<Podcast> { getPopularRank(it) }
-                                .thenByDescending { if (!hasPopularRank(it)) cachedUpdates[it.id] ?: Long.MAX_VALUE else 0L }
-                        )
-                        "Most recent" -> descMatches.sortedByDescending { cachedUpdates[it.id] ?: Long.MAX_VALUE }
-                        "Alphabetical (A-Z)" -> descMatches.sortedBy { it.title }
-                        else -> descMatches
-                    }
-                }
+                val sortedDescMatches = withContext(Dispatchers.Default) { sortPodcasts(descMatches) }
                 
                 // Show podcast matches immediately (before episode loading)
                 val podcastMatches = (sortedTitleMatches + sortedDescMatches).distinctBy { it.id }
@@ -2098,11 +2170,11 @@ class PodcastsFragment : Fragment() {
                             // Build the canonical merged list in sorted order.
                             val mergedAll: List<Pair<Episode, Podcast>> = episodes
 
-                            // For "Most recent" sort, quickEps is a prefix of the full sorted list,
+                            // For the recent-episodes sort, quickEps is a prefix of the full sorted list,
                             // so we can just append new episodes. For other sorts (alphabetical, popular),
                             // the full sorted list may have a completely different order, so we need to
                             // rebuild the episode section entirely.
-                            if (currentSort == "Most recent") {
+                            if (normalizeSortValue(currentSort) == SORT_MOST_RECENT_EPISODES) {
                                 // Append episodes not yet visible up to INITIAL_EPISODE_DISPLAY_LIMIT.
                                 val toAppendNow = newEps.take(INITIAL_EPISODE_DISPLAY_LIMIT - quickEps.size)
                                 if (toAppendNow.isNotEmpty()) {
@@ -2238,9 +2310,21 @@ class PodcastsFragment : Fragment() {
     }
 
     private fun sortEpisodeMatches(episodes: List<Pair<Episode, Podcast>>): List<Pair<Episode, Podcast>> {
-        return when (currentSort) {
-            "Most recent" -> episodes
-            "Alphabetical (A-Z)" -> episodes.sortedWith(
+        return when (normalizeSortValue(currentSort)) {
+            SORT_MOST_RECENT_EPISODES -> episodes
+            SORT_NEW_PODCASTS -> {
+                val epochMap: Map<String, Long> = episodes.associate { (ep, _) ->
+                    ep.id to com.hyliankid14.bbcradioplayer.db.IndexStore.parsePubEpoch(ep.pubDate)
+                }
+                episodes
+                    .filter { (_, podcast) -> isNewPodcast(podcast) }
+                    .sortedWith(
+                        compareByDescending<Pair<Episode, Podcast>> { earliestEpisodeEpoch(it.second) }
+                            .thenByDescending { epochMap[it.first.id] ?: Long.MIN_VALUE }
+                            .thenBy { it.first.title }
+                    )
+            }
+            SORT_ALPHABETICAL -> episodes.sortedWith(
                 compareBy<Pair<Episode, Podcast>>({ it.first.title }, { it.second.title })
             )
             else -> {
@@ -2264,6 +2348,65 @@ class PodcastsFragment : Fragment() {
         } catch (_: Exception) { false }
     }
 
+    private fun normalizeSortValue(sort: String?): String {
+        return when (sort) {
+            SORT_MOST_RECENT_EPISODES,
+            SORT_MOST_RECENT_EPISODES_LEGACY -> SORT_MOST_RECENT_EPISODES
+            SORT_NEW_PODCASTS,
+            SORT_NEW_PODCASTS_LEGACY -> SORT_NEW_PODCASTS
+            SORT_ALPHABETICAL -> SORT_ALPHABETICAL
+            else -> SORT_MOST_POPULAR
+        }
+    }
+
+    private fun latestEpisodeEpoch(podcast: Podcast): Long {
+        return cachedUpdates[podcast.id]?.takeIf { it > 0L } ?: Long.MIN_VALUE
+    }
+
+    private fun earliestEpisodeEpoch(podcast: Podcast): Long {
+        return cachedEarliestUpdates[podcast.id]?.takeIf { it > 0L } ?: Long.MIN_VALUE
+    }
+
+    private fun newlyAddedEpoch(podcast: Podcast): Long {
+        return cachedNewlyAddedPodcastEpochs[podcast.id]?.takeIf { it > 0L } ?: Long.MIN_VALUE
+    }
+
+    private fun isNewPodcast(podcast: Podcast): Boolean {
+        val earliest = earliestEpisodeEpoch(podcast)
+        if (earliest <= 0L || earliest == Long.MIN_VALUE) return false
+        val earliestIsRecent = System.currentTimeMillis() - earliest <= NEW_PODCAST_WINDOW_MS
+        if (!earliestIsRecent) return false
+
+        // Programmatic guard: if we have cloud-index discovery data, only treat podcasts
+        // first seen recently in that directory as genuinely new launches.
+        if (cachedNewlyAddedPodcastEpochs.isNotEmpty()) {
+            return newlyAddedEpoch(podcast) > 0L
+        }
+
+        return true
+    }
+
+    private fun sortPodcasts(podcasts: List<Podcast>): List<Podcast> {
+        return when (normalizeSortValue(currentSort)) {
+            SORT_MOST_POPULAR -> podcasts.sortedWith(
+                compareBy<Podcast> { getPopularRank(it) }
+                    .thenByDescending { if (!hasPopularRank(it)) latestEpisodeEpoch(it) else 0L }
+            )
+            SORT_MOST_RECENT_EPISODES -> podcasts.sortedWith(
+                compareByDescending<Podcast> { latestEpisodeEpoch(it) }
+                    .thenBy { it.title }
+            )
+            SORT_NEW_PODCASTS -> podcasts
+                .filter { isNewPodcast(it) }
+                .sortedWith(
+                    compareByDescending<Podcast> { earliestEpisodeEpoch(it) }
+                        .thenBy { it.title }
+                )
+            SORT_ALPHABETICAL -> podcasts.sortedBy { it.title }
+            else -> podcasts
+        }
+    }
+
     private fun getPopularRank(podcast: Podcast): Int {
         analyticsPopularRanks[podcast.id]?.let { return it }
         analyticsPopularTitleRanks[normalizePodcastTitle(podcast.title)]?.let { return it }
@@ -2281,7 +2424,22 @@ class PodcastsFragment : Fragment() {
     companion object {
         private const val SHAKE_THRESHOLD_GRAVITY = 2.7f
         private const val SHAKE_DEBOUNCE_MS = 1000L
+        private const val SORT_MOST_POPULAR = "Most popular"
+        private const val SORT_MOST_RECENT_EPISODES = "Most recent episodes"
+        private const val SORT_MOST_RECENT_EPISODES_LEGACY = "Most recent"
+        private const val SORT_NEW_PODCASTS = "New Podcasts"
+        private const val SORT_NEW_PODCASTS_LEGACY = "Most recently added podcasts"
+        private const val SORT_ALPHABETICAL = "Alphabetical (A-Z)"
+        private const val NEW_PODCAST_WINDOW_MS = 180L * 24L * 60L * 60L * 1000L
     } // End of PodcastsFragment class
+
+    private data class Quadruple<A, B, C, D>(
+        val first: A,
+        val second: B,
+        val third: C,
+        val fourth: D
+    )
+
 
     /**
      * Custom adapter that ignores filtering (always shows all items).

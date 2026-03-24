@@ -17,6 +17,56 @@ class PodcastRepository(private val context: Context) {
     private val cacheTTL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
     private val updatesCacheFile = File(context.cacheDir, "podcast_updates_cache.json")
     private val updatesCacheTTL = 6 * 60 * 60 * 1000 // 6 hours
+    private val cloudBoundsCacheFile = File(context.cacheDir, "podcast_cloud_bounds_cache.json")
+    private val cloudBoundsCacheTTL = 6 * 60 * 60 * 1000 // 6 hours
+    private val newPodcastsStateFile = File(context.filesDir, "new_podcasts_state.json")
+    private val newPodcastsRecentWindowMs = 30L * 24L * 60L * 60L * 1000L
+    private val newPodcastsPolicyStartEpochMs = 1_742_774_400_000L // 2026-03-24T00:00:00Z
+
+    data class PodcastDateBounds(
+        val latestEpisodeEpoch: Long,
+        val earliestEpisodeEpoch: Long
+    )
+
+    private data class CachedPodcastDateBounds(
+        val latestEpisodeEpoch: Long,
+        val earliestEpisodeEpoch: Long,
+        val cachedAtEpochMs: Long
+    )
+
+    private data class NewPodcastState(
+        val schemaVersion: Int,
+        val generatedAt: String,
+        val knownIds: Set<String>,
+        val firstSeenEpochs: Map<String, Long>
+    )
+
+    companion object {
+        private const val NEW_PODCAST_STATE_SCHEMA_VERSION = 2
+        private val RETAINED_NEW_PODCAST_IDS = setOf(
+            "p08vxrgx", // The Sink: A Sleep Aid
+            "p0n5p4w5", // Secrets of the Salt Path
+            "w13xtwk9", // Inheritance: Samsung
+            "p0n3r2yp", // Don't Say A Word
+            "p02nrtry", // Your Farm and Mine
+            "m002sh1p", // Natalie McNally Murder: YouTuber on Trial
+            "m002rkh8", // It's So Loud In Here!
+            "m002rkh7", // Judged: A Mother's Love
+            "m002rkh9", // MF DOOM: Long Island to Leeds
+            "m002rkhb", // Made In China
+            "m002r4y1", // Life Without
+            "m002qwn7", // The Interface
+            "m002jty0", // How Did We Get Here?
+            "p0mksq4x", // SEND in the Spotlight
+            "p0mdcpkb", // Ready to Talk with Emma Barnett
+            "p0mcyd0k", // Complex with Kimberley Wilson
+            "m002lsmt", // The Ireland Rugby Social Podcast
+            "m002lg00", // Matched With A Predator
+            "p0m75t46", // Borderland - UK or United Ireland?
+            "p0mh9lt6", // Game's Gone: The Steve Bracknall Podcast
+            "w13xtwds"  // Asia Specific
+        )
+    }
 
     // In-memory cache of fetched episode metadata to support searching episode titles/descriptions
     // Prefill this in the background when the podcast list is loaded so searches don't trigger network on each keystroke
@@ -538,18 +588,43 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
-    suspend fun fetchLatestUpdates(podcasts: List<Podcast>, forceRefresh: Boolean = false): Map<String, Long> = withContext(Dispatchers.IO) {
+    suspend fun fetchPodcastDateBounds(
+        podcasts: List<Podcast>,
+        forceRefresh: Boolean = false
+    ): Map<String, PodcastDateBounds> = withContext(Dispatchers.IO) {
         try {
-            val cached = readUpdatesCache()
+            val cached = readPodcastDateBoundsCache()
             val now = System.currentTimeMillis()
-            val result = mutableMapOf<String, Long>()
+            val result = mutableMapOf<String, PodcastDateBounds>()
+            val indexBounds = try {
+                com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(context)
+                    .getPodcastEpisodeBounds(podcasts.map { it.id })
+            } catch (e: Exception) {
+                Log.w("PodcastRepository", "Unable to read podcast bounds from local index", e)
+                emptyMap()
+            }
 
             // Separate podcasts that can be served from cache from those that need a network fetch.
             val needsFetch = mutableListOf<Podcast>()
             podcasts.forEach { p ->
+                val indexedVal = indexBounds[p.id]
                 val cachedVal = cached[p.id]
-                if (!forceRefresh && cachedVal != null && (now - cachedVal.second) < updatesCacheTTL) {
-                    result[p.id] = cachedVal.first
+                if (indexedVal != null) {
+                    val resolved = PodcastDateBounds(
+                        latestEpisodeEpoch = indexedVal.second,
+                        earliestEpisodeEpoch = indexedVal.first
+                    )
+                    result[p.id] = resolved
+                    cached[p.id] = CachedPodcastDateBounds(
+                        latestEpisodeEpoch = resolved.latestEpisodeEpoch,
+                        earliestEpisodeEpoch = resolved.earliestEpisodeEpoch,
+                        cachedAtEpochMs = now
+                    )
+                } else if (!forceRefresh && cachedVal != null && (now - cachedVal.cachedAtEpochMs) < updatesCacheTTL) {
+                    result[p.id] = PodcastDateBounds(
+                        latestEpisodeEpoch = cachedVal.latestEpisodeEpoch,
+                        earliestEpisodeEpoch = cachedVal.earliestEpisodeEpoch
+                    )
                 } else {
                     needsFetch.add(p)
                 }
@@ -557,24 +632,55 @@ class PodcastRepository(private val context: Context) {
 
             // Fetch all stale / missing entries in parallel to avoid sequential network delays.
             if (needsFetch.isNotEmpty()) {
-                Log.d("PodcastRepository", "Fetching latest update timestamps for ${needsFetch.size} podcasts in parallel")
+                Log.d("PodcastRepository", "Fetching podcast episode date bounds for ${needsFetch.size} podcasts in parallel")
                 val fetched = coroutineScope {
                     needsFetch.map { p ->
-                        async { p.id to RSSParser.fetchLatestPubDateEpoch(p.rssUrl) }
+                        async { p.id to RSSParser.fetchPubDateBounds(p.rssUrl) }
                     }.awaitAll()
                 }
-                fetched.forEach { (id, latest) ->
-                    if (latest != null) {
-                        result[id] = latest
-                        cached[id] = latest to now
+                fetched.forEach { (id, bounds) ->
+                    if (bounds != null) {
+                        val resolved = PodcastDateBounds(
+                            latestEpisodeEpoch = bounds.latestEpoch ?: 0L,
+                            earliestEpisodeEpoch = bounds.earliestEpoch ?: 0L
+                        )
+                        result[id] = resolved
+                        cached[id] = CachedPodcastDateBounds(
+                            latestEpisodeEpoch = resolved.latestEpisodeEpoch,
+                            earliestEpisodeEpoch = resolved.earliestEpisodeEpoch,
+                            cachedAtEpochMs = now
+                        )
                     }
                 }
             }
 
-            writeUpdatesCache(cached)
+            writePodcastDateBoundsCache(cached)
             result
         } catch (e: Exception) {
-            Log.e("PodcastRepository", "Error fetching latest updates", e)
+            Log.e("PodcastRepository", "Error fetching podcast episode date bounds", e)
+            emptyMap()
+        }
+    }
+
+    suspend fun fetchLatestUpdates(podcasts: List<Podcast>, forceRefresh: Boolean = false): Map<String, Long> =
+        fetchPodcastDateBounds(podcasts, forceRefresh).mapValues { it.value.latestEpisodeEpoch }
+
+    suspend fun fetchEarliestUpdates(podcasts: List<Podcast>, forceRefresh: Boolean = false): Map<String, Long> =
+        fetchPodcastDateBounds(podcasts, forceRefresh).mapValues { it.value.earliestEpisodeEpoch }
+
+    fun getIndexedPodcastDateBounds(podcasts: List<Podcast>): Map<String, PodcastDateBounds> {
+        if (podcasts.isEmpty()) return emptyMap()
+        return try {
+            com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(context)
+                .getPodcastEpisodeBounds(podcasts.map { it.id })
+                .mapValues { (_, bounds) ->
+                    PodcastDateBounds(
+                        latestEpisodeEpoch = bounds.second,
+                        earliestEpisodeEpoch = bounds.first
+                    )
+                }
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Unable to read podcast bounds from local index", e)
             emptyMap()
         }
     }
@@ -589,33 +695,260 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
-    private fun readUpdatesCache(): MutableMap<String, Pair<Long, Long>> {
+    suspend fun fetchNewlyAddedPodcastEpochs(
+        podcasts: List<Podcast>,
+        forceRefresh: Boolean = false
+    ): Map<String, Long> = withContext(Dispatchers.IO) {
+        val requestedIds = podcasts.map { it.id }.toSet()
+        if (requestedIds.isEmpty()) return@withContext emptyMap()
+
+        val remoteIndex = try {
+            RemoteIndexClient(context).downloadIndex(forceDownload = forceRefresh)
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Failed to download cloud index for New Podcasts", e)
+            null
+        }
+
+        if (remoteIndex == null) {
+            return@withContext getAvailableNewPodcastEpochsNow(podcasts)
+        }
+
+        val currentIds = remoteIndex.podcasts.map { it.id }.filter { it.isNotBlank() }.toSet()
+        val previousState = readNewPodcastState()
+        val existingState = previousState?.takeIf { it.schemaVersion >= NEW_PODCAST_STATE_SCHEMA_VERSION }
+        val baselineKnownIds = when {
+            existingState != null && existingState.knownIds.isNotEmpty() -> existingState.knownIds
+            else -> currentIds
+        }
+
+        val now = System.currentTimeMillis()
+        val updatedFirstSeen = if (existingState != null) {
+            existingState.firstSeenEpochs.toMutableMap()
+        } else {
+            mutableMapOf()
+        }
+        (currentIds - baselineKnownIds).forEach { podcastId ->
+            updatedFirstSeen.putIfAbsent(podcastId, now)
+        }
+        // Keep the user-curated list visible without hand-maintaining title checks in the UI layer.
+        // These IDs are only retained when still present in the active cloud index.
+        (RETAINED_NEW_PODCAST_IDS intersect currentIds).forEach { podcastId ->
+            updatedFirstSeen.putIfAbsent(podcastId, newPodcastsPolicyStartEpochMs)
+        }
+
+        writeNewPodcastState(
+            NewPodcastState(
+                schemaVersion = NEW_PODCAST_STATE_SCHEMA_VERSION,
+                generatedAt = remoteIndex.generatedAt,
+                knownIds = currentIds,
+                firstSeenEpochs = updatedFirstSeen
+            )
+        )
+
+        return@withContext updatedFirstSeen
+            .filterKeys { it in requestedIds && it in currentIds }
+            .filter { (id, epoch) ->
+                epoch > 0L && (id in RETAINED_NEW_PODCAST_IDS || now - epoch <= newPodcastsRecentWindowMs)
+            }
+    }
+
+    fun getAvailableNewPodcastEpochsNow(podcasts: List<Podcast>): Map<String, Long> {
+        val requestedIds = podcasts.map { it.id }.toSet()
+        if (requestedIds.isEmpty()) return emptyMap()
+        val now = System.currentTimeMillis()
+        val state = readNewPodcastState() ?: return emptyMap()
+        return state.firstSeenEpochs
+            .filterKeys { it in requestedIds && it in state.knownIds }
+            .filter { (id, epoch) ->
+                epoch > 0L && (id in RETAINED_NEW_PODCAST_IDS || now - epoch <= newPodcastsRecentWindowMs)
+            }
+    }
+
+    suspend fun fetchCloudPodcastDateBounds(
+        podcasts: List<Podcast>,
+        forceRefresh: Boolean = false
+    ): Map<String, PodcastDateBounds> = withContext(Dispatchers.IO) {
+        val requestedIds = podcasts.map { it.id }.toSet()
+        if (requestedIds.isEmpty()) return@withContext emptyMap()
+
+        val cached = readCloudPodcastBoundsCache()
+        if (!forceRefresh && cached.isNotEmpty()) {
+            return@withContext cached.filterKeys { it in requestedIds }
+        }
+
+        try {
+            val remoteIndex = RemoteIndexClient(context).downloadIndex(forceDownload = forceRefresh) ?: run {
+                return@withContext cached.filterKeys { it in requestedIds }
+            }
+            val aggregated = aggregatePodcastDateBounds(remoteIndex.episodes)
+            if (aggregated.isNotEmpty()) {
+                writeCloudPodcastBoundsCache(aggregated)
+            }
+            return@withContext aggregated.filterKeys { it in requestedIds }
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Failed to fetch cloud podcast date bounds", e)
+            return@withContext cached.filterKeys { it in requestedIds }
+        }
+    }
+
+    fun getAvailableCloudEarliestUpdatesNow(podcasts: List<Podcast>): Map<String, Long> {
+        val requestedIds = podcasts.map { it.id }.toSet()
+        if (requestedIds.isEmpty()) return emptyMap()
+        return readCloudPodcastBoundsCache()
+            .filterKeys { it in requestedIds }
+            .mapValues { it.value.earliestEpisodeEpoch }
+            .filterValues { it > 0L }
+    }
+
+    private fun readPodcastDateBoundsCache(): MutableMap<String, CachedPodcastDateBounds> {
         if (!updatesCacheFile.exists()) return mutableMapOf()
         return try {
             val obj = JSONObject(updatesCacheFile.readText())
-            val map = mutableMapOf<String, Pair<Long, Long>>()
+            val map = mutableMapOf<String, CachedPodcastDateBounds>()
             val data = obj.optJSONObject("data") ?: JSONObject()
             data.keys().forEach { key ->
                 val o = data.optJSONObject(key) ?: return@forEach
-                map[key] = (o.optLong("epoch", 0L)) to (o.optLong("ts", 0L))
+                map[key] = CachedPodcastDateBounds(
+                    latestEpisodeEpoch = o.optLong("latestEpoch", o.optLong("epoch", 0L)),
+                    earliestEpisodeEpoch = o.optLong("earliestEpoch", 0L),
+                    cachedAtEpochMs = o.optLong("ts", 0L)
+                )
             }
             map
-        } catch (_: Exception) { mutableMapOf() }
+        } catch (_: Exception) {
+            mutableMapOf()
+        }
     }
 
-    private fun writeUpdatesCache(data: Map<String, Pair<Long, Long>>) {
+    private fun readCloudPodcastBoundsCache(): Map<String, PodcastDateBounds> {
+        if (!cloudBoundsCacheFile.exists()) return emptyMap()
+        if (System.currentTimeMillis() - cloudBoundsCacheFile.lastModified() > cloudBoundsCacheTTL) return emptyMap()
+        return try {
+            val obj = JSONObject(cloudBoundsCacheFile.readText())
+            val data = obj.optJSONObject("data") ?: JSONObject()
+            buildMap {
+                data.keys().forEach { podcastId ->
+                    val item = data.optJSONObject(podcastId) ?: return@forEach
+                    val latest = item.optLong("latestEpoch", 0L)
+                    val earliest = item.optLong("earliestEpoch", 0L)
+                    if (latest > 0L && earliest > 0L) {
+                        put(
+                            podcastId,
+                            PodcastDateBounds(
+                                latestEpisodeEpoch = latest,
+                                earliestEpisodeEpoch = earliest
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Failed to read cloud podcast bounds cache", e)
+            emptyMap()
+        }
+    }
+
+    private fun readNewPodcastState(): NewPodcastState? {
+        if (!newPodcastsStateFile.exists()) return null
+        return try {
+            val root = JSONObject(newPodcastsStateFile.readText())
+            val schemaVersion = root.optInt("schemaVersion", 0)
+            val generatedAt = root.optString("generatedAt", "")
+            val knownIds = buildSet {
+                val arr = root.optJSONArray("knownIds") ?: JSONArray()
+                for (i in 0 until arr.length()) {
+                    val id = arr.optString(i)
+                    if (id.isNotBlank()) add(id)
+                }
+            }
+            val firstSeenEpochs = buildMap {
+                val obj = root.optJSONObject("firstSeenEpochs") ?: JSONObject()
+                obj.keys().forEach { id ->
+                    val epoch = obj.optLong(id, 0L)
+                    if (id.isNotBlank() && epoch > 0L) put(id, epoch)
+                }
+            }
+            NewPodcastState(
+                schemaVersion = schemaVersion,
+                generatedAt = generatedAt,
+                knownIds = knownIds,
+                firstSeenEpochs = firstSeenEpochs
+            )
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Failed to read new podcasts state", e)
+            null
+        }
+    }
+
+    private fun writePodcastDateBoundsCache(data: Map<String, CachedPodcastDateBounds>) {
         try {
             val root = JSONObject()
             val d = JSONObject()
-            data.forEach { (k,v) ->
+            data.forEach { (k, v) ->
                 val o = JSONObject()
-                o.put("epoch", v.first)
-                o.put("ts", v.second)
+                o.put("latestEpoch", v.latestEpisodeEpoch)
+                o.put("earliestEpoch", v.earliestEpisodeEpoch)
+                o.put("ts", v.cachedAtEpochMs)
                 d.put(k, o)
             }
             root.put("data", d)
             updatesCacheFile.writeText(root.toString())
         } catch (_: Exception) {}
+    }
+
+    private fun writeCloudPodcastBoundsCache(data: Map<String, PodcastDateBounds>) {
+        try {
+            val root = JSONObject()
+            val payload = JSONObject()
+            data.forEach { (podcastId, bounds) ->
+                val item = JSONObject()
+                item.put("latestEpoch", bounds.latestEpisodeEpoch)
+                item.put("earliestEpoch", bounds.earliestEpisodeEpoch)
+                payload.put(podcastId, item)
+            }
+            root.put("timestamp", System.currentTimeMillis())
+            root.put("data", payload)
+            cloudBoundsCacheFile.writeText(root.toString())
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Failed to write cloud podcast bounds cache", e)
+        }
+    }
+
+    private fun writeNewPodcastState(state: NewPodcastState) {
+        try {
+            val root = JSONObject()
+            root.put("schemaVersion", state.schemaVersion)
+            root.put("generatedAt", state.generatedAt)
+            root.put("knownIds", JSONArray(state.knownIds.toList().sorted()))
+            val firstSeenObj = JSONObject()
+            state.firstSeenEpochs.forEach { (id, epoch) ->
+                firstSeenObj.put(id, epoch)
+            }
+            root.put("firstSeenEpochs", firstSeenObj)
+            newPodcastsStateFile.writeText(root.toString())
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Failed to write new podcasts state", e)
+        }
+    }
+
+    private fun aggregatePodcastDateBounds(episodes: List<Episode>): Map<String, PodcastDateBounds> {
+        val bounds = mutableMapOf<String, Pair<Long, Long>>()
+        episodes.forEach { episode ->
+            val epoch = com.hyliankid14.bbcradioplayer.db.IndexStore.parsePubEpoch(episode.pubDate)
+            if (epoch <= 0L) return@forEach
+            val existing = bounds[episode.podcastId]
+            bounds[episode.podcastId] = if (existing == null) {
+                epoch to epoch
+            } else {
+                minOf(existing.first, epoch) to maxOf(existing.second, epoch)
+            }
+        }
+        return bounds.mapValues { (_, pair) ->
+            PodcastDateBounds(
+                latestEpisodeEpoch = pair.second,
+                earliestEpisodeEpoch = pair.first
+            )
+        }
     }
 
     fun filterPodcasts(podcasts: List<Podcast>, filter: PodcastFilter): List<Podcast> {
@@ -913,8 +1246,24 @@ class PodcastRepository(private val context: Context) {
      * Intended for use alongside [getAvailablePodcastsNow] to provide an instant
      * first render of the subscription list before the background refresh completes.
      */
-    fun getAvailableUpdatesNow(): Map<String, Long> {
-        return readUpdatesCache().mapValues { it.value.first }
+    fun getAvailableUpdatesNow(podcasts: List<Podcast>): Map<String, Long> {
+        val ids = podcasts.map { it.id }
+        val indexed = getIndexedPodcastDateBounds(podcasts).mapValues { it.value.latestEpisodeEpoch }
+        val cached = readPodcastDateBoundsCache()
+        return ids.associateWith { id ->
+            indexed[id] ?: cached[id]?.latestEpisodeEpoch ?: 0L
+        }.filterValues { it > 0L }
+    }
+
+    /**
+     * Return the last-known oldest-episode epoch for each podcast ID that has been
+     * cached in the podcast date-bounds cache, regardless of age. This provides an
+     * immediate approximation for the New Podcasts sort before background refreshes complete.
+     */
+    fun getAvailableEarliestUpdatesNow(podcasts: List<Podcast>): Map<String, Long> {
+        return getIndexedPodcastDateBounds(podcasts)
+            .mapValues { it.value.earliestEpisodeEpoch }
+            .filterValues { it > 0L }
     }
 
     /**

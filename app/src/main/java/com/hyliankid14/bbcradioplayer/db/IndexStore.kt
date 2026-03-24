@@ -718,4 +718,58 @@ class IndexStore private constructor(private val context: Context) {
         }
         return set
     }
+
+    /**
+     * Return oldest/latest indexed episode epochs per podcast. Uses the local episode index,
+     * which can represent a much deeper catalogue than an individual RSS feed snapshot.
+     */
+    fun getPodcastEpisodeBounds(podcastIds: List<String>): Map<String, Pair<Long, Long>> {
+        if (podcastIds.isEmpty()) return emptyMap()
+
+        val db = helper.readableDatabase
+        val result = mutableMapOf<String, Pair<Long, Long>>()
+
+        try {
+            podcastIds.distinct().chunked(800).forEach { chunk ->
+                val placeholders = chunk.joinToString(",") { "?" }
+                val sql = """
+                    SELECT f.podcastId, MIN(m.pubEpoch) AS minPubEpoch, MAX(m.pubEpoch) AS maxPubEpoch
+                    FROM episode_fts f
+                    INNER JOIN episode_meta m ON m.episodeId = f.episodeId
+                    WHERE f.podcastId IN ($placeholders) AND m.pubEpoch > 0
+                    GROUP BY f.podcastId
+                """.trimIndent()
+                val cursor = db.rawQuery(sql, chunk.toTypedArray())
+                cursor.use {
+                    while (it.moveToNext()) {
+                        val podcastId = it.getString(0) ?: continue
+                        val minPubEpoch = it.getLong(1)
+                        val maxPubEpoch = it.getLong(2)
+                        result[podcastId] = minPubEpoch to maxPubEpoch
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("IndexStore", "getPodcastEpisodeBounds failed: ${e.message}")
+        }
+
+        return result
+    }
+
+    fun getAllPodcastIds(): Set<String> {
+        val db = helper.readableDatabase
+        val result = mutableSetOf<String>()
+        try {
+            val cursor = db.rawQuery("SELECT podcastId FROM podcast_fts", emptyArray())
+            cursor.use {
+                while (it.moveToNext()) {
+                    val podcastId = it.getString(0)
+                    if (!podcastId.isNullOrBlank()) result.add(podcastId)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("IndexStore", "getAllPodcastIds failed: ${e.message}")
+        }
+        return result
+    }
 }

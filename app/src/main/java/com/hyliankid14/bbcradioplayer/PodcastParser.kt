@@ -146,6 +146,11 @@ object OPMLParser {
 }
 
 object RSSParser {
+    data class PubDateBounds(
+        val latestEpoch: Long?,
+        val earliestEpoch: Long?
+    )
+
     private const val TAG = "RSSParser"
     private const val ITEM = "item"
     private const val TITLE = "title"
@@ -318,7 +323,7 @@ object RSSParser {
         }
     }
 
-    fun fetchLatestPubDateEpoch(url: String): Long? {
+    fun fetchPubDateBounds(url: String): PubDateBounds? {
         return try {
             val connection = (URL(url).openConnection() as java.net.HttpURLConnection).apply {
                 instanceFollowRedirects = true
@@ -332,16 +337,24 @@ object RSSParser {
                 connection.disconnect()
                 return null
             }
-            val epoch = connection.inputStream.use { parseLatestPubDate(it) }
+            val bounds = connection.inputStream.use { parsePubDateBounds(it) }
             connection.disconnect()
-            epoch
+            bounds
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching latest pubDate from $url", e)
+            Log.e(TAG, "Error fetching pubDate bounds from $url", e)
             null
         }
     }
 
-    private fun parseLatestPubDate(inputStream: InputStream): Long? {
+    fun fetchLatestPubDateEpoch(url: String): Long? {
+        return fetchPubDateBounds(url)?.latestEpoch
+    }
+
+    fun fetchEarliestPubDateEpoch(url: String): Long? {
+        return fetchPubDateBounds(url)?.earliestEpoch
+    }
+
+    private fun parsePubDateBounds(inputStream: InputStream): PubDateBounds? {
         return try {
             val parser = Xml.newPullParser()
             parser.setInput(inputStream, null)
@@ -349,6 +362,7 @@ object RSSParser {
             var inItem = false
             var pubDate: String? = null
             var latestEpoch: Long? = null
+            var earliestEpoch: Long? = null
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 when (eventType) {
                     XmlPullParser.START_TAG -> {
@@ -368,6 +382,7 @@ object RSSParser {
                                 val epoch = parseRfc2822Date(it)
                                 if (epoch != null) {
                                     latestEpoch = if (latestEpoch == null) epoch else maxOf(latestEpoch!!, epoch)
+                                    earliestEpoch = if (earliestEpoch == null) epoch else minOf(earliestEpoch!!, epoch)
                                 }
                             }
                             inItem = false
@@ -376,9 +391,13 @@ object RSSParser {
                 }
                 eventType = parser.next()
             }
-            latestEpoch
+            if (latestEpoch == null && earliestEpoch == null) {
+                null
+            } else {
+                PubDateBounds(latestEpoch = latestEpoch, earliestEpoch = earliestEpoch)
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error parsing latest pubDate", e)
+            Log.e(TAG, "Error parsing pubDate bounds", e)
             null
         }
     }

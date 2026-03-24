@@ -243,18 +243,35 @@ class RemoteIndexClient(private val context: Context) {
                 conn.disconnect()
                 return null
             }
-            onProgress?.invoke("Downloading and decompressing...", 7)
+            onProgress?.invoke("Downloading index...", 7)
             
             // Stream directly to cache file to avoid OOM with large JSON
             val tempFile = File(context.cacheDir, "${INDEX_CACHE_FILENAME}.tmp")
-            GZIPInputStream(conn.inputStream).use { gzipStream ->
+            BufferedInputStream(conn.inputStream).use { networkStream ->
+                networkStream.mark(2)
+                val firstByte = networkStream.read()
+                val secondByte = networkStream.read()
+                networkStream.reset()
+
+                val isGzipPayload = firstByte == 0x1f && secondByte == 0x8b
+                if (!isGzipPayload) {
+                    Log.w(TAG, "Index response is not gzipped; processing as plain JSON payload")
+                }
+
+                val payloadStream = if (isGzipPayload) {
+                    GZIPInputStream(networkStream)
+                } else {
+                    networkStream
+                }
+
+                payloadStream.use { decodedStream ->
                 BufferedOutputStream(FileOutputStream(tempFile)).use { fileOut ->
                     val buffer = ByteArray(8192)
                     var bytesRead: Int
                     var totalBytes = 0L
                     var lastProgress = 7
                     
-                    while (gzipStream.read(buffer).also { bytesRead = it } != -1) {
+                    while (decodedStream.read(buffer).also { bytesRead = it } != -1) {
                         fileOut.write(buffer, 0, bytesRead)
                         totalBytes += bytesRead
                         
@@ -263,11 +280,12 @@ class RemoteIndexClient(private val context: Context) {
                             val newProgress = (7 + (totalBytes / 200000).toInt().coerceAtMost(10))
                                 .coerceIn(7, 17)
                             if (newProgress > lastProgress) {
-                                onProgress?.invoke("Decompressing... (${totalBytes / 1000}KB)", newProgress)
+                                onProgress?.invoke("Processing index... (${totalBytes / 1000}KB)", newProgress)
                                 lastProgress = newProgress
                             }
                         }
                     }
+                }
                 }
             }
             conn.disconnect()
