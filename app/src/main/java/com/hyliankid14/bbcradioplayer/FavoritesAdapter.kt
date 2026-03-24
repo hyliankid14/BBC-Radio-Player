@@ -104,12 +104,7 @@ class FavoritesAdapter(
             }
         }
         
-        val genericLogo = StationArtwork.createDrawable(station.id)
-        Glide.with(context)
-            .load(station.logoUrl)
-            .placeholder(genericLogo)
-            .error(genericLogo)
-            .into(holder.imageView)
+        holder.imageView.setImageDrawable(StationArtwork.createDrawable(station.id))
         
         // Update star icon
         val isFavorite = FavoritesPreference.isFavorite(context, station.id)

@@ -71,12 +71,7 @@ class WidgetStationPickerAdapter(
             dragHandle.visibility = View.GONE
             scheduleButton.visibility = View.GONE
 
-            val genericLogo = StationArtwork.createDrawable(station.id)
-            Glide.with(context)
-                .load(station.logoUrl)
-                .placeholder(genericLogo)
-                .error(genericLogo)
-                .into(artwork)
+            artwork.setImageDrawable(StationArtwork.createDrawable(station.id))
 
             itemView.setOnClickListener { onStationClick(station.id) }
             title.setOnClickListener { onStationClick(station.id) }
