@@ -613,7 +613,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 // Clear stored episode since we're not playing a podcast
                 playingEpisode = null
                 showName.visibility = android.view.View.VISIBLE
-                showName.text = show.title.ifEmpty { "BBC Radio" }
+                showName.text = show.title.ifEmpty { station.title }
                 // Ensure the action bar shows the radio station name
                 supportActionBar?.title = station.title
 
@@ -1034,9 +1034,9 @@ class NowPlayingActivity : AppCompatActivity() {
         } else {
             showName.visibility = android.view.View.VISIBLE
             // Update show name
-            showName.text = show.title.ifEmpty { "BBC Radio" }
+            showName.text = show.title.ifEmpty { station?.title ?: "" }
             // Ensure the action bar shows the radio station name when not a podcast
-            supportActionBar?.title = station?.title ?: "BBC Radio"
+            supportActionBar?.title = station?.title ?: ""
 
             // Prefer subtitle (secondary/tertiary) in the large headline and show the
             // song/episode title in the smaller line — avoid duplicates.

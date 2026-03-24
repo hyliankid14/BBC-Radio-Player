@@ -57,7 +57,7 @@
                 android:id="@+id/mini_player_subtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="BBC Radio"
+                android:text="Radio"
                 android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant" />
 
