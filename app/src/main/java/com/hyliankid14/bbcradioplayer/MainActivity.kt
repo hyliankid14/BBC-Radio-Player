@@ -3037,42 +3037,38 @@ class MainActivity : AppCompatActivity() {
                 miniPlayerSubtitle.startScrolling()
             }
             
-            // Load artwork: Use image_url from API if available and valid, otherwise station logo
-            val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
-                show.imageUrl
+            // Load artwork:
+            // - Podcasts: use episode/podcast image URL
+            // - Radio with song playing (hasSongData && imageUrl valid): use song artwork from feed
+            // - Radio with no song playing: show generic station artwork (no BBC branding)
+            val isPodcast = station.id.startsWith("podcast_")
+            if (isPodcast) {
+                val podArtworkUrl = show.imageUrl?.takeIf { it.startsWith("http") }
+                if (podArtworkUrl != null && podArtworkUrl != lastArtworkUrl) {
+                    lastArtworkUrl = podArtworkUrl
+                    Glide.with(this)
+                        .load(podArtworkUrl)
+                        .placeholder(android.R.color.transparent)
+                        .into(miniPlayerArtwork)
+                    Log.d("MainActivity", "Loading podcast artwork from: $podArtworkUrl")
+                }
+            } else if (hasSongData && !show.imageUrl.isNullOrEmpty() && show.imageUrl!!.startsWith("http")) {
+                val songArtworkUrl = show.imageUrl!!
+                if (songArtworkUrl != lastArtworkUrl) {
+                    lastArtworkUrl = songArtworkUrl
+                    Glide.with(this)
+                        .load(songArtworkUrl)
+                        .placeholder(StationArtwork.createDrawable(station.id))
+                        .error(StationArtwork.createDrawable(station.id))
+                        .into(miniPlayerArtwork)
+                    Log.d("MainActivity", "Loading song artwork from: $songArtworkUrl")
+                }
             } else {
-                station.logoUrl
-            }
-            
-            // Only reload if URL changed to prevent flashing
-            if (artworkUrl != lastArtworkUrl) {
-                lastArtworkUrl = artworkUrl
-                val fallbackUrl = station.logoUrl
-                
-                Glide.with(this)
-                    .load(artworkUrl)
-                    .placeholder(android.R.color.transparent)
-                    .error(Glide.with(this).load(fallbackUrl))
-                    .listener(object : RequestListener<Drawable> {
-                        override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
-                            return false
-                        }
-
-                        override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                            if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
-                                Log.d("MainActivity", "Detected placeholder image, falling back to logo")
-                                miniPlayerArtwork.post {
-                                    Glide.with(this@MainActivity)
-                                        .load(fallbackUrl)
-                                        .into(miniPlayerArtwork)
-                                }
-                                return true
-                            }
-                            return false
-                        }
-                    })
-                    .into(miniPlayerArtwork)
-                Log.d("MainActivity", "Loading artwork from: $artworkUrl")
+                val genericKey = "generic:${station.id}"
+                if (genericKey != lastArtworkUrl) {
+                    lastArtworkUrl = genericKey
+                    miniPlayerArtwork.setImageDrawable(StationArtwork.createDrawable(station.id))
+                }
             }
             
             // Update play/pause button - always show the correct state
@@ -3081,7 +3077,6 @@ class MainActivity : AppCompatActivity() {
             // Sync progress bar: only shown for podcasts with valid progress data.
             // This ensures the bar is always hidden when switching to a radio station,
             // even if the show-change listener fired while the view was temporarily detached.
-            val isPodcast = station.id.startsWith("podcast_")
             val pos = show.segmentStartMs ?: -1L
             val dur = show.segmentDurationMs ?: -1L
             if (isPodcast && dur > 0 && pos >= 0) {
@@ -3153,46 +3148,45 @@ class MainActivity : AppCompatActivity() {
             miniPlayerSubtitle.startScrolling()
         }
         
-        // Load new artwork - use image_url if available and valid, otherwise station logo
-        val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
-            show.imageUrl
-        } else {
-            PlaybackStateHelper.getCurrentStation()?.logoUrl
-        }
-        
-        // Only reload if URL changed
-        if (artworkUrl != null && artworkUrl != lastArtworkUrl) {
-            lastArtworkUrl = artworkUrl
-            val fallbackUrl = PlaybackStateHelper.getCurrentStation()?.logoUrl
-            
-            Glide.with(this)
-                .load(artworkUrl)
-                .placeholder(android.R.color.transparent)
-                .error(Glide.with(this).load(fallbackUrl))
-                .listener(object : RequestListener<Drawable> {
-                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
-                        return false
-                    }
-
-                    override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                        if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
-                            Log.d("MainActivity", "Detected placeholder image, falling back to logo")
-                            miniPlayerArtwork.post {
-                                Glide.with(this@MainActivity)
-                                    .load(fallbackUrl)
-                                    .into(miniPlayerArtwork)
-                            }
-                            return true
-                        }
-                        return false
-                    }
-                })
-                .into(miniPlayerArtwork)
-            Log.d("MainActivity", "Loading artwork from: $artworkUrl")
+        // Load artwork:
+        // - Podcasts: use episode/podcast image URL
+        // - Radio with song playing (artist/track data present): use song artwork from feed
+        // - Radio with no song playing: show generic station artwork (no BBC branding)
+        val isPodcastStation = currentStation?.id?.startsWith("podcast_") == true
+        if (isPodcastStation) {
+            val podArtworkUrl = show.imageUrl?.takeIf { it.startsWith("http") }
+            if (podArtworkUrl != null && podArtworkUrl != lastArtworkUrl) {
+                lastArtworkUrl = podArtworkUrl
+                Glide.with(this)
+                    .load(podArtworkUrl)
+                    .placeholder(android.R.color.transparent)
+                    .into(miniPlayerArtwork)
+                Log.d("MainActivity", "Loading podcast artwork from: $podArtworkUrl")
+            }
+        } else if (currentStation != null) {
+            val hasSongArtwork = (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) &&
+                !show.imageUrl.isNullOrEmpty() && show.imageUrl!!.startsWith("http")
+            if (hasSongArtwork) {
+                val songArtworkUrl = show.imageUrl!!
+                if (songArtworkUrl != lastArtworkUrl) {
+                    lastArtworkUrl = songArtworkUrl
+                    Glide.with(this)
+                        .load(songArtworkUrl)
+                        .placeholder(StationArtwork.createDrawable(currentStation.id))
+                        .error(StationArtwork.createDrawable(currentStation.id))
+                        .into(miniPlayerArtwork)
+                    Log.d("MainActivity", "Loading song artwork from: $songArtworkUrl")
+                }
+            } else {
+                val genericKey = "generic:${currentStation.id}"
+                if (genericKey != lastArtworkUrl) {
+                    lastArtworkUrl = genericKey
+                    miniPlayerArtwork.setImageDrawable(StationArtwork.createDrawable(currentStation.id))
+                }
+            }
         }
 
         // Show episode progress only for podcast playback
-        val isPodcastStation = PlaybackStateHelper.getCurrentStation()?.id?.startsWith("podcast_") == true
         val pos = show.segmentStartMs ?: -1L
         val dur = show.segmentDurationMs ?: -1L
         if (isPodcastStation && dur > 0 && pos >= 0) {

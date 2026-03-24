@@ -613,7 +613,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 // Clear stored episode since we're not playing a podcast
                 playingEpisode = null
                 showName.visibility = android.view.View.VISIBLE
-                showName.text = show.title.ifEmpty { "BBC Radio" }
+                showName.text = show.title.ifEmpty { station.title }
                 // Ensure the action bar shows the radio station name
                 supportActionBar?.title = station.title
 
@@ -650,44 +650,54 @@ class NowPlayingActivity : AppCompatActivity() {
                 showMoreLink.visibility = android.view.View.GONE
             }
             
-            // Load artwork: Use image_url from API if available and valid, otherwise station logo
-            val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
-                show.imageUrl
+            // Load artwork:
+            // - Podcasts: use episode/podcast image URL
+            // - Radio with song playing (artist/track data present): use song artwork from RMS feed
+            // - Radio with no song playing: show generic station artwork (no BBC branding)
+            if (isPodcast) {
+                val podArtworkUrl = show.imageUrl?.takeIf { it.startsWith("http") }
+                if (podArtworkUrl != null && podArtworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
+                    lastArtworkUrl = podArtworkUrl
+                    Glide.with(this)
+                        .load(podArtworkUrl)
+                        .placeholder(android.R.color.transparent)
+                        .listener(object : RequestListener<Drawable> {
+                            override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean = false
+                            override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                                if (resource is BitmapDrawable) extractAndApplyDominantColor(resource.bitmap)
+                                return false
+                            }
+                        })
+                        .into(stationArtwork)
+                }
             } else {
-                station.logoUrl
-            }
-            
-            // Only reload if URL changed
-            if (artworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
-                lastArtworkUrl = artworkUrl
-                val fallbackUrl = station.logoUrl
-                
-                Glide.with(this)
-                    .load(artworkUrl)
-                    .placeholder(android.R.color.transparent)
-                    .error(Glide.with(this).load(fallbackUrl))
-                    .listener(object : RequestListener<Drawable> {
-                        override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
-                            return false
-                        }
-
-                        override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                            if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
-                                stationArtwork.post {
-                                    Glide.with(this@NowPlayingActivity)
-                                        .load(fallbackUrl)
-                                        .into(stationArtwork)
+                val hasSongArtwork = (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) &&
+                    !show.imageUrl.isNullOrEmpty() && show.imageUrl!!.startsWith("http")
+                if (hasSongArtwork) {
+                    val songArtworkUrl = show.imageUrl!!
+                    if (songArtworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
+                        lastArtworkUrl = songArtworkUrl
+                        val genericLogo = StationArtwork.createDrawable(station.id)
+                        Glide.with(this)
+                            .load(songArtworkUrl)
+                            .placeholder(genericLogo)
+                            .error(genericLogo)
+                            .listener(object : RequestListener<Drawable> {
+                                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean = false
+                                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                                    if (resource is BitmapDrawable) extractAndApplyDominantColor(resource.bitmap)
+                                    return false
                                 }
-                                return true
-                            }
-                            // Extract dominant color and apply as background
-                            if (resource is BitmapDrawable) {
-                                extractAndApplyDominantColor(resource.bitmap)
-                            }
-                            return false
-                        }
-                    })
-                    .into(stationArtwork)
+                            })
+                            .into(stationArtwork)
+                    }
+                } else {
+                    val genericKey = "generic:${station.id}"
+                    if (genericKey != lastArtworkUrl && !isFinishing && !isDestroyed) {
+                        lastArtworkUrl = genericKey
+                        stationArtwork.setImageDrawable(StationArtwork.createDrawable(station.id))
+                    }
+                }
             }
             
             updateProgressUi()
@@ -1024,9 +1034,9 @@ class NowPlayingActivity : AppCompatActivity() {
         } else {
             showName.visibility = android.view.View.VISIBLE
             // Update show name
-            showName.text = show.title.ifEmpty { "BBC Radio" }
+            showName.text = show.title.ifEmpty { station?.title ?: "" }
             // Ensure the action bar shows the radio station name when not a podcast
-            supportActionBar?.title = station?.title ?: "BBC Radio"
+            supportActionBar?.title = station?.title ?: ""
 
             // Prefer subtitle (secondary/tertiary) in the large headline and show the
             // song/episode title in the smaller line — avoid duplicates.
@@ -1061,44 +1071,54 @@ class NowPlayingActivity : AppCompatActivity() {
             showMoreLink.visibility = android.view.View.GONE
         }
         
-        // Load new artwork - use image_url if available and valid, otherwise station logo
-        val artworkUrl = if (!show.imageUrl.isNullOrEmpty() && show.imageUrl.startsWith("http")) {
-            show.imageUrl
-        } else {
-            PlaybackStateHelper.getCurrentStation()?.logoUrl
-        }
-        
-        // Only reload if URL changed
-        if (artworkUrl != null && artworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
-            lastArtworkUrl = artworkUrl
-            val fallbackUrl = PlaybackStateHelper.getCurrentStation()?.logoUrl
-            
-            Glide.with(this)
-                .load(artworkUrl)
-                .placeholder(android.R.color.transparent)
-                .error(Glide.with(this).load(fallbackUrl))
-                .listener(object : RequestListener<Drawable> {
-                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
-                        return false
-                    }
-
-                    override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                        if (resource is BitmapDrawable && isPlaceholderImage(resource.bitmap)) {
-                            stationArtwork.post {
-                                Glide.with(this@NowPlayingActivity)
-                                    .load(fallbackUrl)
-                                    .into(stationArtwork)
+        // Load artwork:
+        // - Podcasts: use episode/podcast image URL
+        // - Radio with song playing (artist/track data present): use song artwork from RMS feed
+        // - Radio with no song playing: show generic station artwork (no BBC branding)
+        if (isPodcast) {
+            val podArtworkUrl = show.imageUrl?.takeIf { it.startsWith("http") }
+            if (podArtworkUrl != null && podArtworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
+                lastArtworkUrl = podArtworkUrl
+                Glide.with(this)
+                    .load(podArtworkUrl)
+                    .placeholder(android.R.color.transparent)
+                    .listener(object : RequestListener<Drawable> {
+                        override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean = false
+                        override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                            if (resource is BitmapDrawable) extractAndApplyDominantColor(resource.bitmap)
+                            return false
+                        }
+                    })
+                    .into(stationArtwork)
+            }
+        } else if (station != null) {
+            val hasSongArtwork = (!show.secondary.isNullOrEmpty() || !show.tertiary.isNullOrEmpty()) &&
+                !show.imageUrl.isNullOrEmpty() && show.imageUrl!!.startsWith("http")
+            if (hasSongArtwork) {
+                val songArtworkUrl = show.imageUrl!!
+                if (songArtworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
+                    lastArtworkUrl = songArtworkUrl
+                    val genericLogo = StationArtwork.createDrawable(station.id)
+                    Glide.with(this)
+                        .load(songArtworkUrl)
+                        .placeholder(genericLogo)
+                        .error(genericLogo)
+                        .listener(object : RequestListener<Drawable> {
+                            override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean = false
+                            override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
+                                if (resource is BitmapDrawable) extractAndApplyDominantColor(resource.bitmap)
+                                return false
                             }
-                            return true
-                        }
-                        // Extract dominant color and apply as background
-                        if (resource is BitmapDrawable) {
-                            extractAndApplyDominantColor(resource.bitmap)
-                        }
-                        return false
-                    }
-                })
-                .into(stationArtwork)
+                        })
+                        .into(stationArtwork)
+                }
+            } else {
+                val genericKey = "generic:${station.id}"
+                if (genericKey != lastArtworkUrl && !isFinishing && !isDestroyed) {
+                    lastArtworkUrl = genericKey
+                    stationArtwork.setImageDrawable(StationArtwork.createDrawable(station.id))
+                }
+            }
         }
 
             updateProgressUi()
