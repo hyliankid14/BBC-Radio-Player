@@ -97,8 +97,11 @@ class StationAdapter(
             }
         }
         
+        val genericLogo = StationArtwork.createDrawable(station.id)
         Glide.with(context)
             .load(station.logoUrl)
+            .placeholder(genericLogo)
+            .error(genericLogo)
             .into(holder.imageView)
         
         // Update star icon

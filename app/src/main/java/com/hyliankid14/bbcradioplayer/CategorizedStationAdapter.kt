@@ -95,8 +95,11 @@ class CategorizedStationAdapter(
         }
         
         // Load image
+        val genericLogo = StationArtwork.createDrawable(station.id)
         Glide.with(context)
             .load(station.logoUrl)
+            .placeholder(genericLogo)
+            .error(genericLogo)
             .into(holder.imageView)
         
         // Handle favorite star
