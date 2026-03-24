@@ -1,0 +1,809 @@
+Analytics restore commands (merge two backups into live DB)
+
+① Stop analytics service
+sudo systemctl stop bbc-radio-analytics.service
+
+② Set paths
+LIVE="/home/shaivure/Development/BBC Radio Player/api/analytics.db"
+B1="/home/shaivure/analytics.db"
+B2="/home/shaivure/analytics (1).db"
+
+③ Safety backup of current live DB
+cp -a "$LIVE" "${LIVE}.pre-restore.$(date +%Y%m%d-%H%M%S).bak"
+
+④ Show counts before merge
+echo "Live before:"
+sqlite3 "$LIVE" "SELECT COUNT(*) FROM events;"
+echo "Backup 1:"
+sqlite3 "$B1" "SELECT COUNT(*) FROM events;"
+echo "Backup 2:"
+sqlite3 "$B2" "SELECT COUNT(*) FROM events;"
+
+⑤ Merge both backups into live DB (deduplicated, schema-safe)
+python3 - <<'PY'
+import sqlite3
+
+LIVE = "/home/shaivure/Development/BBC Radio Player/api/analytics.db"
+SOURCES = [
+    "/home/shaivure/analytics.db",
+    "/home/shaivure/analytics (1).db",
+]
+
+TARGET_COLS = [
+    "event_type", "station_id", "station_name", "podcast_id", "episode_id",
+    "podcast_title", "episode_title", "date", "app_version", "platform", "timestamp",
+]
+
+def event_cols(path):
+    c = sqlite3.connect(path)
+    cur = c.cursor()
+    cur.execute("PRAGMA table_info(events)")
+    cols = {r[1] for r in cur.fetchall()}
+    c.close()
+    return cols
+
+conn = sqlite3.connect(LIVE)
+cur = conn.cursor()
+cur.execute("PRAGMA journal_mode=WAL")
+cur.execute("PRAGMA busy_timeout=10000")
+cur.execute("BEGIN IMMEDIATE")
+
+cur.execute("DROP TABLE IF EXISTS recovered")
+cur.execute(
+    """
+    CREATE TEMP TABLE recovered (
+      event_type TEXT, station_id TEXT, station_name TEXT, podcast_id TEXT, episode_id TEXT,
+      podcast_title TEXT, episode_title TEXT, date TEXT, app_version TEXT, platform TEXT, timestamp TEXT
+    )
+    """
+)
+
+for idx, src in enumerate(SOURCES, start=1):
+    alias = f"b{idx}"
+    cols = event_cols(src)
+    cur.execute(f"ATTACH DATABASE '{src}' AS {alias}")
+
+    expr = []
+    for col in TARGET_COLS:
+        if col in cols:
+            expr.append(col)
+        else:
+            expr.append(f"NULL AS {col}")
+
+    cur.execute(
+        f"""
+        INSERT INTO recovered ({', '.join(TARGET_COLS)})
+        SELECT {', '.join(expr)}
+        FROM {alias}.events
+        """
+    )
+
+# Do not DETACH inside the transaction; it can trigger "database is locked".
+
+cur.execute(
+    """
+    INSERT INTO events (
+      event_type, station_id, station_name, podcast_id, episode_id,
+      podcast_title, episode_title, date, app_version, platform, timestamp
+    )
+    SELECT
+      r.event_type, r.station_id, r.station_name, r.podcast_id, r.episode_id,
+      r.podcast_title, r.episode_title, r.date, r.app_version, r.platform, r.timestamp
+    FROM recovered r
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM events e
+      WHERE IFNULL(e.event_type,'')     = IFNULL(r.event_type,'')
+        AND IFNULL(e.station_id,'')     = IFNULL(r.station_id,'')
+        AND IFNULL(e.station_name,'')   = IFNULL(r.station_name,'')
+        AND IFNULL(e.podcast_id,'')     = IFNULL(r.podcast_id,'')
+        AND IFNULL(e.episode_id,'')     = IFNULL(r.episode_id,'')
+        AND IFNULL(e.podcast_title,'')  = IFNULL(r.podcast_title,'')
+        AND IFNULL(e.episode_title,'')  = IFNULL(r.episode_title,'')
+        AND IFNULL(e.date,'')           = IFNULL(r.date,'')
+        AND IFNULL(e.app_version,'')    = IFNULL(r.app_version,'')
+        AND IFNULL(e.platform,'')       = IFNULL(r.platform,'')
+        AND IFNULL(e.timestamp,'')      = IFNULL(r.timestamp,'')
+    )
+    """
+)
+print("Rows inserted:", cur.rowcount)
+
+cur.execute(
+    """
+    UPDATE events
+    SET station_name = TRIM(SUBSTR(station_name, 5))
+    WHERE station_name IS NOT NULL
+      AND LOWER(station_name) LIKE 'bbc %'
+    """
+)
+print("BBC-prefix normalisation updates:", cur.rowcount)
+
+conn.commit()
+
+# Safe to detach after commit.
+for idx in range(1, len(SOURCES) + 1):
+    alias = f"b{idx}"
+    cur.execute(f"DETACH DATABASE {alias}")
+
+conn.close()
+print("Merge complete.")
+PY
+
+⑥ Verify restored coverage
+echo "Live after:"
+sqlite3 "$LIVE" "SELECT COUNT(*) FROM events;"
+sqlite3 "$LIVE" "SELECT substr(date,1,10) AS day, COUNT(*) FROM events GROUP BY day ORDER BY day DESC LIMIT 45;"
+
+⑦ Restart service
+sudo systemctl start bbc-radio-analytics.service
+sudo systemctl status bbc-radio-analytics.service --no-pager
+
+⑧ Thorough dedupe (logical-event dedupe, ignores id/timestamp)
+# Stop service to avoid concurrent writes while deduping.
+sudo systemctl stop bbc-radio-analytics.service
+
+# Safety backup before dedupe.
+cp -a "$LIVE" "${LIVE}.pre-dedupe.$(date +%Y%m%d-%H%M%S).bak"
+
+# Report current row count and logical unique-event count.
+sqlite3 "$LIVE" "SELECT 'rows_before', COUNT(*) FROM events;"
+sqlite3 "$LIVE" "
+SELECT 'logical_unique_before', COUNT(*)
+FROM (
+    SELECT 1
+    FROM events
+    GROUP BY
+        IFNULL(event_type,''),
+        IFNULL(station_id,''),
+        IFNULL(station_name,''),
+        IFNULL(podcast_id,''),
+        IFNULL(episode_id,''),
+        IFNULL(podcast_title,''),
+        IFNULL(episode_title,''),
+        IFNULL(date,''),
+        IFNULL(app_version,''),
+        IFNULL(platform,'')
+);
+"
+
+# Optional text normalisation before dedupe.
+sqlite3 "$LIVE" "
+BEGIN IMMEDIATE;
+UPDATE events SET
+    station_name = NULLIF(TRIM(station_name), ''),
+    podcast_title = NULLIF(TRIM(podcast_title), ''),
+    episode_title = NULLIF(TRIM(episode_title), '');
+UPDATE events
+SET station_name = TRIM(SUBSTR(station_name, 5))
+WHERE station_name IS NOT NULL
+    AND LOWER(station_name) LIKE 'bbc %';
+COMMIT;
+"
+
+# Deduplicate by logical event shape (keeps lowest id per logical duplicate set).
+sqlite3 "$LIVE" "
+BEGIN IMMEDIATE;
+DELETE FROM events
+WHERE id NOT IN (
+    SELECT MIN(id)
+    FROM events
+    GROUP BY
+        IFNULL(event_type,''),
+        IFNULL(station_id,''),
+        IFNULL(station_name,''),
+        IFNULL(podcast_id,''),
+        IFNULL(episode_id,''),
+        IFNULL(podcast_title,''),
+        IFNULL(episode_title,''),
+        IFNULL(date,''),
+        IFNULL(app_version,''),
+        IFNULL(platform,'')
+);
+COMMIT;
+"
+
+# Report after counts and rows removed.
+sqlite3 "$LIVE" "SELECT 'rows_after', COUNT(*) FROM events;"
+sqlite3 "$LIVE" "
+SELECT 'logical_unique_after', COUNT(*)
+FROM (
+    SELECT 1
+    FROM events
+    GROUP BY
+        IFNULL(event_type,''),
+        IFNULL(station_id,''),
+        IFNULL(station_name,''),
+        IFNULL(podcast_id,''),
+        IFNULL(episode_id,''),
+        IFNULL(podcast_title,''),
+        IFNULL(episode_title,''),
+        IFNULL(date,''),
+        IFNULL(app_version,''),
+        IFNULL(platform,'')
+);
+"
+
+# Optional maintenance pass.
+sqlite3 "$LIVE" "PRAGMA wal_checkpoint(FULL);"
+
+# Start service again.
+sudo systemctl start bbc-radio-analytics.service
+sudo systemctl status bbc-radio-analytics.service --no-pager
+
+⑨ Merge podcasts by identical title
+# This merges rows where podcast_title matches (case-insensitive, trimmed)
+# onto one canonical podcast_id per title, then dedupes again.
+
+# Stop service during mutation.
+sudo systemctl stop bbc-radio-analytics.service
+
+# Safety backup before title-based ID merge.
+cp -a "$LIVE" "${LIVE}.pre-title-merge.$(date +%Y%m%d-%H%M%S).bak"
+
+# Preview titles that currently map to multiple podcast IDs.
+sqlite3 "$LIVE" "
+SELECT
+    lower(trim(podcast_title)) AS norm_title,
+    COUNT(DISTINCT podcast_id) AS distinct_ids,
+    COUNT(*) AS rows
+FROM events
+WHERE podcast_title IS NOT NULL
+    AND trim(podcast_title) <> ''
+    AND podcast_id IS NOT NULL
+    AND trim(podcast_id) <> ''
+GROUP BY lower(trim(podcast_title))
+HAVING COUNT(DISTINCT podcast_id) > 1
+ORDER BY rows DESC
+LIMIT 100;
+"
+
+# Build canonical ID mapping per title (most frequent ID wins), then apply.
+sqlite3 "$LIVE" "
+BEGIN IMMEDIATE;
+
+DROP TABLE IF EXISTS _title_id_map;
+CREATE TEMP TABLE _title_id_map AS
+SELECT
+    t.norm_title,
+    (
+        SELECT e2.podcast_id
+        FROM events e2
+        WHERE lower(trim(e2.podcast_title)) = t.norm_title
+            AND e2.podcast_id IS NOT NULL
+            AND trim(e2.podcast_id) <> ''
+        GROUP BY e2.podcast_id
+        ORDER BY COUNT(*) DESC, MIN(e2.id) ASC
+        LIMIT 1
+    ) AS canonical_id
+FROM (
+    SELECT DISTINCT lower(trim(podcast_title)) AS norm_title
+    FROM events
+    WHERE podcast_title IS NOT NULL
+        AND trim(podcast_title) <> ''
+) t;
+
+UPDATE events
+SET podcast_id = (
+    SELECT m.canonical_id
+    FROM _title_id_map m
+    WHERE m.norm_title = lower(trim(events.podcast_title))
+)
+WHERE podcast_title IS NOT NULL
+    AND trim(podcast_title) <> ''
+    AND EXISTS (
+        SELECT 1
+        FROM _title_id_map m
+        WHERE m.norm_title = lower(trim(events.podcast_title))
+            AND m.canonical_id IS NOT NULL
+            AND trim(m.canonical_id) <> ''
+            AND IFNULL(events.podcast_id, '') <> m.canonical_id
+    );
+
+DROP TABLE IF EXISTS _title_id_map;
+
+COMMIT;
+"
+
+# Deduplicate again after ID merge to remove newly-equal rows.
+sqlite3 "$LIVE" "
+BEGIN IMMEDIATE;
+DELETE FROM events
+WHERE id NOT IN (
+    SELECT MIN(id)
+    FROM events
+    GROUP BY
+        IFNULL(event_type,''),
+        IFNULL(station_id,''),
+        IFNULL(station_name,''),
+        IFNULL(podcast_id,''),
+        IFNULL(episode_id,''),
+        IFNULL(podcast_title,''),
+        IFNULL(episode_title,''),
+        IFNULL(date,''),
+        IFNULL(app_version,''),
+        IFNULL(platform,'')
+);
+COMMIT;
+"
+
+# Verify there are fewer title->multiple-ID collisions now.
+sqlite3 "$LIVE" "
+SELECT
+    lower(trim(podcast_title)) AS norm_title,
+    COUNT(DISTINCT podcast_id) AS distinct_ids,
+    COUNT(*) AS rows
+FROM events
+WHERE podcast_title IS NOT NULL
+    AND trim(podcast_title) <> ''
+    AND podcast_id IS NOT NULL
+    AND trim(podcast_id) <> ''
+GROUP BY lower(trim(podcast_title))
+HAVING COUNT(DISTINCT podcast_id) > 1
+ORDER BY rows DESC
+LIMIT 100;
+"
+
+# Restart service.
+sudo systemctl start bbc-radio-analytics.service
+sudo systemctl status bbc-radio-analytics.service --no-pager
+
+⑫ Merge events from CSV backup (analytics_export.csv)
+# Use this when your backup file is CSV, not a .db file.
+
+# Stop service during import.
+sudo systemctl stop bbc-radio-analytics.service
+
+# Set CSV path (update to the real file path on the Pi).
+NEW_CSV="/home/shaivure/analytics_export.csv"
+export NEW_CSV
+
+# Optional helper: find likely CSV exports.
+ls -lt /home/shaivure/*.csv | head -n 20
+
+# Confirm CSV exists.
+test -f "$NEW_CSV" && echo "CSV found: $NEW_CSV"
+
+# Safety backup before CSV merge.
+cp -a "$LIVE" "${LIVE}.pre-csv-merge.$(date +%Y%m%d-%H%M%S).bak"
+
+# Show live row count before merge.
+sqlite3 "$LIVE" "SELECT 'live_before', COUNT(*) FROM events;"
+
+# Import CSV into a temp table, then merge into events (duplicate-safe).
+python3 - <<'PY'
+import csv
+import os
+import sqlite3
+import sys
+
+LIVE = "/home/shaivure/Development/BBC Radio Player/api/analytics.db"
+NEW_CSV = os.environ.get("NEW_CSV", "").strip()
+
+if not NEW_CSV:
+    print("ERROR: NEW_CSV is not set.")
+    sys.exit(1)
+if not os.path.exists(NEW_CSV):
+    print(f"ERROR: CSV not found: {NEW_CSV}")
+    sys.exit(1)
+
+TARGET_COLS = [
+    "event_type", "station_id", "station_name", "podcast_id", "episode_id",
+    "podcast_title", "episode_title", "date", "app_version", "platform", "timestamp",
+]
+
+# Accept common export/header variants.
+ALIASES = {
+    "event_type": ["event_type", "event", "type"],
+    "station_id": ["station_id", "stationid"],
+    "station_name": ["station_name", "station", "stationname"],
+    "podcast_id": ["podcast_id", "podcastid"],
+    "episode_id": ["episode_id", "episodeid"],
+    "podcast_title": ["podcast_title", "podcast", "podcastname", "podcast_name"],
+    "episode_title": ["episode_title", "episode", "episodename", "episode_name"],
+    "date": ["date", "day", "date_utc"],
+    "app_version": ["app_version", "appversion", "version"],
+    "platform": ["platform", "os"],
+    "timestamp": ["timestamp", "time", "created_at", "createdat"],
+}
+
+def clean(value):
+    if value is None:
+        return None
+    value = value.strip()
+    return value if value else None
+
+with open(NEW_CSV, "r", encoding="utf-8-sig", newline="") as f:
+    reader = csv.DictReader(f)
+    if not reader.fieldnames:
+        print("ERROR: CSV has no header row.")
+        sys.exit(1)
+
+    raw_headers = [h for h in reader.fieldnames if h is not None]
+    headers_norm = {h.strip().lower(): h for h in raw_headers}
+    print("Detected headers:", ", ".join(raw_headers))
+
+    src_for_target = {}
+    for tgt in TARGET_COLS:
+        src_for_target[tgt] = None
+        for candidate in ALIASES[tgt]:
+            if candidate in headers_norm:
+                src_for_target[tgt] = headers_norm[candidate]
+                break
+
+    conn = sqlite3.connect(LIVE)
+    cur = conn.cursor()
+    cur.execute("PRAGMA journal_mode=WAL")
+    cur.execute("PRAGMA busy_timeout=10000")
+    cur.execute("BEGIN IMMEDIATE")
+
+    cur.execute("DROP TABLE IF EXISTS csv_incoming")
+    cur.execute(
+        """
+        CREATE TEMP TABLE csv_incoming (
+          event_type TEXT, station_id TEXT, station_name TEXT, podcast_id TEXT, episode_id TEXT,
+          podcast_title TEXT, episode_title TEXT, date TEXT, app_version TEXT, platform TEXT, timestamp TEXT
+        )
+        """
+    )
+
+    rows = []
+    total_csv_rows = 0
+    skipped_missing_date = 0
+    date_utc_col = headers_norm.get("date_utc")
+    time_utc_col = headers_norm.get("time_utc")
+    for row in reader:
+        total_csv_rows += 1
+
+        vals_by_col = {}
+        for tgt in TARGET_COLS:
+            src = src_for_target[tgt]
+            vals_by_col[tgt] = clean(row.get(src)) if src else None
+
+        # For analytics_export.csv, date/time can be split across date_utc + time_utc.
+        date_utc_val = clean(row.get(date_utc_col)) if date_utc_col else None
+        time_utc_val = clean(row.get(time_utc_col)) if time_utc_col else None
+
+        if not vals_by_col["date"] and date_utc_val:
+            vals_by_col["date"] = date_utc_val
+
+        # If timestamp is time-only, combine it with date when possible.
+        ts_val = vals_by_col["timestamp"]
+        if ts_val and ':' in ts_val and '-' not in ts_val and vals_by_col["date"]:
+            vals_by_col["timestamp"] = f"{vals_by_col['date']} {ts_val}"
+
+        if not vals_by_col["timestamp"] and date_utc_val and time_utc_val:
+            vals_by_col["timestamp"] = f"{date_utc_val} {time_utc_val}"
+
+        # events.date is NOT NULL in the live schema, so skip invalid rows.
+        if not vals_by_col["date"]:
+            skipped_missing_date += 1
+            continue
+
+        vals = [vals_by_col[tgt] for tgt in TARGET_COLS]
+        rows.append(tuple(vals))
+
+    if rows:
+        cur.executemany(
+            """
+            INSERT INTO csv_incoming (
+              event_type, station_id, station_name, podcast_id, episode_id,
+              podcast_title, episode_title, date, app_version, platform, timestamp
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+
+    print("CSV rows read:", total_csv_rows)
+    print("Rows skipped (missing date):", skipped_missing_date)
+
+    cur.execute(
+        """
+        INSERT INTO events (
+          event_type, station_id, station_name, podcast_id, episode_id,
+          podcast_title, episode_title, date, app_version, platform, timestamp
+        )
+        SELECT
+          r.event_type, r.station_id, r.station_name, r.podcast_id, r.episode_id,
+          r.podcast_title, r.episode_title, r.date, r.app_version, r.platform, r.timestamp
+        FROM csv_incoming r
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM events e
+          WHERE IFNULL(e.event_type,'')     = IFNULL(r.event_type,'')
+            AND IFNULL(e.station_id,'')     = IFNULL(r.station_id,'')
+            AND IFNULL(e.station_name,'')   = IFNULL(r.station_name,'')
+            AND IFNULL(e.podcast_id,'')     = IFNULL(r.podcast_id,'')
+            AND IFNULL(e.episode_id,'')     = IFNULL(r.episode_id,'')
+            AND IFNULL(e.podcast_title,'')  = IFNULL(r.podcast_title,'')
+            AND IFNULL(e.episode_title,'')  = IFNULL(r.episode_title,'')
+            AND IFNULL(e.date,'')           = IFNULL(r.date,'')
+            AND IFNULL(e.app_version,'')    = IFNULL(r.app_version,'')
+            AND IFNULL(e.platform,'')       = IFNULL(r.platform,'')
+            AND IFNULL(e.timestamp,'')      = IFNULL(r.timestamp,'')
+        )
+        """
+    )
+    print("Rows inserted:", cur.rowcount)
+
+    cur.execute(
+        """
+        UPDATE events
+        SET station_name = TRIM(SUBSTR(station_name, 5))
+        WHERE station_name IS NOT NULL
+          AND LOWER(station_name) LIKE 'bbc %'
+        """
+    )
+    print("BBC-prefix normalisation updates:", cur.rowcount)
+
+    conn.commit()
+    conn.close()
+    print("CSV merge complete.")
+PY
+
+# Verify after merge.
+sqlite3 "$LIVE" "SELECT 'live_after', COUNT(*) FROM events;"
+sqlite3 "$LIVE" "SELECT substr(date,1,10) AS day, COUNT(*) FROM events GROUP BY day ORDER BY day DESC LIMIT 30;"
+
+# Optional: if inserts are high, run section ⑧ for a full logical dedupe pass.
+
+# Start service.
+sudo systemctl start bbc-radio-analytics.service
+sudo systemctl status bbc-radio-analytics.service --no-pager
+
+⑪ Merge one additional backup from today
+# Use this for an extra backup created after the original restore.
+
+# Stop service during merge.
+sudo systemctl stop bbc-radio-analytics.service
+
+# Set the new backup path (update this line to your exact filename).
+NEW_BAK="/home/shaivure/analytics-2026-03-24.db"
+
+# Optional helper: list likely backup DB files from today.
+ls -lt /home/shaivure/*.db | head -n 20
+
+# Confirm source DB exists and has events.
+test -f "$NEW_BAK" && sqlite3 "$NEW_BAK" "SELECT COUNT(*) AS backup_rows FROM events;"
+
+# Safety backup of live DB before incremental merge.
+cp -a "$LIVE" "${LIVE}.pre-extra-merge.$(date +%Y%m%d-%H%M%S).bak"
+
+# Show live row count before merge.
+sqlite3 "$LIVE" "SELECT 'live_before', COUNT(*) FROM events;"
+
+# Merge NEW_BAK into live DB (schema-safe, duplicate-safe).
+python3 - <<'PY'
+import os
+import sqlite3
+import sys
+
+LIVE = "/home/shaivure/Development/BBC Radio Player/api/analytics.db"
+NEW_BAK = os.environ.get("NEW_BAK", "").strip()
+
+if not NEW_BAK:
+    print("ERROR: NEW_BAK is not set.")
+    sys.exit(1)
+if not os.path.exists(NEW_BAK):
+    print(f"ERROR: backup not found: {NEW_BAK}")
+    sys.exit(1)
+
+TARGET_COLS = [
+    "event_type", "station_id", "station_name", "podcast_id", "episode_id",
+    "podcast_title", "episode_title", "date", "app_version", "platform", "timestamp",
+]
+
+def event_cols(path):
+    conn = sqlite3.connect(path)
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(events)")
+    cols = {r[1] for r in cur.fetchall()}
+    conn.close()
+    return cols
+
+src_cols = event_cols(NEW_BAK)
+
+conn = sqlite3.connect(LIVE)
+cur = conn.cursor()
+cur.execute("PRAGMA journal_mode=WAL")
+cur.execute("PRAGMA busy_timeout=10000")
+cur.execute("BEGIN IMMEDIATE")
+
+cur.execute("ATTACH DATABASE ? AS b", (NEW_BAK,))
+
+expr = []
+for col in TARGET_COLS:
+    if col in src_cols:
+        expr.append(col)
+    else:
+        expr.append(f"NULL AS {col}")
+
+cur.execute(
+    f"""
+    INSERT INTO events (
+      event_type, station_id, station_name, podcast_id, episode_id,
+      podcast_title, episode_title, date, app_version, platform, timestamp
+    )
+    SELECT
+      {', '.join(expr)}
+    FROM b.events s
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM events e
+      WHERE IFNULL(e.event_type,'')     = IFNULL(s.event_type,'')
+        AND IFNULL(e.station_id,'')     = IFNULL(s.station_id,'')
+        AND IFNULL(e.station_name,'')   = IFNULL(s.station_name,'')
+        AND IFNULL(e.podcast_id,'')     = IFNULL(s.podcast_id,'')
+        AND IFNULL(e.episode_id,'')     = IFNULL(s.episode_id,'')
+        AND IFNULL(e.podcast_title,'')  = IFNULL(s.podcast_title,'')
+        AND IFNULL(e.episode_title,'')  = IFNULL(s.episode_title,'')
+        AND IFNULL(e.date,'')           = IFNULL(s.date,'')
+        AND IFNULL(e.app_version,'')    = IFNULL(s.app_version,'')
+        AND IFNULL(e.platform,'')       = IFNULL(s.platform,'')
+        AND IFNULL(e.timestamp,'')      = IFNULL(s.timestamp,'')
+    )
+    """
+)
+print("Rows inserted:", cur.rowcount)
+
+cur.execute(
+    """
+    UPDATE events
+    SET station_name = TRIM(SUBSTR(station_name, 5))
+    WHERE station_name IS NOT NULL
+      AND LOWER(station_name) LIKE 'bbc %'
+    """
+)
+print("BBC-prefix normalisation updates:", cur.rowcount)
+
+conn.commit()
+cur.execute("DETACH DATABASE b")
+conn.close()
+print("Extra backup merge complete.")
+PY
+
+# Verify after merge.
+sqlite3 "$LIVE" "SELECT 'live_after', COUNT(*) FROM events;"
+sqlite3 "$LIVE" "SELECT substr(date,1,10) AS day, COUNT(*) FROM events GROUP BY day ORDER BY day DESC LIMIT 30;"
+
+# Optional: run logical dedupe again if needed.
+# (Reuse section ⑧ if row growth looks too large for the new day range.)
+
+# Start service.
+sudo systemctl start bbc-radio-analytics.service
+sudo systemctl status bbc-radio-analytics.service --no-pager
+
+⑩ Strong title merge (handles hidden whitespace in title/ID)
+# Use this if section ⑨ still leaves collisions like: space|2|26.
+
+# Stop service during mutation.
+sudo systemctl stop bbc-radio-analytics.service
+
+# Safety backup before strong merge.
+cp -a "$LIVE" "${LIVE}.pre-strong-title-merge.$(date +%Y%m%d-%H%M%S).bak"
+
+# Inspect remaining collisions with raw/hex IDs to detect hidden whitespace.
+sqlite3 "$LIVE" "
+SELECT
+    lower(trim(replace(replace(replace(podcast_title, char(9), ' '), char(10), ' '), char(13), ' '))) AS norm_title,
+    quote(podcast_id) AS raw_id,
+    hex(podcast_id) AS hex_id,
+    COUNT(*) AS rows
+FROM events
+WHERE podcast_title IS NOT NULL
+    AND trim(podcast_title) <> ''
+    AND podcast_id IS NOT NULL
+    AND trim(podcast_id) <> ''
+GROUP BY norm_title, podcast_id
+HAVING norm_title IN (
+    SELECT lower(trim(replace(replace(replace(podcast_title, char(9), ' '), char(10), ' '), char(13), ' ')))
+    FROM events
+    WHERE podcast_title IS NOT NULL
+        AND trim(podcast_title) <> ''
+        AND podcast_id IS NOT NULL
+        AND trim(podcast_id) <> ''
+    GROUP BY lower(trim(replace(replace(replace(podcast_title, char(9), ' '), char(10), ' '), char(13), ' ')))
+    HAVING COUNT(DISTINCT trim(podcast_id)) > 1
+)
+ORDER BY norm_title, rows DESC;
+"
+
+# Normalise obvious whitespace noise first.
+sqlite3 "$LIVE" "
+BEGIN IMMEDIATE;
+UPDATE events SET
+    podcast_title = NULLIF(trim(replace(replace(replace(podcast_title, char(9), ' '), char(10), ' '), char(13), ' ')), ''),
+    podcast_id = NULLIF(trim(podcast_id), '');
+COMMIT;
+"
+
+# Build canonical ID per normalised title and rewrite all matching rows.
+sqlite3 "$LIVE" "
+BEGIN IMMEDIATE;
+
+DROP TABLE IF EXISTS _title_id_map;
+CREATE TEMP TABLE _title_id_map AS
+SELECT
+    t.norm_title,
+    (
+        SELECT trim(e2.podcast_id)
+        FROM events e2
+        WHERE lower(trim(replace(replace(replace(e2.podcast_title, char(9), ' '), char(10), ' '), char(13), ' '))) = t.norm_title
+            AND e2.podcast_id IS NOT NULL
+            AND trim(e2.podcast_id) <> ''
+        GROUP BY trim(e2.podcast_id)
+        ORDER BY COUNT(*) DESC, MIN(e2.id) ASC
+        LIMIT 1
+    ) AS canonical_id
+FROM (
+    SELECT DISTINCT lower(trim(replace(replace(replace(podcast_title, char(9), ' '), char(10), ' '), char(13), ' '))) AS norm_title
+    FROM events
+    WHERE podcast_title IS NOT NULL
+        AND trim(podcast_title) <> ''
+) t;
+
+UPDATE events
+SET podcast_id = (
+    SELECT m.canonical_id
+    FROM _title_id_map m
+    WHERE m.norm_title = lower(trim(replace(replace(replace(events.podcast_title, char(9), ' '), char(10), ' '), char(13), ' ')))
+)
+WHERE podcast_title IS NOT NULL
+    AND trim(podcast_title) <> ''
+    AND EXISTS (
+        SELECT 1
+        FROM _title_id_map m
+        WHERE m.norm_title = lower(trim(replace(replace(replace(events.podcast_title, char(9), ' '), char(10), ' '), char(13), ' ')))
+            AND m.canonical_id IS NOT NULL
+            AND trim(m.canonical_id) <> ''
+            AND IFNULL(trim(events.podcast_id), '') <> m.canonical_id
+    );
+
+DROP TABLE IF EXISTS _title_id_map;
+
+COMMIT;
+"
+
+# Deduplicate again after strong title merge.
+sqlite3 "$LIVE" "
+BEGIN IMMEDIATE;
+DELETE FROM events
+WHERE id NOT IN (
+    SELECT MIN(id)
+    FROM events
+    GROUP BY
+        IFNULL(event_type,''),
+        IFNULL(station_id,''),
+        IFNULL(station_name,''),
+        IFNULL(trim(podcast_id),''),
+        IFNULL(episode_id,''),
+        IFNULL(lower(trim(replace(replace(replace(podcast_title, char(9), ' '), char(10), ' '), char(13), ' '))),''),
+        IFNULL(episode_title,''),
+        IFNULL(date,''),
+        IFNULL(app_version,''),
+        IFNULL(platform,'')
+);
+COMMIT;
+"
+
+# Verify remaining title collisions using trimmed IDs.
+sqlite3 "$LIVE" "
+SELECT
+    lower(trim(replace(replace(replace(podcast_title, char(9), ' '), char(10), ' '), char(13), ' '))) AS norm_title,
+    COUNT(DISTINCT trim(podcast_id)) AS distinct_trimmed_ids,
+    COUNT(*) AS rows
+FROM events
+WHERE podcast_title IS NOT NULL
+    AND trim(podcast_title) <> ''
+    AND podcast_id IS NOT NULL
+    AND trim(podcast_id) <> ''
+GROUP BY norm_title
+HAVING COUNT(DISTINCT trim(podcast_id)) > 1
+ORDER BY rows DESC
+LIMIT 100;
+"
+
+# Restart service.
+sudo systemctl start bbc-radio-analytics.service
+sudo systemctl status bbc-radio-analytics.service --no-pager

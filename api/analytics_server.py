@@ -278,6 +278,50 @@ def _format_human_timestamp(value):
         return value
 
 
+def _extract_event_datetime_parts(date_value, timestamp_value):
+    """Extract normalised UTC date/time parts for exports and sorting."""
+    candidates = [timestamp_value, date_value]
+
+    for raw in candidates:
+        text = (str(raw or '')).strip()
+        if not text:
+            continue
+
+        # Canonical pattern: YYYY-MM-DD[T or space]HH:MM:SS
+        match = re.search(r'(\d{4}-\d{2}-\d{2})[T\s]+(\d{2}:\d{2}:\d{2})', text)
+        if match:
+            date_part = match.group(1)
+            time_part = match.group(2)
+            try:
+                dt = datetime.strptime(f'{date_part} {time_part}', '%Y-%m-%d %H:%M:%S')
+                return date_part, time_part, dt
+            except ValueError:
+                pass
+
+        # Fallback pattern: HH:MM:SS[Z] YYYY-MM-DD
+        match = re.search(r'(\d{2}:\d{2}:\d{2})Z?\s+(\d{4}-\d{2}-\d{2})', text)
+        if match:
+            date_part = match.group(2)
+            time_part = match.group(1)
+            try:
+                dt = datetime.strptime(f'{date_part} {time_part}', '%Y-%m-%d %H:%M:%S')
+                return date_part, time_part, dt
+            except ValueError:
+                pass
+
+        # Date-only fallback.
+        match = re.search(r'(\d{4}-\d{2}-\d{2})', text)
+        if match:
+            date_part = match.group(1)
+            try:
+                dt = datetime.strptime(date_part, '%Y-%m-%d')
+                return date_part, '00:00:00', dt
+            except ValueError:
+                pass
+
+    return '', '', None
+
+
 def _resolve_index_display_status(server_counts):
     """
     Resolve effective index status for UI/API display.
@@ -698,6 +742,7 @@ def export_csv():
 
         c.execute(f'''
             SELECT
+                id,
                 event_type,
                 station_id,
                 station_name,
@@ -706,12 +751,23 @@ def export_csv():
                 episode_id,
                 episode_title,
                 date,
+                timestamp,
                 app_version,
                 platform
             FROM events
             {date_filter}
             ORDER BY id DESC
         ''', params)
+
+        fetched_rows = c.fetchall()
+
+        # Sort by parsed event datetime so newest events are always first.
+        def _row_sort_key(row):
+            _, _, dt = _extract_event_datetime_parts(row['date'], row['timestamp'])
+            has_dt = 1 if dt else 0
+            return (has_dt, dt or datetime.min, row['id'])
+
+        fetched_rows = sorted(fetched_rows, key=_row_sort_key, reverse=True)
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -728,14 +784,10 @@ def export_csv():
             'app_version',
             'platform'
         ])
-        for row in c.fetchall():
+        for row in fetched_rows:
             row_dict = _normalise_station_result_row(dict(row))
-            raw_date = row['date'] or ''
-            date_part = raw_date
-            time_part = ''
-            if 'T' in raw_date:
-                date_part, time_part = raw_date.split('T', 1)
-                time_part = time_part.rstrip('Z')
+            date_part, time_part, dt = _extract_event_datetime_parts(row['date'], row['timestamp'])
+
             writer.writerow([
                 row_dict['event_type'],
                 row_dict['station_id'],
