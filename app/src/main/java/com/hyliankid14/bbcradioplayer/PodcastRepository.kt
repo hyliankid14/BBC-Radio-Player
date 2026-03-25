@@ -695,6 +695,16 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
+    suspend fun fetchPopularEpisodeRanks(skipCache: Boolean = false): RemoteIndexClient.PopularEpisodeRanking = withContext(Dispatchers.IO) {
+        try {
+            val remote = RemoteIndexClient(context)
+            remote.fetchPopularEpisodeRanks(skipCache = skipCache)
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Error fetching popular episode ranks", e)
+            RemoteIndexClient.PopularEpisodeRanking(idRanks = emptyMap())
+        }
+    }
+
     suspend fun fetchNewlyAddedPodcastEpochs(
         podcasts: List<Podcast>,
         forceRefresh: Boolean = false

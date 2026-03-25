@@ -57,7 +57,22 @@ class RemoteIndexClient(private val context: Context) {
         val idRanks: Map<String, Int>,
         val titleRanks: Map<String, Int>,
         /** True when these ranks were read from the on-device disk cache rather than fetched live. */
-        val fromCache: Boolean = false
+        val fromCache: Boolean = false,
+        /** The `generated_at` timestamp from the GCS snapshot that produced these ranks. */
+        val snapshotGeneratedAt: String = ""
+    )
+
+    /**
+     * Episode-level popularity ranks extracted from the `popular_episodes` field of
+     * the GCS snapshot.  [idRanks] maps episode ID → 1-based rank (lower is more
+     * popular).
+     */
+    data class PopularEpisodeRanking(
+        val idRanks: Map<String, Int>,
+        /** True when these ranks were read from the on-device disk cache rather than fetched live. */
+        val fromCache: Boolean = false,
+        /** The `generated_at` timestamp from the GCS snapshot that produced these ranks. */
+        val snapshotGeneratedAt: String = ""
     )
 
     companion object {
@@ -113,11 +128,16 @@ class RemoteIndexClient(private val context: Context) {
         private const val INDEX_CACHE_TTL_MS = 6 * 60 * 60 * 1_000L
         private const val INDEX_CACHE_FILENAME = "remote_podcast_index.json"
 
-        // Disk cache for popular podcast ranks (24-hour TTL).
+        // Disk cache for popular podcast ranks (6-hour TTL — matches the GCS snapshot update
+        // interval so the cache expires within one update cycle of the GitHub Actions workflow).
         // The cache is written after each successful network fetch so subsequent
         // app launches return immediately without waiting for the home server.
         private const val POPULAR_CACHE_FILENAME = "popular_podcast_ranks.json"
-        private const val POPULAR_CACHE_TTL_MS = 24 * 60 * 60 * 1_000L
+        private const val POPULAR_CACHE_TTL_MS = 6 * 60 * 60 * 1_000L
+
+        // Disk cache for popular episode ranks (same 6-hour TTL — refreshed from the same
+        // GCS snapshot as popular podcast ranks).
+        private const val POPULAR_EPISODES_CACHE_FILENAME = "popular_episode_ranks.json"
 
         // Disk cache for the streamed index summary used by browse sorts.
         private const val INDEX_SUMMARY_CACHE_FILENAME = "remote_podcast_index_summary.json"
@@ -779,7 +799,7 @@ class RemoteIndexClient(private val context: Context) {
      * If stats are unavailable, returns an empty map so callers can fall back.
      *
      * Loading order (fastest to slowest):
-     *   1. Disk cache — returns immediately if the cache is less than 24 hours old
+     *   1. Disk cache — returns immediately if the cache is less than 6 hours old
      *      (skipped when [skipCache] is true).
      *   2. GCS snapshot — CDN-hosted JSON uploaded by the export-popular-podcasts
      *      GitHub Actions workflow every 6 hours.  Fast and globally available.
@@ -788,6 +808,11 @@ class RemoteIndexClient(private val context: Context) {
      *
      * A successful network result is always written back to disk so the next
      * launch returns instantly from step 1.
+     *
+     * When the GCS snapshot is fetched, the `popular_episodes` section is also
+     * parsed and persisted to a separate disk cache (see [fetchPopularEpisodeRanks]).
+     * This ensures both caches are always refreshed together and share the same
+     * `generated_at` timestamp.
      *
      * @param skipCache When true the disk cache is ignored and a live network request is always
      *   made. Use this for background refresh calls so the UI stays up-to-date after the GCS
@@ -823,6 +848,8 @@ class RemoteIndexClient(private val context: Context) {
                 ) ?: continue
 
                 val popular = response.optJSONArray("popular_podcasts") ?: continue
+                val generatedAt = response.optString("generated_at", "")
+
                 data class PopularEntry(val id: String, val name: String, val plays: Int)
                 val entries = mutableListOf<PopularEntry>()
                 val max = minOf(popular.length(), safeLimit)
@@ -856,8 +883,19 @@ class RemoteIndexClient(private val context: Context) {
                 }
 
                 if (idRanks.isNotEmpty() || titleRanks.isNotEmpty()) {
-                    val result = PopularPodcastRanking(idRanks = idRanks, titleRanks = titleRanks)
+                    val result = PopularPodcastRanking(
+                        idRanks = idRanks,
+                        titleRanks = titleRanks,
+                        snapshotGeneratedAt = generatedAt
+                    )
                     savePopularRanksCache(result)
+
+                    // When the GCS snapshot is the source, it also carries popular_episodes —
+                    // parse and persist them so the episode cache is updated in the same pass.
+                    response.optJSONArray("popular_episodes")?.let { episodesArr ->
+                        savePopularEpisodesCache(parseEpisodeRanking(episodesArr, generatedAt))
+                    }
+
                     return result
                 }
             } catch (e: Exception) {
@@ -868,10 +906,65 @@ class RemoteIndexClient(private val context: Context) {
     }
 
     /**
+     * Fetch episode popularity ranks from the GCS snapshot.
+     *
+     * Uses a separate disk cache that shares the same 6-hour TTL as the podcast
+     * ranks cache.  When [fetchPopularPodcastRanks] successfully fetches the GCS
+     * snapshot it also writes this cache, so both caches are always in sync.
+     *
+     * @param skipCache When true the disk cache is bypassed and a live network
+     *   request is made.
+     */
+    fun fetchPopularEpisodeRanks(skipCache: Boolean = false): PopularEpisodeRanking {
+        if (!skipCache) {
+            readPopularEpisodesCache()?.let { cached ->
+                Log.d(TAG, "fetchPopularEpisodeRanks: returning fresh disk cache")
+                return cached.copy(fromCache = true)
+            }
+        }
+
+        return try {
+            val response = getJson(
+                STATS_URL,
+                connectTimeoutMs = LIVE_SEARCH_CONNECT_TIMEOUT_MS,
+                readTimeoutMs = LIVE_SEARCH_READ_TIMEOUT_MS
+            ) ?: return PopularEpisodeRanking(idRanks = emptyMap())
+
+            val generatedAt = response.optString("generated_at", "")
+            val episodesArr = response.optJSONArray("popular_episodes")
+                ?: return PopularEpisodeRanking(idRanks = emptyMap())
+
+            val result = parseEpisodeRanking(episodesArr, generatedAt)
+            savePopularEpisodesCache(result)
+            result
+        } catch (e: Exception) {
+            Log.d(TAG, "fetchPopularEpisodeRanks failed: ${e.message}")
+            PopularEpisodeRanking(idRanks = emptyMap())
+        }
+    }
+
+    /**
+     * Parse the `popular_episodes` JSON array from the stats / GCS snapshot response
+     * into a [PopularEpisodeRanking].  Episodes are already ordered by play count in
+     * the response; this function assigns 1-based ranks in that order.
+     */
+    private fun parseEpisodeRanking(arr: JSONArray, generatedAt: String): PopularEpisodeRanking {
+        val idRanks = linkedMapOf<String, Int>()
+        for (i in 0 until arr.length()) {
+            val item = arr.optJSONObject(i) ?: continue
+            val episodeId = item.optString("id", "").trim()
+            if (episodeId.isNotBlank() && !idRanks.containsKey(episodeId)) {
+                idRanks[episodeId] = i + 1
+            }
+        }
+        return PopularEpisodeRanking(idRanks = idRanks, snapshotGeneratedAt = generatedAt)
+    }
+
+    /**
      * Read popular podcast ranks from the on-device disk cache.
      *
      * Returns null if the cache file does not exist or is older than
-     * [POPULAR_CACHE_TTL_MS] (24 hours).
+     * [POPULAR_CACHE_TTL_MS] (6 hours).
      */
     private fun readPopularRanksCache(): PopularPodcastRanking? {
         val cacheFile = File(context.cacheDir, POPULAR_CACHE_FILENAME)
@@ -885,7 +978,8 @@ class RemoteIndexClient(private val context: Context) {
             val titleRanks = linkedMapOf<String, Int>()
             idRanksObj.keys().forEach { key -> idRanks[key] = idRanksObj.getInt(key) }
             titleRanksObj.keys().forEach { key -> titleRanks[key] = titleRanksObj.getInt(key) }
-            PopularPodcastRanking(idRanks = idRanks, titleRanks = titleRanks)
+            val generatedAt = json.optString("generated_at", "")
+            PopularPodcastRanking(idRanks = idRanks, titleRanks = titleRanks, snapshotGeneratedAt = generatedAt)
         } catch (e: Exception) {
             Log.d(TAG, "Failed to read popular ranks cache: ${e.message}")
             null
@@ -895,6 +989,10 @@ class RemoteIndexClient(private val context: Context) {
     /**
      * Persist popular podcast ranks to disk so the next launch can return
      * immediately without a network round-trip.
+     *
+     * Also persists [PopularPodcastRanking.snapshotGeneratedAt] so the next
+     * launch can detect whether the GCS snapshot has been updated since the
+     * data was cached.
      *
      * Writes to a temporary file first and renames atomically to prevent a
      * corrupt cache if the app is killed mid-write.
@@ -910,6 +1008,9 @@ class RemoteIndexClient(private val context: Context) {
             val json = JSONObject()
             json.put("id_ranks", idRanksObj)
             json.put("title_ranks", titleRanksObj)
+            if (ranking.snapshotGeneratedAt.isNotBlank()) {
+                json.put("generated_at", ranking.snapshotGeneratedAt)
+            }
             tmpFile.writeText(json.toString())
             tmpFile.renameTo(cacheFile)
             Log.d(TAG, "Saved popular ranks cache: ${ranking.idRanks.size} ids")
@@ -921,6 +1022,59 @@ class RemoteIndexClient(private val context: Context) {
 
     private fun normalizeTitle(value: String): String =
         value.trim().lowercase().replace(Regex("\\s+"), " ")
+
+    /**
+     * Read popular episode ranks from the on-device disk cache.
+     *
+     * Returns null if the cache file does not exist or is older than
+     * [POPULAR_CACHE_TTL_MS] (6 hours).
+     */
+    private fun readPopularEpisodesCache(): PopularEpisodeRanking? {
+        val cacheFile = File(context.cacheDir, POPULAR_EPISODES_CACHE_FILENAME)
+        if (!cacheFile.exists()) return null
+        if (System.currentTimeMillis() - cacheFile.lastModified() > POPULAR_CACHE_TTL_MS) return null
+        return try {
+            val json = JSONObject(cacheFile.readText())
+            val idRanksObj = json.optJSONObject("id_ranks") ?: return null
+            val idRanks = linkedMapOf<String, Int>()
+            idRanksObj.keys().forEach { key -> idRanks[key] = idRanksObj.getInt(key) }
+            val generatedAt = json.optString("generated_at", "")
+            PopularEpisodeRanking(idRanks = idRanks, snapshotGeneratedAt = generatedAt)
+        } catch (e: Exception) {
+            Log.d(TAG, "Failed to read popular episodes cache: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Persist popular episode ranks to disk so the next launch can return
+     * immediately without a network round-trip.
+     *
+     * Also persists [PopularEpisodeRanking.snapshotGeneratedAt] so the caller
+     * can detect when the GCS snapshot has been refreshed.
+     *
+     * Writes to a temporary file first and renames atomically to prevent
+     * corruption if the app is killed mid-write.
+     */
+    private fun savePopularEpisodesCache(ranking: PopularEpisodeRanking) {
+        val cacheFile = File(context.cacheDir, POPULAR_EPISODES_CACHE_FILENAME)
+        val tmpFile = File(context.cacheDir, "$POPULAR_EPISODES_CACHE_FILENAME.tmp")
+        try {
+            val idRanksObj = JSONObject()
+            ranking.idRanks.forEach { (k, v) -> idRanksObj.put(k, v) }
+            val json = JSONObject()
+            json.put("id_ranks", idRanksObj)
+            if (ranking.snapshotGeneratedAt.isNotBlank()) {
+                json.put("generated_at", ranking.snapshotGeneratedAt)
+            }
+            tmpFile.writeText(json.toString())
+            tmpFile.renameTo(cacheFile)
+            Log.d(TAG, "Saved popular episodes cache: ${ranking.idRanks.size} ids")
+        } catch (e: Exception) {
+            Log.d(TAG, "Failed to save popular episodes cache: ${e.message}")
+            tmpFile.delete()
+        }
+    }
 
     // ── HTTP helpers ──────────────────────────────────────────────────────────
 
