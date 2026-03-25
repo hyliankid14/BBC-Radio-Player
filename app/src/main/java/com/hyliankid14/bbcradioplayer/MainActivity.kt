@@ -215,6 +215,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Refresh home-screen widgets on every app launch so they pick up the latest
+        // playback state and artwork (including the generic station icons) without
+        // requiring the user to play a station first.
+        WidgetUpdateHelper.updateAllWidgets(this)
+
         // Local indexing is disabled in favour of cloud index search.
         // Cancel any stale one-time/periodic local indexing work on startup.
         try {
