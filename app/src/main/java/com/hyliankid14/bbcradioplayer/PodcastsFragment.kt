@@ -790,7 +790,7 @@ class PodcastsFragment : Fragment() {
                         // Background refresh: if the initial data came from the disk cache, always
                         // fetch the latest snapshot from the network so that ranking updates pushed
                         // by the GitHub Actions workflow (every 6 hours, or on manual trigger) are
-                        // reflected without waiting for the 24-hour cache TTL to expire.
+                        // reflected without waiting for the cache TTL to expire.
                         if (popularRanks.fromCache) {
                             val freshRanks = withContext(Dispatchers.IO) {
                                 repository.fetchPopularPodcastRanks(days = 30, skipCache = true)
