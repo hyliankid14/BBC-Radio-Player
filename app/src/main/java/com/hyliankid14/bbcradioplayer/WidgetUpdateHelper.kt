@@ -83,32 +83,35 @@ object WidgetUpdateHelper {
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
 
-        val artworkUrl = if (isCurrentStation && !currentShow?.imageUrl.isNullOrEmpty()) {
+        // Only use show image artwork (not the BBC station logo); fall back to the generic
+        // station icon so BBC branding never appears in the widget background.
+        val showArtworkUrl = if (isCurrentStation && !currentShow?.imageUrl.isNullOrEmpty()) {
             currentShow?.imageUrl
         } else {
-            station.logoUrl
+            null
         }
 
-        if (!artworkUrl.isNullOrEmpty()) {
+        val backgroundBitmap: android.graphics.Bitmap = if (!showArtworkUrl.isNullOrEmpty()) {
             try {
-                // Load mildly blurred background artwork to mirror Android Auto-like playback cards.
-                val blurredBitmap = Glide.with(context)
+                val loaded = Glide.with(context)
                     .asBitmap()
-                    .load(artworkUrl)
+                    .load(showArtworkUrl)
                     .transform(com.bumptech.glide.load.resource.bitmap.CenterCrop())
                     .override(400, 400)
                     .submit()
                     .get()
-
-                val blurred = applyBlur(context, blurredBitmap, 10f)
-                views.setImageViewBitmap(R.id.widget_background_artwork, blurred)
-
-                appWidgetManager.updateAppWidget(appWidgetId, views)
-            } catch (_: Exception) {
-                views.setImageViewResource(R.id.widget_background_artwork, R.drawable.ic_music_note)
-                appWidgetManager.updateAppWidget(appWidgetId, views)
+                applyBlur(context, loaded, 10f)
+            } catch (e: Exception) {
+                android.util.Log.w("WidgetUpdateHelper", "Failed to load show artwork: ${e.message}")
+                applyBlur(context, StationArtwork.createBitmap(station.id, 400), 10f)
             }
+        } else {
+            applyBlur(context, StationArtwork.createBitmap(station.id, 400), 10f)
         }
+
+        // Load mildly blurred background artwork to mirror Android Auto-like playback cards.
+        views.setImageViewBitmap(R.id.widget_background_artwork, backgroundBitmap)
+        appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 
     private fun resolveLayoutForSize(
