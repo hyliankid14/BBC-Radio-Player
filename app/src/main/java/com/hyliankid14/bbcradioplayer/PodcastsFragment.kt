@@ -46,6 +46,7 @@ class PodcastsFragment : Fragment() {
     private var cachedNewlyAddedPodcastEpochs: Map<String, Long> = emptyMap()
     private var analyticsPopularRanks: Map<String, Int> = emptyMap()
     private var analyticsPopularTitleRanks: Map<String, Int> = emptyMap()
+    private var isLoadingPopularRanks: Boolean = false
     private var searchQuery = ""
     private var searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView? = null
     private var searchInputLayout: com.google.android.material.textfield.TextInputLayout? = null
@@ -768,6 +769,7 @@ class PodcastsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 launch {
+                    isLoadingPopularRanks = true
                     try {
                         // Initial load: use the on-device disk cache if it is still fresh so the
                         // sort order appears instantly without waiting for a network round-trip.
@@ -815,6 +817,8 @@ class PodcastsFragment : Fragment() {
                         }
                     } catch (e: Exception) {
                         android.util.Log.w("PodcastsFragment", "Failed to load popular podcast ranks: ${e.message}")
+                    } finally {
+                        isLoadingPopularRanks = false
                     }
                 }
 
@@ -897,6 +901,45 @@ class PodcastsFragment : Fragment() {
                     }
                 }
 
+                // Background prewarm for New Podcasts metadata so switching sort feels instant.
+                // This keeps lazy-loading behaviour for startup but avoids "first tap is empty".
+                if (allPodcasts.isNotEmpty() && (cachedEarliestUpdates.isEmpty() || cachedNewlyAddedPodcastEpochs.isEmpty())) {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        try {
+                            val prewarmedEarliest = withContext(Dispatchers.IO) {
+                                repository.fetchCloudPodcastDateBounds(allPodcasts)
+                                    .mapValues { it.value.earliestEpisodeEpoch }
+                                    .ifEmpty { repository.getAvailableCloudEarliestUpdatesNow(allPodcasts) }
+                                    .ifEmpty { repository.getAvailableEarliestUpdatesNow(allPodcasts) }
+                            }
+                            val prewarmedNewlyAdded = withContext(Dispatchers.IO) {
+                                repository.fetchNewlyAddedPodcastEpochs(allPodcasts)
+                            }
+                            if (prewarmedEarliest.isNotEmpty()) {
+                                cachedEarliestUpdates = prewarmedEarliest
+                                viewModel.cachedEarliestUpdates = prewarmedEarliest
+                            }
+                            if (prewarmedNewlyAdded.isNotEmpty()) {
+                                cachedNewlyAddedPodcastEpochs = prewarmedNewlyAdded
+                                viewModel.cachedNewlyAddedPodcastEpochs = prewarmedNewlyAdded
+                            }
+                            if (
+                                isAdded &&
+                                normalizeSortValue(currentSort) == SORT_NEW_PODCASTS &&
+                                (prewarmedEarliest.isNotEmpty() || prewarmedNewlyAdded.isNotEmpty())
+                            ) {
+                                val empty = view?.findViewById<TextView>(R.id.empty_state_text)
+                                val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+                                if (empty != null && rv != null) {
+                                    applyFilters(empty, rv)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("PodcastsFragment", "New Podcasts metadata prewarm failed: ${e.message}")
+                        }
+                    }
+                }
+
                 // Background indexing (Room FTS) disabled (waiting for Gradle/Kapt fix). In the meantime we rely on limited prefetches for search.
 
                 loadingIndicator.visibility = View.GONE
@@ -958,8 +1001,23 @@ class PodcastsFragment : Fragment() {
             !isLoadingNewPodcastBounds &&
             !hasAttemptedNewPodcastBoundsLoad
         ) {
+            emptyState.text = "Loading New Podcasts..."
+            emptyState.visibility = View.VISIBLE
+            recyclerView.visibility = View.VISIBLE
             loadNewPodcastBoundsAndReapply(emptyState, recyclerView)
             return
+        }
+
+        if (
+            normalizeSortValue(currentSort) == SORT_MOST_POPULAR &&
+            isLoadingPopularRanks &&
+            analyticsPopularRanks.isEmpty() &&
+            analyticsPopularTitleRanks.isEmpty() &&
+            allPodcasts.isNotEmpty()
+        ) {
+            emptyState.text = "Loading Most popular podcasts..."
+            emptyState.visibility = View.VISIBLE
+            recyclerView.visibility = View.VISIBLE
         }
 
         // If we're restoring from cache, skip automatic reloads
@@ -1078,10 +1136,33 @@ class PodcastsFragment : Fragment() {
                 val resolvedNewlyAdded = withContext(Dispatchers.IO) {
                     repository.fetchNewlyAddedPodcastEpochs(allPodcasts)
                 }
-                cachedEarliestUpdates = resolvedEarliest
-                viewModel.cachedEarliestUpdates = resolvedEarliest
-                cachedNewlyAddedPodcastEpochs = resolvedNewlyAdded
-                viewModel.cachedNewlyAddedPodcastEpochs = resolvedNewlyAdded
+
+                var finalEarliest = resolvedEarliest
+                var finalNewlyAdded = resolvedNewlyAdded
+
+                // First installs may race cloud index warm-up and return empty once.
+                // Retry once with forceRefresh before showing an empty New Podcasts list.
+                if (finalEarliest.isEmpty() && finalNewlyAdded.isEmpty()) {
+                    android.util.Log.d("PodcastsFragment", "Retrying New Podcasts metadata with forceRefresh")
+                    finalEarliest = withContext(Dispatchers.IO) {
+                        repository.fetchCloudPodcastDateBounds(allPodcasts, forceRefresh = true)
+                            .mapValues { it.value.earliestEpisodeEpoch }
+                            .ifEmpty {
+                                repository.fetchPodcastDateBounds(allPodcasts, forceRefresh = true)
+                                    .mapValues { it.value.earliestEpisodeEpoch }
+                                    .filterValues { it > 0L }
+                            }
+                            .ifEmpty { repository.getAvailableEarliestUpdatesNow(allPodcasts) }
+                    }
+                    finalNewlyAdded = withContext(Dispatchers.IO) {
+                        repository.fetchNewlyAddedPodcastEpochs(allPodcasts, forceRefresh = true)
+                    }
+                }
+
+                cachedEarliestUpdates = finalEarliest
+                viewModel.cachedEarliestUpdates = finalEarliest
+                cachedNewlyAddedPodcastEpochs = finalNewlyAdded
+                viewModel.cachedNewlyAddedPodcastEpochs = finalNewlyAdded
             } catch (e: Exception) {
                 android.util.Log.w("PodcastsFragment", "Failed to load New Podcasts bounds: ${e.message}")
             } finally {
