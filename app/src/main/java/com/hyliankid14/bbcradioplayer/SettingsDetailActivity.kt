@@ -515,9 +515,9 @@ class SettingsDetailActivity : AppCompatActivity() {
         fun updateLastRebuilt(ts: Long?) {
             indexLastRebuilt.text = if (ts != null) {
                 val fmt = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
-                "Last updated: ${fmt.format(java.util.Date(ts))}"
+                "Index last updated: ${fmt.format(java.util.Date(ts))}"
             } else {
-                "Last updated: —"
+                "Index last updated: —"
             }
         }
 
@@ -560,7 +560,7 @@ class SettingsDetailActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     if (!meta?.generatedAt.isNullOrBlank()) {
-                        indexLastRebuilt.text = formatGeneratedAt("Last updated", meta?.generatedAt)
+                        indexLastRebuilt.text = formatGeneratedAt("Index last updated", meta?.generatedAt)
                     }
                     if ((meta?.podcastCount ?: 0) > 0) {
                         indexPodcastCount.text = "${meta!!.podcastCount} podcasts indexed"
