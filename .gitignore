@@ -6,6 +6,7 @@
 /.externalNativeBuild/
 /.cxx/
 /artifacts/
+docs/bbc-podcast-episodes.csv
 
 # Local machine and IDE settings
 /local.properties
@@ -61,4 +62,6 @@ GITLAB_SUBMISSION_STEPS.md
 # Local agent customisation files
 .github/instructions/Shai.instructions.md
 .claude/rules/Shai.instructions.md
-docs/bbc-podcast-episodes.csv
+.github/agents/Ask.agent.md
+.github/agents/Explore.agent.md
+.github/agents/Plan.agent.md
