@@ -490,10 +490,27 @@ class SettingsDetailActivity : AppCompatActivity() {
 
     private fun setupIndexingSettings() {
         val indexLastRebuilt: TextView = findViewById(R.id.index_last_rebuilt)
+        val popularLastUpdated: TextView = findViewById(R.id.index_popular_last_updated)
+        val newPodcastsLastUpdated: TextView = findViewById(R.id.index_new_podcasts_last_updated)
         val indexPodcastCount: TextView = findViewById(R.id.index_podcast_count)
         val indexEpisodeCount: TextView = findViewById(R.id.index_episode_count)
         val indexStore = com.hyliankid14.bbcradioplayer.db.IndexStore.getInstance(this)
         val remoteIndexClient = RemoteIndexClient(this)
+
+        fun formatGeneratedAt(label: String, generatedAt: String?): String {
+            if (generatedAt.isNullOrBlank()) return "$label: —"
+            val generatedAtMillis = try {
+                java.time.Instant.parse(generatedAt).toEpochMilli()
+            } catch (_: Exception) {
+                null
+            }
+            return if (generatedAtMillis != null) {
+                val fmt = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+                "$label: ${fmt.format(java.util.Date(generatedAtMillis))}"
+            } else {
+                "$label: $generatedAt"
+            }
+        }
 
         fun updateLastRebuilt(ts: Long?) {
             indexLastRebuilt.text = if (ts != null) {
@@ -530,28 +547,33 @@ class SettingsDetailActivity : AppCompatActivity() {
                 } catch (_: Exception) {
                     null
                 }
-
-                if (meta?.generatedAt.isNullOrBlank()) {
-                    return@launch
+                val popularSnapshot = try {
+                    remoteIndexClient.fetchPopularPodcastRanks(days = 30)
+                } catch (_: Exception) {
+                    null
                 }
-
-                val generatedAtMillis = try {
-                    java.time.Instant.parse(meta?.generatedAt).toEpochMilli()
+                val newPodcastSnapshot = try {
+                    remoteIndexClient.fetchNewPodcastSnapshot()
                 } catch (_: Exception) {
                     null
                 }
 
                 runOnUiThread {
-                    if (generatedAtMillis != null) {
-                        val fmt = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
-                        indexLastRebuilt.text = "Last updated (Google Cloud): ${fmt.format(java.util.Date(generatedAtMillis))}"
-                    } else {
-                        indexLastRebuilt.text = "Last updated (Google Cloud): ${meta?.generatedAt}"
+                    if (!meta?.generatedAt.isNullOrBlank()) {
+                        indexLastRebuilt.text = formatGeneratedAt("Last updated (Google Cloud)", meta?.generatedAt)
                     }
                     if ((meta?.podcastCount ?: 0) > 0) {
                         indexPodcastCount.text = "${meta!!.podcastCount} podcasts indexed"
                         indexEpisodeCount.text = "${meta.episodeCount} episodes indexed"
                     }
+                    popularLastUpdated.text = formatGeneratedAt(
+                        "Most popular updated (Google Cloud)",
+                        popularSnapshot?.snapshotGeneratedAt
+                    )
+                    newPodcastsLastUpdated.text = formatGeneratedAt(
+                        "New Podcasts updated (Google Cloud)",
+                        newPodcastSnapshot?.snapshotGeneratedAt
+                    )
                 }
             }
         }

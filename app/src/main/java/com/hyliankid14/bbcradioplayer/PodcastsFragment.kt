@@ -113,6 +113,26 @@ class PodcastsFragment : Fragment() {
 
     private fun currentFilterHash(): Int = (currentFilter.hashCode() * 31) xor currentSort.hashCode()
 
+    private fun showLoadingFeedback(
+        loadingIndicator: ProgressBar,
+        emptyState: TextView,
+        message: String
+    ) {
+        loadingIndicator.visibility = View.VISIBLE
+        emptyState.text = message
+        emptyState.visibility = View.VISIBLE
+    }
+
+    private fun hideLoadingFeedback(
+        loadingIndicator: ProgressBar,
+        emptyState: TextView
+    ) {
+        loadingIndicator.visibility = View.GONE
+        if (emptyState.text.toString() in ACTIVE_LOADING_MESSAGES) {
+            emptyState.visibility = View.GONE
+        }
+    }
+
     /** Update the search field's end icon based on whether the field is empty.
      *  Empty → shuffle icon; non-empty → clear (X) icon. */
     private fun updateSearchEndIcon(empty: Boolean) {
@@ -764,8 +784,7 @@ class PodcastsFragment : Fragment() {
         sortSpinner: com.google.android.material.textfield.MaterialAutoCompleteTextView
     ) {
         lastLoadedExcludeNonEnglish = PodcastFilterPreference.excludeNonEnglish(requireContext())
-        loadingIndicator.visibility = View.VISIBLE
-        emptyState.text = "No podcasts found"
+        showLoadingFeedback(loadingIndicator, emptyState, LOADING_PODCASTS_MESSAGE)
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 launch {
@@ -852,9 +871,9 @@ class PodcastsFragment : Fragment() {
 
                     if (fresh.isEmpty()) {
                         if (allPodcasts.isEmpty()) {
+                            hideLoadingFeedback(loadingIndicator, emptyState)
                             emptyState.text = "No podcasts found. Check your connection and try again."
                             emptyState.visibility = View.VISIBLE
-                            loadingIndicator.visibility = View.GONE
                         }
                         return@launch
                     }
@@ -872,9 +891,9 @@ class PodcastsFragment : Fragment() {
                 } else if (immediate.isEmpty()) {
                     // This branch should not occur in practice: a fresh cache implies data exists.
                     // Handled defensively to avoid leaving the UI in a broken state.
+                    hideLoadingFeedback(loadingIndicator, emptyState)
                     emptyState.text = "No podcasts found. Try refreshing the app."
                     emptyState.visibility = View.VISIBLE
-                    loadingIndicator.visibility = View.GONE
                     return@launch
                 }
 
@@ -886,7 +905,7 @@ class PodcastsFragment : Fragment() {
                 }
                 cachedUpdates = dateBounds.mapValues { it.value.latestEpisodeEpoch }
                 viewModel.cachedUpdates = cachedUpdates
-                loadingIndicator.visibility = View.GONE
+                hideLoadingFeedback(loadingIndicator, emptyState)
                 applyFilters(emptyState, recyclerView)
 
                 // STEP 4: Background prefetch of episode metadata for top podcasts.
@@ -942,14 +961,15 @@ class PodcastsFragment : Fragment() {
 
                 // Background indexing (Room FTS) disabled (waiting for Gradle/Kapt fix). In the meantime we rely on limited prefetches for search.
 
-                loadingIndicator.visibility = View.GONE
+                hideLoadingFeedback(loadingIndicator, emptyState)
             } catch (e: Exception) {
                 android.util.Log.e("PodcastsFragment", "Error loading podcasts", e)
                 if (allPodcasts.isEmpty()) {
+                    hideLoadingFeedback(loadingIndicator, emptyState)
                     emptyState.text = "Error loading podcasts: ${e.message}"
                     emptyState.visibility = View.VISIBLE
                 }
-                loadingIndicator.visibility = View.GONE
+                hideLoadingFeedback(loadingIndicator, emptyState)
             }
         }
     }
@@ -987,7 +1007,7 @@ class PodcastsFragment : Fragment() {
         }
         viewModel.cachedPodcasts = allPodcasts
 
-        loadingIndicator.visibility = View.GONE
+        hideLoadingFeedback(loadingIndicator, emptyState)
         applyFilters(emptyState, recyclerView)
     }
 
@@ -1001,8 +1021,8 @@ class PodcastsFragment : Fragment() {
             !isLoadingNewPodcastBounds &&
             !hasAttemptedNewPodcastBoundsLoad
         ) {
-            emptyState.text = "Loading New Podcasts..."
-            emptyState.visibility = View.VISIBLE
+            val loadingIndicator = requireView().findViewById<ProgressBar>(R.id.loading_progress)
+            showLoadingFeedback(loadingIndicator, emptyState, LOADING_NEW_PODCASTS_MESSAGE)
             recyclerView.visibility = View.VISIBLE
             loadNewPodcastBoundsAndReapply(emptyState, recyclerView)
             return
@@ -1015,9 +1035,13 @@ class PodcastsFragment : Fragment() {
             analyticsPopularTitleRanks.isEmpty() &&
             allPodcasts.isNotEmpty()
         ) {
-            emptyState.text = "Loading Most popular podcasts..."
-            emptyState.visibility = View.VISIBLE
+            val loadingIndicator = requireView().findViewById<ProgressBar>(R.id.loading_progress)
+            showLoadingFeedback(loadingIndicator, emptyState, LOADING_POPULAR_PODCASTS_MESSAGE)
             recyclerView.visibility = View.VISIBLE
+        } else {
+            view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loadingIndicator ->
+                hideLoadingFeedback(loadingIndicator, emptyState)
+            }
         }
 
         // If we're restoring from cache, skip automatic reloads
@@ -1119,7 +1143,9 @@ class PodcastsFragment : Fragment() {
 
         isLoadingNewPodcastBounds = true
         hasAttemptedNewPodcastBoundsLoad = true
-        view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.VISIBLE
+        view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loadingIndicator ->
+            showLoadingFeedback(loadingIndicator, emptyState, LOADING_NEW_PODCASTS_MESSAGE)
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
@@ -1167,7 +1193,9 @@ class PodcastsFragment : Fragment() {
                 android.util.Log.w("PodcastsFragment", "Failed to load New Podcasts bounds: ${e.message}")
             } finally {
                 isLoadingNewPodcastBounds = false
-                view?.findViewById<ProgressBar>(R.id.loading_progress)?.visibility = View.GONE
+                view?.findViewById<ProgressBar>(R.id.loading_progress)?.let { loadingIndicator ->
+                    hideLoadingFeedback(loadingIndicator, emptyState)
+                }
             }
 
             if (isAdded) {
@@ -2531,6 +2559,9 @@ class PodcastsFragment : Fragment() {
     companion object {
         private const val SHAKE_THRESHOLD_GRAVITY = 2.7f
         private const val SHAKE_DEBOUNCE_MS = 1000L
+        private const val LOADING_PODCASTS_MESSAGE = "Loading podcasts...\nChecking saved data and syncing with the BBC catalogue."
+        private const val LOADING_POPULAR_PODCASTS_MESSAGE = "Loading Most popular...\nFetching the latest rankings from the cloud index."
+        private const val LOADING_NEW_PODCASTS_MESSAGE = "Loading New Podcasts...\nFetching the latest additions from the cloud index."
         private const val SORT_MOST_POPULAR = "Most popular"
         private const val SORT_MOST_RECENT_EPISODES = "Most recently updated"
         private const val SORT_MOST_RECENT_EPISODES_LEGACY = "Most recent"
@@ -2538,6 +2569,11 @@ class PodcastsFragment : Fragment() {
         private const val SORT_NEW_PODCASTS_LEGACY = "Most recently added podcasts"
         private const val SORT_ALPHABETICAL = "Alphabetical (A-Z)"
         private const val NEW_PODCAST_WINDOW_MS = 180L * 24L * 60L * 60L * 1000L
+        private val ACTIVE_LOADING_MESSAGES = setOf(
+            LOADING_PODCASTS_MESSAGE,
+            LOADING_POPULAR_PODCASTS_MESSAGE,
+            LOADING_NEW_PODCASTS_MESSAGE
+        )
     } // End of PodcastsFragment class
 
     private data class Quadruple<A, B, C, D>(

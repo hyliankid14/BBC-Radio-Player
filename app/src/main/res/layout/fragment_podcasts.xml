@@ -211,6 +211,10 @@
         android:layout_height="match_parent"
         android:text="No podcasts found"
         android:gravity="center"
+        android:paddingHorizontal="32dp"
+        android:lineSpacingExtra="4dp"
+        android:textSize="16sp"
+        android:textColor="?attr/colorOnSurface"
         android:visibility="gone" />
 
     <!-- Floating action button to return to top and appear while scrolling -->
