@@ -33,6 +33,8 @@ object EpisodeDownloadManager {
     
     // Broadcast action sent when a download completes or fails
     const val ACTION_DOWNLOAD_COMPLETE = "com.hyliankid14.bbcradioplayer.DOWNLOAD_COMPLETE"
+        // Broadcast action sent when a downloaded episode is deleted
+        const val ACTION_DOWNLOAD_DELETED = "com.hyliankid14.bbcradioplayer.DOWNLOAD_DELETED"
     const val EXTRA_EPISODE_ID = "episode_id"
     const val EXTRA_SUCCESS = "success"
     const val EXTRA_FAILURE_REASON = "failure_reason"
@@ -217,6 +219,7 @@ object EpisodeDownloadManager {
                         prefs.edit().remove(KEY_PREFIX_DIRECT_RETRY + episodeId).apply()
 
                         val broadcastIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                            setPackage(context.packageName)
                             putExtra(EXTRA_EPISODE_ID, episodeId)
                             putExtra(EXTRA_SUCCESS, true)
                         }
@@ -260,6 +263,7 @@ object EpisodeDownloadManager {
                 prefs.edit().remove(KEY_PREFIX_DIRECT_RETRY + episodeId).apply()
 
                 val broadcastIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                    setPackage(context.packageName)
                     putExtra(EXTRA_EPISODE_ID, episodeId)
                     putExtra(EXTRA_SUCCESS, false)
                     putExtra(EXTRA_FAILURE_REASON, failureReason)
@@ -379,6 +383,7 @@ object EpisodeDownloadManager {
                         prefs(appContext).edit().remove("pending_${episode.id}").apply()
 
                         val okIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                            setPackage(appContext.packageName)
                             putExtra(EXTRA_EPISODE_ID, episode.id)
                             putExtra(EXTRA_SUCCESS, true)
                         }
@@ -396,6 +401,7 @@ object EpisodeDownloadManager {
                         val reason = buildFailureReason(code, result.errorMessage)
                         showFailureNotification(appContext, episode.id, if (episode.title.isBlank()) "Episode" else episode.title, reason)
                         val failIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                            setPackage(appContext.packageName)
                             putExtra(EXTRA_EPISODE_ID, episode.id)
                             putExtra(EXTRA_SUCCESS, false)
                             putExtra(EXTRA_FAILURE_REASON, reason)
@@ -406,6 +412,7 @@ object EpisodeDownloadManager {
                     val reason = "Download failed (${e.message ?: "unknown error"})"
                     showFailureNotification(appContext, episode.id, if (episode.title.isBlank()) "Episode" else episode.title, reason)
                     val failIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                        setPackage(appContext.packageName)
                         putExtra(EXTRA_EPISODE_ID, episode.id)
                         putExtra(EXTRA_SUCCESS, false)
                         putExtra(EXTRA_FAILURE_REASON, reason)
@@ -517,6 +524,10 @@ object EpisodeDownloadManager {
                         file.delete()
                     }
                 }
+                context.sendBroadcast(Intent(ACTION_DOWNLOAD_DELETED).apply {
+                    setPackage(context.packageName)
+                    putExtra(EXTRA_EPISODE_ID, episodeId)
+                })
                 if (showToast) showToast(context, "Download deleted")
                 return true
             } catch (e: Exception) {
@@ -781,6 +792,7 @@ object EpisodeDownloadManager {
                         prefs(appContext).edit().remove(KEY_PREFIX_DIRECT_RETRY + episodeId).apply()
 
                         val okIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                            setPackage(appContext.packageName)
                             putExtra(EXTRA_EPISODE_ID, episodeId)
                             putExtra(EXTRA_SUCCESS, true)
                         }
@@ -797,6 +809,7 @@ object EpisodeDownloadManager {
 
                         showFailureNotification(appContext, episodeId, title, failureReason)
                         val failIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                            setPackage(appContext.packageName)
                             putExtra(EXTRA_EPISODE_ID, episodeId)
                             putExtra(EXTRA_SUCCESS, false)
                             putExtra(EXTRA_FAILURE_REASON, failureReason)
@@ -812,6 +825,7 @@ object EpisodeDownloadManager {
                     prefs(appContext).edit().remove(KEY_PREFIX_DIRECT_RETRY + episodeId).apply()
                     showFailureNotification(appContext, episodeId, extractEpisodeTitle(pendingData), failureReason)
                     val failIntent = Intent(ACTION_DOWNLOAD_COMPLETE).apply {
+                        setPackage(appContext.packageName)
                         putExtra(EXTRA_EPISODE_ID, episodeId)
                         putExtra(EXTRA_SUCCESS, false)
                         putExtra(EXTRA_FAILURE_REASON, failureReason)

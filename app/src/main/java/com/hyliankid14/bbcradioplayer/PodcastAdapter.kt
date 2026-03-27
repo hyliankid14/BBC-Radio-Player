@@ -285,6 +285,10 @@ class EpisodeAdapter(
         rebuildDisplayItems()
     }
 
+    fun refreshDownloadState() {
+        rebuildDisplayItems()
+    }
+
     private fun rebuildDisplayItems() {
         if (!hidePlayedEpisodes) {
             displayItems = episodes.map { DisplayItem.EpisodeRow(it) }

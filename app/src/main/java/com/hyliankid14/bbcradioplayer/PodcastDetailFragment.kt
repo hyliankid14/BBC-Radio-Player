@@ -46,6 +46,15 @@ class PodcastDetailFragment : Fragment() {
         }
     }
 
+    private val downloadStateReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            // Refresh download icons when a download completes or is deleted
+            requireActivity().runOnUiThread {
+                episodesAdapter?.refreshDownloadState()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
@@ -206,6 +215,13 @@ class PodcastDetailFragment : Fragment() {
             // Use RECEIVER_NOT_EXPORTED to satisfy Android's requirement for non-system broadcasts
             requireContext().registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED), android.content.Context.RECEIVER_NOT_EXPORTED)
 
+            // Listen for download completions and deletions so episode download icons update automatically
+            val downloadFilter = android.content.IntentFilter().apply {
+                addAction(EpisodeDownloadManager.ACTION_DOWNLOAD_COMPLETE)
+                addAction(EpisodeDownloadManager.ACTION_DOWNLOAD_DELETED)
+            }
+            requireContext().registerReceiver(downloadStateReceiver, downloadFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
+
             // Make the RecyclerView participate in the parent NestedScrollView instead of scrolling independently
             episodesRecycler.isNestedScrollingEnabled = false
 
@@ -317,6 +333,11 @@ class PodcastDetailFragment : Fragment() {
         } catch (e: Exception) {
             // ignore
         }
+        try {
+            requireContext().unregisterReceiver(downloadStateReceiver)
+        } catch (e: Exception) {
+            // ignore
+        }
         episodesRecycler = null
         loadingIndicator = null
         emptyState = null
@@ -364,6 +385,12 @@ class PodcastDetailFragment : Fragment() {
         val podcast = currentPodcast ?: return
         val nextOrder = PodcastEpisodeSortPreference.toggleOrder(requireContext(), podcast.id)
         requireActivity().invalidateOptionsMenu()
+
+        // Re-download appropriate episodes for the new order if auto-download is enabled
+        if (DownloadPreferences.isAutoDownloadEnabled(requireContext())) {
+            PodcastSubscriptions.triggerAutoDownloadForPodcast(requireContext(), podcast.id)
+        }
+
         val messageRes = when (nextOrder) {
             PodcastEpisodeSortPreference.Order.NEWEST_FIRST -> R.string.podcast_episode_sort_changed_newest
             PodcastEpisodeSortPreference.Order.OLDEST_FIRST -> R.string.podcast_episode_sort_changed_oldest

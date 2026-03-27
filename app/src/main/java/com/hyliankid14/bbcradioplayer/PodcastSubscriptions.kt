@@ -60,10 +60,13 @@ object PodcastSubscriptions {
     }
 
     /**
-     * Immediately downloads the latest episodes for a subscribed podcast if auto-download is enabled.
+     * Immediately downloads the appropriate episodes for a subscribed podcast respecting the
+     * current sort-order preference. When oldest-first is set, the oldest unplayed episodes are
+     * downloaded; otherwise the newest ones are. Existing auto-downloads that fall outside the
+     * new target set are deleted first.
      * This runs in the background and handles errors silently.
      */
-    private fun triggerAutoDownloadForPodcast(context: Context, podcastId: String) {
+    fun triggerAutoDownloadForPodcast(context: Context, podcastId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val autoDownloadLimit = DownloadPreferences.getAutoDownloadLimit(context).coerceAtLeast(1)
@@ -75,10 +78,15 @@ object PodcastSubscriptions {
                 val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
                 if (episodes.isEmpty()) return@launch
                 
-                // Determine the target set: the N newest unplayed episodes that should
-                // be auto-downloaded according to the limit.
-                val sortedEpisodes = episodes.sortedByDescending {
-                    EpisodeDateParser.parsePubDateToEpoch(it.pubDate)
+                // Determine the target set: the N next unplayed episodes that should
+                // be auto-downloaded according to the limit. When the podcast is set to
+                // oldest-first, the user will listen to the oldest unplayed episodes next,
+                // so we download those instead of the newest ones.
+                val oldestFirst = PodcastEpisodeSortPreference.isOldestFirst(context, podcastId)
+                val sortedEpisodes = if (oldestFirst) {
+                    episodes.sortedBy { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+                } else {
+                    episodes.sortedByDescending { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
                 }
                 val targetEpisodes = sortedEpisodes
                     .filter { !PlayedEpisodesPreference.isPlayed(context, it.id) }
