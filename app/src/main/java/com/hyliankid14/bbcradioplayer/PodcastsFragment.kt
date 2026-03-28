@@ -752,6 +752,10 @@ class PodcastsFragment : Fragment() {
                 restoringFromCache = false
                 applyFilters(emptyState, recyclerView)
             }
+
+            // Even on fast restore, refresh popular ranks from the network so
+            // analytics order changes appear without waiting for process restart.
+            refreshPopularRanksInBackground(emptyState, recyclerView)
             return
         }
 
@@ -970,6 +974,38 @@ class PodcastsFragment : Fragment() {
                     emptyState.visibility = View.VISIBLE
                 }
                 hideLoadingFeedback(loadingIndicator, emptyState)
+            }
+        }
+    }
+
+    private fun refreshPopularRanksInBackground(emptyState: TextView, recyclerView: RecyclerView) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val freshRanks = withContext(Dispatchers.IO) {
+                    repository.fetchPopularPodcastRanks(days = 30, skipCache = true)
+                }
+
+                val changed =
+                    freshRanks.idRanks != analyticsPopularRanks ||
+                    freshRanks.titleRanks != analyticsPopularTitleRanks
+
+                if (!changed) return@launch
+
+                analyticsPopularRanks = freshRanks.idRanks
+                analyticsPopularTitleRanks = freshRanks.titleRanks
+                viewModel.cachedPopularRanks = analyticsPopularRanks
+                viewModel.cachedPopularTitleRanks = analyticsPopularTitleRanks
+
+                android.util.Log.d(
+                    "PodcastsFragment",
+                    "Refreshed popularity ranks during fast restore: ids=${freshRanks.idRanks.size}, titles=${freshRanks.titleRanks.size}"
+                )
+
+                if (isAdded && allPodcasts.isNotEmpty() && normalizeSortValue(currentSort) == SORT_MOST_POPULAR) {
+                    applyFilters(emptyState, recyclerView)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("PodcastsFragment", "Failed to refresh popular podcast ranks on fast restore: ${e.message}")
             }
         }
     }
