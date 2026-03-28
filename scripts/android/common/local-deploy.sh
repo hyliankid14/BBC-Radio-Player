@@ -4,50 +4,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || (cd "$SCRIPT_DIR/../../.." && pwd))"
 PROPS_FILE="$PROJECT_ROOT/gradle.properties"
+source "$PROJECT_ROOT/scripts/android/common/debug-sync.sh"
 
 # Always execute Gradle from the repository root.
 cd "$PROJECT_ROOT"
 
 REQUESTED_DEVICE="${1:-${ANDROID_SERIAL:-}}"
-
-read_prop() {
-    local key="$1"
-    awk -F'=' -v k="$key" '
-        $0 !~ /^[[:space:]]*#/ {
-            name=$1
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
-            if (name == k) {
-                val=$0
-                sub(/^[^=]*=/, "", val)
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
-                print val
-            }
-        }
-    ' "$PROPS_FILE" | tail -1
-}
-
-bump_patch_version() {
-    local version="$1"
-    if [[ ! "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-        echo "❌ Error: APP_VERSION_NAME must use semantic version format x.y.z. Found: $version"
-        exit 1
-    fi
-
-    local major="${BASH_REMATCH[1]}"
-    local minor="${BASH_REMATCH[2]}"
-    local patch="${BASH_REMATCH[3]}"
-    echo "${major}.${minor}.$((patch + 1))"
-}
-
-RELEASE_VERSION_NAME="$(read_prop APP_VERSION_NAME)"
-RELEASE_VERSION_CODE="$(read_prop APP_VERSION_CODE)"
-if [[ -z "$RELEASE_VERSION_NAME" || -z "$RELEASE_VERSION_CODE" ]]; then
-    echo "❌ Error: APP_VERSION_NAME and APP_VERSION_CODE must be set in $PROPS_FILE"
-    exit 1
-fi
-
-DEBUG_VERSION_NAME="$(bump_patch_version "$RELEASE_VERSION_NAME")"
-DEBUG_VERSION_CODE="$((RELEASE_VERSION_CODE + 1))"
+VERSION_LINES="$(resolve_debug_version_from_props "$PROPS_FILE")"
+RELEASE_VERSION_NAME="$(printf '%s\n' "$VERSION_LINES" | sed -n '1p')"
+RELEASE_VERSION_CODE="$(printf '%s\n' "$VERSION_LINES" | sed -n '2p')"
+DEBUG_VERSION_NAME="$(printf '%s\n' "$VERSION_LINES" | sed -n '3p')"
+DEBUG_VERSION_CODE="$(printf '%s\n' "$VERSION_LINES" | sed -n '4p')"
 
 resolve_android_home() {
     local candidates=()
