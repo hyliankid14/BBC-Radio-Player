@@ -680,17 +680,19 @@ class NowPlayingActivity : AppCompatActivity() {
                     val songArtworkUrl = show.imageUrl
                     if (songArtworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
                         lastArtworkUrl = songArtworkUrl
-                        val genericLogo = StationArtwork.createDrawable(station.id)
                         Glide.with(this)
                             .load(songArtworkUrl)
-                            .placeholder(genericLogo)
-                            .error(genericLogo)
+                            .placeholder(StationArtwork.createDrawable(station.id))
+                            .error(StationArtwork.createDrawable(station.id))
                             .listener(object : RequestListener<Drawable> {
-                                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean = false
+                                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                                    showGenericStationArtwork(station.id)
+                                    return true
+                                }
                                 override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
                                     if (resource is BitmapDrawable) {
                                         if (isPlaceholderImage(resource.bitmap)) {
-                                            stationArtwork.setImageDrawable(genericLogo)
+                                            showGenericStationArtwork(station.id)
                                             return true
                                         }
                                         extractAndApplyDominantColor(resource.bitmap)
@@ -704,7 +706,7 @@ class NowPlayingActivity : AppCompatActivity() {
                     val genericKey = "generic:${station.id}"
                     if (genericKey != lastArtworkUrl && !isFinishing && !isDestroyed) {
                         lastArtworkUrl = genericKey
-                        stationArtwork.setImageDrawable(StationArtwork.createDrawable(station.id))
+                        showGenericStationArtwork(station.id)
                     }
                 }
             }
@@ -1107,17 +1109,19 @@ class NowPlayingActivity : AppCompatActivity() {
                 val songArtworkUrl = show.imageUrl
                 if (songArtworkUrl != lastArtworkUrl && !isFinishing && !isDestroyed) {
                     lastArtworkUrl = songArtworkUrl
-                    val genericLogo = StationArtwork.createDrawable(station.id)
                     Glide.with(this)
                         .load(songArtworkUrl)
-                        .placeholder(genericLogo)
-                        .error(genericLogo)
+                        .placeholder(StationArtwork.createDrawable(station.id))
+                        .error(StationArtwork.createDrawable(station.id))
                         .listener(object : RequestListener<Drawable> {
-                            override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean = false
+                            override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>?, isFirstResource: Boolean): Boolean {
+                                showGenericStationArtwork(station.id)
+                                return true
+                            }
                             override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
                                 if (resource is BitmapDrawable) {
                                     if (isPlaceholderImage(resource.bitmap)) {
-                                        stationArtwork.setImageDrawable(genericLogo)
+                                        showGenericStationArtwork(station.id)
                                         return true
                                     }
                                     extractAndApplyDominantColor(resource.bitmap)
@@ -1131,7 +1135,7 @@ class NowPlayingActivity : AppCompatActivity() {
                 val genericKey = "generic:${station.id}"
                 if (genericKey != lastArtworkUrl && !isFinishing && !isDestroyed) {
                     lastArtworkUrl = genericKey
-                    stationArtwork.setImageDrawable(StationArtwork.createDrawable(station.id))
+                    showGenericStationArtwork(station.id)
                 }
             }
         }
@@ -1635,186 +1639,162 @@ class NowPlayingActivity : AppCompatActivity() {
         markPlayedButton.visibility = android.view.View.GONE
     }
 
+    private fun showGenericStationArtwork(stationId: String) {
+        stationArtwork.setImageDrawable(StationArtwork.createDrawable(stationId))
+        applyDominantColor(StationArtwork.getTintColor(stationId))
+    }
+
     private fun extractAndApplyDominantColor(bitmap: Bitmap) {
-        // Create palette from bitmap asynchronously
         Palette.from(bitmap).generate { palette ->
             if (palette != null && !isFinishing && !isDestroyed) {
-                // Check if we're in light or dark mode
-                val isDarkMode = (resources.configuration.uiMode and 
-                    android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
+                val isDarkMode = (resources.configuration.uiMode and
+                    android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
                     android.content.res.Configuration.UI_MODE_NIGHT_YES
-                
+
                 val dominantColor = if (isDarkMode) {
-                    // Dark mode: use darker swatches for better text contrast
                     palette.darkMutedSwatch?.rgb
                         ?: palette.darkVibrantSwatch?.rgb
                         ?: palette.mutedSwatch?.rgb
                         ?: palette.dominantSwatch?.rgb
                 } else {
-                    // Light mode: use lighter swatches
                     palette.lightMutedSwatch?.rgb
                         ?: palette.lightVibrantSwatch?.rgb
                         ?: palette.mutedSwatch?.rgb
                         ?: palette.dominantSwatch?.rgb
                 }
-                
+
                 if (dominantColor != null) {
-                    val subtleColor = if (isDarkMode) {
-                        // Dark mode: darken moderately (40% brightness)
-                        val darkenFactor = 0.4f
-                        val red = ((dominantColor shr 16) and 0xFF) * darkenFactor
-                        val green = ((dominantColor shr 8) and 0xFF) * darkenFactor
-                        val blue = (dominantColor and 0xFF) * darkenFactor
-                        
-                        android.graphics.Color.rgb(
-                            red.toInt(),
-                            green.toInt(),
-                            blue.toInt()
-                        )
-                    } else {
-                        // Light mode: lighten moderately for better contrast (70% white, 30% color)
-                        val lightenFactor = 0.7f
-                        val red = 255 - ((255 - ((dominantColor shr 16) and 0xFF)) * (1 - lightenFactor)).toInt()
-                        val green = 255 - ((255 - ((dominantColor shr 8) and 0xFF)) * (1 - lightenFactor)).toInt()
-                        val blue = 255 - ((255 - (dominantColor and 0xFF)) * (1 - lightenFactor)).toInt()
-                        
-                        android.graphics.Color.rgb(red, green, blue)
-                    }
-                    
-                    // Calculate luminance of the subtle background color to determine button styling
-                    val r = ((subtleColor shr 16) and 0xFF) / 255f
-                    val g = ((subtleColor shr 8) and 0xFF) / 255f
-                    val b = (subtleColor and 0xFF) / 255f
-                    val luminance = 0.299 * r + 0.587 * g + 0.114 * b
-                    
-                    // Determine if background is light or dark
-                    val isLightBackground = luminance > 0.5f
-                    
-                    // For regular buttons: use a color that contrasts with the background
-                    val buttonOutlineColor = if (isLightBackground) {
-                        // Light background: use darker saturated color
-                        val buttonRed = ((dominantColor shr 16) and 0xFF) * 0.7f
-                        val buttonGreen = ((dominantColor shr 8) and 0xFF) * 0.7f
-                        val buttonBlue = (dominantColor and 0xFF) * 0.7f
-                        android.graphics.Color.rgb(buttonRed.toInt(), buttonGreen.toInt(), buttonBlue.toInt())
-                    } else {
-                        // Dark background: use light color (lighter version of dominant)
-                        val buttonRed = (((dominantColor shr 16) and 0xFF) + 255) / 2
-                        val buttonGreen = (((dominantColor shr 8) and 0xFF) + 255) / 2
-                        val buttonBlue = ((dominantColor and 0xFF) + 255) / 2
-                        android.graphics.Color.rgb(buttonRed, buttonGreen, buttonBlue)
-                    }
-                    
-                    // For the play/pause button: use a slightly lighter/different tint for subtle distinction
-                    val playPauseButtonColor = if (isLightBackground) {
-                        // Light background: use a lighter tint of the dominant color for play/pause
-                        val buttonRed = ((dominantColor shr 16) and 0xFF) * 0.8f
-                        val buttonGreen = ((dominantColor shr 8) and 0xFF) * 0.8f
-                        val buttonBlue = (dominantColor and 0xFF) * 0.8f
-                        android.graphics.Color.rgb(buttonRed.toInt(), buttonGreen.toInt(), buttonBlue.toInt())
-                    } else {
-                        // Dark background: use a slightly lighter tint
-                        val buttonRed = (((dominantColor shr 16) and 0xFF) * 0.5f + 255 * 0.5f).toInt()
-                        val buttonGreen = (((dominantColor shr 8) and 0xFF) * 0.5f + 255 * 0.5f).toInt()
-                        val buttonBlue = ((dominantColor and 0xFF) * 0.5f + 255 * 0.5f).toInt()
-                        android.graphics.Color.rgb(buttonRed, buttonGreen, buttonBlue)
-                    }
-                    
-                    // Determine icon color: light icons on dark backgrounds, dark on light
-                    val iconColor = if (isLightBackground) {
-                        // Light background: use dark/saturated color for visibility
-                        val iconRed = ((dominantColor shr 16) and 0xFF) 
-                        val iconGreen = ((dominantColor shr 8) and 0xFF) 
-                        val iconBlue = (dominantColor and 0xFF)
-                        android.graphics.Color.rgb(iconRed, iconGreen, iconBlue)
-                    } else {
-                        // Dark background: use white for visibility
-                        android.graphics.Color.WHITE
-                    }
-                    
-                    // Store button colors for use in updateFavoriteButtonBackground()
-                    currentButtonOutlineColor = buttonOutlineColor
-                    currentPlayPauseButtonColor = playPauseButtonColor
-                    currentIconColor = iconColor
-                    currentIsLightBackground = isLightBackground
-                    
-                    // Apply the background color to root layout and toolbar.
-                    runOnUiThread {
-                        rootLayout.setBackgroundColor(subtleColor)
-                        toolbar.setBackgroundColor(subtleColor)
-                        
-                        // Apply dynamic colors to icon buttons (outline style)
-                        val outlineButtonColorStateList = android.content.res.ColorStateList.valueOf(buttonOutlineColor)
-                        val playPauseButtonColorStateList = android.content.res.ColorStateList.valueOf(playPauseButtonColor)
-                        val iconColorStateList = android.content.res.ColorStateList.valueOf(iconColor)
-                        
-                        stopButton.backgroundTintList = outlineButtonColorStateList
-                        stopButton.iconTint = iconColorStateList
-                        previousButton.backgroundTintList = outlineButtonColorStateList
-                        previousButton.iconTint = iconColorStateList
-                        nextButton.backgroundTintList = outlineButtonColorStateList
-                        nextButton.iconTint = iconColorStateList
-                        favoriteButton.backgroundTintList = outlineButtonColorStateList
-                        favoriteButton.iconTint = iconColorStateList
-                        openPodcastButton.backgroundTintList = outlineButtonColorStateList
-                        
-                        // Apply visual distinction for favorited items (radio stations and saved episodes)
-                        val station = PlaybackStateHelper.getCurrentStation()
-                        val isPodcast = station?.id?.startsWith("podcast_") == true
-                        val episodeIdInPlayback = PlaybackStateHelper.getCurrentEpisodeId()
-                        val episodeId = previewEpisodeProp?.id ?: episodeIdInPlayback ?: currentShownEpisodeId
-                        
-                        // Check for saved episodes first
-                        if (!episodeId.isNullOrEmpty()) {
-                            val isSaved = SavedEpisodes.isSaved(this@NowPlayingActivity, episodeId)
-                            if (isSaved) {
-                                // Saved: use same filled circle style as play/pause button
-                                favoriteButton.backgroundTintList = playPauseButtonColorStateList
-                                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
-                            } else {
-                                // Not saved: transparent background with colored icon
-                                favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                                favoriteButton.iconTint = iconColorStateList
-                            }
-                        } else if (!isPodcast && station != null) {
-                            // Radio station favorite styling - match bookmark button behavior
-                            val isFavorited = FavoritesPreference.isFavorite(this@NowPlayingActivity, station.id)
-                            if (isFavorited) {
-                                // Favorited: use same filled circle style as play/pause button
-                                favoriteButton.backgroundTintList = playPauseButtonColorStateList
-                                favoriteButton.iconTint = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
-                            } else {
-                                // Not favorited: transparent background with colored icon
-                                favoriteButton.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                                favoriteButton.iconTint = iconColorStateList
-                            }
-                        }
-                        
-                        // Play/pause button uses a slightly different fill color for subtle distinction
-                        playPauseButton.backgroundTintList = playPauseButtonColorStateList
-                        playPauseButton.iconTint = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
-                        
-                        // Apply dynamic colors to slider
-                        seekBar.trackActiveTintList = iconColorStateList
-                        seekBar.thumbTintList = iconColorStateList
-                        
-                        // For inactive track, use a semi-transparent version of the icon color
-                        val inactiveColor = android.graphics.Color.argb(
-                            76, // ~30% opacity
-                            android.graphics.Color.red(iconColor),
-                            android.graphics.Color.green(iconColor),
-                            android.graphics.Color.blue(iconColor)
-                        )
-                        seekBar.trackInactiveTintList = android.content.res.ColorStateList.valueOf(inactiveColor)
-                        seekBar.haloTintList = android.content.res.ColorStateList.valueOf(inactiveColor)
-                        
-                        // Use the compat controller to avoid deprecated status bar appearance APIs.
-                        WindowInsetsControllerCompat(window, window.decorView).apply {
-                            isAppearanceLightStatusBars = !isDarkMode
-                            isAppearanceLightNavigationBars = !isDarkMode
-                        }
-                    }
+                    applyDominantColor(dominantColor)
                 }
+            }
+        }
+    }
+
+    private fun applyDominantColor(dominantColor: Int) {
+        val isDarkMode = (resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+        val subtleColor = if (isDarkMode) {
+            val darkenFactor = 0.4f
+            val red = ((dominantColor shr 16) and 0xFF) * darkenFactor
+            val green = ((dominantColor shr 8) and 0xFF) * darkenFactor
+            val blue = (dominantColor and 0xFF) * darkenFactor
+            android.graphics.Color.rgb(red.toInt(), green.toInt(), blue.toInt())
+        } else {
+            val lightenFactor = 0.7f
+            val red = 255 - ((255 - ((dominantColor shr 16) and 0xFF)) * (1 - lightenFactor)).toInt()
+            val green = 255 - ((255 - ((dominantColor shr 8) and 0xFF)) * (1 - lightenFactor)).toInt()
+            val blue = 255 - ((255 - (dominantColor and 0xFF)) * (1 - lightenFactor)).toInt()
+            android.graphics.Color.rgb(red, green, blue)
+        }
+
+        val r = ((subtleColor shr 16) and 0xFF) / 255f
+        val g = ((subtleColor shr 8) and 0xFF) / 255f
+        val b = (subtleColor and 0xFF) / 255f
+        val luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        val isLightBackground = luminance > 0.5f
+
+        val buttonOutlineColor = if (isLightBackground) {
+            val buttonRed = ((dominantColor shr 16) and 0xFF) * 0.7f
+            val buttonGreen = ((dominantColor shr 8) and 0xFF) * 0.7f
+            val buttonBlue = (dominantColor and 0xFF) * 0.7f
+            android.graphics.Color.rgb(buttonRed.toInt(), buttonGreen.toInt(), buttonBlue.toInt())
+        } else {
+            val buttonRed = (((dominantColor shr 16) and 0xFF) + 255) / 2
+            val buttonGreen = (((dominantColor shr 8) and 0xFF) + 255) / 2
+            val buttonBlue = ((dominantColor and 0xFF) + 255) / 2
+            android.graphics.Color.rgb(buttonRed, buttonGreen, buttonBlue)
+        }
+
+        val playPauseButtonColor = if (isLightBackground) {
+            val buttonRed = ((dominantColor shr 16) and 0xFF) * 0.8f
+            val buttonGreen = ((dominantColor shr 8) and 0xFF) * 0.8f
+            val buttonBlue = (dominantColor and 0xFF) * 0.8f
+            android.graphics.Color.rgb(buttonRed.toInt(), buttonGreen.toInt(), buttonBlue.toInt())
+        } else {
+            val buttonRed = (((dominantColor shr 16) and 0xFF) * 0.5f + 255 * 0.5f).toInt()
+            val buttonGreen = (((dominantColor shr 8) and 0xFF) * 0.5f + 255 * 0.5f).toInt()
+            val buttonBlue = ((dominantColor and 0xFF) * 0.5f + 255 * 0.5f).toInt()
+            android.graphics.Color.rgb(buttonRed, buttonGreen, buttonBlue)
+        }
+
+        val iconColor = if (isLightBackground) {
+            android.graphics.Color.rgb(
+                (dominantColor shr 16) and 0xFF,
+                (dominantColor shr 8) and 0xFF,
+                dominantColor and 0xFF
+            )
+        } else {
+            android.graphics.Color.WHITE
+        }
+
+        currentButtonOutlineColor = buttonOutlineColor
+        currentPlayPauseButtonColor = playPauseButtonColor
+        currentIconColor = iconColor
+        currentIsLightBackground = isLightBackground
+
+        runOnUiThread {
+            rootLayout.setBackgroundColor(subtleColor)
+            toolbar.setBackgroundColor(subtleColor)
+
+            val outlineButtonColorStateList = ColorStateList.valueOf(buttonOutlineColor)
+            val playPauseButtonColorStateList = ColorStateList.valueOf(playPauseButtonColor)
+            val iconColorStateList = ColorStateList.valueOf(iconColor)
+
+            stopButton.backgroundTintList = outlineButtonColorStateList
+            stopButton.iconTint = iconColorStateList
+            previousButton.backgroundTintList = outlineButtonColorStateList
+            previousButton.iconTint = iconColorStateList
+            nextButton.backgroundTintList = outlineButtonColorStateList
+            nextButton.iconTint = iconColorStateList
+            favoriteButton.backgroundTintList = outlineButtonColorStateList
+            favoriteButton.iconTint = iconColorStateList
+            openPodcastButton.backgroundTintList = outlineButtonColorStateList
+
+            val station = PlaybackStateHelper.getCurrentStation()
+            val isPodcast = station?.id?.startsWith("podcast_") == true
+            val episodeIdInPlayback = PlaybackStateHelper.getCurrentEpisodeId()
+            val episodeId = previewEpisodeProp?.id ?: episodeIdInPlayback ?: currentShownEpisodeId
+
+            if (!episodeId.isNullOrEmpty()) {
+                val isSaved = SavedEpisodes.isSaved(this@NowPlayingActivity, episodeId)
+                if (isSaved) {
+                    favoriteButton.backgroundTintList = playPauseButtonColorStateList
+                    favoriteButton.iconTint = ColorStateList.valueOf(android.graphics.Color.WHITE)
+                } else {
+                    favoriteButton.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+                    favoriteButton.iconTint = iconColorStateList
+                }
+            } else if (!isPodcast && station != null) {
+                val isFavorited = FavoritesPreference.isFavorite(this@NowPlayingActivity, station.id)
+                if (isFavorited) {
+                    favoriteButton.backgroundTintList = playPauseButtonColorStateList
+                    favoriteButton.iconTint = ColorStateList.valueOf(android.graphics.Color.WHITE)
+                } else {
+                    favoriteButton.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+                    favoriteButton.iconTint = iconColorStateList
+                }
+            }
+
+            playPauseButton.backgroundTintList = playPauseButtonColorStateList
+            playPauseButton.iconTint = ColorStateList.valueOf(android.graphics.Color.WHITE)
+
+            seekBar.trackActiveTintList = iconColorStateList
+            seekBar.thumbTintList = iconColorStateList
+
+            val inactiveColor = android.graphics.Color.argb(
+                76,
+                android.graphics.Color.red(iconColor),
+                android.graphics.Color.green(iconColor),
+                android.graphics.Color.blue(iconColor)
+            )
+            seekBar.trackInactiveTintList = ColorStateList.valueOf(inactiveColor)
+            seekBar.haloTintList = ColorStateList.valueOf(inactiveColor)
+
+            WindowInsetsControllerCompat(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !isDarkMode
+                isAppearanceLightNavigationBars = !isDarkMode
             }
         }
     }

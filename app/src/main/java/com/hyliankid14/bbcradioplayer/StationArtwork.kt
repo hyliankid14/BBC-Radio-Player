@@ -3,6 +3,7 @@ package com.hyliankid14.bbcradioplayer
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import androidx.core.graphics.ColorUtils
 
 /**
  * Generic station artwork configuration.
@@ -109,13 +110,15 @@ object StationArtwork {
         "radioyork"                 to Config(Color.parseColor("#000000"), "YO")
     )
 
+    private fun configFor(stationId: String): Config =
+        configs[stationId] ?: Config(Color.parseColor("#4A4A8A"), stationId.take(2).uppercase())
+
     /**
      * Returns a fresh [StationLogoDrawable] for [stationId].
      * Falls back to a generic purple-blue if the station is not in the map.
      */
     fun createDrawable(stationId: String): StationLogoDrawable {
-        val config = configs[stationId]
-            ?: Config(Color.parseColor("#4A4A8A"), stationId.take(2).uppercase())
+        val config = configFor(stationId)
         return StationLogoDrawable(
             backgroundColor = config.backgroundColor,
             label = config.label,
@@ -123,6 +126,30 @@ object StationArtwork {
             textColor = config.textColor,
             badgeLabel = config.badgeLabel
         )
+    }
+
+    /**
+     * Returns the strongest non-neutral colour available in the generated station logo.
+     * When a logo is intentionally monochrome, fall back to a stable derived tint.
+     */
+    fun getTintColor(stationId: String): Int {
+        val config = configFor(stationId)
+        return listOf(config.backgroundColor, config.circleColor, config.textColor)
+            .firstOrNull(::isUsableTintColor)
+            ?: derivedTintColor(stationId)
+    }
+
+    private fun isUsableTintColor(color: Int): Boolean {
+        if (Color.alpha(color) < 128) return false
+        val hsl = FloatArray(3)
+        ColorUtils.colorToHSL(color, hsl)
+        val luminance = ColorUtils.calculateLuminance(color)
+        return luminance in 0.08..0.92 && hsl[1] >= 0.18f
+    }
+
+    private fun derivedTintColor(stationId: String): Int {
+        val hue = ((stationId.hashCode().toLong() and 0xffffffffL) % 360L).toFloat()
+        return ColorUtils.HSLToColor(floatArrayOf(hue, 0.45f, 0.48f))
     }
 
     /**
