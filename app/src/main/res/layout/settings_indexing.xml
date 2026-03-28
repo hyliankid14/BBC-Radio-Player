@@ -35,6 +35,21 @@
                 android:layout_marginTop="4dp">
 
                 <CheckBox
+                    android:id="@+id/new_podcast_notifications_checkbox"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/index_new_podcast_notifications_label" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp">
+
+                <CheckBox
                     android:id="@+id/exclude_non_english_checkbox"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

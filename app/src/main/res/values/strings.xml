@@ -12,6 +12,10 @@
     <string name="index_schedule_3">Every 3 days</string>
     <string name="index_schedule_7">Every 7 days</string>
     <string name="exclude_non_english_label">Exclude non-English podcasts</string>
+    <string name="index_new_podcast_notifications_label">Notify me when new podcasts are added</string>
+    <string name="index_new_podcast_notifications_enabled">New podcast notifications enabled</string>
+    <string name="index_new_podcast_notifications_disabled">New podcast notifications disabled</string>
+    <string name="index_new_podcast_notifications_permission_hint">Allow notifications in system settings to receive alerts</string>
     <string name="index_wifi_only_label">Only download index on Wi-Fi</string>
     <string name="index_status_title">Index status</string>
     <string name="index_source_label">Source: Google Cloud index</string>

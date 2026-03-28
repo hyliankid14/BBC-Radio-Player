@@ -10,7 +10,6 @@ import com.hyliankid14.bbcradioplayer.PodcastEpisodeNotifier
 import com.hyliankid14.bbcradioplayer.PodcastSubscriptions
 import com.hyliankid14.bbcradioplayer.RemoteIndexClient
 import com.hyliankid14.bbcradioplayer.db.IndexStore
-import com.hyliankid14.bbcradioplayer.PodcastRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
@@ -183,15 +182,24 @@ object IndexWorker {
                 val store = IndexStore.getInstance(context)
                 val podcasts = downloadedIndex.podcasts
                 val episodes = downloadedIndex.episodes
+                val hadIndexedPodcastsBefore = try {
+                    store.getIndexedPodcastCount() > 0
+                } catch (_: Exception) {
+                    false
+                }
 
                 // Upsert all podcasts from the downloaded index
                 var newPodcasts = 0
+                val newlyAddedPodcasts = mutableListOf<Podcast>()
                 for (p in podcasts) {
                     if (!isActive) break
                     val had = store.hasPodcast(p.id)
                     try {
                         store.upsertPodcast(p)
-                        if (!had) newPodcasts++
+                        if (!had) {
+                            newPodcasts++
+                            newlyAddedPodcasts.add(p)
+                        }
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to upsert podcast ${p.id}: ${e.message}")
                     }
@@ -222,6 +230,10 @@ object IndexWorker {
                 // the previous index update). Also advances lastSeenId so that
                 // SubscriptionRefreshReceiver does not re-fire a duplicate notification.
                 notifyNewEpisodesForSubscriptions(context, podcasts, episodes, newEpisodes)
+
+                // Notify when genuinely new podcasts are added to the app catalogue.
+                // Skip the very first baseline build to avoid flooding users on first setup.
+                notifyNewPodcastsAdded(context, newlyAddedPodcasts, hadIndexedPodcastsBefore)
 
                 onProgress(
                     "Incremental index complete: newPodcasts=$newPodcasts, newEpisodes=$inserted",
@@ -288,6 +300,27 @@ object IndexWorker {
                 Log.d(TAG, "Notified new episode for podcast=$podcastId episodeId=${latestNew.id}")
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to notify new episode for podcast=$podcastId: ${e.message}")
+            }
+        }
+    }
+
+    private fun notifyNewPodcastsAdded(
+        context: Context,
+        newPodcasts: List<Podcast>,
+        hadIndexedPodcastsBefore: Boolean
+    ) {
+        if (!hadIndexedPodcastsBefore) return
+        if (newPodcasts.isEmpty()) return
+        if (!IndexPreference.isNewPodcastNotificationsEnabled(context)) return
+
+        for (podcast in newPodcasts) {
+            try {
+                if (podcast.id.isBlank()) continue
+                if (IndexPreference.hasNotifiedForNewPodcast(context, podcast.id)) continue
+                PodcastEpisodeNotifier.notifyNewPodcastAdded(context, podcast)
+                IndexPreference.markNewPodcastNotified(context, podcast.id)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to notify new podcast ${podcast.id}: ${e.message}")
             }
         }
     }

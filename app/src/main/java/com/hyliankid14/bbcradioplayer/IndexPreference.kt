@@ -8,6 +8,8 @@ object IndexPreference {
     private const val KEY_LAST_SCHEDULED_DAYS = "index_last_scheduled_days"
     private const val KEY_LAST_GENERATED_AT = "index_last_generated_at"
     private const val KEY_WIFI_ONLY = "index_wifi_only"
+    private const val KEY_NEW_PODCAST_NOTIFICATIONS_ENABLED = "new_podcast_notifications_enabled"
+    private const val KEY_NOTIFIED_NEW_PODCAST_IDS = "notified_new_podcast_ids"
 
     // 0 = disabled, otherwise number of days.  Default is 0 (off) so new
     // installs do not automatically download the index until the user schedules it.
@@ -50,5 +52,33 @@ object IndexPreference {
     fun setWifiOnly(context: Context, wifiOnly: Boolean) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.edit().putBoolean(KEY_WIFI_ONLY, wifiOnly).apply()
+    }
+
+    fun isNewPodcastNotificationsEnabled(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_NEW_PODCAST_NOTIFICATIONS_ENABLED, false)
+    }
+
+    fun setNewPodcastNotificationsEnabled(context: Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_NEW_PODCAST_NOTIFICATIONS_ENABLED, enabled).apply()
+    }
+
+    fun hasNotifiedForNewPodcast(context: Context, podcastId: String): Boolean {
+        if (podcastId.isBlank()) return true
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val ids = prefs.getStringSet(KEY_NOTIFIED_NEW_PODCAST_IDS, emptySet()) ?: emptySet()
+        return ids.contains(podcastId)
+    }
+
+    fun markNewPodcastNotified(context: Context, podcastId: String) {
+        if (podcastId.isBlank()) return
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val current = prefs.getStringSet(KEY_NOTIFIED_NEW_PODCAST_IDS, emptySet())?.toMutableSet()
+            ?: mutableSetOf()
+        if (!current.add(podcastId)) return
+        // Keep this bounded so preferences do not grow indefinitely.
+        val trimmed = if (current.size > 500) current.toList().takeLast(500).toSet() else current
+        prefs.edit().putStringSet(KEY_NOTIFIED_NEW_PODCAST_IDS, trimmed).apply()
     }
 }

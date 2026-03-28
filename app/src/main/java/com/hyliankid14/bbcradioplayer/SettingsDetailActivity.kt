@@ -571,7 +571,7 @@ class SettingsDetailActivity : AppCompatActivity() {
                         popularSnapshot?.snapshotGeneratedAt
                     )
                     newPodcastsLastUpdated.text = formatGeneratedAt(
-                        "New Podcasts updated",
+                        "New Podcasts checked",
                         newPodcastSnapshot?.snapshotGeneratedAt
                     )
                 }
@@ -582,6 +582,30 @@ class SettingsDetailActivity : AppCompatActivity() {
         updateLastRebuilt(indexStore.getLastReindexTime())
         updateIndexedCounts()
         updateCloudIndexInfo()
+
+        try {
+            val newPodcastNotificationsCheckbox: android.widget.CheckBox =
+                findViewById(R.id.new_podcast_notifications_checkbox)
+            newPodcastNotificationsCheckbox.isChecked =
+                IndexPreference.isNewPodcastNotificationsEnabled(this)
+            newPodcastNotificationsCheckbox.setOnCheckedChangeListener { _, isChecked ->
+                IndexPreference.setNewPodcastNotificationsEnabled(this, isChecked)
+                val msg = if (isChecked) {
+                    getString(R.string.index_new_podcast_notifications_enabled)
+                } else {
+                    getString(R.string.index_new_podcast_notifications_disabled)
+                }
+                android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show()
+
+                if (isChecked && !androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+                    android.widget.Toast.makeText(
+                        this,
+                        getString(R.string.index_new_podcast_notifications_permission_hint),
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        } catch (_: Exception) { }
 
         // Keep only the user-facing language filter option.
         try {
