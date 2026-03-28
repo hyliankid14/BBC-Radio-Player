@@ -316,7 +316,7 @@ def upload_to_gcs(
     print(f"  Public URL: https://storage.googleapis.com/{bucket_name}/podcast-index-meta.json")
 
     new_podcasts_blob = bucket.blob(NEW_PODCASTS_SNAPSHOT_OBJECT)
-    new_podcasts_blob.cache_control = index_cache_control
+    new_podcasts_blob.cache_control = meta_cache_control
     new_podcasts_blob.content_type = "application/json"
     new_podcasts_blob.upload_from_filename(str(local_new_podcasts_path))
     print(f"Uploaded {local_new_podcasts_path.name} → gs://{bucket_name}/{NEW_PODCASTS_SNAPSHOT_OBJECT}")
