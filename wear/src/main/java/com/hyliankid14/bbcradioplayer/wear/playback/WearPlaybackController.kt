@@ -46,6 +46,8 @@ class WearPlaybackController(private val context: Context) {
             putExtra(WearPlaybackService.EXTRA_PODCAST_ID, episode.podcastId)
             putExtra(WearPlaybackService.EXTRA_TITLE, episode.title)
             putExtra(WearPlaybackService.EXTRA_SUBTITLE, episode.podcastTitle)
+            putExtra(WearPlaybackService.EXTRA_DESCRIPTION, episode.description)
+            putExtra(WearPlaybackService.EXTRA_PUB_DATE, episode.pubDate)
             putExtra(WearPlaybackService.EXTRA_ARTWORK_URL, normaliseUrl(artworkUrl))
             putExtra(WearPlaybackService.EXTRA_IS_LIVE, false)
             putExtra(WearPlaybackService.EXTRA_START_POSITION_MS, startPositionMs)

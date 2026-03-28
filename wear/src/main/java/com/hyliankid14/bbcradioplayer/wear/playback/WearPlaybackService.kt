@@ -64,6 +64,9 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
     private var currentIsLive = false
     private var currentEpisodeId: String? = null
     private var currentPodcastId: String? = null
+    private var currentEpisodeDescription: String = ""
+    private var currentEpisodePubDate: String = ""
+    private var currentEpisodeAudioUrl: String = ""
     private var currentStationId: String? = null
     private var currentServiceId: String? = null
     private var lastProgressSyncAtMs = 0L
@@ -229,6 +232,9 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
                     currentIsLive = intent.getBooleanExtra(EXTRA_IS_LIVE, false)
                     currentEpisodeId = intent.getStringExtra(EXTRA_EPISODE_ID)
                     currentPodcastId = intent.getStringExtra(EXTRA_PODCAST_ID)
+                    currentEpisodeDescription = intent.getStringExtra(EXTRA_DESCRIPTION).orEmpty()
+                    currentEpisodePubDate = intent.getStringExtra(EXTRA_PUB_DATE).orEmpty()
+                    currentEpisodeAudioUrl = (url?.takeIf { it.isNotBlank() } ?: candidateUrls.firstOrNull()).orEmpty()
                     currentStationId = null
                     currentServiceId = null
                     lastProgressSyncAtMs = 0L
@@ -337,6 +343,9 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
         currentIsLive = false
         currentEpisodeId = null
         currentPodcastId = null
+        currentEpisodeDescription = ""
+        currentEpisodePubDate = ""
+        currentEpisodeAudioUrl = ""
         currentStationId = null
         currentServiceId = null
         lastProgressSyncAtMs = 0L
@@ -408,7 +417,18 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
         val dueForSync = now - lastProgressSyncAtMs >= PROGRESS_SYNC_INTERVAL_MS
 
         if (durationMs > 0L && positionMs >= durationMs - PLAYED_COMPLETION_THRESHOLD_MS) {
-            episodeSyncStore.markPlayed(episodeId)
+            episodeSyncStore.markPlayedWithMeta(
+                episodeId = episodeId,
+                title = currentTitle,
+                description = currentEpisodeDescription,
+                imageUrl = currentArtwork.orEmpty(),
+                audioUrl = currentEpisodeAudioUrl,
+                pubDate = currentEpisodePubDate,
+                durationMins = (durationMs / 60_000L).toInt(),
+                podcastId = currentPodcastId.orEmpty(),
+                podcastTitle = currentSubtitle,
+                playedAtMs = System.currentTimeMillis()
+            )
         } else if (positionMs > 0L && (force || progressedEnough || dueForSync)) {
             episodeSyncStore.setProgress(episodeId, positionMs)
             lastSavedPositionMs = positionMs
@@ -798,6 +818,8 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
         const val EXTRA_SERVICE_ID = "extra_service_id"
         const val EXTRA_TITLE = "extra_title"
         const val EXTRA_SUBTITLE = "extra_subtitle"
+        const val EXTRA_DESCRIPTION = "extra_description"
+        const val EXTRA_PUB_DATE = "extra_pub_date"
         const val EXTRA_ARTWORK_URL = "extra_artwork_url"
         const val EXTRA_IS_LIVE = "extra_is_live"
         const val EXTRA_START_POSITION_MS = "extra_start_position_ms"

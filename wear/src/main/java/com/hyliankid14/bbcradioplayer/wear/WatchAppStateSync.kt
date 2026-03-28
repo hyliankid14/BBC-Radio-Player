@@ -22,6 +22,7 @@ object WatchAppStateSync {
     private const val KEY_HAS_SUBSCRIPTION_SNAPSHOT = "has_subscription_snapshot"
     private const val KEY_PLAYED_EPISODE_IDS = "played_episode_ids"
     private const val KEY_HISTORY_EPISODE_IDS = "history_episode_ids"
+    private const val KEY_HISTORY_META_JSON = "history_meta_json"
     private const val KEY_EPISODE_PROGRESS_JSON = "episode_progress_json"
     private const val KEY_HAS_EPISODE_SNAPSHOT = "has_episode_snapshot"
     private const val KEY_UPDATED_AT = "updated_at"
@@ -78,6 +79,7 @@ object WatchAppStateSync {
                     episodeProgress.forEach { (episodeId, positionMs) -> put(episodeId, positionMs) }
                 }
                 dataMap.putString(KEY_EPISODE_PROGRESS_JSON, progressJson.toString())
+                dataMap.putString(KEY_HISTORY_META_JSON, episodeSyncStore.getHistoryMetaJson())
             }
             dataMap.putLong(KEY_UPDATED_AT, System.currentTimeMillis())
         }.asPutDataRequest().setUrgent()

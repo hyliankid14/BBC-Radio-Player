@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONArray
 import org.json.JSONObject
 
 class EpisodeSyncStore(context: Context) {
@@ -53,6 +54,49 @@ class EpisodeSyncStore(context: Context) {
         }.take(MAX_HISTORY_SIZE)
         persist(progress = updatedProgress, playedIds = updatedPlayed, historyIds = updatedHistory, remoteSynced = true)
     }
+
+    fun markPlayedWithMeta(
+        episodeId: String,
+        title: String,
+        description: String,
+        imageUrl: String,
+        audioUrl: String,
+        pubDate: String,
+        durationMins: Int,
+        podcastId: String,
+        podcastTitle: String,
+        playedAtMs: Long
+    ) {
+        markPlayed(episodeId)
+        if (episodeId.isBlank()) return
+        val metaEntry = JSONObject().apply {
+            put("id", episodeId)
+            put("title", title)
+            put("description", description)
+            put("imageUrl", imageUrl)
+            put("audioUrl", audioUrl)
+            put("pubDate", pubDate)
+            put("durationMins", durationMins)
+            put("podcastId", podcastId)
+            put("podcastTitle", podcastTitle)
+            put("playedAtMs", playedAtMs)
+        }
+        val rawMeta = prefs.getString(KEY_HISTORY_META_JSON, null)
+        val existing = if (rawMeta.isNullOrBlank()) JSONArray() else runCatching { JSONArray(rawMeta) }.getOrDefault(JSONArray())
+        val updated = JSONArray()
+        updated.put(metaEntry)
+        for (i in 0 until existing.length()) {
+            val obj = existing.optJSONObject(i) ?: continue
+            if (obj.optString("id") == episodeId) continue
+            updated.put(obj)
+        }
+        val trimmed = if (updated.length() <= MAX_HISTORY_SIZE) updated else JSONArray(
+            (0 until MAX_HISTORY_SIZE).map { updated.get(it) }
+        )
+        prefs.edit().putString(KEY_HISTORY_META_JSON, trimmed.toString()).apply()
+    }
+
+    fun getHistoryMetaJson(): String = prefs.getString(KEY_HISTORY_META_JSON, null) ?: "[]"
 
     fun replaceAll(playedIds: Set<String>, progressMap: Map<String, Long>, historyIds: List<String> = emptyList()) {
         val cleanedPlayed = playedIds.filter { it.isNotBlank() }.toSet()
@@ -105,6 +149,7 @@ class EpisodeSyncStore(context: Context) {
         private const val KEY_PLAYED_IDS = "played_episode_ids"
         private const val KEY_PROGRESS_JSON = "episode_progress_json"
         private const val KEY_HISTORY_IDS = "history_episode_ids"
+        private const val KEY_HISTORY_META_JSON = "history_meta_json"
         private const val KEY_REMOTE_SYNCED = "remote_synced"
         private const val MAX_HISTORY_SIZE = 100
 

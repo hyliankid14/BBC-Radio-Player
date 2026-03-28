@@ -19,6 +19,7 @@ object WearAppStateSync {
     private const val KEY_HAS_SUBSCRIPTION_SNAPSHOT = "has_subscription_snapshot"
     private const val KEY_PLAYED_EPISODE_IDS = "played_episode_ids"
     private const val KEY_HISTORY_EPISODE_IDS = "history_episode_ids"
+    private const val KEY_HISTORY_META_JSON = "history_meta_json"
     private const val KEY_EPISODE_PROGRESS_JSON = "episode_progress_json"
     private const val KEY_HAS_EPISODE_SNAPSHOT = "has_episode_snapshot"
     private const val KEY_UPDATED_AT = "updated_at"
@@ -94,6 +95,7 @@ object WearAppStateSync {
             val historyEpisodeIds = item.dataMap.getStringArrayList(KEY_HISTORY_EPISODE_IDS)?.toSet() ?: emptySet()
             val progressMap = parseProgressMap(item.dataMap.getString(KEY_EPISODE_PROGRESS_JSON).orEmpty())
             mergeEpisodeStateFromWatch(context, playedEpisodeIds + historyEpisodeIds, progressMap)
+            mergeHistoryMetaFromWatch(context, item.dataMap.getString(KEY_HISTORY_META_JSON).orEmpty())
             Log.d(TAG, "Applied watch episode sync played=${playedEpisodeIds.size} history=${historyEpisodeIds.size} progress=${progressMap.size}")
         }
     }
@@ -113,6 +115,39 @@ object WearAppStateSync {
             if (positionMs > 0L && !PlayedEpisodesPreference.isPlayed(context, episodeId)) {
                 PlayedEpisodesPreference.setProgress(context, episodeId, positionMs)
             }
+        }
+    }
+
+    private fun mergeHistoryMetaFromWatch(context: Context, historyMetaJson: String) {
+        if (historyMetaJson.isBlank()) return
+        runCatching {
+            val existingById = PlayedHistoryPreference.getHistory(context).associateBy { it.id }
+            val arr = JSONArray(historyMetaJson)
+            for (i in 0 until arr.length()) {
+                val j = arr.getJSONObject(i)
+                val episodeId = j.optString("id").trim()
+                if (episodeId.isBlank()) continue
+                val playedAtMs = j.optLong("playedAtMs", 0L)
+                // Only add/update if not already in history with a more recent playedAtMs
+                val existing = existingById[episodeId]
+                if (existing != null && existing.playedAtMs >= playedAtMs) continue
+                val entry = PlayedHistoryPreference.Entry(
+                    id = episodeId,
+                    title = j.optString("title"),
+                    description = j.optString("description"),
+                    imageUrl = j.optString("imageUrl"),
+                    audioUrl = j.optString("audioUrl"),
+                    pubDate = j.optString("pubDate"),
+                    durationMins = j.optInt("durationMins", 0),
+                    podcastId = j.optString("podcastId"),
+                    podcastTitle = j.optString("podcastTitle"),
+                    playedAtMs = playedAtMs
+                )
+                PlayedHistoryPreference.saveEntry(context, entry)
+                Log.d(TAG, "Merged watch history entry id=$episodeId title=${entry.title}")
+            }
+        }.onFailure { e ->
+            Log.w(TAG, "Failed to merge watch history metadata", e)
         }
     }
 

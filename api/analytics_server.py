@@ -1475,6 +1475,69 @@ def index():
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@app.route('/admin/events', methods=['DELETE'])
+def admin_delete_events():
+    """
+    Delete analytics events matching the supplied filter criteria.
+
+    Requires the X-Admin-Secret header to match the ADMIN_SECRET environment
+    variable configured on the server.  Returns 503 if ADMIN_SECRET is unset.
+
+    JSON body (all optional, combined with AND):
+        {
+            "podcast_title_contains": "The Naked Week",
+            "platform": "wear",
+            "event_type": "episode_play"
+        }
+
+    Returns:
+        {"status": "ok", "deleted": <int>}
+    """
+    admin_secret = os.environ.get('ADMIN_SECRET', '').strip()
+    if not admin_secret:
+        return jsonify({'error': 'Admin access is not configured on this server'}), 503
+
+    if request.headers.get('X-Admin-Secret', '') != admin_secret:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    try:
+        data = request.get_json() or {}
+        conditions = []
+        params = []
+
+        podcast_title_contains = data.get('podcast_title_contains', '').strip()
+        if podcast_title_contains:
+            conditions.append('podcast_title LIKE ?')
+            params.append(f'%{podcast_title_contains}%')
+
+        platform = data.get('platform', '').strip()
+        if platform:
+            conditions.append('platform = ?')
+            params.append(platform)
+
+        event_type = data.get('event_type', '').strip()
+        if event_type:
+            conditions.append('event_type = ?')
+            params.append(event_type)
+
+        if not conditions:
+            return jsonify({'error': 'At least one filter criterion is required'}), 400
+
+        where_clause = ' AND '.join(conditions)
+        conn = get_db()
+        c = conn.cursor()
+        c.execute(f'DELETE FROM events WHERE {where_clause}', params)
+        deleted = c.rowcount
+        conn.commit()
+        conn.close()
+
+        print(f"[{datetime.now().isoformat()}] ADMIN_DELETE deleted={deleted} filter={data}")
+        return jsonify({'status': 'ok', 'deleted': deleted}), 200
+    except Exception as e:
+        print(f"Error in admin_delete_events: {e}", file=sys.stderr)
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 if __name__ == '__main__':
     # Initialize databases on startup
     init_db()
