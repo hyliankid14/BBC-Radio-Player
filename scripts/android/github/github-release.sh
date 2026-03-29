@@ -6,9 +6,12 @@ PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || (c
 cd "$PROJECT_ROOT"
 
 PROPS_FILE="gradle.properties"
-RELEASE_ASSET_NAME="british-radio-player.apk"
-APK_OUTPUT_DIR="app/build/outputs/apk/github/release"
-APK_OUTPUT_PATH="$APK_OUTPUT_DIR/$RELEASE_ASSET_NAME"
+PHONE_RELEASE_ASSET_NAME="british-radio-player.apk"
+WEAR_RELEASE_ASSET_NAME="british-radio-player-wear.apk"
+PHONE_APK_OUTPUT_DIR="app/build/outputs/apk/github/release"
+WEAR_APK_OUTPUT_DIR="wear/build/outputs/apk/release"
+PHONE_APK_OUTPUT_PATH="$PHONE_APK_OUTPUT_DIR/$PHONE_RELEASE_ASSET_NAME"
+WEAR_APK_OUTPUT_PATH="$WEAR_APK_OUTPUT_DIR/$WEAR_RELEASE_ASSET_NAME"
 
 require_cmd() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -89,16 +92,23 @@ if [[ ! -x ./gradlew ]]; then
     chmod +x ./gradlew
 fi
 
-echo "Building GitHub release APK for ${TAG}..."
-./gradlew :app:assembleGithubRelease
+echo "Building GitHub release APKs (phone + wear) for ${TAG}..."
+./gradlew :app:assembleGithubRelease :wear:assembleRelease
 
-SIGNED_APK="$(find "$APK_OUTPUT_DIR" -type f -name "*.apk" ! -name "*-unsigned.apk" | head -1)"
-if [[ -z "$SIGNED_APK" ]]; then
-    echo "Error: no signed APK found under $APK_OUTPUT_DIR"
+SIGNED_PHONE_APK="$(find "$PHONE_APK_OUTPUT_DIR" -type f -name "*.apk" ! -name "*-unsigned.apk" | head -1)"
+if [[ -z "$SIGNED_PHONE_APK" ]]; then
+    echo "Error: no signed phone APK found under $PHONE_APK_OUTPUT_DIR"
     exit 1
 fi
 
-cp "$SIGNED_APK" "$APK_OUTPUT_PATH"
+SIGNED_WEAR_APK="$(find "$WEAR_APK_OUTPUT_DIR" -type f -name "*.apk" ! -name "*-unsigned.apk" | head -1)"
+if [[ -z "$SIGNED_WEAR_APK" ]]; then
+    echo "Error: no signed Wear APK found under $WEAR_APK_OUTPUT_DIR"
+    exit 1
+fi
+
+cp "$SIGNED_PHONE_APK" "$PHONE_APK_OUTPUT_PATH"
+cp "$SIGNED_WEAR_APK" "$WEAR_APK_OUTPUT_PATH"
 
 PREV_TAG="$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -1)"
 NOTES_END_REF="HEAD"
@@ -152,7 +162,8 @@ NOTES_FILE="$(mktemp)"
     echo "- Version bump: ${TAG} (Build ${VERSION_CODE})."
     echo
     echo "### 📦 Release Artifacts"
-    echo "- ${RELEASE_ASSET_NAME}: A single, unified, installable APK for all supported devices."
+    echo "- ${PHONE_RELEASE_ASSET_NAME}: Signed phone APK for direct GitHub distribution."
+    echo "- ${WEAR_RELEASE_ASSET_NAME}: Signed standalone Wear OS APK for direct GitHub distribution."
     echo
     echo "Release Version: ${TAG} (Build ${VERSION_CODE})"
     if [[ -n "$PREV_TAG" ]]; then
@@ -169,10 +180,15 @@ if ! git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
 fi
 
 if gh release view "$TAG" >/dev/null 2>&1; then
-    gh release upload "$TAG" "$APK_OUTPUT_PATH#${RELEASE_ASSET_NAME}" --clobber
+    gh release upload "$TAG" \
+        "$PHONE_APK_OUTPUT_PATH#${PHONE_RELEASE_ASSET_NAME}" \
+        "$WEAR_APK_OUTPUT_PATH#${WEAR_RELEASE_ASSET_NAME}" \
+        --clobber
     gh release edit "$TAG" --title "$TAG" --notes-file "$NOTES_FILE"
 else
-    gh release create "$TAG" "$APK_OUTPUT_PATH#${RELEASE_ASSET_NAME}" \
+    gh release create "$TAG" \
+        "$PHONE_APK_OUTPUT_PATH#${PHONE_RELEASE_ASSET_NAME}" \
+        "$WEAR_APK_OUTPUT_PATH#${WEAR_RELEASE_ASSET_NAME}" \
         --title "$TAG" \
         --notes-file "$NOTES_FILE"
 fi

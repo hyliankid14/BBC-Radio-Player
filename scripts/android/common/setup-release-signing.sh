@@ -149,5 +149,6 @@ echo "✅ Signing config written to: $GRADLE_PROPS"
 echo "✅ Ready to create signed releases."
 echo
 echo "Next steps:"
-echo "1) ./scripts/github-release.sh"
-echo "2) Keep your keystore and passwords backed up securely"
+echo "1) ./scripts/github-release.sh   (builds/uploads phone + Wear APK release assets)"
+echo "2) ./scripts/build-release-aab.sh (builds phone + Wear Play AAB artefacts)"
+echo "3) Keep your keystore and passwords backed up securely"

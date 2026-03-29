@@ -87,6 +87,26 @@ Then build and install a debug APK to a USB-connected Android device:
 ./scripts/local-deploy.sh
 ```
 
+## Release Packaging (Phone + Wear)
+
+Configure release signing once:
+
+```bash
+./scripts/setup-release-signing.sh
+```
+
+Build and publish GitHub release assets (phone APK + Wear APK):
+
+```bash
+./scripts/github-release.sh
+```
+
+Build Google Play upload artefacts (phone AAB + Wear AAB):
+
+```bash
+./scripts/build-release-aab.sh
+```
+
 ## Google Cloud Index Migration
 
 To migrate podcast index hosting/search from GitHub Pages to Google Cloud
