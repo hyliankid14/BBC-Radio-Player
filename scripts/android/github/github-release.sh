@@ -9,6 +9,9 @@ PROPS_FILE="gradle.properties"
 RELEASE_ASSET_NAME="british-radio-player.apk"
 APK_OUTPUT_DIR="app/build/outputs/apk/github/release"
 APK_OUTPUT_PATH="$APK_OUTPUT_DIR/$RELEASE_ASSET_NAME"
+WEAR_RELEASE_ASSET_NAME="british-radio-player-wear.apk"
+WEAR_APK_OUTPUT_DIR="wear/build/outputs/apk/release"
+WEAR_APK_OUTPUT_PATH="$WEAR_APK_OUTPUT_DIR/$WEAR_RELEASE_ASSET_NAME"
 
 require_cmd() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -93,8 +96,8 @@ if [[ ! -x ./gradlew ]]; then
     chmod +x ./gradlew
 fi
 
-echo "Building GitHub release APK for ${TAG}..."
-./gradlew :app:assembleGithubRelease
+echo "Building GitHub release APKs for ${TAG} (phone + wear)..."
+./gradlew :app:assembleGithubRelease :wear:assembleRelease
 
 SIGNED_APK="$(find "$APK_OUTPUT_DIR" -type f -name "*.apk" ! -name "*-unsigned.apk" | head -1)"
 if [[ -z "$SIGNED_APK" ]]; then
@@ -103,6 +106,14 @@ if [[ -z "$SIGNED_APK" ]]; then
 fi
 
 cp "$SIGNED_APK" "$APK_OUTPUT_PATH"
+
+SIGNED_WEAR_APK="$(find "$WEAR_APK_OUTPUT_DIR" -type f -name "*.apk" ! -name "*-unsigned.apk" | head -1)"
+if [[ -z "$SIGNED_WEAR_APK" ]]; then
+    echo "Error: no signed Wear APK found under $WEAR_APK_OUTPUT_DIR"
+    exit 1
+fi
+
+cp "$SIGNED_WEAR_APK" "$WEAR_APK_OUTPUT_PATH"
 
 PREV_TAG="$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${TAG}$" | head -1)"
 NOTES_END_REF="HEAD"
@@ -161,6 +172,7 @@ NOTES_FILE="$(mktemp)"
     echo
     echo "### 📦 Release Artifacts"
     echo "- ${RELEASE_ASSET_NAME}: A single, unified, installable APK for all supported devices."
+    echo "- ${WEAR_RELEASE_ASSET_NAME}: Wear OS companion APK for watches."
     echo
     echo "Release Version: ${TAG} (Build ${PHONE_VERSION_CODE})"
     if [[ -n "$PREV_TAG" ]]; then
@@ -178,9 +190,12 @@ fi
 
 if gh release view "$TAG" >/dev/null 2>&1; then
     gh release upload "$TAG" "$APK_OUTPUT_PATH#${RELEASE_ASSET_NAME}" --clobber
+    gh release upload "$TAG" "$WEAR_APK_OUTPUT_PATH#${WEAR_RELEASE_ASSET_NAME}" --clobber
     gh release edit "$TAG" --title "$TAG" --notes-file "$NOTES_FILE"
 else
-    gh release create "$TAG" "$APK_OUTPUT_PATH#${RELEASE_ASSET_NAME}" \
+    gh release create "$TAG" \
+        "$APK_OUTPUT_PATH#${RELEASE_ASSET_NAME}" \
+        "$WEAR_APK_OUTPUT_PATH#${WEAR_RELEASE_ASSET_NAME}" \
         --title "$TAG" \
         --notes-file "$NOTES_FILE"
 fi
