@@ -6,6 +6,12 @@ plugins {
 def appVersionName = (project.findProperty("APP_VERSION_NAME") ?: "1.5.0").toString()
 def appVersionCode = ((project.findProperty("APP_VERSION_CODE") ?: "42").toString()).toInteger()
 
+def releaseStoreFile = project.findProperty("RELEASE_STORE_FILE") ?: System.getenv("RELEASE_STORE_FILE")
+def releaseStorePassword = project.findProperty("RELEASE_STORE_PASSWORD") ?: System.getenv("RELEASE_STORE_PASSWORD")
+def releaseKeyAlias = project.findProperty("RELEASE_KEY_ALIAS") ?: System.getenv("RELEASE_KEY_ALIAS")
+def releaseKeyPassword = project.findProperty("RELEASE_KEY_PASSWORD") ?: System.getenv("RELEASE_KEY_PASSWORD")
+def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
     namespace "com.hyliankid14.bbcradioplayer.wear"
     compileSdk = 35
@@ -25,6 +31,14 @@ android {
             keyAlias "androiddebugkey"
             keyPassword "android"
         }
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -33,9 +47,9 @@ android {
             applicationIdSuffix ".debug"
         }
         release {
-            // GitHub-distributed Wear APKs are sideloaded, so keep release signing
-            // stable across local/CI builds for upgrade-in-place installs.
-            signingConfig signingConfigs.debug
+            // Prefer release signing for Play exports when configured; otherwise
+            // fall back to debug signing for local/GitHub distribution.
+            signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

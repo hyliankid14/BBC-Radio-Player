@@ -45,7 +45,7 @@ echo "--------------------------------------------------"
 echo "🔨 Building Release AAB for Google Play"
 echo "--------------------------------------------------"
 
-./gradlew :app:bundlePlayRelease
+./gradlew :app:bundlePlayRelease :wear:bundleRelease
 
 # -------------------------------------------------------
 # Locate the AAB
@@ -54,9 +54,18 @@ AAB_FILE=$(find app/build/outputs/bundle/playRelease -name "*.aab" | sort | head
 MAPPING_FILE="app/build/outputs/mapping/playRelease/mapping.txt"
 SYMBOLS_FILE="app/build/outputs/native-debug-symbols/playRelease/native-debug-symbols.zip"
 NATIVE_LIBS_ROOT="app/build/intermediates/merged_native_libs/playRelease/mergePlayReleaseNativeLibs/out"
+WEAR_AAB_FILE=$(find wear/build/outputs/bundle/release -name "*.aab" | sort | head -1)
+WEAR_MAPPING_FILE="wear/build/outputs/mapping/release/mapping.txt"
+WEAR_SYMBOLS_FILE="wear/build/outputs/native-debug-symbols/release/native-debug-symbols.zip"
+WEAR_NATIVE_LIBS_ROOT="wear/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out"
 
 if [ -z "$AAB_FILE" ]; then
     echo "❌ Build failed: No AAB found in app/build/outputs/bundle/playRelease/"
+    exit 1
+fi
+
+if [ -z "$WEAR_AAB_FILE" ]; then
+    echo "❌ Build failed: No Wear AAB found in wear/build/outputs/bundle/release/"
     exit 1
 fi
 
@@ -83,6 +92,27 @@ else
     SYMBOLS_FILE=""
 fi
 
+# Generate Wear native symbols archive when native libs are present.
+if [ -d "$WEAR_NATIVE_LIBS_ROOT/lib" ] && find "$WEAR_NATIVE_LIBS_ROOT/lib" -name "*.so" | grep -q .; then
+    WEAR_SYMBOLS_FILE="wear/build/outputs/native-debug-symbols/release/native-debug-symbols.zip"
+    mkdir -p "$(dirname "$WEAR_SYMBOLS_FILE")"
+    rm -f "$WEAR_SYMBOLS_FILE"
+
+    if command -v zip >/dev/null 2>&1; then
+        (
+            cd "$WEAR_NATIVE_LIBS_ROOT/lib"
+            zip -rq "$PROJECT_ROOT/$WEAR_SYMBOLS_FILE" .
+        )
+    else
+        (
+            cd "$WEAR_NATIVE_LIBS_ROOT/lib"
+            ditto -c -k --sequesterRsrc . "$PROJECT_ROOT/$WEAR_SYMBOLS_FILE"
+        )
+    fi
+else
+    WEAR_SYMBOLS_FILE=""
+fi
+
 # -------------------------------------------------------
 # Verify signature
 # -------------------------------------------------------
@@ -92,33 +122,54 @@ echo "🔏 Verifying signature"
 echo "--------------------------------------------------"
 
 if jarsigner -verify -verbose "$AAB_FILE" 2>&1 | grep -q "jar verified"; then
-    echo "✅ AAB is correctly signed."
+    echo "✅ Phone AAB is correctly signed."
 else
-    echo "⚠️  Warning: jarsigner could not verify the AAB signature."
+    echo "⚠️  Warning: jarsigner could not verify the phone AAB signature."
+fi
+
+if jarsigner -verify -verbose "$WEAR_AAB_FILE" 2>&1 | grep -q "jar verified"; then
+    echo "✅ Wear AAB is correctly signed."
+else
+    echo "⚠️  Warning: jarsigner could not verify the Wear AAB signature."
 fi
 
 # -------------------------------------------------------
 # Summary
 # -------------------------------------------------------
 AAB_SIZE=$(du -sh "$AAB_FILE" | cut -f1)
+WEAR_AAB_SIZE=$(du -sh "$WEAR_AAB_FILE" | cut -f1)
 
 echo ""
 echo "=================================================="
 echo "✅ Release AAB ready for Google Play"
 echo "   Phone version : ${PHONE_VERSION_NAME} (Build ${PHONE_VERSION_CODE})"
 echo "   Wear OS version : ${WEAR_VERSION_NAME} (Build ${WEAR_VERSION_CODE})"
-echo "   Path : $AAB_FILE"
-echo "   Size : $AAB_SIZE"
+echo "   Phone AAB : $AAB_FILE"
+echo "   Phone size : $AAB_SIZE"
+echo "   Wear AAB : $WEAR_AAB_FILE"
+echo "   Wear size : $WEAR_AAB_SIZE"
 if [ -f "$MAPPING_FILE" ]; then
-    echo "   Mapping : $MAPPING_FILE"
-    echo "   Upload mapping.txt in Play Console deobfuscation section"
+    echo "   Phone mapping : $MAPPING_FILE"
+    echo "   Upload phone mapping.txt in Play Console deobfuscation section"
 else
-    echo "   Mapping : Not generated"
+    echo "   Phone mapping : Not generated"
 fi
 if [ -n "${SYMBOLS_FILE:-}" ] && [ -f "$SYMBOLS_FILE" ]; then
-    echo "   Native symbols : $SYMBOLS_FILE"
-    echo "   Upload native-debug-symbols.zip in Play Console to resolve native crash/ANR symbols"
+    echo "   Phone native symbols : $SYMBOLS_FILE"
+    echo "   Upload phone native-debug-symbols.zip in Play Console to resolve native crash/ANR symbols"
 else
-    echo "   Native symbols : Not generated"
+    echo "   Phone native symbols : Not generated"
+fi
+if [ -f "$WEAR_MAPPING_FILE" ]; then
+    echo "   Wear mapping : $WEAR_MAPPING_FILE"
+    echo "   Upload wear mapping.txt in Play Console deobfuscation section"
+else
+    echo "   Wear mapping : Not generated"
+fi
+if [ -n "${WEAR_SYMBOLS_FILE:-}" ] && [ -f "$WEAR_SYMBOLS_FILE" ]; then
+    echo "   Wear native symbols : $WEAR_SYMBOLS_FILE"
+    echo "   Upload wear native-debug-symbols.zip in Play Console to resolve native crash/ANR symbols"
+else
+    echo "   Wear native symbols : Not generated"
 fi
 echo "=================================================="
