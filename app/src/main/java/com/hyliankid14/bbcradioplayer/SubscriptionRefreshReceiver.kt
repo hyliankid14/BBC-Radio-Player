@@ -36,9 +36,17 @@ class SubscriptionRefreshReceiver : BroadcastReceiver() {
                         }
 
                         if (autoDownloadEnabled) {
-                            // Determine the target set: the N newest unplayed episodes that
-                            // should be auto-downloaded according to the limit.
-                            val targetEpisodes = sortedEpisodes
+                            // Determine the target set respecting the podcast's sort-order
+                            // preference. For oldest-first podcasts the user listens to the
+                            // oldest unplayed episodes next, so we download those instead of
+                            // the newest ones (matching the behaviour of triggerAutoDownloadForPodcast).
+                            val oldestFirst = PodcastEpisodeSortPreference.isOldestFirst(context, podcast.id)
+                            val sortedForAutoDownload = if (oldestFirst) {
+                                episodes.sortedBy { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+                            } else {
+                                episodes.sortedByDescending { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+                            }
+                            val targetEpisodes = sortedForAutoDownload
                                 .filter { !PlayedEpisodesPreference.isPlayed(context, it.id) }
                                 .take(autoDownloadLimit)
                             val targetIds = targetEpisodes.map { it.id }.toSet()

@@ -566,10 +566,21 @@ object EpisodeDownloadManager {
         val entries = DownloadedEpisodes.getDownloadedEpisodesForPodcast(context, podcastId)
         val autoEntries = entries.filter { it.isAutoDownloaded }
         if (autoEntries.size <= max) return
-        val sorted = autoEntries.sortedWith(
-            compareByDescending<DownloadedEpisodes.Entry> { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
-                .thenByDescending { it.downloadedAtMs }
-        )
+        // For oldest-first podcasts the user works through episodes in ascending date order,
+        // so we should retain the oldest auto-downloads (they will be listened to next).
+        // For newest-first podcasts we retain the most recently published ones.
+        val oldestFirst = PodcastEpisodeSortPreference.isOldestFirst(context, podcastId)
+        val sorted = if (oldestFirst) {
+            autoEntries.sortedWith(
+                compareBy<DownloadedEpisodes.Entry> { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+                    .thenBy { it.downloadedAtMs }
+            )
+        } else {
+            autoEntries.sortedWith(
+                compareByDescending<DownloadedEpisodes.Entry> { EpisodeDateParser.parsePubDateToEpoch(it.pubDate) }
+                    .thenByDescending { it.downloadedAtMs }
+            )
+        }
         val keepIds = sorted.take(max).map { it.id }.toSet()
         for (entry in autoEntries) {
             if (!keepIds.contains(entry.id)) {
