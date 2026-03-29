@@ -1,0 +1,4 @@
+## IDF Component Manager manifest for the main component
+dependencies:
+  esp_lcd_ili9341: ^1.0
+  idf: '>=5.0.0'

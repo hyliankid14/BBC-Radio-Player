@@ -1,0 +1,9 @@
+[wokwi]
+version = 1
+rfc2217ServerPort = 4000
+
+# Build with: idf.py build
+# Then open diagram.json in VS Code with the Wokwi extension and press "Simulate".
+# For ESP-IDF, flasher_args.json loads the bootloader, partitions and app image.
+elf = "build/bbc_radio_player.elf"
+firmware = "build/flasher_args.json"

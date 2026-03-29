@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "author": "BBC Radio Player ESP32",
+  "editor": "wokwi",
+  "serialMonitor": {
+    "display": "always",
+    "collapse": false,
+    "newline": "lf",
+    "convertEol": false
+  },
+  "parts": [
+    {
+      "type": "board-esp32-s3-devkitc-1",
+      "id": "esp",
+      "top": 20,
+      "left": 0,
+      "attrs": {
+        "flashSize": "16",
+        "psramSize": "8",
+        "serialInterface": "USB_SERIAL_JTAG"
+      }
+    },
+    {
+      "type": "wokwi-ili9341",
+      "id": "lcd",
+      "top": 0,
+      "left": 210,
+      "attrs": {
+        "rotation": "0",
+        "freq": "40000000"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_plus",
+      "top": 340,
+      "left": 10,
+      "attrs": { "color": "green", "label": "PLUS\n(next)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_pwr",
+      "top": 340,
+      "left": 80,
+      "attrs": { "color": "red", "label": "PWR\n(back)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_boot",
+      "top": 340,
+      "left": 150,
+      "attrs": { "color": "blue", "label": "BOOT\n(select)" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzz",
+      "top": 330,
+      "left": 230,
+      "attrs": { "volume": "1", "mode": "smooth" }
+    }
+  ],
+  "connections": [
+    ["lcd:MOSI", "esp:39", "green", []],
+    ["lcd:SCK",  "esp:38", "blue",  []],
+    ["lcd:CS",   "esp:21", "yellow", []],
+    ["lcd:D/C",  "esp:45", "orange", []],
+    ["lcd:VCC",  "esp:3V3", "red",  []],
+    ["lcd:GND",  "esp:GND.1", "black", []],
+
+    ["btn_plus:1.l",  "esp:4",     "lime",  []],
+    ["btn_plus:2.r",  "esp:GND.2", "black", []],
+    ["btn_pwr:1.l",   "esp:5",     "red",   []],
+    ["btn_pwr:2.r",   "esp:GND.3", "black", []],
+    ["btn_boot:1.l",  "esp:0",     "blue",  []],
+    ["btn_boot:2.r",  "esp:GND.4", "black", []],
+
+    ["buzz:2",        "esp:3",     "purple", []],
+    ["buzz:1",        "esp:GND.4", "black",  []]
+  ]
+}

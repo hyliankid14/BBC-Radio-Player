@@ -1,0 +1,51 @@
+set(main_requires
+    bsp
+    lvgl_port
+    lvgl__lvgl
+    tf_card
+    nvs_flash
+    esp_wifi
+    esp_event
+    esp_netif
+    esp_http_client
+    esp-tls
+    json
+    driver
+)
+
+if(BBC_HAS_ADF)
+    list(APPEND main_requires
+        adf_utils
+        audio_pipeline
+        audio_stream
+        audio_sal
+        audio_hal
+        esp-adf-libs
+    )
+endif()
+
+idf_component_register(
+    SRCS
+        "main.c"
+        "ui/ui_manager.c"
+        "ui/screen_home.c"
+        "ui/screen_stations.c"
+        "ui/screen_podcasts.c"
+        "ui/screen_pod_detail.c"
+        "ui/screen_now_playing.c"
+        "audio/audio_pipeline.c"
+        "audio/playback_state.c"
+        "data/stations.c"
+        "data/podcast_index.c"
+        "data/podcast_rankings.c"
+        "data/subscriptions.c"
+        "shake/shake_detector.c"
+    INCLUDE_DIRS
+        "."
+        "ui"
+        "audio"
+        "data"
+        "shake"
+    REQUIRES
+        ${main_requires}
+)

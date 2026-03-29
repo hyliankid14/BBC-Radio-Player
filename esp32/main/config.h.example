@@ -1,0 +1,23 @@
+#pragma once
+
+/*
+ * Copy this file to config.h and fill in your credentials.
+ * config.h is listed in .gitignore and must never be committed.
+ *
+ * For Wokwi simulation leave the Wokwi-GUEST values as-is –
+ * Wokwi routes all WiFi traffic through its own gateway regardless.
+ */
+
+/* WiFi ------------------------------------------------------------------- */
+#define WIFI_SSID     "Wokwi-GUEST"
+#define WIFI_PASSWORD ""
+
+/* GCS API (BBC Radio Player podcast index) ------------------------------- */
+#define GCS_BUCKET   "bbc-radio-player-index-20260317-bc149e38"
+#define GCS_BASE_URL "https://storage.googleapis.com/" GCS_BUCKET
+
+/* BBC OPML feed ---------------------------------------------------------- */
+#define BBC_OPML_URL "https://www.bbc.co.uk/radio/opml/bbc_podcast_opml.xml"
+
+/* TF card mount point ---------------------------------------------------- */
+#define SD_MOUNT_POINT "/sdcard"

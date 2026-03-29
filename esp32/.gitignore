@@ -1,0 +1,12 @@
+# --- Generated build artefacts ---
+build/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+managed_components/
+
+# --- WiFi credentials (never commit) ---
+main/config.h
+
+# --- macOS ---
+.DS_Store
