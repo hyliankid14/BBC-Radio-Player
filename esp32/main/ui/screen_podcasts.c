@@ -15,6 +15,15 @@ static lv_obj_t *s_list_subscribed = NULL;
 static lv_obj_t *s_list_new        = NULL;
 static lv_obj_t *s_spinner         = NULL;
 
+static void add_info_row(lv_obj_t *list, const char *text)
+{
+    lv_obj_t *lbl = lv_label_create(list);
+    lv_label_set_text(lbl, text);
+    lv_obj_set_style_text_color(lbl, UI_COLOR_SUBTEXT, LV_PART_MAIN);
+    lv_obj_set_style_pad_top(lbl, 10, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(lbl, 8, LV_PART_MAIN);
+}
+
 static void on_podcast_clicked(lv_event_t *e)
 {
     podcast_t *p = (podcast_t *)lv_event_get_user_data(e);
@@ -38,7 +47,12 @@ static void populate_popular(void)
 
     size_t     count;
     podcast_t *all = podcast_index_get_all(&count);
-    if (!all || count == 0) return;
+    if (!all || count == 0) {
+        add_info_row(s_list_popular, podcast_index_is_ready()
+            ? "No popular podcasts available"
+            : "Loading popular podcasts...");
+        return;
+    }
 
     /* Show podcasts that have a popularity rank, sorted ascending */
     for (int rank = 1; rank <= (int)count; rank++) {
@@ -62,6 +76,11 @@ static void populate_subscribed(void)
     lv_obj_clean(s_list_subscribed);
 
     size_t count = subscriptions_count();
+    if (count == 0) {
+        add_info_row(s_list_subscribed, "No subscriptions found");
+        return;
+    }
+
     for (size_t i = 0; i < count; i++) {
         const subscribed_podcast_t *sub = subscriptions_get(i);
         if (!sub) continue;
@@ -81,12 +100,22 @@ static void populate_new(void)
 
     size_t     count;
     podcast_t *all = podcast_index_get_all(&count);
-    if (!all || count == 0) return;
+    if (!all || count == 0) {
+        add_info_row(s_list_new, podcast_index_is_ready()
+            ? "No new podcasts available"
+            : "Loading new podcasts...");
+        return;
+    }
 
+    size_t new_count = 0;
     for (size_t i = 0; i < count; i++) {
         if (all[i].is_new) {
             add_podcast_btn(s_list_new, &all[i]);
+            new_count++;
         }
+    }
+    if (new_count == 0) {
+        add_info_row(s_list_new, "No new podcasts available");
     }
 }
 
@@ -133,26 +162,33 @@ lv_obj_t *screen_podcasts_create(void)
     lv_obj_set_size(s_list_popular, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(s_list_popular, UI_COLOR_DARK_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_list_popular, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(s_list_popular, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_row(s_list_popular, 2, LV_PART_MAIN);
+    lv_obj_scroll_to_y(s_list_popular, 0, LV_ANIM_OFF);
 
     s_list_subscribed = lv_list_create(tab_sub);
     lv_obj_set_size(s_list_subscribed, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(s_list_subscribed, UI_COLOR_DARK_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_list_subscribed, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(s_list_subscribed, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_row(s_list_subscribed, 2, LV_PART_MAIN);
+    lv_obj_scroll_to_y(s_list_subscribed, 0, LV_ANIM_OFF);
 
     s_list_new        = lv_list_create(tab_new);
     lv_obj_set_size(s_list_new, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(s_list_new, UI_COLOR_DARK_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_list_new, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(s_list_new, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_row(s_list_new, 2, LV_PART_MAIN);
+    lv_obj_scroll_to_y(s_list_new, 0, LV_ANIM_OFF);
 
     /* Loading spinner while podcast index is being fetched */
     s_spinner = lv_spinner_create(scr, 1000, 60);
     lv_obj_center(s_spinner);
     lv_obj_set_size(s_spinner, 50, 50);
 
-    /* If index already loaded, populate immediately */
-    if (podcast_index_is_ready()) {
-        lv_async_call(screen_podcasts_refresh, NULL);
-    }
+    /* Populate immediately so subscribed and placeholders appear without delay. */
+    lv_async_call(screen_podcasts_refresh, NULL);
 
     return scr;
 }

@@ -63,15 +63,17 @@
     ["lcd:MOSI", "esp:39", "green", []],
     ["lcd:SCK",  "esp:38", "blue",  []],
     ["lcd:CS",   "esp:21", "yellow", []],
-    ["lcd:D/C",  "esp:45", "orange", []],
+    ["lcd:D/C",  "esp:7", "orange", []],
     ["lcd:VCC",  "esp:3V3", "red",  []],
     ["lcd:GND",  "esp:GND.1", "black", []],
+
+    ["esp:0",        "esp:3V3",   "gray",  []],
 
     ["btn_plus:1.l",  "esp:4",     "lime",  []],
     ["btn_plus:2.r",  "esp:GND.2", "black", []],
     ["btn_pwr:1.l",   "esp:5",     "red",   []],
     ["btn_pwr:2.r",   "esp:GND.3", "black", []],
-    ["btn_boot:1.l",  "esp:0",     "blue",  []],
+    ["btn_boot:1.l",  "esp:19",    "blue",  []],
     ["btn_boot:2.r",  "esp:GND.4", "black", []],
 
     ["buzz:2",        "esp:3",     "purple", []],

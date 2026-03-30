@@ -59,7 +59,7 @@ esp_err_t bsp_display_init(esp_lcd_panel_handle_t    *panel_handle,
         esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)BSP_LCD_SPI_HOST, &io_cfg, io_handle),
         TAG, "Panel IO init failed");
 
-    /* ── Wokwi uses an ILI9341 SPI display in the simulator. */
+    /* ── Wokwi panel: ILI9341 over SPI. */
     esp_lcd_panel_dev_config_t panel_cfg = {
         .reset_gpio_num   = GPIO_NUM_NC,
         .rgb_ele_order    = LCD_RGB_ELEMENT_ORDER_BGR,

@@ -12,6 +12,14 @@ static bool                   s_ready     = false;
 
 esp_err_t bsp_codec_init(i2c_master_bus_handle_t bus_handle)
 {
+    /* In Wokwi there is no ES8311 on I2C, so skip codec and I2S bring-up early. */
+    esp_err_t probe = i2c_master_probe(bus_handle, ES8311_CODEC_DEFAULT_ADDR, 100);
+    if (probe != ESP_OK) {
+        ESP_LOGW(TAG, "ES8311 not detected on I2C addr 0x%02x — audio codec disabled",
+                 ES8311_CODEC_DEFAULT_ADDR);
+        return ESP_OK;
+    }
+
     /* PA enable pin — drive low during init to avoid pop noise */
     gpio_config_t pa_cfg = {
         .pin_bit_mask = (1ULL << BSP_PA_CTRL),

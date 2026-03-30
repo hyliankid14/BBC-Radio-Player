@@ -176,8 +176,8 @@ void app_main(void)
     esp_lcd_touch_handle_t touch = NULL;
     bsp_touch_init(i2c_bus, &touch);
 
-    /* Audio codec (non-fatal – absent in Wokwi) */
-    bsp_codec_init(i2c_bus);
+    /* Audio codec init is skipped in Wokwi to avoid I2S bring-up hangs. */
+    ESP_LOGI(TAG, "Skipping codec init in emulator startup path");
 
     /* LVGL port */
     lv_disp_t *disp = NULL;

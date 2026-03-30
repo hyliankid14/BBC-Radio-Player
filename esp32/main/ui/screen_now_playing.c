@@ -10,7 +10,12 @@ static lv_obj_t *s_btn_playpause = NULL;
 
 static void on_playpause_clicked(lv_event_t *e)
 {
-    playback_toggle();
+    playback_state_t st = playback_get_state();
+    if (st.type == PLAYBACK_STATION && st.is_playing) {
+        playback_stop();
+    } else {
+        playback_toggle();
+    }
     lv_async_call(screen_now_playing_refresh, NULL);
 }
 
@@ -35,7 +40,11 @@ void screen_now_playing_refresh(void *arg)
     }
 
     lv_obj_t *btn_lbl = lv_obj_get_child(s_btn_playpause, 0);
-    lv_label_set_text(btn_lbl, st.is_playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+    if (st.type == PLAYBACK_STATION && st.is_playing) {
+        lv_label_set_text(btn_lbl, LV_SYMBOL_STOP);
+    } else {
+        lv_label_set_text(btn_lbl, st.is_playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+    }
 }
 
 lv_obj_t *screen_now_playing_create(void)

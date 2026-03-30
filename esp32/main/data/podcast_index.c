@@ -9,6 +9,24 @@
 #include <string.h>
 #include <time.h>
 
+static void *podcast_malloc(size_t bytes)
+{
+    void *p = heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM);
+    if (!p) {
+        p = malloc(bytes);
+    }
+    return p;
+}
+
+static void *podcast_realloc(void *ptr, size_t bytes)
+{
+    void *p = heap_caps_realloc(ptr, bytes, MALLOC_CAP_SPIRAM);
+    if (!p) {
+        p = realloc(ptr, bytes);
+    }
+    return p;
+}
+
 /* strnstr is not available in ESP-IDF newlib; provide a portable version */
 static const char *str_in_mem(const char *haystack, size_t hay_len,
                                const char *needle)
@@ -50,7 +68,7 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
         size_t needed = b->len + evt->data_len + 1;
         if (needed > b->cap) {
             size_t new_cap = needed + 65536;   /* grow in 64 KB chunks */
-            char *tmp = heap_caps_realloc(b->buf, new_cap, MALLOC_CAP_SPIRAM);
+            char *tmp = podcast_realloc(b->buf, new_cap);
             if (!tmp) {
                 ESP_LOGE(TAG, "OOM — realloc failed for %zu bytes", new_cap);
                 return ESP_FAIL;
@@ -143,7 +161,7 @@ static void extract_pid_from_rss(const char *rss_url, char *pid_out, size_t pid_
 static esp_err_t parse_opml(const char *xml, size_t xml_len)
 {
     if (!s_podcasts) {
-        s_podcasts = heap_caps_malloc(MAX_PODCASTS * sizeof(podcast_t), MALLOC_CAP_SPIRAM);
+        s_podcasts = podcast_malloc(MAX_PODCASTS * sizeof(podcast_t));
         if (!s_podcasts) { ESP_LOGE(TAG, "OOM allocating podcast array"); return ESP_ERR_NO_MEM; }
     }
     s_count = 0;
@@ -190,7 +208,7 @@ esp_err_t podcast_index_fetch(void)
     ESP_LOGI(TAG, "Fetching BBC OPML feed...");
 
     http_buf_t buf = {
-        .buf = heap_caps_malloc(65536, MALLOC_CAP_SPIRAM),
+        .buf = podcast_malloc(65536),
         .len = 0,
         .cap = 65536,
     };
@@ -199,12 +217,12 @@ esp_err_t podcast_index_fetch(void)
     esp_err_t ret = http_get(BBC_OPML_URL, &buf);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to fetch OPML");
-        heap_caps_free(buf.buf);
+        free(buf.buf);
         return ret;
     }
 
     ret = parse_opml(buf.buf, buf.len);
-    heap_caps_free(buf.buf);
+    free(buf.buf);
     if (ret != ESP_OK) return ret;
 
     /* Apply popularity / new-podcast rankings */
@@ -240,7 +258,7 @@ podcast_t *podcast_index_random(void)
 static esp_err_t parse_rss_episodes(const char *xml, podcast_t *podcast)
 {
 #define MAX_EPS 30
-    episode_t *eps = heap_caps_malloc(MAX_EPS * sizeof(episode_t), MALLOC_CAP_SPIRAM);
+    episode_t *eps = podcast_malloc(MAX_EPS * sizeof(episode_t));
     if (!eps) return ESP_ERR_NO_MEM;
     size_t n = 0;
     const char *p = xml;
@@ -299,7 +317,7 @@ esp_err_t podcast_fetch_episodes(podcast_t *podcast)
     if (podcast->_episodes) return ESP_OK;  /* already cached */
 
     http_buf_t buf = {
-        .buf = heap_caps_malloc(131072, MALLOC_CAP_SPIRAM),
+        .buf = podcast_malloc(131072),
         .len = 0,
         .cap = 131072,
     };
@@ -309,7 +327,7 @@ esp_err_t podcast_fetch_episodes(podcast_t *podcast)
     if (ret == ESP_OK) {
         ret = parse_rss_episodes(buf.buf, podcast);
     }
-    heap_caps_free(buf.buf);
+    free(buf.buf);
     return ret;
 }
 

@@ -20,6 +20,9 @@ static char *fetch_json(const char *url)
 {
     /* Simple synchronous GET into a heap buffer (max 64 KB) */
     char *buf = heap_caps_malloc(65536, MALLOC_CAP_SPIRAM);
+    if (!buf) {
+        buf = malloc(65536);
+    }
     if (!buf) return NULL;
     size_t len = 0;
 
@@ -46,11 +49,13 @@ static char *fetch_json(const char *url)
         len += r;
     buf[len] = '\0';
 
+    int status = esp_http_client_get_status_code(c);
+
     esp_http_client_close(c);
     esp_http_client_cleanup(c);
 
-    if (esp_http_client_get_status_code(c) != 200) {
-        heap_caps_free(buf);
+    if (status != 200) {
+        free(buf);
         return NULL;
     }
     return buf;
@@ -63,7 +68,7 @@ esp_err_t podcast_rankings_apply(podcast_t *podcasts, size_t count)
     char *pop_json = fetch_json(GCS_POPULAR_URL);
     if (pop_json) {
         cJSON *root = cJSON_Parse(pop_json);
-        heap_caps_free(pop_json);
+        free(pop_json);
         if (root) {
             /* Expected format: {"ranks": [{"id": "p01...", "rank": 1}, ...]} */
             cJSON *ranks = cJSON_GetObjectItemCaseSensitive(root, "ranks");
@@ -96,7 +101,7 @@ esp_err_t podcast_rankings_apply(podcast_t *podcasts, size_t count)
     char *new_json = fetch_json(GCS_NEW_URL);
     if (new_json) {
         cJSON *root = cJSON_Parse(new_json);
-        heap_caps_free(new_json);
+        free(new_json);
         if (root) {
             /* Expected format: {"ids": ["p01...", "p02...", ...]} */
             cJSON *ids = cJSON_GetObjectItemCaseSensitive(root, "ids");

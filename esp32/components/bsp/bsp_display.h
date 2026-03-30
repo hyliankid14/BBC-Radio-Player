@@ -13,7 +13,7 @@
 #define BSP_LCD_MOSI            GPIO_NUM_39
 #define BSP_LCD_SCLK            GPIO_NUM_38
 #define BSP_LCD_CS              GPIO_NUM_21
-#define BSP_LCD_DC              GPIO_NUM_45
+#define BSP_LCD_DC              GPIO_NUM_7
 #define BSP_LCD_RST             GPIO_NUM_40
 #define BSP_LCD_BL              GPIO_NUM_46
 

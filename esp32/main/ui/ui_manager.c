@@ -21,7 +21,7 @@ static int       s_focus_index = -1;
 /* ── Button-driven LVGL input device ──────────────────────────────────── */
 #define BTN_PLUS_GPIO  4
 #define BTN_PWR_GPIO   5
-#define BTN_BOOT_GPIO  0
+#define BTN_BOOT_GPIO  19
 
 static void ui_pop_screen_async(void *arg)
 {
@@ -45,6 +45,9 @@ static void ui_focus_next_async(void *arg)
         lv_obj_set_style_outline_color(cur, lv_color_white(), LV_PART_MAIN);
         lv_obj_set_style_outline_width(cur, 2, LV_PART_MAIN);
         lv_obj_set_style_outline_pad(cur, 2, LV_PART_MAIN);
+
+        /* Keep focused controls visible when navigating long scrollable lists. */
+        lv_obj_scroll_to_view_recursive(cur, LV_ANIM_ON);
     }
 }
 

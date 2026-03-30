@@ -32,6 +32,8 @@ lv_obj_t *screen_stations_create(void)
     lv_obj_set_style_bg_color(list, UI_COLOR_DARK_BG, LV_PART_MAIN);
     lv_obj_set_style_border_width(list, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(list, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(list, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_row(list, 2, LV_PART_MAIN);
 
     size_t count = stations_count();
     const station_t *stations = stations_get_all();
@@ -44,6 +46,8 @@ lv_obj_t *screen_stations_create(void)
         lv_obj_add_event_cb(btn, on_station_clicked, LV_EVENT_CLICKED,
                              (void *)&stations[i]);
     }
+
+    lv_obj_scroll_to_y(list, 0, LV_ANIM_OFF);
 
     return scr;
 }
