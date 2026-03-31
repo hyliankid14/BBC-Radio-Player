@@ -1659,8 +1659,11 @@ class PodcastsFragment : Fragment() {
 
         if (podcastsTabLayout?.selectedTabPosition == TAB_GENRE) {
             view?.let { showGenreList(it) }
+            // Genre list is fully self-contained — nothing else in onResume needs to run for it.
+            // Falling through would reach applyFilters() which swaps the adapter back to podcastAdapter.
+            return
         }
-        
+
         // Super fast-path: if we have a cached adapter from before view destruction, restore it immediately
         val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
         if (cachedSearchAdapter != null && rv != null) {
