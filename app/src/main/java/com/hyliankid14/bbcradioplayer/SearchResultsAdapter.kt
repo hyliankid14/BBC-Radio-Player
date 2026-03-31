@@ -64,7 +64,8 @@ class SearchResultsAdapter(
             descMatches.forEach { items.add(Item.PodcastItem(it)) }
         }
         if (episodeMatches.isNotEmpty()) {
-            items.add(Item.Section("Episode", episodeMatches.size))
+            // Count is -1 until setEpisodeTotalCount() provides the authoritative total.
+            items.add(Item.Section("Episode"))
             episodeMatches.forEach { (ep, p) -> items.add(Item.EpisodeItem(ep, p)) }
         }
     }
@@ -84,7 +85,8 @@ class SearchResultsAdapter(
         items.removeAll { it is Item.Section && it.title == "Episode" }
         episodeTotalCount = -1  // Reset; caller will provide the total via setEpisodeTotalCount.
         if (newEpisodeMatches.isNotEmpty()) {
-            items.add(Item.Section("Episode", newEpisodeMatches.size))
+            // Count is -1 until setEpisodeTotalCount() provides the authoritative total.
+            items.add(Item.Section("Episode"))
             newEpisodeMatches.forEach { (ep, p) -> items.add(Item.EpisodeItem(ep, p)) }
         }
         notifyDataSetChanged()
@@ -130,21 +132,16 @@ class SearchResultsAdapter(
         val sectionIsNew = sectionIndex == -1
         if (sectionIsNew) {
             sectionIndex = items.size
-            items.add(Item.Section("Episode", filtered.size))
+            // Count is -1 until setEpisodeTotalCount() provides the authoritative total.
+            items.add(Item.Section("Episode"))
             notifyItemInserted(sectionIndex)
         }
 
         val insertStart = items.size
         filtered.forEach { (ep, p) -> items.add(Item.EpisodeItem(ep, p)) }
         notifyItemRangeInserted(insertStart, filtered.size)
-
-        // Only update the section header count when the total is not yet known.
-        // Once setEpisodeTotalCount() has been called the header already shows the real total.
-        if (!sectionIsNew && episodeTotalCount < 0) {
-            val existingCount = (items[sectionIndex] as? Item.Section)?.count?.takeIf { it >= 0 } ?: 0
-            items[sectionIndex] = Item.Section("Episode", existingCount + filtered.size)
-            notifyItemChanged(sectionIndex)
-        }
+        // Section header count is intentionally not updated here; it stays hidden (-1) until
+        // setEpisodeTotalCount() is called with the full FTS result count.
     }
 
     /**
