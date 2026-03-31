@@ -475,6 +475,10 @@ class PodcastsFragment : Fragment() {
             val normalized = normalizeSortValue(selected)
             if (normalized == currentSort) return@setOnItemClickListener
             currentSort = normalized
+            // Clear any cache-restore guards so applyFilters runs a fresh sort immediately
+            restoreAppendJob?.cancel()
+            usingCachedItemAppend = false
+            restoringFromCache = false
             android.util.Log.d("PodcastsFragment", "Search sort changed to: $currentSort")
             applyFilters(emptyState, recyclerView)
         }
