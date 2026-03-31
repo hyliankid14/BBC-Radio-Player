@@ -54,4 +54,16 @@ class SearchHistory(private val context: Context) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.edit().remove(KEY).apply()
     }
+
+    fun remove(query: String) {
+        val q = query.trim()
+        if (q.isEmpty()) return
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY, "") ?: ""
+        if (raw.isBlank()) return
+        val list = raw.split(SEP)
+            .filter { it.isNotBlank() }
+            .filterNot { it.equals(q, ignoreCase = true) }
+        prefs.edit().putString(KEY, list.joinToString(SEP)).apply()
+    }
 }

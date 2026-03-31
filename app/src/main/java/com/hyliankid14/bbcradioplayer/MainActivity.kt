@@ -195,9 +195,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Fragment content (podcasts) can have either list (own title bar) or detail pages.
-        // Keep the existing behaviour: hide for list, show for detail/back stack.
+        // Fragments that manage their own full-screen toolbar should always hide the Activity bar.
+        val top = supportFragmentManager.findFragmentById(R.id.fragment_container)
+        val topHasOwnToolbar = top is PodcastSearchFragment ||
+            top is PodcastGenreResultsFragment ||
+            (top is PodcastsFragment && top.isSearchContextMode())
         val hasDetailOnBackStack = supportFragmentManager.backStackEntryCount > 0
-        if (hasDetailOnBackStack) {
+        if (hasDetailOnBackStack && !topHasOwnToolbar) {
             actionBar.show()
         } else {
             actionBar.hide()
@@ -350,6 +354,17 @@ class MainActivity : AppCompatActivity() {
                         showFavorites()
                         return
                     }
+                    if (returnToSavedSearchesOnBack && top is PodcastsFragment && top.isSearchContextMode()) {
+                        returnToSavedSearchesOnBack = false
+                        try { supportFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE) } catch (_: Exception) { }
+                        suppressBottomNavSelection = true
+                        try { bottomNavigation.selectedItemId = R.id.navigation_favorites } catch (_: Exception) { }
+                        suppressBottomNavSelection = false
+                        try { getPreferences(android.content.Context.MODE_PRIVATE).edit()
+                            .putInt("last_fav_tab_id", R.id.fav_tab_searches).apply() } catch (_: Exception) { }
+                        showFavorites()
+                        return
+                    }
                     if (returnToSavedSearchesOnBack && top is PodcastsFragment
                             && supportFragmentManager.backStackEntryCount == 0) {
                         returnToSavedSearchesOnBack = false
@@ -357,6 +372,17 @@ class MainActivity : AppCompatActivity() {
                         try { bottomNavigation.selectedItemId = R.id.navigation_favorites } catch (_: Exception) { }
                         suppressBottomNavSelection = false
                         // Persist the searches sub-tab as the active tab before restoring Favorites
+                        try { getPreferences(android.content.Context.MODE_PRIVATE).edit()
+                            .putInt("last_fav_tab_id", R.id.fav_tab_searches).apply() } catch (_: Exception) { }
+                        showFavorites()
+                        return
+                    }
+                    if (returnToSavedSearchesOnBack && top is PodcastSearchFragment) {
+                        returnToSavedSearchesOnBack = false
+                        try { supportFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE) } catch (_: Exception) { }
+                        suppressBottomNavSelection = true
+                        try { bottomNavigation.selectedItemId = R.id.navigation_favorites } catch (_: Exception) { }
+                        suppressBottomNavSelection = false
                         try { getPreferences(android.content.Context.MODE_PRIVATE).edit()
                             .putInt("last_fav_tab_id", R.id.fav_tab_searches).apply() } catch (_: Exception) { }
                         showFavorites()
@@ -698,21 +724,13 @@ class MainActivity : AppCompatActivity() {
             suppressBottomNavSelection = true
             try { bottomNavigation.selectedItemId = R.id.navigation_podcasts } catch (_: Exception) { }
             suppressBottomNavSelection = false
-            try { supportFragmentManager.executePendingTransactions() } catch (_: Exception) { }
-            val existing = supportFragmentManager.findFragmentByTag("podcasts_fragment") as? PodcastsFragment
-            if (existing != null) {
-                // Launch the search with the recent-episodes sort (forceMostRecent defaults to true)
-                existing.applySavedSearch(search)
-                return
+            val resultsFragment = PodcastsFragment.newSearchResultsInstance(search.query)
+            supportFragmentManager.beginTransaction().apply {
+                setReorderingAllowed(true)
+                replace(R.id.fragment_container, resultsFragment, "podcast_search_results")
+                commit()
             }
-            fragmentContainer.post {
-                try {
-                    val fragment = supportFragmentManager.findFragmentByTag("podcasts_fragment") as? PodcastsFragment
-                    fragment?.applySavedSearch(search)
-                } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "Error applying saved search from notification", e)
-                }
-            }
+            return
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error opening saved search", e)
         }

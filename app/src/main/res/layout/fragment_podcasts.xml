@@ -12,10 +12,12 @@
         android:background="?attr/colorSurfaceContainer"
         app:title="Podcasts"
         app:titleTextColor="?attr/colorOnSurface"
+        app:menu="@menu/podcasts_title_menu"
         android:elevation="4dp" />
 
     <!-- Content area where the header can scroll away with the list -->
     <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:id="@+id/podcasts_coordinator"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginTop="?attr/actionBarSize"
@@ -35,11 +37,59 @@
                     android:orientation="vertical"
                     app:layout_scrollFlags="scroll|enterAlways">
 
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/podcasts_sort_tabs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/colorSurfaceContainer"
+                app:tabMode="scrollable"
+                app:tabTextColor="?attr/colorOnSurface"
+                app:tabSelectedTextColor="?attr/colorPrimary"
+                app:tabIndicatorColor="?attr/colorPrimary"
+                app:tabIndicatorFullWidth="false">
+
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Popular" />
+
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Last Updated" />
+
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="New Podcasts" />
+
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Genre" />
+
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="A-Z" />
+
+            </com.google.android.material.tabs.TabLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/genre_recycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/colorSurface"
+                android:visibility="gone"
+                android:nestedScrollingEnabled="false"
+                android:scrollbars="vertical" />
+
             <!-- Search App Bar (Material 3 style) -->
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/podcasts_search_bar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:visibility="gone"
                 android:background="?attr/colorSurfaceContainer"
                 app:contentInsetStart="0dp"
                 app:contentInsetEnd="0dp"
@@ -103,7 +153,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:visibility="visible"
+                android:visibility="gone"
                 android:background="?attr/colorSurfaceContainer"
                 android:paddingTop="2dp"
                 android:paddingBottom="8dp">

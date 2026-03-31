@@ -31,6 +31,7 @@ import android.widget.Toast
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
+import com.google.android.material.tabs.TabLayout
 
 class PodcastsFragment : Fragment() {
     private lateinit var viewModel: PodcastsViewModel
@@ -51,6 +52,9 @@ class PodcastsFragment : Fragment() {
     private var searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView? = null
     private var searchInputLayout: com.google.android.material.textfield.TextInputLayout? = null
     private var saveSearchButton: android.widget.Button? = null
+    private var podcastsTabLayout: TabLayout? = null
+    private var genreAdapter: PodcastGenreAdapter? = null
+    private var searchContextMode: Boolean = false
     private var isLoadingNewPodcastBounds: Boolean = false
     private var hasAttemptedNewPodcastBoundsLoad: Boolean = false
     // Active search state is persisted in the ViewModel while the activity lives
@@ -173,6 +177,201 @@ class PodcastsFragment : Fragment() {
         val active = viewModel.activeSearchQuery.value ?: searchQuery
         val visible = active.isNotBlank()
         saveSearchButton?.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun setupTitleBarActions(titleBar: com.google.android.material.appbar.MaterialToolbar) {
+        titleBar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_podcast_search -> {
+                    openSearchScreen()
+                    true
+                }
+
+                R.id.action_podcast_shuffle -> {
+                    shuffleAndOpenRandomPodcast()
+                    true
+                }
+
+                else -> false
+            }
+        }
+    }
+
+    private fun openSearchScreen() {
+        val initialQuery = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
+        val fragment = PodcastSearchFragment.newInstance(initialQuery)
+        parentFragmentManager.beginTransaction().apply {
+            setReorderingAllowed(true)
+            replace(R.id.fragment_container, fragment, "podcast_search")
+            addToBackStack("podcast_search")
+            commit()
+        }
+    }
+
+    private fun setupPodcastsTabs(view: View, emptyState: TextView, recyclerView: RecyclerView) {
+        val tabs = view.findViewById<TabLayout>(R.id.podcasts_sort_tabs)
+        podcastsTabLayout = tabs
+        tabs.clearOnTabSelectedListeners()
+        tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                when (tab.position) {
+                    TAB_POPULAR -> {
+                        hideGenreList()
+                        currentSort = SORT_MOST_POPULAR
+                        viewModel.cachedSort = currentSort
+                        applyFilters(emptyState, recyclerView)
+                    }
+
+                    TAB_LAST_UPDATED -> {
+                        hideGenreList()
+                        currentSort = SORT_MOST_RECENT_EPISODES
+                        viewModel.cachedSort = currentSort
+                        applyFilters(emptyState, recyclerView)
+                    }
+
+                    TAB_NEW_PODCASTS -> {
+                        hideGenreList()
+                        currentSort = SORT_NEW_PODCASTS
+                        viewModel.cachedSort = currentSort
+                        applyFilters(emptyState, recyclerView)
+                    }
+
+                    TAB_GENRE -> {
+                        showGenreList(view)
+                    }
+
+                    TAB_AZ -> {
+                        hideGenreList()
+                        currentSort = SORT_ALPHABETICAL
+                        viewModel.cachedSort = currentSort
+                        applyFilters(emptyState, recyclerView)
+                    }
+                }
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
+
+        tabs.getTabAt(TAB_POPULAR)?.select()
+    }
+
+    private fun selectTabForSort(sort: String) {
+        val tabIndex = when (normalizeSortValue(sort)) {
+            SORT_MOST_POPULAR -> TAB_POPULAR
+            SORT_MOST_RECENT_EPISODES -> TAB_LAST_UPDATED
+            SORT_NEW_PODCASTS -> TAB_NEW_PODCASTS
+            SORT_ALPHABETICAL -> TAB_AZ
+            else -> TAB_POPULAR
+        }
+        podcastsTabLayout?.getTabAt(tabIndex)?.select()
+    }
+
+    private fun showGenreList(view: View) {
+        val podcastsRecycler = view.findViewById<RecyclerView>(R.id.podcasts_recycler)
+        val emptyState = view.findViewById<TextView>(R.id.empty_state_text)
+
+        if (genreAdapter == null) {
+            genreAdapter = PodcastGenreAdapter(mutableListOf()) { item ->
+                openGenreResults(item.name)
+            }
+        }
+
+        updateGenreItems()
+        podcastsRecycler.adapter = genreAdapter
+        podcastsRecycler.scrollToPosition(0)
+        podcastsRecycler.visibility = View.VISIBLE
+        emptyState.visibility = View.GONE
+    }
+
+    private fun hideGenreList() {
+        val root = view ?: return
+        val podcastsRecycler = root.findViewById<RecyclerView>(R.id.podcasts_recycler)
+        if (podcastsRecycler.adapter === genreAdapter) {
+            podcastsRecycler.adapter = podcastAdapter
+        }
+        podcastsRecycler.visibility = View.VISIBLE
+    }
+
+    private fun updateGenreItems() {
+        val genres = repository.getUniqueGenres(allPodcasts)
+        val genreItems = genres.map { genre ->
+            PodcastGenreAdapter.Item(name = genre, iconRes = iconForGenre(genre))
+        }
+        genreAdapter?.submit(genreItems)
+    }
+
+    private fun iconForGenre(genre: String): Int {
+        val g = genre.lowercase(Locale.getDefault())
+        return when {
+            // Music — all subgenres
+            g.contains("music") || g.contains("song") || g.contains("concert") ||
+            g.contains("pop") || g.contains("rock") || g.contains("jazz") ||
+            g.contains("folk") || g.contains("soul") || g.contains("dance") ||
+            g.contains("classical") || g.contains("hip hop") || g.contains("r&b") ||
+            g.contains("country") || g.contains("indie") -> R.drawable.ic_music_note
+            // History & Heritage
+            g.contains("history") || g.contains("archive") || g.contains("heritage") ||
+            g.contains("classic & period") || g.contains("period drama") ||
+            g.contains("nostalgia") || g.contains("vintage") -> R.drawable.ic_history
+            // Sport
+            g.contains("sport") || g.contains("football") || g.contains("cricket") ||
+            g.contains("rugby") || g.contains("tennis") || g.contains("boxing") ||
+            g.contains("athletics") || g.contains("cycling") || g.contains("golf") ||
+            g.contains("swimming") || g.contains("racing") -> R.drawable.ic_star
+            // News, Current Affairs & Documentary
+            g.contains("news") || g.contains("politic") || g.contains("current affairs") ||
+            g.contains("bulletin") || g.contains("documentary") -> R.drawable.ic_article
+            // Business & Finance
+            g.contains("business") || g.contains("finance") || g.contains("econom") ||
+            g.contains("money") || g.contains("career") || g.contains("entrepreneur") -> R.drawable.ic_work_outline
+            // Arts, Design & Style
+            g.contains("art") || g.contains("design") || g.contains("fashion") ||
+            g.contains("beauty") || g.contains("style") || g.contains("home") ||
+            g.contains("garden") || g.contains("film") || g.contains("cinema") -> R.drawable.ic_palette
+            // Science, Tech & Nature
+            g.contains("science") || g.contains("tech") || g.contains("comput") ||
+            g.contains("gaming") || g.contains("nature") || g.contains("wildlife") ||
+            g.contains("environment") || g.contains("space") ||
+            g.contains("psychology") || g.contains("scifi") || g.contains("sci-fi") -> R.drawable.ic_science
+            // Education, Books & Children
+            g.contains("education") || g.contains("book") || g.contains("literature") ||
+            g.contains("audiobook") || g.contains("children") || g.contains("kids") ||
+            g.contains("parenting") || g.contains("school") || g.contains("language") ||
+            g.contains("learn") -> R.drawable.ic_school
+            // Drama, Comedy & Entertainment
+            g.contains("comedy") || g.contains("entertain") || g.contains("drama") ||
+            g.contains("action") || g.contains("adventure") || g.contains("character") ||
+            g.contains("sitcom") -> R.drawable.ic_play_arrow
+            // Health & Wellbeing
+            g.contains("health") || g.contains("wellbeing") || g.contains("wellness") ||
+            g.contains("fitness") || g.contains("mental") || g.contains("self") ||
+            g.contains("relationship") || g.contains("food") || g.contains("cookery") ||
+            g.contains("diet") || g.contains("women") -> R.drawable.ic_favorite_border
+            // Chat, Talk & Activities
+            g.contains("chat") || g.contains("talk") || g.contains("discussion") ||
+            g.contains("interview") || g.contains("activit") || g.contains("social") ||
+            g.contains("society") -> R.drawable.ic_forum
+            // Travel & World
+            g.contains("travel") || g.contains("world") || g.contains("geography") -> R.drawable.ic_flight
+            // Religion, Philosophy & Ethics
+            g.contains("philos") || g.contains("religi") || g.contains("spirit") ||
+            g.contains("faith") || g.contains("ethic") -> R.drawable.ic_info
+            // Crime & Investigation
+            g.contains("crime") || g.contains("detective") || g.contains("investigation") ||
+            g.contains("murder") -> R.drawable.ic_search
+            else -> R.drawable.ic_podcast
+        }
+    }
+
+    private fun openGenreResults(genre: String) {
+        val fragment = PodcastGenreResultsFragment.newInstance(genre)
+        parentFragmentManager.beginTransaction().apply {
+            setReorderingAllowed(true)
+            replace(R.id.fragment_container, fragment, "genre_results")
+            addToBackStack("genre_results")
+            commit()
+        }
     }
 
     private fun bindGenreSpinner(
@@ -366,6 +565,22 @@ class PodcastsFragment : Fragment() {
         repository = PodcastRepository(requireContext())
         // Initialize ViewModel scoped to the Activity so it survives fragment navigation
         viewModel = ViewModelProvider(requireActivity()).get(PodcastsViewModel::class.java)
+        searchContextMode = arguments?.getBoolean(ARG_SEARCH_CONTEXT, false) == true
+
+        val titleBar = view.findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.podcasts_title_bar)
+        if (searchContextMode) {
+            titleBar.visibility = View.GONE
+            view.findViewById<com.google.android.material.appbar.AppBarLayout>(R.id.podcasts_header_appbar).visibility = View.GONE
+            val coordinator = view.findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(R.id.podcasts_coordinator)
+            (coordinator.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                lp.topMargin = 0
+                coordinator.layoutParams = lp
+            }
+            currentSort = SORT_MOST_RECENT_EPISODES
+            viewModel.cachedSort = currentSort
+        } else {
+            setupTitleBarActions(titleBar)
+        }
 
         val recyclerView: RecyclerView = view.findViewById(R.id.podcasts_recycler)
         val searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView = view.findViewById(R.id.search_podcast_edittext)
@@ -381,6 +596,15 @@ class PodcastsFragment : Fragment() {
 
         // Restore the active search into the edit text when the view is (re)created, without triggering the watcher
         suppressSearchWatcher = true
+        val argInitialQuery = arguments?.getString(ARG_INITIAL_QUERY)?.trim().orEmpty()
+        if (searchContextMode && argInitialQuery.isNotEmpty()) {
+            viewModel.setActiveSearch(argInitialQuery)
+        }
+        // In search context mode, clear any stale cached search (setActiveSearch seeds an empty
+        // cache that would otherwise prevent applyFilters from running a fresh search).
+        if (searchContextMode && argInitialQuery.isNotEmpty()) {
+            viewModel.clearCachedSearch()
+        }
         val restored = viewModel.activeSearchQuery.value
         searchEditText.setText(restored ?: "")
         if (!restored.isNullOrEmpty()) searchEditText.setSelection(searchEditText.text.length)
@@ -448,6 +672,9 @@ class PodcastsFragment : Fragment() {
         val loadingIndicator: ProgressBar = view.findViewById(R.id.loading_progress)
         val emptyState: TextView = view.findViewById(R.id.empty_state_text)
         val filtersContainer: View = view.findViewById(R.id.filters_container)
+        if (!searchContextMode) {
+            setupPodcastsTabs(view, emptyState, recyclerView)
+        }
 
         searchEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -642,6 +869,8 @@ class PodcastsFragment : Fragment() {
             sortSpinner.setText(SORT_MOST_POPULAR, false)
             viewModel.cachedFilter = currentFilter
             viewModel.cachedSort = SORT_MOST_POPULAR
+            podcastsTabLayout?.getTabAt(TAB_POPULAR)?.select()
+            hideGenreList()
             // Reset the title bar to the default Podcasts state (remove back navigation)
             resetTitleBar()
             applyFilters(emptyState, recyclerView)
@@ -714,7 +943,7 @@ class PodcastsFragment : Fragment() {
             cachedNewlyAddedPodcastEpochs = viewModel.cachedNewlyAddedPodcastEpochs
             analyticsPopularRanks = viewModel.cachedPopularRanks
             analyticsPopularTitleRanks = viewModel.cachedPopularTitleRanks
-            currentFilter = viewModel.cachedFilter
+            currentFilter = if (searchContextMode) PodcastFilter() else viewModel.cachedFilter
             // Restore sort: use cached sort if available, otherwise use default
             currentSort = if (viewModel.cachedSort.isNotEmpty()) {
                 normalizeSortValue(viewModel.cachedSort)
@@ -1042,6 +1271,7 @@ class PodcastsFragment : Fragment() {
             podcasts
         }
         viewModel.cachedPodcasts = allPodcasts
+        updateGenreItems()
 
         hideLoadingFeedback(loadingIndicator, emptyState)
         applyFilters(emptyState, recyclerView)
@@ -1110,6 +1340,7 @@ class PodcastsFragment : Fragment() {
         if (isLoadingPage) return
         // If we're showing search results, paginate episodes from the pending index queue
         val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+        if (rv?.adapter === genreAdapter) return
         if (rv?.adapter == searchAdapter) {
             // While search results are still being built/enriched, avoid concurrent pagination work.
             if (isSearchPopulating) return
@@ -1252,6 +1483,8 @@ class PodcastsFragment : Fragment() {
         searchJob?.cancel()
         episodePaginationJob?.cancel()
         restoreAppendJob?.cancel()
+        podcastsTabLayout = null
+        genreAdapter = null
         // Cache search adapter if active to avoid expensive rebuild on back navigation
         val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
         if (rv?.adapter is SearchResultsAdapter) {
@@ -1303,6 +1536,10 @@ class PodcastsFragment : Fragment() {
         
         // Refresh the adapter's subscription cache to reflect any changes
         refreshSubscriptionIndicators()
+
+        if (podcastsTabLayout?.selectedTabPosition == TAB_GENRE) {
+            view?.let { showGenreList(it) }
+        }
         
         // Super fast-path: if we have a cached adapter from before view destruction, restore it immediately
         val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
@@ -1748,6 +1985,7 @@ class PodcastsFragment : Fragment() {
         }
         viewModel.cachedFilter = currentFilter
         viewModel.cachedSort = currentSort
+        selectTabForSort(currentSort)
 
         clearCachedSearchPersisted()
 
@@ -2592,7 +2830,11 @@ class PodcastsFragment : Fragment() {
     private fun normalizePodcastTitle(value: String): String =
         value.trim().lowercase(Locale.getDefault()).replace(Regex("\\s+"), " ")
 
+    fun isSearchContextMode(): Boolean = searchContextMode
+
     companion object {
+        private const val ARG_SEARCH_CONTEXT = "search_context"
+        private const val ARG_INITIAL_QUERY = "initial_query"
         private const val SHAKE_THRESHOLD_GRAVITY = 2.7f
         private const val SHAKE_DEBOUNCE_MS = 1000L
         private const val LOADING_PODCASTS_MESSAGE = "Loading podcasts...\nChecking saved data and syncing with the BBC catalogue."
@@ -2604,12 +2846,26 @@ class PodcastsFragment : Fragment() {
         private const val SORT_NEW_PODCASTS = "New Podcasts"
         private const val SORT_NEW_PODCASTS_LEGACY = "Most recently added podcasts"
         private const val SORT_ALPHABETICAL = "Alphabetical (A-Z)"
+        private const val TAB_POPULAR = 0
+        private const val TAB_LAST_UPDATED = 1
+        private const val TAB_NEW_PODCASTS = 2
+        private const val TAB_GENRE = 3
+        private const val TAB_AZ = 4
         private const val NEW_PODCAST_WINDOW_MS = 180L * 24L * 60L * 60L * 1000L
         private val ACTIVE_LOADING_MESSAGES = setOf(
             LOADING_PODCASTS_MESSAGE,
             LOADING_POPULAR_PODCASTS_MESSAGE,
             LOADING_NEW_PODCASTS_MESSAGE
         )
+
+        fun newSearchResultsInstance(initialQuery: String): PodcastsFragment {
+            return PodcastsFragment().apply {
+                arguments = Bundle().apply {
+                    putBoolean(ARG_SEARCH_CONTEXT, true)
+                    putString(ARG_INITIAL_QUERY, initialQuery)
+                }
+            }
+        }
     } // End of PodcastsFragment class
 
     private data class Quadruple<A, B, C, D>(
