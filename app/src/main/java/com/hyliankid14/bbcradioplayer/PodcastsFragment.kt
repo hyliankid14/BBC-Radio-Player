@@ -1162,6 +1162,18 @@ class PodcastsFragment : Fragment() {
 
                 if (immediate.isNotEmpty()) {
                     android.util.Log.d("PodcastsFragment", "Showing ${immediate.size} local podcasts immediately (needsRefresh=$needsRefresh)")
+                    // Pre-populate cachedUpdates from the cloud/local bounds cache so that the
+                    // "Last Updated" sort is meaningful during Step 1, before the full date-bounds
+                    // scan (Step 3) completes.  Mirrors how cachedEarliestUpdates is pre-populated
+                    // for the "New Podcasts" sort.
+                    val immediateLatest = withContext(Dispatchers.IO) {
+                        repository.getAvailableCloudLatestUpdatesNow(immediate)
+                            .ifEmpty { repository.getAvailableUpdatesNow(immediate) }
+                    }
+                    if (immediateLatest.isNotEmpty()) {
+                        cachedUpdates = immediateLatest
+                        viewModel.cachedUpdates = cachedUpdates
+                    }
                     cachedNewlyAddedPodcastEpochs = immediateNewlyAdded
                     viewModel.cachedNewlyAddedPodcastEpochs = immediateNewlyAdded
                     displayPodcasts(immediate, immediateEarliest, loadingIndicator, emptyState, recyclerView, genreSpinner, sortSpinner)
@@ -1189,6 +1201,16 @@ class PodcastsFragment : Fragment() {
                                 .ifEmpty { repository.getAvailableEarliestUpdatesNow(fresh) },
                             repository.getAvailableNewPodcastEpochsNow(fresh)
                         )
+                    }
+                    // Pre-populate cachedUpdates from cached bounds for Step 2 as well, so the
+                    // Last Updated sort is correct before Step 3 fetches the full date bounds.
+                    val freshLatest = withContext(Dispatchers.IO) {
+                        repository.getAvailableCloudLatestUpdatesNow(fresh)
+                            .ifEmpty { repository.getAvailableUpdatesNow(fresh) }
+                    }
+                    if (freshLatest.isNotEmpty()) {
+                        cachedUpdates = freshLatest
+                        viewModel.cachedUpdates = cachedUpdates
                     }
                     cachedNewlyAddedPodcastEpochs = freshNewlyAdded
                     viewModel.cachedNewlyAddedPodcastEpochs = freshNewlyAdded
