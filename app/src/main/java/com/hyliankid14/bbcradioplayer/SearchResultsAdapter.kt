@@ -294,6 +294,13 @@ class SearchResultsAdapter(
             }
             durationView?.text = durText
 
+            // Re-check download state now that the episode may have a real audio URL.
+            if (DownloadedEpisodes.isDownloaded(itemView.context, episode)) {
+                downloadIcon?.visibility = View.VISIBLE
+            } else {
+                downloadIcon?.visibility = View.GONE
+            }
+
             playButton?.isEnabled = true
             playButton?.alpha = 1.0f
             playButton?.setOnClickListener { onPlayEpisode(episode) }

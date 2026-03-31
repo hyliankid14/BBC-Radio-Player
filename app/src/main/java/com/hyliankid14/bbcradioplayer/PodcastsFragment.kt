@@ -2714,9 +2714,9 @@ class PodcastsFragment : Fragment() {
                                     searchAdapter?.appendEpisodeMatches(toAppendNow)
                                 }
                             } else {
-                                // For alphabetical or popularity sort, replace the entire episode list
-                                // with the properly sorted full results to avoid showing two separate
-                                // sorted segments (quick batch + new episodes appended).
+                                // For oldest-to-newest, alphabetical, or popularity sort, replace the
+                                // entire episode list with the properly sorted full results to avoid
+                                // showing two separate sorted segments (quick batch + new episodes appended).
                                 val initialBatchToDisplay = mergedAll.take(INITIAL_EPISODE_DISPLAY_LIMIT)
                                 if (initialBatchToDisplay.size > quickEps.size) {
                                     // Only update if we have more episodes to show
