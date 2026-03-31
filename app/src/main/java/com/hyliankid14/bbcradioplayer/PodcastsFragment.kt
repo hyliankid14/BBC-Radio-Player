@@ -1921,6 +1921,11 @@ class PodcastsFragment : Fragment() {
             putExtra("preview_use_play_ui", true)
             putExtra("preview_podcast_title", podcast.title)
             putExtra("preview_podcast_image", podcast.imageUrl)
+            // When opened from search results, tell NowPlayingActivity to return here on back
+            // rather than navigating to the podcast detail screen.
+            if (searchContextMode) {
+                putExtra("back_source", "search_results")
+            }
         }
         startActivity(intent)
     }
@@ -2809,6 +2814,15 @@ class PodcastsFragment : Fragment() {
     private fun sortEpisodeMatches(episodes: List<Pair<Episode, Podcast>>): List<Pair<Episode, Podcast>> {
         return when (normalizeSortValue(currentSort)) {
             SORT_MOST_RECENT_EPISODES -> episodes
+            SORT_OLDEST_EPISODES -> {
+                val epochMap: Map<String, Long> = episodes.associate { (ep, _) ->
+                    ep.id to com.hyliankid14.bbcradioplayer.db.IndexStore.parsePubEpoch(ep.pubDate)
+                }
+                episodes.sortedWith(
+                    compareBy<Pair<Episode, Podcast>> { epochMap[it.first.id].let { epoch -> if (epoch == null || epoch <= 0L) Long.MAX_VALUE else epoch } }
+                        .thenBy { it.first.title }
+                )
+            }
             SORT_NEW_PODCASTS -> {
                 val epochMap: Map<String, Long> = episodes.associate { (ep, _) ->
                     ep.id to com.hyliankid14.bbcradioplayer.db.IndexStore.parsePubEpoch(ep.pubDate)
