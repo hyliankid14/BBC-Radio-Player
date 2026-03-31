@@ -1567,12 +1567,11 @@ class PodcastsFragment : Fragment() {
             sensorManager?.unregisterListener(shakeListener)
         } else {
             registerShakeListener()
-            // When the browse fragment is un-hidden (e.g. after pressing back from a podcast
-            // detail), ensure the activity action bar is hidden. The fragment manages its own
-            // title bar and must not show both simultaneously.
-            if (!searchContextMode) {
-                (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.hide()
-            }
+            // When this fragment is un-hidden (e.g. after pressing back from a podcast detail),
+            // ensure the activity action bar is hidden. The fragment always manages its own title
+            // bar (podcasts_title_bar) and must never show both simultaneously — whether in browse
+            // or search-context mode.
+            (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.hide()
         }
     }
 
@@ -1597,12 +1596,11 @@ class PodcastsFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         registerShakeListener()
-        // Ensure the activity action bar is hidden in browse mode — the fragment owns its title bar.
-        // This guards against timing windows where the action bar was shown for a podcast detail
-        // and not yet hidden when this fragment comes back to the foreground.
-        if (!searchContextMode) {
-            (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.hide()
-        }
+        // Ensure the activity action bar is hidden — the fragment always owns its title bar
+        // (podcasts_title_bar) in both browse and search-context mode. This guards against timing
+        // windows where the action bar was shown for a podcast detail and not yet hidden when this
+        // fragment comes back to the foreground.
+        (activity as? androidx.appcompat.app.AppCompatActivity)?.supportActionBar?.hide()
         android.util.Log.d("PodcastsFragment", "onResume: activeSearchQuery='${viewModel.activeSearchQuery.value}' searchQuery='${searchQuery}' allPodcasts.size=${allPodcasts.size}")
         
         // Refresh the adapter's subscription cache to reflect any changes
