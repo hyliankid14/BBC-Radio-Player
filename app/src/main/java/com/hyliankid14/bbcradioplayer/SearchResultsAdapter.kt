@@ -40,6 +40,9 @@ class SearchResultsAdapter(
 
     private var items: MutableList<Item> = mutableListOf()
 
+    /** Authoritative total episode count set once the full FTS scan completes; -1 if not yet known. */
+    private var episodeTotalCount: Int = -1
+
     init {
         if (prebuiltItems != null) {
             items = prebuiltItems.toMutableList()
@@ -79,11 +82,27 @@ class SearchResultsAdapter(
         items.removeAll { it is Item.EpisodeItem }
         // Remove any existing Section("Episode") header
         items.removeAll { it is Item.Section && it.title == "Episode" }
+        episodeTotalCount = -1  // Reset; caller will provide the total via setEpisodeTotalCount.
         if (newEpisodeMatches.isNotEmpty()) {
             items.add(Item.Section("Episode", newEpisodeMatches.size))
             newEpisodeMatches.forEach { (ep, p) -> items.add(Item.EpisodeItem(ep, p)) }
         }
         notifyDataSetChanged()
+    }
+
+    /**
+     * Sets the authoritative total episode result count for the section header.
+     * Call this once the full FTS scan completes so the header shows the real total
+     * rather than only the number of episodes loaded so far.
+     * Must be called on the main thread.
+     */
+    fun setEpisodeTotalCount(total: Int) {
+        episodeTotalCount = total
+        val sectionIndex = items.indexOfFirst { it is Item.Section && it.title == "Episode" }
+        if (sectionIndex >= 0) {
+            items[sectionIndex] = Item.Section("Episode", total)
+            notifyItemChanged(sectionIndex)
+        }
     }
 
     fun appendItems(more: List<Item>) {
@@ -119,8 +138,9 @@ class SearchResultsAdapter(
         filtered.forEach { (ep, p) -> items.add(Item.EpisodeItem(ep, p)) }
         notifyItemRangeInserted(insertStart, filtered.size)
 
-        // Refresh the section header count when appending to an existing section.
-        if (!sectionIsNew) {
+        // Only update the section header count when the total is not yet known.
+        // Once setEpisodeTotalCount() has been called the header already shows the real total.
+        if (!sectionIsNew && episodeTotalCount < 0) {
             val existingCount = (items[sectionIndex] as? Item.Section)?.count?.takeIf { it >= 0 } ?: 0
             items[sectionIndex] = Item.Section("Episode", existingCount + filtered.size)
             notifyItemChanged(sectionIndex)

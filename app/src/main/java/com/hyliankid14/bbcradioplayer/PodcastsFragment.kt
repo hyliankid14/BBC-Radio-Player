@@ -2725,6 +2725,10 @@ class PodcastsFragment : Fragment() {
                                 }
                             }
 
+                            // Tell the adapter the authoritative total so the section header shows
+                            // the real result count (not just the initial paged subset).
+                            searchAdapter?.setEpisodeTotalCount(mergedAll.size)
+
                             // Wire remaining results into scroll-pagination.
                             val initialBatch = mergedAll.take(INITIAL_EPISODE_DISPLAY_LIMIT)
                             usingCachedEpisodePagination = mergedAll.size > INITIAL_EPISODE_DISPLAY_LIMIT
