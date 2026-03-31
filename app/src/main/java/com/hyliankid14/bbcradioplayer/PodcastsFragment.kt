@@ -2863,7 +2863,8 @@ class PodcastsFragment : Fragment() {
     private fun normalizeSortValue(sort: String?): String {
         return when (sort) {
             SORT_MOST_RECENT_EPISODES,
-            SORT_MOST_RECENT_EPISODES_LEGACY -> SORT_MOST_RECENT_EPISODES
+            SORT_MOST_RECENT_EPISODES_LEGACY,
+            SORT_MOST_RECENT_EPISODES_LEGACY2 -> SORT_MOST_RECENT_EPISODES
             SORT_OLDEST_EPISODES -> SORT_OLDEST_EPISODES
             SORT_NEW_PODCASTS,
             SORT_NEW_PODCASTS_LEGACY -> SORT_NEW_PODCASTS
@@ -2940,6 +2941,47 @@ class PodcastsFragment : Fragment() {
 
     fun isSearchContextMode(): Boolean = searchContextMode
 
+    /**
+     * Resets the browse fragment back to the default (no-search) state.
+     * Called by MainActivity when the user navigates to the Podcasts tab after having run a
+     * saved search, so the browse list is shown instead of stale search results.
+     */
+    fun resetToDefaultBrowse() {
+        if (searchContextMode) return // only applies to the browse instance
+        if (!isAdded || view == null) return
+        if (viewModel.activeSearchQuery.value.isNullOrBlank() && searchQuery.isBlank()) return
+
+        searchJob?.cancel()
+        filterDebounceJob?.cancel()
+        restoreAppendJob?.cancel()
+        usingCachedItemAppend = false
+        restoringFromCache = false
+        searchQuery = ""
+        searchAdapter = null
+        cachedSearchAdapter = null
+
+        viewModel.clearActiveSearch()
+        viewModel.clearCachedSearch()
+
+        suppressSearchWatcher = true
+        try { searchEditText?.text?.clear() } catch (_: Exception) { }
+        suppressSearchWatcher = false
+        try { updateSearchEndIcon(true) } catch (_: Exception) { }
+
+        val rv = view?.findViewById<RecyclerView>(R.id.podcasts_recycler)
+        if (rv != null && rv.adapter !== podcastAdapter) {
+            rv.adapter = podcastAdapter
+        }
+
+        updateSaveSearchButtonVisibility()
+
+        // Remove any navigation-back affordance added by applySavedSearch
+        try {
+            view?.findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.podcasts_title_bar)
+                ?.navigationIcon = null
+        } catch (_: Exception) { }
+    }
+
     companion object {
         private const val ARG_SEARCH_CONTEXT = "search_context"
         private const val ARG_INITIAL_QUERY = "initial_query"
@@ -2949,8 +2991,9 @@ class PodcastsFragment : Fragment() {
         private const val LOADING_POPULAR_PODCASTS_MESSAGE = "Loading Most popular...\nFetching the latest rankings from the cloud index."
         private const val LOADING_NEW_PODCASTS_MESSAGE = "Loading New Podcasts...\nFetching the latest additions from the cloud index."
         private const val SORT_MOST_POPULAR = "Most popular"
-        private const val SORT_MOST_RECENT_EPISODES = "Most recently updated"
+        private const val SORT_MOST_RECENT_EPISODES = "Newest to oldest"
         private const val SORT_MOST_RECENT_EPISODES_LEGACY = "Most recent"
+        private const val SORT_MOST_RECENT_EPISODES_LEGACY2 = "Most recently updated"
         private const val SORT_NEW_PODCASTS = "New Podcasts"
         private const val SORT_NEW_PODCASTS_LEGACY = "Most recently added podcasts"
         private const val SORT_ALPHABETICAL = "Alphabetical (A-Z)"

@@ -2051,9 +2051,12 @@ class MainActivity : AppCompatActivity() {
 
         val fm = supportFragmentManager
 
-        // If we're already showing the Podcasts list with no detail on top, do nothing (avoid flicker)
+        // If we're already showing the Podcasts list with no detail on top, reset any stale
+        // search state (e.g. after returning from Favorites where a saved search was run) so
+        // the default browse view is shown.
         val existingVisible = fm.findFragmentById(R.id.fragment_container)
         if (existingVisible is PodcastsFragment && fm.backStackEntryCount == 0) {
+            existingVisible.resetToDefaultBrowse()
             return
         }
 
