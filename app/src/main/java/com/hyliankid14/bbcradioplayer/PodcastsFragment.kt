@@ -368,7 +368,8 @@ class PodcastsFragment : Fragment() {
         val fragment = PodcastGenreResultsFragment.newInstance(genre)
         parentFragmentManager.beginTransaction().apply {
             setReorderingAllowed(true)
-            replace(R.id.fragment_container, fragment, "genre_results")
+            add(R.id.fragment_container, fragment, "genre_results")
+            hide(this@PodcastsFragment)
             addToBackStack("genre_results")
             commit()
         }
@@ -569,13 +570,16 @@ class PodcastsFragment : Fragment() {
 
         val titleBar = view.findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.podcasts_title_bar)
         if (searchContextMode) {
-            titleBar.visibility = View.GONE
-            view.findViewById<com.google.android.material.appbar.AppBarLayout>(R.id.podcasts_header_appbar).visibility = View.GONE
-            val coordinator = view.findViewById<androidx.coordinatorlayout.widget.CoordinatorLayout>(R.id.podcasts_coordinator)
-            (coordinator.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
-                lp.topMargin = 0
-                coordinator.layoutParams = lp
+            // Show a title bar with the search query and a back button; hide the browse header
+            val queryTitle = arguments?.getString(ARG_INITIAL_QUERY)?.trim()
+                ?.let { if (it.isBlank()) "Search results" else it } ?: "Search results"
+            titleBar.title = queryTitle
+            titleBar.setNavigationIcon(R.drawable.ic_arrow_back)
+            titleBar.setNavigationOnClickListener {
+                requireActivity().onBackPressedDispatcher.onBackPressed()
             }
+            titleBar.menu.clear()
+            view.findViewById<com.google.android.material.appbar.AppBarLayout>(R.id.podcasts_header_appbar).visibility = View.GONE
             currentSort = SORT_MOST_RECENT_EPISODES
             viewModel.cachedSort = currentSort
         } else {
@@ -615,13 +619,16 @@ class PodcastsFragment : Fragment() {
 
         // Try to restore a persisted search cache (survives navigation/process-restores). Only restore
         // if the persisted query matches the currently active query so we don't override unrelated state.
-        try {
-            val persisted = SearchCacheStore.load(requireContext())
-            if (persisted != null && normalizeQuery(persisted.query) == normalizeQuery(viewModel.activeSearchQuery.value) && viewModel.getCachedSearch() == null) {
-                android.util.Log.d("PodcastsFragment", "Restoring persisted search cache for='${persisted.query}'")
-                viewModel.setCachedSearch(persisted)
-            }
-        } catch (_: Exception) { /* best-effort */ }
+        // Skip entirely in search context mode — we always want a fresh search, never a cached restore.
+        if (!searchContextMode) {
+            try {
+                val persisted = SearchCacheStore.load(requireContext())
+                if (persisted != null && normalizeQuery(persisted.query) == normalizeQuery(viewModel.activeSearchQuery.value) && viewModel.getCachedSearch() == null) {
+                    android.util.Log.d("PodcastsFragment", "Restoring persisted search cache for='${persisted.query}'")
+                    viewModel.setCachedSearch(persisted)
+                }
+            } catch (_: Exception) { /* best-effort */ }
+        }
 
         // If we have an active cached search, suppress automatic reloads during restore
         try {
@@ -1536,6 +1543,22 @@ class PodcastsFragment : Fragment() {
         
         // Refresh the adapter's subscription cache to reflect any changes
         refreshSubscriptionIndicators()
+
+        // If browse mode has inherited an active search that was set by a search context instance
+        // (detected when our local searchQuery field is blank but viewModel has a non-blank query),
+        // clear it so the browse page always shows the full list — search is a separate context.
+        if (!searchContextMode && searchQuery.isBlank() && !viewModel.activeSearchQuery.value.isNullOrBlank()) {
+            android.util.Log.d("PodcastsFragment", "onResume: clearing search context query from browse mode")
+            viewModel.clearActiveSearch()
+            viewModel.clearCachedSearch()
+            cachedSearchAdapter = null
+            searchAdapter = null
+            restoringFromCache = false
+            suppressSearchWatcher = true
+            try { searchEditText?.text?.clear() } catch (_: Exception) { }
+            suppressSearchWatcher = false
+            try { updateSearchEndIcon(true) } catch (_: Exception) { }
+        }
 
         if (podcastsTabLayout?.selectedTabPosition == TAB_GENRE) {
             view?.let { showGenreList(it) }
