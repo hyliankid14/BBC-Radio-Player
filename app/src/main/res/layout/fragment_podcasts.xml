@@ -302,6 +302,38 @@
         android:background="?attr/colorSurfaceContainer"
         android:visibility="gone" />
 
+    <LinearLayout
+        android:id="@+id/search_results_loading_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="88dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="10dp"
+        android:background="?attr/colorSurfaceContainerHigh"
+        android:elevation="6dp"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:id="@+id/search_results_loading_progress"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp" />
+
+        <TextView
+            android:id="@+id/search_results_loading_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/loading_more_search_results"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp" />
+    </LinearLayout>
+
     <!-- Floating action button to return to top and appear while scrolling -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         style="@style/Widget.MaterialComponents.FloatingActionButton"

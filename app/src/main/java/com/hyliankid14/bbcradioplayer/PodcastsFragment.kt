@@ -137,6 +137,15 @@ class PodcastsFragment : Fragment() {
         }
     }
 
+    private fun showLoadingMoreSearchResultsIndicator() {
+        if (!isAdded || searchQuery.isBlank()) return
+        view?.findViewById<View>(R.id.search_results_loading_container)?.visibility = View.VISIBLE
+    }
+
+    private fun hideLoadingMoreSearchResultsIndicator() {
+        view?.findViewById<View>(R.id.search_results_loading_container)?.visibility = View.GONE
+    }
+
     /** Update the search field's end icon based on whether the field is empty.
      *  Empty → shuffle icon; non-empty → clear (X) icon. */
     private fun updateSearchEndIcon(empty: Boolean) {
@@ -1715,6 +1724,7 @@ class PodcastsFragment : Fragment() {
                     // An active search is persisted; if we're already showing the search results adapter, keep it to avoid re-running expensive searches
                     if (podcastsRecycler.adapter == searchAdapter) {
                         android.util.Log.d("PodcastsFragment", "onResume: keeping existing search results (active='${active}'), skipping rebuild")
+                        if (isSearchPopulating) showLoadingMoreSearchResultsIndicator() else hideLoadingMoreSearchResultsIndicator()
                         return
                     }
                 }
@@ -1798,6 +1808,7 @@ class PodcastsFragment : Fragment() {
                         }
                     }
                 }
+                if (cached.isComplete) hideLoadingMoreSearchResultsIndicator() else showLoadingMoreSearchResultsIndicator()
 
                 // Ensure filters are populated after restore
                 try {
@@ -2055,6 +2066,7 @@ class PodcastsFragment : Fragment() {
         searchJob?.cancel()
         filterDebounceJob?.cancel()
         restoreAppendJob?.cancel()
+        hideLoadingMoreSearchResultsIndicator()
         usingCachedItemAppend = false
         usingCachedEpisodePagination = false
         cachedEpisodeMatchesFull = emptyList()
@@ -2177,6 +2189,7 @@ class PodcastsFragment : Fragment() {
             if (generation != searchGeneration) return@launch
 
             val loadingView = view?.findViewById<ProgressBar>(R.id.loading_progress)
+            hideLoadingMoreSearchResultsIndicator()
             
             // Get the query first to determine if we should show the large spinner
             val q = (viewModel.activeSearchQuery.value ?: searchQuery).trim()
@@ -2204,6 +2217,7 @@ class PodcastsFragment : Fragment() {
                     android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: job was cancelled early")
                     showSpinnerJob?.cancel()
                     loadingView?.visibility = View.GONE
+                    hideLoadingMoreSearchResultsIndicator()
                     return@launch
                 }
 
@@ -2214,6 +2228,7 @@ class PodcastsFragment : Fragment() {
                     showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = false, emptyState)
                     showSpinnerJob?.cancel()
                     loadingView?.visibility = View.GONE
+                    hideLoadingMoreSearchResultsIndicator()
                     return@launch
                 }
 
@@ -2236,6 +2251,7 @@ class PodcastsFragment : Fragment() {
                     android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: After showResultsSafely, cancelling spinner")
                     showSpinnerJob?.cancel()
                     loadingView?.visibility = View.GONE
+                    hideLoadingMoreSearchResultsIndicator()
                     return@launch
                 }
 
@@ -2563,6 +2579,7 @@ class PodcastsFragment : Fragment() {
                     displayedEpisodeCount = resolvedEpisodeMatches.size
                     viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
                     loadingView?.visibility = View.GONE
+                    showLoadingMoreSearchResultsIndicator()
 
                     // ── STEP 2b: full background load ────────────────────────────────────────
                     // Fetch all matching episodes in pages without blocking the UI. When done,
@@ -2584,12 +2601,12 @@ class PodcastsFragment : Fragment() {
                                     if (cloudSearchAvailable) {
                                         try {
                                             // Paginate the remote episode search so older results are
-                                            // included. Each page fetches 1,000 episodes; we stop when
-                                            // a page returns fewer results than the page size (meaning
-                                            // we've reached the end) or when we hit the 10-page cap
-                                            // (10,000 episodes max) to stay performant.
-                                            val pageSize = 1000
-                                            val maxPages = 10
+                                            // included. The Cloud Function caps each response to 500
+                                            // matches, so the client must use the same page size or it
+                                            // will incorrectly treat the first truncated page as the end
+                                            // of the result set.
+                                            val pageSize = REMOTE_EPISODE_SEARCH_PAGE_SIZE
+                                            val maxPages = REMOTE_EPISODE_SEARCH_MAX_PAGES
                                             val all = mutableListOf<com.hyliankid14.bbcradioplayer.db.EpisodeFts>()
                                             for (page in 0 until maxPages) {
                                                 if (!coroutineContext.isActive) break
@@ -2731,6 +2748,7 @@ class PodcastsFragment : Fragment() {
                             }
 
                             viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
+                            hideLoadingMoreSearchResultsIndicator()
 
                             // Background enrichment: fill in missing audio URLs / durations.
                             val incompletePodcasts = episodes
@@ -2821,6 +2839,7 @@ class PodcastsFragment : Fragment() {
                 }
                 showSpinnerJob?.cancel()
                 loadingView?.visibility = View.GONE
+                hideLoadingMoreSearchResultsIndicator()
             }
         }
     }
@@ -2999,6 +3018,8 @@ class PodcastsFragment : Fragment() {
     companion object {
         private const val ARG_SEARCH_CONTEXT = "search_context"
         private const val ARG_INITIAL_QUERY = "initial_query"
+        private const val REMOTE_EPISODE_SEARCH_PAGE_SIZE = 500
+        private const val REMOTE_EPISODE_SEARCH_MAX_PAGES = 300
         private const val SHAKE_THRESHOLD_GRAVITY = 2.7f
         private const val SHAKE_DEBOUNCE_MS = 1000L
         private const val LOADING_PODCASTS_MESSAGE = "Loading podcasts...\nChecking saved data and syncing with the BBC catalogue."
