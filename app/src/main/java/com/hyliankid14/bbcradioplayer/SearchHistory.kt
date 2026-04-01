@@ -11,7 +11,7 @@ class SearchHistory(private val context: Context) {
         private const val PREFS = "search_history_prefs"
         private const val KEY = "history_list"
         private const val SEP = "\u001F" // Unit Separator - unlikely to appear in queries
-        private const val DEFAULT_LIMIT = 20
+        private const val DEFAULT_LIMIT = 30
     }
 
     fun add(query: String, limit: Int = DEFAULT_LIMIT) {
