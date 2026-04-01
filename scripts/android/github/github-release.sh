@@ -91,6 +91,32 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 
 TAG="v${VERSION_NAME}"
+RELEASE_COMMIT="$(git rev-parse HEAD)"
+
+echo "Release commit: ${RELEASE_COMMIT}"
+
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+    TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+    if [[ "$TAG_COMMIT" != "$RELEASE_COMMIT" ]]; then
+        echo "Error: ${TAG} already exists at ${TAG_COMMIT}, but current HEAD is ${RELEASE_COMMIT}."
+        echo "Refusing to publish with a stale tag."
+        echo "Either bump APP_VERSION_NAME to a new version, or move/delete the existing tag manually if that is intentional."
+        exit 1
+    fi
+fi
+
+if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+    REMOTE_TAG_COMMIT="$(git ls-remote --tags origin "refs/tags/${TAG}^{}" | awk '{print $1}' | head -1)"
+    if [[ -z "$REMOTE_TAG_COMMIT" ]]; then
+        REMOTE_TAG_COMMIT="$(git ls-remote --tags origin "refs/tags/${TAG}" | awk '{print $1}' | head -1)"
+    fi
+    if [[ -n "$REMOTE_TAG_COMMIT" && "$REMOTE_TAG_COMMIT" != "$RELEASE_COMMIT" ]]; then
+        echo "Error: remote tag ${TAG} points to ${REMOTE_TAG_COMMIT}, but current HEAD is ${RELEASE_COMMIT}."
+        echo "Refusing to update release for a different commit."
+        echo "Create a new version tag, or explicitly retag on remote if you intend to replace this release."
+        exit 1
+    fi
+fi
 
 if [[ ! -x ./gradlew ]]; then
     chmod +x ./gradlew
@@ -184,7 +210,7 @@ NOTES_FILE="$(mktemp)"
 } > "$NOTES_FILE"
 
 if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-    git tag -a "$TAG" -m "Release ${TAG}" HEAD
+    git tag -a "$TAG" -m "Release ${TAG}" "$RELEASE_COMMIT"
 fi
 
 if ! git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
@@ -199,6 +225,7 @@ else
     gh release create "$TAG" \
         "$APK_OUTPUT_PATH#${RELEASE_ASSET_NAME}" \
         "$WEAR_APK_OUTPUT_PATH#${WEAR_RELEASE_ASSET_NAME}" \
+        --target "$RELEASE_COMMIT" \
         --title "$TAG" \
         --notes-file "$NOTES_FILE"
 fi
