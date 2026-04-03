@@ -205,9 +205,10 @@ final class AppContainer: ObservableObject {
                 guard let podcast = allPods.first(where: { $0.id == episode.podcastID }) else { return }
                 let allEpisodes = try await podcastRepository.fetchEpisodes(for: podcast)
                 let currentEpoch = Self.parsePubDateToEpoch(episode.pubDate)
+                guard currentEpoch > 0 else { return }
                 let candidates: [(Episode, Int64)] = allEpisodes.compactMap { ep in
                     let epEpoch = Self.parsePubDateToEpoch(ep.pubDate)
-                    guard epEpoch > 0, currentEpoch > 0, epEpoch > currentEpoch else { return nil }
+                    guard epEpoch > 0, epEpoch > currentEpoch else { return nil }
                     return (ep, epEpoch)
                 }
                 guard let next = candidates.min(by: { $0.1 < $1.1 })?.0 else { return }

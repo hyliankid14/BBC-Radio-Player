@@ -241,9 +241,7 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
                     currentArtwork = intent.getStringExtra(EXTRA_ARTWORK_URL)
                     currentIsLive = intent.getBooleanExtra(EXTRA_IS_LIVE, false)
                     val newEpisodeId = intent.getStringExtra(EXTRA_EPISODE_ID)
-                    // Extract resumePositionMs early: it is needed below both for the
-                    // analytics reset check (before currentEpisodeId is updated) and
-                    // for seeking after playback starts.
+                    // Extract resumePositionMs once to avoid duplicate intent reads.
                     val resumePositionMs = intent.getLongExtra(EXTRA_START_POSITION_MS, 0L)
                     // Clear analytics tracking when starting a new episode or restarting from
                     // the beginning so that the 10-second timer fires again as a new play.
