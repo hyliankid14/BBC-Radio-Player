@@ -204,9 +204,9 @@ final class AppContainer: ObservableObject {
                 let allPods = try await podcastRepository.fetchPodcasts(forceRefresh: false)
                 guard let podcast = allPods.first(where: { $0.id == episode.podcastID }) else { return }
                 let allEpisodes = try await podcastRepository.fetchEpisodes(for: podcast)
-                let currentEpoch = parsePubDateToEpoch(episode.pubDate)
+                let currentEpoch = Self.parsePubDateToEpoch(episode.pubDate)
                 let candidates: [(Episode, Int64)] = allEpisodes.compactMap { ep in
-                    let epEpoch = parsePubDateToEpoch(ep.pubDate)
+                    let epEpoch = Self.parsePubDateToEpoch(ep.pubDate)
                     guard epEpoch > 0, currentEpoch > 0, epEpoch > currentEpoch else { return nil }
                     return (ep, epEpoch)
                 }
@@ -223,17 +223,18 @@ final class AppContainer: ObservableObject {
         }
     }
 
-    private func parsePubDateToEpoch(_ pubDate: String) -> Int64 {
-        let formatters: [DateFormatter] = {
-            let f1 = DateFormatter()
-            f1.locale = Locale(identifier: "en_US_POSIX")
-            f1.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-            let f2 = DateFormatter()
-            f2.locale = Locale(identifier: "en_US_POSIX")
-            f2.dateFormat = "EEE, dd MMM yyyy HH:mm:ss z"
-            return [f1, f2]
-        }()
-        for formatter in formatters {
+    private static let pubDateFormatters: [DateFormatter] = {
+        let f1 = DateFormatter()
+        f1.locale = Locale(identifier: "en_US_POSIX")
+        f1.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        let f2 = DateFormatter()
+        f2.locale = Locale(identifier: "en_US_POSIX")
+        f2.dateFormat = "EEE, dd MMM yyyy HH:mm:ss z"
+        return [f1, f2]
+    }()
+
+    private static func parsePubDateToEpoch(_ pubDate: String) -> Int64 {
+        for formatter in pubDateFormatters {
             if let date = formatter.date(from: pubDate) {
                 return Int64(date.timeIntervalSince1970)
             }

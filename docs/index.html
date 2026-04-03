@@ -2136,6 +2136,7 @@
                     };
                 }
 
+                const EPISODE_RESTART_THRESHOLD_SECS = 3;
                 document.querySelectorAll('audio[data-podcast-id][data-episode-id]').forEach(audio => {
                     audio._episodeAnalyticsTimer = null;
                     audio._episodeAnalyticsTracked = false;
@@ -2158,9 +2159,9 @@
                         audio._episodeAnalyticsTimer = null;
                     };
                     audio.onseeked = () => {
-                        // Restarting from the beginning (within first 3 seconds) allows
-                        // a new play to be counted, matching the rule on other platforms.
-                        if (audio.currentTime < 3) {
+                        // Restarting from the beginning allows a new play to be counted,
+                        // matching the rule on other platforms.
+                        if (audio.currentTime < EPISODE_RESTART_THRESHOLD_SECS) {
                             audio._episodeAnalyticsTracked = false;
                         }
                     };
