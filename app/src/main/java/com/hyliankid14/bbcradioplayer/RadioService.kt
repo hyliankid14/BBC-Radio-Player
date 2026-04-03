@@ -1561,6 +1561,8 @@ class RadioService : MediaBrowserServiceCompat() {
                                 val autoplayPref = PlaybackPreference.getAutoplayNextEpisode(this@RadioService)
                                 if (autoplayPref == PlaybackPreference.AUTOPLAY_NEXT_NONE) {
                                     Log.d(TAG, "Autoplay disabled by user preference")
+                                } else if (isStopped) {
+                                    Log.d(TAG, "Autoplay skipped: playback already stopped")
                                 } else {
                                     serviceScope.launch {
                                         try {

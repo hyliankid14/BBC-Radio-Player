@@ -211,7 +211,7 @@ final class AppContainer: ObservableObject {
                     return (ep, epEpoch)
                 }
                 guard let next = candidates.min(by: { $0.1 < $1.1 })?.0 else { return }
-                guard audioPlayerService.currentEpisode?.id == episode.id || audioPlayerService.currentEpisode == nil else { return }
+                guard audioPlayerService.currentEpisode?.id == episode.id else { return }
                 audioPlayerService.play(
                     episode: next,
                     podcastTitle: podcast.title,
