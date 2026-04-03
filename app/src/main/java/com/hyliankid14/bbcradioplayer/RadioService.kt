@@ -3890,6 +3890,16 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         }
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // Called when the user swipes the app away from the multitasking/recent-apps view.
+        // Stop playback so audio doesn't continue after the app is dismissed.
+        if (!isStopped) {
+            Log.d(TAG, "Task removed — stopping playback")
+            stopPlayback()
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         // Cancel any pending analytics
         stationAnalyticsRunnable?.let { handler.removeCallbacks(it); stationAnalyticsRunnable = null }
