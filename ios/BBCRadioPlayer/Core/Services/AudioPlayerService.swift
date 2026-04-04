@@ -50,6 +50,7 @@ final class AudioPlayerService: NSObject, ObservableObject, AVPlayerItemMetadata
     private var timeObserver: Any?
     private var timeControlObservation: NSKeyValueObservation?
     private var itemStatusObservation: NSKeyValueObservation?
+    private var itemEndObserver: Any?
     private var metadataOutput: AVPlayerItemMetadataOutput?
     private var rmsPollingTask: Task<Void, Never>?
     private var artworkLoadTask: Task<Void, Never>?
@@ -66,6 +67,7 @@ final class AudioPlayerService: NSObject, ObservableObject, AVPlayerItemMetadata
     private var currentAnalyticsSent = false
     var onNextRequested: (() -> Void)?
     var onPreviousRequested: (() -> Void)?
+    var onEpisodeCompleted: ((Episode) -> Void)?
 
     var hasActiveItem: Bool {
         currentStation != nil || currentEpisode != nil
@@ -85,6 +87,9 @@ final class AudioPlayerService: NSObject, ObservableObject, AVPlayerItemMetadata
     deinit {
         if let timeObserver, let player {
             player.removeTimeObserver(timeObserver)
+        }
+        if let itemEndObserver {
+            NotificationCenter.default.removeObserver(itemEndObserver)
         }
         networkMonitor.cancel()
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
@@ -410,6 +415,21 @@ final class AudioPlayerService: NSObject, ObservableObject, AVPlayerItemMetadata
                     self?.isPlaying = false
                     self?.refreshNowPlayingInfo()
                 }
+            }
+        }
+
+        // Remove any previous end-of-item observer before attaching a new one.
+        if let previous = itemEndObserver {
+            NotificationCenter.default.removeObserver(previous)
+        }
+        itemEndObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, let episode = self.currentEpisode else { return }
+                self.onEpisodeCompleted?(episode)
             }
         }
 
