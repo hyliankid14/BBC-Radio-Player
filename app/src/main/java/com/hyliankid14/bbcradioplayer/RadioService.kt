@@ -208,6 +208,9 @@ class RadioService : MediaBrowserServiceCompat() {
         super.onCreate()
         Log.d(TAG, "onCreate - Service starting")
         createNotificationChannel()
+        // Restore persisted analytics deduplication state so that resuming an episode after the
+        // service was destroyed does not cause a duplicate analytics event.
+        lastTrackedEpisodeAnalyticsId = PlaybackPreference.getLastTrackedAnalyticsEpisodeId(this)
         // Register receiver so external changes to played-history (import/clear) refresh Android Auto children
         try {
             historyChangeReceiver = object : android.content.BroadcastReceiver() {
@@ -3446,12 +3449,13 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                     // Allow replayed completed episodes to be counted as a new play.
                     if (restartFromBeginning && lastTrackedEpisodeAnalyticsId == episode.id) {
                         lastTrackedEpisodeAnalyticsId = null
+                        PlaybackPreference.setLastTrackedAnalyticsEpisodeId(this@RadioService, null)
                     }
                 }
 
                 // Cancel any pending episode analytics before scheduling a new one.
-                // This applies regardless of resumePos so that resuming an episode in a
-                // fresh service session (e.g. Android Auto reconnect) is also counted.
+                // Resuming the same episode in a fresh service session is no longer counted as a
+                // new play because lastTrackedEpisodeAnalyticsId is now persisted across restarts.
                 episodeAnalyticsRunnable?.let { handler.removeCallbacks(it); episodeAnalyticsRunnable = null }
                 episodeAnalyticsPending = false
                 episodeAnalyticsScheduled = false
@@ -3467,6 +3471,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                             if (analytics.isEnabled()) {
                                 analytics.trackEpisodePlay(episode.podcastId, episode.id, episode.title, podcastTitle)
                                 lastTrackedEpisodeAnalyticsId = episode.id
+                                PlaybackPreference.setLastTrackedAnalyticsEpisodeId(this@RadioService, episode.id)
                             }
                         }
                         episodeAnalyticsPending = false
