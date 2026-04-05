@@ -12,6 +12,7 @@ object PlaybackPreference {
     private const val KEY_SHAKE_RANDOM_PODCAST = "shake_random_podcast"
     private const val KEY_PODCAST_ARTWORK_SOURCE = "podcast_artwork_source"
     private const val KEY_AUTOPLAY_NEXT_EPISODE = "autoplay_next_episode"
+    private const val KEY_LAST_TRACKED_ANALYTICS_EPISODE_ID = "last_tracked_analytics_episode_id"
 
     const val ARTWORK_SOURCE_EPISODE = "episode"
     const val ARTWORK_SOURCE_PODCAST = "podcast"
@@ -108,5 +109,19 @@ object PlaybackPreference {
     fun getAutoplayNextEpisode(context: Context): String {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_AUTOPLAY_NEXT_EPISODE, AUTOPLAY_NEXT_NONE) ?: AUTOPLAY_NEXT_NONE
+    }
+
+    fun setLastTrackedAnalyticsEpisodeId(context: Context, episodeId: String?) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (episodeId != null) {
+            prefs.edit().putString(KEY_LAST_TRACKED_ANALYTICS_EPISODE_ID, episodeId).apply()
+        } else {
+            prefs.edit().remove(KEY_LAST_TRACKED_ANALYTICS_EPISODE_ID).apply()
+        }
+    }
+
+    fun getLastTrackedAnalyticsEpisodeId(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_LAST_TRACKED_ANALYTICS_EPISODE_ID, null)
     }
 }

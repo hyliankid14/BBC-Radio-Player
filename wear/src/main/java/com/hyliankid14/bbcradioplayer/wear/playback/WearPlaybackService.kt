@@ -92,6 +92,10 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
         subscriptionStore = SubscriptionStore(this)
         episodeSyncStore = EpisodeSyncStore(this)
         analytics = PrivacyAnalytics(this)
+        // Restore persisted analytics deduplication state so that resuming an episode after the
+        // service was destroyed does not cause a duplicate analytics event.
+        lastTrackedEpisodeAnalyticsId = getSharedPreferences(ANALYTICS_PREFS_NAME, MODE_PRIVATE)
+            .getString(KEY_LAST_TRACKED_EPISODE_ID, null)
 
         mediaSession = MediaSessionCompat(this, "WearPlaybackService").apply {
             setFlags(MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS)
@@ -243,10 +247,13 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
                     val newEpisodeId = intent.getStringExtra(EXTRA_EPISODE_ID)
                     // Extract resumePositionMs once to avoid duplicate intent reads.
                     val resumePositionMs = intent.getLongExtra(EXTRA_START_POSITION_MS, 0L)
-                    // Clear analytics tracking when starting a new episode or restarting from
-                    // the beginning so that the 10-second timer fires again as a new play.
-                    if (newEpisodeId != currentEpisodeId || resumePositionMs == 0L) {
+                    // Only allow re-tracking when explicitly restarting the same episode from the
+                    // beginning. A service restart that resumes from a mid-point must not count as
+                    // a new play because lastTrackedEpisodeAnalyticsId is now persisted.
+                    if (resumePositionMs == 0L && newEpisodeId == lastTrackedEpisodeAnalyticsId) {
                         lastTrackedEpisodeAnalyticsId = null
+                        getSharedPreferences(ANALYTICS_PREFS_NAME, MODE_PRIVATE)
+                            .edit().remove(KEY_LAST_TRACKED_EPISODE_ID).apply()
                     }
                     currentEpisodeId = newEpisodeId
                     currentPodcastId = intent.getStringExtra(EXTRA_PODCAST_ID)
@@ -607,6 +614,8 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
                     podcastTitle = podcastTitle
                 )
                 lastTrackedEpisodeAnalyticsId = episodeId
+                getSharedPreferences(ANALYTICS_PREFS_NAME, MODE_PRIVATE)
+                    .edit().putString(KEY_LAST_TRACKED_EPISODE_ID, episodeId).apply()
             }
         }
     }
@@ -907,6 +916,8 @@ class WearPlaybackService : MediaBrowserServiceCompat() {
         private const val NOTIFICATION_UPDATE_INTERVAL_MS = 5_000L
         private const val LIVE_METADATA_POLL_MS = 45_000L
         private const val TAG = "WearPlaybackService"
+        private const val ANALYTICS_PREFS_NAME = "wear_playback_analytics"
+        private const val KEY_LAST_TRACKED_EPISODE_ID = "last_tracked_episode_id"
     }
 
     private data class ScheduleShow(
