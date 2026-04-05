@@ -72,54 +72,6 @@ interface with useful features for listeners.
 - VPN-detected warning banner; shake-to-shuffle gesture.
 - Powered by AndroidX Media3 for rock-solid HLS streaming.
 
-## Quick start
-
-```bash
-git clone https://github.com/yourname/British-Radio-Player.git
-cd British-Radio-Player
-
-# build a debug APK
-./gradlew assembleDebug
-```
-
-Open the project in Android Studio (2023.2+), or use the CI deploy script
-`./scripts/deploy.sh` to build and sideload via `adb`.
-
-## Local USB Debug Deploy (macOS/Linux)
-
-Run the local environment setup once:
-
-```bash
-./scripts/setup-local-build.sh
-```
-
-Then build and install a debug APK to a USB-connected Android device:
-
-```bash
-./scripts/local-deploy.sh
-```
-
-## Google Cloud Index Migration
-
-To migrate podcast index hosting/search from GitHub Pages to Google Cloud
-(GCS + Cloud Function + Cloud Run Scheduler), run:
-
-```bash
-./scripts/setup-google-cloud-index.sh \
-  --project british-radio-player \
-  --bucket YOUR_GLOBALLY_UNIQUE_BUCKET \
-  --region europe-west2 \
-  --mode cloud-run \
-  --write-local-properties
-```
-
-Full manual and troubleshooting steps are in `api/GOOGLE_CLOUD_SETUP.md`.
-
-Notes:
-- On macOS, the script uses Homebrew and the default SDK path `~/Library/Android/sdk`.
-- If the device is visible in `adb devices`, the script installs in place with `adb install -r -d`.
-- If an install fails due to signing mismatch, it falls back to uninstall + clean install.
-
 ## Requirements
 
 - Android API 21+ (Lollipop) with API 33+ recommended; Wear OS requires API 30+
@@ -151,8 +103,7 @@ Notes:
 
 ## Contributing
 
-Issues and pull requests are welcome. See the repo for ideas such as sleep
-timers, widgets, CarPlay ports, or support for other radio networks.
+Issues and pull requests are welcome. 
 
 ## License
 
