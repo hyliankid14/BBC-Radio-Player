@@ -328,7 +328,9 @@ static void stream_segment_encoded(const char *segment_url,
                                    uint32_t *pcm_size,
                                    bool *sample_info_logged,
                                    uint8_t *pending,
-                                   size_t pending_cap)
+                                   size_t pending_cap,
+                                   size_t *pending_len_io,
+                                   bool flush_eos)
 {
     static esp_http_client_handle_t s_segment_client = NULL;
     if (!s_segment_client) {
@@ -381,7 +383,7 @@ static void stream_segment_encoded(const char *segment_url,
         esp_http_client_close(s_segment_client);
         return;
     }
-    size_t pending_len = 0;
+    size_t pending_len = pending_len_io ? *pending_len_io : 0;
 
     size_t read_total = 0;
     size_t decoded_total = 0;
@@ -431,16 +433,21 @@ static void stream_segment_encoded(const char *segment_url,
 
     esp_http_client_close(s_segment_client);
 
-    /* Flush decoder at end of segment/file. */
-    decoded_total += decode_pending_bytes(dec, pending, &pending_len, true,
-                                          pcm_buf, pcm_size, sample_info_logged,
-                                          &written_total);
+    if (flush_eos) {
+        /* Flush decoder at final end-of-stream. */
+        decoded_total += decode_pending_bytes(dec, pending, &pending_len, true,
+                                              pcm_buf, pcm_size, sample_info_logged,
+                                              &written_total);
+    }
+    if (pending_len_io) {
+        *pending_len_io = pending_len;
+    }
     if (decoded_total == 0) {
         ESP_LOGW(TAG, "Segment silent read=%u pending=%u written=%u url=%.96s",
                  (unsigned)read_total, (unsigned)pending_len, (unsigned)written_total,
                  segment_url);
     } else {
-        ESP_LOGI(TAG, "Segment ok read=%u decoded=%u written=%u",
+        ESP_LOGD(TAG, "Segment ok read=%u decoded=%u written=%u",
                  (unsigned)read_total, (unsigned)decoded_total, (unsigned)written_total);
     }
 }
@@ -505,7 +512,16 @@ static void adf_pcm_task(void *arg)
     uint32_t pcm_size = PCM_BUF_BYTES;
     uint8_t *pcm_buf = malloc(pcm_size);
     size_t pending_cap = PENDING_BUF_BYTES;
-    uint8_t *pending_buf = heap_caps_malloc(pending_cap, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    uint8_t *pending_buf = NULL;
+    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) >= pending_cap) {
+        pending_buf = heap_caps_malloc(pending_cap, MALLOC_CAP_SPIRAM);
+    }
+    if (!pending_buf) {
+        pending_cap = 32768;
+        if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) >= pending_cap) {
+            pending_buf = heap_caps_malloc(pending_cap, MALLOC_CAP_SPIRAM);
+        }
+    }
     if (!pending_buf) {
         pending_cap = PENDING_BUF_BYTES_FALLBACK;
         pending_buf = malloc(pending_cap);
@@ -529,6 +545,7 @@ static void adf_pcm_task(void *arg)
     }
 
     bool sample_info_logged = false;
+    size_t pending_len = 0;
     s_adf.last_seq = -1;
     strlcpy(media_playlist_url, s_current_url, 512);
     ESP_LOGI(TAG, "Worker buffers: in=%u pcm=%u pending=%u internal_free=%u largest_internal=%u",
@@ -543,7 +560,8 @@ static void adf_pcm_task(void *arg)
         if (dec_type != ESP_AUDIO_SIMPLE_DEC_TYPE_TS) {
             /* Podcast and direct-file playback path (MP3/AAC): stream bytes directly. */
             stream_segment_encoded(media_playlist_url, dec, in_buf, &pcm_buf, &pcm_size,
-                                   &sample_info_logged, pending_buf, pending_cap);
+                                   &sample_info_logged, pending_buf, pending_cap,
+                                   &pending_len, true);
             break;
         }
 
@@ -567,7 +585,7 @@ static void adf_pcm_task(void *arg)
 
         int seq = parse_media_sequence(playlist_buf);
         int seg_count = parse_playlist_entries(playlist_buf, entry_buf, 8);
-        ESP_LOGI(TAG, "Playlist seq=%d entries=%d", seq, seg_count);
+        ESP_LOGD(TAG, "Playlist seq=%d entries=%d", seq, seg_count);
         if (seg_count == 0) {
             ESP_LOGW(TAG, "No playlist entries (seq=%d): %.120s", seq, playlist_buf);
             vTaskDelay(pdMS_TO_TICKS(600));
@@ -605,15 +623,26 @@ static void adf_pcm_task(void *arg)
             if (strcmp(seg_url, last_segment_url) == 0) {
                 continue;
             }
-            ESP_LOGI(TAG, "Fetching segment i=%d/%d url=%.96s", i, newest, seg_url);
+            ESP_LOGD(TAG, "Fetching segment i=%d/%d url=%.96s", i, newest, seg_url);
             stream_segment_encoded(seg_url, dec, in_buf, &pcm_buf, &pcm_size,
-                                   &sample_info_logged, pending_buf, pending_cap);
+                                   &sample_info_logged, pending_buf, pending_cap,
+                                   &pending_len, false);
             strlcpy(last_segment_url, seg_url, sizeof(last_segment_url));
         }
 
         vTaskDelay(pdMS_TO_TICKS(250));
     }
 
+    if (pending_len > 0) {
+        size_t final_written = 0;
+        size_t final_decoded = decode_pending_bytes(dec, pending_buf, &pending_len, true,
+                                                    &pcm_buf, &pcm_size, &sample_info_logged,
+                                                    &final_written);
+        ESP_LOGD(TAG, "Final decoder flush decoded=%u written=%u remain=%u",
+             (unsigned)final_decoded, (unsigned)final_written, (unsigned)pending_len);
+    }
+
+    esp_audio_simple_dec_close(dec);
     ESP_LOGW(TAG, "Cleaning up stream task resources (decoding=true, gen_id match=%d)", my_gen_id == s_adf.task_gen_id);
     free(in_buf);
     free(pcm_buf);
@@ -649,7 +678,8 @@ static esp_err_t adf_start_stream(const char *url, bool is_live)
 {
     (void)is_live;
     adf_stop_locked();
-    vTaskDelay(pdMS_TO_TICKS(300));
+    /* Brief settle after codec drain — caller already holds an 80ms gap. */
+    vTaskDelay(pdMS_TO_TICKS(50));
     s_adf.task_gen_id++;
     ESP_LOGI(TAG, "Incremented gen_id to %"PRIu32, s_adf.task_gen_id);
 
@@ -659,8 +689,8 @@ static esp_err_t adf_start_stream(const char *url, bool is_live)
 
     /* Mark stream mode active before creating worker so it doesn't exit early. */
     s_use_adf = true;
-    BaseType_t rc = xTaskCreatePinnedToCore(adf_pcm_task, "stream_worker", 10240,
-                                            NULL, 5, &s_adf.pcm_task, 1);
+    BaseType_t rc = xTaskCreatePinnedToCore(adf_pcm_task, "stream_worker", 12288,
+                                            NULL, 8, &s_adf.pcm_task, 1);
     if (rc != pdPASS) {
         uint32_t free_heap = esp_get_free_heap_size();
         uint32_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
@@ -797,6 +827,12 @@ esp_err_t bbc_audio_init(void)
 
 esp_err_t bbc_audio_play_url(const char *url, bool is_live)
 {
+    /* Always tear down the current playback path cleanly before switching streams. */
+    if (s_playing || s_use_adf) {
+        bbc_audio_stop();
+        vTaskDelay(pdMS_TO_TICKS(80));
+    }
+
     strncpy(s_current_url, url, sizeof(s_current_url) - 1);
     s_current_url[sizeof(s_current_url) - 1] = '\0';
 

@@ -62,6 +62,13 @@ static void ui_wake_display_if_needed(void)
     s_display_sleeping = false;
 }
 
+static void ui_wake_display_async(void *arg)
+{
+    LV_UNUSED(arg);
+    ui_wake_display_if_needed();
+    ESP_LOGI(TAG, "Display woken");
+}
+
 static void ui_sleep_display_async(void *arg)
 {
     LV_UNUSED(arg);
@@ -268,11 +275,7 @@ static void ui_focus_next_async(void *arg)
     s_focus_index = (s_focus_index + 1) % s_focusable_count;
     lv_obj_t *cur = s_focusable[s_focus_index];
     if (cur && lv_obj_is_valid(cur)) {
-        lv_obj_set_style_outline_color(cur, lv_color_white(), LV_PART_MAIN);
-        lv_obj_set_style_outline_width(cur, 2, LV_PART_MAIN);
-        lv_obj_set_style_outline_pad(cur, 2, LV_PART_MAIN);
-
-        /* Keep focused controls visible when navigating long scrollable lists. */
+        /* Touch-first UI: keep keyboard focus functional without drawing outlines. */
         lv_obj_scroll_to_view_recursive(cur, LV_ANIM_ON);
     }
 }
@@ -384,8 +387,13 @@ static void button_poll_task(void *arg)
         }
         if (last_pwr == 0 && pwr == 1 && now >= pwr_unlock) {
             if (!pwr_hold_handled) {
-                ESP_LOGI(TAG, "Button PWR short (sleep display)");
-                lv_async_call(ui_sleep_display_async, NULL);
+                if (s_display_sleeping) {
+                    ESP_LOGI(TAG, "Button PWR short (wake display)");
+                    lv_async_call(ui_wake_display_async, NULL);
+                } else {
+                    ESP_LOGI(TAG, "Button PWR short (sleep display)");
+                    lv_async_call(ui_sleep_display_async, NULL);
+                }
             }
             pwr_unlock = now + debounce_ms;
         }
@@ -479,6 +487,7 @@ void ui_create_header(lv_obj_t *parent, const char *title, bool show_back)
     lv_obj_t *hdr = lv_obj_create(parent);
     lv_obj_set_size(hdr, LV_PCT(100), UI_HEADER_HEIGHT);
     lv_obj_align(hdr, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_bg_color(hdr, UI_COLOR_BBC_RED,   LV_PART_MAIN);
     lv_obj_set_style_border_width(hdr, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(hdr, 0, LV_PART_MAIN);
@@ -495,8 +504,14 @@ void ui_create_header(lv_obj_t *parent, const char *title, bool show_back)
         lv_obj_set_size(back_btn, 44, 40);
         lv_obj_align(back_btn, LV_ALIGN_LEFT_MID, 2, 0);
         lv_obj_set_style_bg_opa(back_btn, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(back_btn, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_PRESSED);
+        lv_obj_set_style_bg_opa(back_btn, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_FOCUSED);
         lv_obj_set_style_border_width(back_btn, 0, LV_PART_MAIN);
         lv_obj_set_style_shadow_width(back_btn, 0, LV_PART_MAIN);
+        lv_obj_set_style_outline_width(back_btn, 0, LV_PART_MAIN);
+        lv_obj_set_style_radius(back_btn, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(back_btn, 0, LV_PART_MAIN);
+        lv_obj_clear_flag(back_btn, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_event_cb(back_btn, ui_back_clicked, LV_EVENT_CLICKED, NULL);
         ui_mark_selectable(back_btn);
 

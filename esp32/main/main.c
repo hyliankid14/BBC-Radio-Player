@@ -20,6 +20,7 @@
 #include "audio/bbc_audio.h"
 #include "ui/ui_manager.h"
 #include "ui/screen_stations.h"
+#include "wifi_settings.h"
 
 #include "config.h"   /* copy config.h.example → config.h and fill in credentials */
 
@@ -56,11 +57,17 @@ static void wifi_event_handler(void *arg, esp_event_base_t base,
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&ev->ip_info.ip));
         s_wifi_retries = 0;
         xEventGroupSetBits(s_wifi_events, WIFI_CONNECTED_BIT);
+        /* Re-apply after association: the driver re-enables PM during STA connect. */
+        esp_wifi_set_ps(WIFI_PS_NONE);
     }
 }
 
 static bool wifi_connect(void)
 {
+    char ssid[33] = {0};
+    char password[65] = {0};
+    wifi_settings_get_boot(ssid, sizeof(ssid), password, sizeof(password));
+
     s_wifi_events = xEventGroupCreate();
 
     esp_netif_init();
@@ -76,21 +83,23 @@ static bool wifi_connect(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
             IP_EVENT,   IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL, &h_ip));
 
-    wifi_config_t wcfg = {
-        .sta = {
-            .ssid     = WIFI_SSID,
-            .password = WIFI_PASSWORD,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-        },
-    };
+    wifi_config_t wcfg = {0};
+    strlcpy((char *)wcfg.sta.ssid, ssid, sizeof(wcfg.sta.ssid));
+    strlcpy((char *)wcfg.sta.password, password, sizeof(wcfg.sta.password));
+    wcfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
     /* Allow open networks (e.g. Wokwi-GUEST has no password) */
-    if (strlen(WIFI_PASSWORD) == 0) {
+    if (password[0] == '\0') {
         wcfg.sta.threshold.authmode = WIFI_AUTH_OPEN;
     }
 
+    ESP_LOGI(TAG, "Connecting to WiFi SSID: %s", ssid);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wcfg));
     ESP_ERROR_CHECK(esp_wifi_start());
+    /* Streaming is latency-sensitive; disable modem sleep to reduce audio jitter. */
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+    ESP_LOGI(TAG, "WiFi power save disabled for smoother audio");
 
     EventBits_t bits = xEventGroupWaitBits(s_wifi_events,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE,

@@ -7,6 +7,7 @@ set(main_requires
     esp_event
     esp_netif
     esp_http_client
+    esp_http_server
     esp-tls
     driver
 )
@@ -35,8 +36,11 @@ endif()
 idf_component_register(
     SRCS
         "main.c"
+        "wifi_settings.c"
+        "wifi_portal.c"
         "ui/ui_manager.c"
         "ui/screen_stations.c"
+        "ui/screen_settings.c"
         "ui/screen_now_playing.c"
         "audio/audio_pipeline.c"
         "audio/playback_state.c"

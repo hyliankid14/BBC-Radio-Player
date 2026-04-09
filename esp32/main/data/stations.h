@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 
-#define STATIONS_MAX  17    /* national stations + one internet test stream */
+#define STATIONS_MAX  7
 
 typedef struct {
     const char *id;         /* short key, e.g. "radio1" */

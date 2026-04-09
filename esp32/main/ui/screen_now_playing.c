@@ -2,11 +2,12 @@
 #include "ui_manager.h"
 #include "playback_state.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <stdio.h>
 
 static lv_obj_t   *s_lbl_title     = NULL;
 static lv_obj_t   *s_lbl_subtitle  = NULL;
-static lv_obj_t   *s_lbl_live      = NULL;
 static lv_obj_t   *s_btn_playpause = NULL;
 static lv_obj_t   *s_btn_prev      = NULL;
 static lv_obj_t   *s_btn_next      = NULL;
@@ -14,6 +15,22 @@ static lv_obj_t   *s_bar_progress  = NULL;
 static lv_obj_t   *s_lbl_elapsed   = NULL;
 static lv_obj_t   *s_lbl_remaining = NULL;
 static lv_timer_t *s_timer         = NULL;
+
+/* Station navigation dispatch — runs off the LVGL task so the UI stays responsive. */
+#define NAV_DIR_PREV  (-1)
+#define NAV_DIR_NEXT  ( 1)
+
+static void station_nav_task(void *arg)
+{
+    int dir = (int)(intptr_t)arg;
+    if (dir == NAV_DIR_NEXT) {
+        playback_next_station();
+    } else {
+        playback_prev_station();
+    }
+    lv_async_call(screen_now_playing_refresh, NULL);
+    vTaskDelete(NULL);
+}
 
 static void on_playpause_clicked(lv_event_t *e)
 {
@@ -28,31 +45,34 @@ static void on_playpause_clicked(lv_event_t *e)
 
 static void on_prev_clicked(lv_event_t *e)
 {
+    LV_UNUSED(e);
     playback_state_t st = playback_get_state();
     if (st.type == PLAYBACK_STATION) {
-        playback_prev_station();
+        xTaskCreate(station_nav_task, "nav_prev", 4096,
+                    (void *)(intptr_t)NAV_DIR_PREV, 5, NULL);
     } else if (st.type == PLAYBACK_EPISODE) {
         playback_seek_relative(-10);
+        lv_async_call(screen_now_playing_refresh, NULL);
     }
-    lv_async_call(screen_now_playing_refresh, NULL);
 }
 
 static void on_next_clicked(lv_event_t *e)
 {
+    LV_UNUSED(e);
     playback_state_t st = playback_get_state();
     if (st.type == PLAYBACK_STATION) {
-        playback_next_station();
+        xTaskCreate(station_nav_task, "nav_next", 4096,
+                    (void *)(intptr_t)NAV_DIR_NEXT, 5, NULL);
     } else if (st.type == PLAYBACK_EPISODE) {
         playback_seek_relative(30);
+        lv_async_call(screen_now_playing_refresh, NULL);
     }
-    lv_async_call(screen_now_playing_refresh, NULL);
 }
 
 static void on_screen_delete(lv_event_t *e)
 {
     s_lbl_title     = NULL;
     s_lbl_subtitle  = NULL;
-    s_lbl_live      = NULL;
     s_btn_playpause = NULL;
     s_btn_prev      = NULL;
     s_btn_next      = NULL;
@@ -65,7 +85,10 @@ static void on_screen_delete(lv_event_t *e)
 static void on_progress_timer(lv_timer_t *t)
 {
     (void)t;
-    lv_async_call(screen_now_playing_refresh, NULL);
+    playback_state_t st = playback_get_state();
+    if (st.type == PLAYBACK_EPISODE) {
+        lv_async_call(screen_now_playing_refresh, NULL);
+    }
 }
 
 static void time_fmt(char *buf, size_t len, int32_t secs)
@@ -88,15 +111,13 @@ void screen_now_playing_refresh(void *arg)
 
     if (st.type == PLAYBACK_STATION && st.station) {
         lv_label_set_text(s_lbl_title,    st.station->title);
-        lv_label_set_text(s_lbl_subtitle, "BBC Radio \xe2\x80\x93 Live");
-        lv_obj_clear_flag(s_lbl_live, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(s_lbl_subtitle, "BBC Radio Live");
         lv_obj_add_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
     } else if (st.type == PLAYBACK_EPISODE) {
         lv_label_set_text(s_lbl_title,    st.episode_title);
         lv_label_set_text(s_lbl_subtitle, st.podcast_title);
-        lv_obj_add_flag(s_lbl_live, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
@@ -121,7 +142,6 @@ void screen_now_playing_refresh(void *arg)
     } else {
         lv_label_set_text(s_lbl_title,    "Nothing playing");
         lv_label_set_text(s_lbl_subtitle, "");
-        lv_obj_add_flag(s_lbl_live, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
@@ -146,39 +166,21 @@ lv_obj_t *screen_now_playing_create(void)
 
     ui_create_header(scr, "Now Playing", true);
 
-    /* BBC-red decorative bar */
-    lv_obj_t *deco_bar = lv_obj_create(scr);
-    lv_obj_set_size(deco_bar, LV_PCT(100), 4);
-    lv_obj_align(deco_bar, LV_ALIGN_TOP_MID, 0, UI_HEADER_HEIGHT);
-    lv_obj_set_style_bg_color(deco_bar, UI_COLOR_BBC_RED, LV_PART_MAIN);
-    lv_obj_set_style_border_width(deco_bar, 0, LV_PART_MAIN);
-
-    /* LIVE badge */
-    s_lbl_live = lv_label_create(scr);
-    lv_label_set_text(s_lbl_live, "  LIVE  ");
-    lv_obj_set_style_bg_color(s_lbl_live, UI_COLOR_BBC_RED, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(s_lbl_live, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_text_color(s_lbl_live, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_text_font(s_lbl_live, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_set_style_radius(s_lbl_live, 4, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(s_lbl_live, 3, LV_PART_MAIN);
-    lv_obj_align(s_lbl_live, LV_ALIGN_TOP_RIGHT, -8, UI_HEADER_HEIGHT + 14);
-
     /* Station / episode title */
     s_lbl_title = lv_label_create(scr);
-    lv_label_set_long_mode(s_lbl_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_long_mode(s_lbl_title, LV_LABEL_LONG_DOT);
     lv_obj_set_width(s_lbl_title, 200);
     lv_obj_set_style_text_font(s_lbl_title, &lv_font_montserrat_14, LV_PART_MAIN);
     lv_obj_set_style_text_color(s_lbl_title, UI_COLOR_TEXT, LV_PART_MAIN);
-    lv_obj_align(s_lbl_title, LV_ALIGN_CENTER, 0, -50);
+    lv_obj_align(s_lbl_title, LV_ALIGN_CENTER, 0, -46);
 
     /* Podcast / subtitle */
     s_lbl_subtitle = lv_label_create(scr);
     lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_DOT);
     lv_obj_set_width(s_lbl_subtitle, 200);
     lv_obj_set_style_text_font(s_lbl_subtitle, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_set_style_text_color(s_lbl_subtitle, UI_COLOR_SUBTEXT, LV_PART_MAIN);
-    lv_obj_align(s_lbl_subtitle, LV_ALIGN_CENTER, 0, -30);
+    lv_obj_set_style_text_color(s_lbl_subtitle, UI_COLOR_TEXT, LV_PART_MAIN);
+    lv_obj_align(s_lbl_subtitle, LV_ALIGN_CENTER, 0, -24);
 
     /* Progress bar (episode mode only, hidden for live radio) */
     s_bar_progress = lv_bar_create(scr);

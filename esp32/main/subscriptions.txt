@@ -1,8 +1,0 @@
-# Wokwi sample subscriptions
-# One BBC podcast ID per line
-
-p08llv8n
-p05299nl
-m002r4y1
-w13xttx2
-m0009rfp
