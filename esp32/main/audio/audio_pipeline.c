@@ -579,7 +579,7 @@ static void adf_pcm_task(void *arg)
                 ESP_LOGI(TAG, "Selected variant playlist: %.120s", next_url);
                 strlcpy(media_playlist_url, next_url, 512);
             }
-            vTaskDelay(pdMS_TO_TICKS(200));
+            vTaskDelay(pdMS_TO_TICKS(120));
             continue;
         }
 
@@ -588,7 +588,7 @@ static void adf_pcm_task(void *arg)
         ESP_LOGD(TAG, "Playlist seq=%d entries=%d", seq, seg_count);
         if (seg_count == 0) {
             ESP_LOGW(TAG, "No playlist entries (seq=%d): %.120s", seq, playlist_buf);
-            vTaskDelay(pdMS_TO_TICKS(600));
+            vTaskDelay(pdMS_TO_TICKS(250));
             continue;
         }
 
@@ -630,7 +630,7 @@ static void adf_pcm_task(void *arg)
             strlcpy(last_segment_url, seg_url, sizeof(last_segment_url));
         }
 
-        vTaskDelay(pdMS_TO_TICKS(250));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     if (pending_len > 0) {

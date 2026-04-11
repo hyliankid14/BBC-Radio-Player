@@ -2,6 +2,7 @@ set(main_requires
     bsp
     lvgl_port
     lvgl__lvgl
+    json
     nvs_flash
     esp_wifi
     esp_event

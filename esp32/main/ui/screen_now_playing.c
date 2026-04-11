@@ -1,10 +1,17 @@
 #include "screen_now_playing.h"
 #include "ui_manager.h"
 #include "playback_state.h"
+#include "cJSON.h"
+#include "esp_crt_bundle.h"
+#include "esp_heap_caps.h"
+#include "esp_http_client.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 static lv_obj_t   *s_lbl_title     = NULL;
 static lv_obj_t   *s_lbl_subtitle  = NULL;
@@ -15,10 +22,223 @@ static lv_obj_t   *s_bar_progress  = NULL;
 static lv_obj_t   *s_lbl_elapsed   = NULL;
 static lv_obj_t   *s_lbl_remaining = NULL;
 static lv_timer_t *s_timer         = NULL;
+static TaskHandle_t s_rms_task     = NULL;
+static uint32_t     s_rms_gen      = 0;
+static char         s_rms_service_id[48] = {0};
+static char         s_rms_text[128] = {0};
 
 /* Station navigation dispatch — runs off the LVGL task so the UI stays responsive. */
 #define NAV_DIR_PREV  (-1)
 #define NAV_DIR_NEXT  ( 1)
+#define RMS_TEXT_MAX  128
+
+static void station_nav_task(void *arg);
+
+static void rms_clear_async(void *arg)
+{
+    LV_UNUSED(arg);
+    s_rms_text[0] = '\0';
+    screen_now_playing_refresh(NULL);
+}
+
+static void rms_apply_text_async(void *arg)
+{
+    char *text = (char *)arg;
+    if (text) {
+        strlcpy(s_rms_text, text, sizeof(s_rms_text));
+        free(text);
+    } else {
+        s_rms_text[0] = '\0';
+    }
+    screen_now_playing_refresh(NULL);
+}
+
+static void rms_stop_tracking(void)
+{
+    s_rms_gen++;
+    s_rms_task = NULL;
+    s_rms_service_id[0] = '\0';
+    s_rms_text[0] = '\0';
+}
+
+static char *rms_fetch_json(const char *service_id)
+{
+    char url[160];
+    snprintf(url, sizeof(url), "https://rms.api.bbc.co.uk/v2/services/%s/segments/latest", service_id);
+
+    size_t cap = 8192;
+    char *buf = heap_caps_malloc(cap, MALLOC_CAP_SPIRAM);
+    if (!buf) {
+        buf = malloc(cap);
+    }
+    if (!buf) {
+        return NULL;
+    }
+
+    esp_http_client_config_t cfg = {
+        .url = url,
+        .timeout_ms = 2500,
+        .buffer_size = 1024,
+        .buffer_size_tx = 512,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .keep_alive_enable = false,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    if (!client) {
+        free(buf);
+        return NULL;
+    }
+
+    if (esp_http_client_open(client, 0) != ESP_OK) {
+        esp_http_client_cleanup(client);
+        free(buf);
+        return NULL;
+    }
+
+    esp_http_client_fetch_headers(client);
+    size_t len = 0;
+    int read_len = 0;
+    while ((read_len = esp_http_client_read(client, buf + len, (int)(cap - len - 1))) > 0) {
+        len += (size_t)read_len;
+        if (len >= cap - 1) {
+            break;
+        }
+    }
+    buf[len] = '\0';
+
+    int status = esp_http_client_get_status_code(client);
+    esp_http_client_close(client);
+    esp_http_client_cleanup(client);
+    if (status != 200 || len == 0) {
+        free(buf);
+        return NULL;
+    }
+
+    return buf;
+}
+
+static bool rms_parse_text(const char *json, char *out, size_t out_len)
+{
+    cJSON *root = cJSON_Parse(json);
+    if (!root) {
+        return false;
+    }
+
+    bool ok = false;
+    cJSON *data = cJSON_GetObjectItemCaseSensitive(root, "data");
+    cJSON *chosen = NULL;
+    if (cJSON_IsArray(data)) {
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, data) {
+            cJSON *offset = cJSON_GetObjectItemCaseSensitive(item, "offset");
+            cJSON *now_playing = offset ? cJSON_GetObjectItemCaseSensitive(offset, "now_playing") : NULL;
+            if (cJSON_IsBool(now_playing) && cJSON_IsTrue(now_playing)) {
+                chosen = item;
+                break;
+            }
+            if (!chosen) {
+                chosen = item;
+            }
+        }
+    }
+
+    if (chosen) {
+        cJSON *titles = cJSON_GetObjectItemCaseSensitive(chosen, "titles");
+        cJSON *primary = titles ? cJSON_GetObjectItemCaseSensitive(titles, "primary") : NULL;
+        cJSON *secondary = titles ? cJSON_GetObjectItemCaseSensitive(titles, "secondary") : NULL;
+        if (cJSON_IsString(primary) && primary->valuestring[0] != '\0') {
+            if (cJSON_IsString(secondary) && secondary->valuestring[0] != '\0') {
+                snprintf(out, out_len, "%s - %s", primary->valuestring, secondary->valuestring);
+            } else {
+                strlcpy(out, primary->valuestring, out_len);
+            }
+            ok = true;
+        }
+    }
+
+    cJSON_Delete(root);
+    return ok;
+}
+
+static void rms_task(void *arg)
+{
+    uint32_t my_gen = (uint32_t)(uintptr_t)arg;
+    char last_text[RMS_TEXT_MAX] = {0};
+
+    while (my_gen == s_rms_gen) {
+        playback_state_t st = playback_get_state();
+        if (st.type != PLAYBACK_STATION || !st.station || !st.is_live) {
+            break;
+        }
+
+        char *json = rms_fetch_json(st.station->service_id);
+        if (my_gen != s_rms_gen) {
+            free(json);
+            break;
+        }
+
+        if (json) {
+            char text[RMS_TEXT_MAX] = {0};
+            if (rms_parse_text(json, text, sizeof(text)) && strcmp(text, last_text) != 0) {
+                char *copy = strdup(text);
+                if (copy) {
+                    strlcpy(last_text, text, sizeof(last_text));
+                    lv_async_call(rms_apply_text_async, copy);
+                }
+            }
+            free(json);
+        }
+
+        for (int i = 0; i < 100 && my_gen == s_rms_gen; i++) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+    }
+
+    if (my_gen == s_rms_gen) {
+        s_rms_task = NULL;
+    }
+    vTaskDelete(NULL);
+}
+
+static void rms_ensure_tracking(const station_t *station)
+{
+    if (!station || !station->service_id || station->service_id[0] == '\0') {
+        rms_stop_tracking();
+        return;
+    }
+
+    if (strcmp(s_rms_service_id, station->service_id) == 0 && s_rms_task != NULL) {
+        return;
+    }
+
+    s_rms_gen++;
+    s_rms_task = NULL;
+    strlcpy(s_rms_service_id, station->service_id, sizeof(s_rms_service_id));
+    lv_async_call(rms_clear_async, NULL);
+
+    if (xTaskCreate(rms_task, "rms_meta", 6144, (void *)(uintptr_t)s_rms_gen, 1, &s_rms_task) != pdPASS) {
+        s_rms_task = NULL;
+        ESP_LOGW("now_playing", "Failed to start RMS metadata task");
+    }
+}
+
+static void dispatch_station_nav(int dir)
+{
+    BaseType_t rc = xTaskCreate(station_nav_task,
+                                (dir == NAV_DIR_NEXT) ? "nav_next" : "nav_prev",
+                                4096,
+                                (void *)(intptr_t)dir,
+                                5,
+                                NULL);
+    if (rc != pdPASS) {
+        if (dir == NAV_DIR_NEXT) {
+            playback_next_station();
+        } else {
+            playback_prev_station();
+        }
+        lv_async_call(screen_now_playing_refresh, NULL);
+    }
+}
 
 static void station_nav_task(void *arg)
 {
@@ -48,8 +268,7 @@ static void on_prev_clicked(lv_event_t *e)
     LV_UNUSED(e);
     playback_state_t st = playback_get_state();
     if (st.type == PLAYBACK_STATION) {
-        xTaskCreate(station_nav_task, "nav_prev", 4096,
-                    (void *)(intptr_t)NAV_DIR_PREV, 5, NULL);
+        dispatch_station_nav(NAV_DIR_PREV);
     } else if (st.type == PLAYBACK_EPISODE) {
         playback_seek_relative(-10);
         lv_async_call(screen_now_playing_refresh, NULL);
@@ -61,8 +280,7 @@ static void on_next_clicked(lv_event_t *e)
     LV_UNUSED(e);
     playback_state_t st = playback_get_state();
     if (st.type == PLAYBACK_STATION) {
-        xTaskCreate(station_nav_task, "nav_next", 4096,
-                    (void *)(intptr_t)NAV_DIR_NEXT, 5, NULL);
+        dispatch_station_nav(NAV_DIR_NEXT);
     } else if (st.type == PLAYBACK_EPISODE) {
         playback_seek_relative(30);
         lv_async_call(screen_now_playing_refresh, NULL);
@@ -71,6 +289,8 @@ static void on_next_clicked(lv_event_t *e)
 
 static void on_screen_delete(lv_event_t *e)
 {
+    LV_UNUSED(e);
+    rms_stop_tracking();
     s_lbl_title     = NULL;
     s_lbl_subtitle  = NULL;
     s_btn_playpause = NULL;
@@ -110,12 +330,14 @@ void screen_now_playing_refresh(void *arg)
     playback_state_t st = playback_get_state();
 
     if (st.type == PLAYBACK_STATION && st.station) {
+        rms_ensure_tracking(st.station);
         lv_label_set_text(s_lbl_title,    st.station->title);
-        lv_label_set_text(s_lbl_subtitle, "BBC Radio Live");
+        lv_label_set_text(s_lbl_subtitle, s_rms_text[0] ? s_rms_text : "BBC Radio Live");
         lv_obj_add_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
     } else if (st.type == PLAYBACK_EPISODE) {
+        rms_stop_tracking();
         lv_label_set_text(s_lbl_title,    st.episode_title);
         lv_label_set_text(s_lbl_subtitle, st.podcast_title);
         lv_obj_clear_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
@@ -140,6 +362,7 @@ void screen_now_playing_refresh(void *arg)
             lv_label_set_text(s_lbl_remaining, "");
         }
     } else {
+        rms_stop_tracking();
         lv_label_set_text(s_lbl_title,    "Nothing playing");
         lv_label_set_text(s_lbl_subtitle, "");
         lv_obj_add_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
@@ -217,8 +440,9 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_set_style_bg_color(s_btn_prev, UI_COLOR_CARD_BG, LV_PART_MAIN);
     lv_obj_set_style_radius(s_btn_prev, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_align(s_btn_prev, LV_ALIGN_BOTTOM_MID, -62, -16);
+    lv_obj_clear_flag(s_btn_prev, LV_OBJ_FLAG_SCROLLABLE);
     ui_mark_selectable(s_btn_prev);
-    lv_obj_add_event_cb(s_btn_prev, on_prev_clicked, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(s_btn_prev, on_prev_clicked, LV_EVENT_PRESSED, NULL);
     lv_obj_t *prev_lbl = lv_label_create(s_btn_prev);
     lv_label_set_text(prev_lbl, LV_SYMBOL_PREV);
     lv_obj_set_style_text_color(prev_lbl, lv_color_white(), LV_PART_MAIN);
@@ -230,6 +454,7 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_set_style_bg_color(s_btn_playpause, UI_COLOR_BBC_RED, LV_PART_MAIN);
     lv_obj_set_style_radius(s_btn_playpause, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_align(s_btn_playpause, LV_ALIGN_BOTTOM_MID, 0, -12);
+    lv_obj_clear_flag(s_btn_playpause, LV_OBJ_FLAG_SCROLLABLE);
     ui_mark_selectable(s_btn_playpause);
     lv_obj_add_event_cb(s_btn_playpause, on_playpause_clicked, LV_EVENT_CLICKED, NULL);
     lv_obj_t *btn_lbl = lv_label_create(s_btn_playpause);
@@ -243,8 +468,9 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_set_style_bg_color(s_btn_next, UI_COLOR_CARD_BG, LV_PART_MAIN);
     lv_obj_set_style_radius(s_btn_next, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_align(s_btn_next, LV_ALIGN_BOTTOM_MID, 62, -16);
+    lv_obj_clear_flag(s_btn_next, LV_OBJ_FLAG_SCROLLABLE);
     ui_mark_selectable(s_btn_next);
-    lv_obj_add_event_cb(s_btn_next, on_next_clicked, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(s_btn_next, on_next_clicked, LV_EVENT_PRESSED, NULL);
     lv_obj_t *next_lbl = lv_label_create(s_btn_next);
     lv_label_set_text(next_lbl, LV_SYMBOL_NEXT);
     lv_obj_set_style_text_color(next_lbl, lv_color_white(), LV_PART_MAIN);
