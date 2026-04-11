@@ -10,6 +10,7 @@ static const char *TAG = "playback_state";
 
 static playback_state_t s_state;
 static SemaphoreHandle_t s_mutex;
+static SemaphoreHandle_t s_station_op_mutex;
 
 /* Episode position tracking — all access under s_mutex */
 static int32_t s_episode_offset_secs = 0;  /* position (secs) at last start/resume */
@@ -21,12 +22,17 @@ void playback_state_init(void)
     memset(&s_state, 0, sizeof(s_state));
     s_state.type = PLAYBACK_IDLE;
     s_mutex = xSemaphoreCreateMutex();
+    s_station_op_mutex = xSemaphoreCreateMutex();
 }
 
 esp_err_t playback_play_station(const station_t *station)
 {
+    xSemaphoreTake(s_station_op_mutex, portMAX_DELAY);
     esp_err_t ret = bbc_audio_play_url(station->stream_url, /*is_live=*/true);
-    if (ret != ESP_OK) return ret;
+    if (ret != ESP_OK) {
+        xSemaphoreGive(s_station_op_mutex);
+        return ret;
+    }
 
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     s_state.type       = PLAYBACK_STATION;
@@ -34,6 +40,7 @@ esp_err_t playback_play_station(const station_t *station)
     s_state.is_live    = true;
     s_state.station    = station;
     xSemaphoreGive(s_mutex);
+    xSemaphoreGive(s_station_op_mutex);
 
     ESP_LOGI(TAG, "Playing station: %s", station->title);
     return ESP_OK;
@@ -64,6 +71,7 @@ esp_err_t playback_play_episode(const podcast_t *podcast, const episode_t *episo
 
 esp_err_t playback_stop(void)
 {
+    xSemaphoreTake(s_station_op_mutex, portMAX_DELAY);
     bbc_audio_stop();
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     s_state.type          = PLAYBACK_IDLE;
@@ -72,6 +80,7 @@ esp_err_t playback_stop(void)
     s_episode_start_us    = 0;
     s_episode_is_paused   = false;
     xSemaphoreGive(s_mutex);
+    xSemaphoreGive(s_station_op_mutex);
     return ESP_OK;
 }
 

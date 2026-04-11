@@ -41,8 +41,8 @@ static bool s_use_adf = false;
 #define HTTP_CHUNK_BYTES         4096
 #define PLAYLIST_BUF_BYTES       4096
 #define PCM_BUF_BYTES            8192
-#define PENDING_BUF_BYTES        65536
-#define PENDING_BUF_BYTES_FALLBACK 16384
+#define PENDING_BUF_BYTES        131072
+#define PENDING_BUF_BYTES_FALLBACK 32768
 
 #if BBC_HAS_ADF
 typedef struct {
@@ -567,7 +567,7 @@ static void adf_pcm_task(void *arg)
 
         if (!http_read_text(media_playlist_url, playlist_buf, PLAYLIST_BUF_BYTES)) {
             ESP_LOGW(TAG, "Playlist fetch failed: %.120s", media_playlist_url);
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            vTaskDelay(pdMS_TO_TICKS(900));
             continue;
         }
 
@@ -852,6 +852,8 @@ esp_err_t bbc_audio_play_url(const char *url, bool is_live)
             s_use_adf = false;
             ESP_LOGW(TAG, "ADF stream start failed");
             if (is_live) {
+                s_playing = false;
+                stub_buzzer_set(false, s_is_live);
                 return ESP_FAIL;
             }
             ESP_LOGW(TAG, "Falling back to tone playback for non-live content");

@@ -18,6 +18,7 @@ static lv_obj_t   *s_lbl_subtitle  = NULL;
 static lv_obj_t   *s_btn_playpause = NULL;
 static lv_obj_t   *s_btn_prev      = NULL;
 static lv_obj_t   *s_btn_next      = NULL;
+static lv_obj_t   *s_btn_next_hit  = NULL;
 static lv_obj_t   *s_bar_progress  = NULL;
 static lv_obj_t   *s_lbl_elapsed   = NULL;
 static lv_obj_t   *s_lbl_remaining = NULL;
@@ -27,12 +28,7 @@ static uint32_t     s_rms_gen      = 0;
 static char         s_rms_service_id[48] = {0};
 static char         s_rms_text[128] = {0};
 
-/* Station navigation dispatch — runs off the LVGL task so the UI stays responsive. */
-#define NAV_DIR_PREV  (-1)
-#define NAV_DIR_NEXT  ( 1)
 #define RMS_TEXT_MAX  128
-
-static void station_nav_task(void *arg);
 
 static void rms_clear_async(void *arg)
 {
@@ -77,7 +73,7 @@ static char *rms_fetch_json(const char *service_id)
 
     esp_http_client_config_t cfg = {
         .url = url,
-        .timeout_ms = 2500,
+        .timeout_ms = 1200,
         .buffer_size = 1024,
         .buffer_size_tx = 512,
         .crt_bundle_attach = esp_crt_bundle_attach,
@@ -189,7 +185,8 @@ static void rms_task(void *arg)
             free(json);
         }
 
-        for (int i = 0; i < 100 && my_gen == s_rms_gen; i++) {
+        /* Poll slowly to avoid stealing bandwidth from live audio segments. */
+        for (int i = 0; i < 300 && my_gen == s_rms_gen; i++) {
             vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
@@ -216,51 +213,31 @@ static void rms_ensure_tracking(const station_t *station)
     strlcpy(s_rms_service_id, station->service_id, sizeof(s_rms_service_id));
     lv_async_call(rms_clear_async, NULL);
 
-    if (xTaskCreate(rms_task, "rms_meta", 6144, (void *)(uintptr_t)s_rms_gen, 1, &s_rms_task) != pdPASS) {
+    if (xTaskCreatePinnedToCore(rms_task, "rms_meta", 6144, (void *)(uintptr_t)s_rms_gen,
+                                1, &s_rms_task, 0) != pdPASS) {
         s_rms_task = NULL;
         ESP_LOGW("now_playing", "Failed to start RMS metadata task");
     }
 }
 
-static void dispatch_station_nav(int dir)
+static void stop_playback_task(void *arg)
 {
-    BaseType_t rc = xTaskCreate(station_nav_task,
-                                (dir == NAV_DIR_NEXT) ? "nav_next" : "nav_prev",
-                                4096,
-                                (void *)(intptr_t)dir,
-                                5,
-                                NULL);
-    if (rc != pdPASS) {
-        if (dir == NAV_DIR_NEXT) {
-            playback_next_station();
-        } else {
-            playback_prev_station();
-        }
-        lv_async_call(screen_now_playing_refresh, NULL);
-    }
-}
-
-static void station_nav_task(void *arg)
-{
-    int dir = (int)(intptr_t)arg;
-    if (dir == NAV_DIR_NEXT) {
-        playback_next_station();
-    } else {
-        playback_prev_station();
-    }
+    LV_UNUSED(arg);
+    playback_stop();
     lv_async_call(screen_now_playing_refresh, NULL);
     vTaskDelete(NULL);
 }
 
 static void on_playpause_clicked(lv_event_t *e)
 {
+    LV_UNUSED(e);
     playback_state_t st = playback_get_state();
     if (st.type == PLAYBACK_STATION && st.is_playing) {
-        playback_stop();
+        xTaskCreate(stop_playback_task, "stop_live", 4096, NULL, 5, NULL);
     } else {
         playback_toggle();
+        lv_async_call(screen_now_playing_refresh, NULL);
     }
-    lv_async_call(screen_now_playing_refresh, NULL);
 }
 
 static void on_prev_clicked(lv_event_t *e)
@@ -268,7 +245,11 @@ static void on_prev_clicked(lv_event_t *e)
     LV_UNUSED(e);
     playback_state_t st = playback_get_state();
     if (st.type == PLAYBACK_STATION) {
-        dispatch_station_nav(NAV_DIR_PREV);
+        esp_err_t err = playback_prev_station();
+        if (err != ESP_OK) {
+            ESP_LOGW("now_playing", "prev_station failed: 0x%x", (unsigned)err);
+        }
+        lv_async_call(screen_now_playing_refresh, NULL);
     } else if (st.type == PLAYBACK_EPISODE) {
         playback_seek_relative(-10);
         lv_async_call(screen_now_playing_refresh, NULL);
@@ -280,7 +261,11 @@ static void on_next_clicked(lv_event_t *e)
     LV_UNUSED(e);
     playback_state_t st = playback_get_state();
     if (st.type == PLAYBACK_STATION) {
-        dispatch_station_nav(NAV_DIR_NEXT);
+        esp_err_t err = playback_next_station();
+        if (err != ESP_OK) {
+            ESP_LOGW("now_playing", "next_station failed: 0x%x", (unsigned)err);
+        }
+        lv_async_call(screen_now_playing_refresh, NULL);
     } else if (st.type == PLAYBACK_EPISODE) {
         playback_seek_relative(30);
         lv_async_call(screen_now_playing_refresh, NULL);
@@ -296,6 +281,7 @@ static void on_screen_delete(lv_event_t *e)
     s_btn_playpause = NULL;
     s_btn_prev      = NULL;
     s_btn_next      = NULL;
+    s_btn_next_hit  = NULL;
     s_bar_progress  = NULL;
     s_lbl_elapsed   = NULL;
     s_lbl_remaining = NULL;
@@ -333,6 +319,8 @@ void screen_now_playing_refresh(void *arg)
         rms_ensure_tracking(st.station);
         lv_label_set_text(s_lbl_title,    st.station->title);
         lv_label_set_text(s_lbl_subtitle, s_rms_text[0] ? s_rms_text : "BBC Radio Live");
+        lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_SCROLL_CIRCULAR);
+        lv_obj_set_style_anim_speed(s_lbl_subtitle, 20, LV_PART_MAIN);
         lv_obj_add_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
@@ -340,6 +328,7 @@ void screen_now_playing_refresh(void *arg)
         rms_stop_tracking();
         lv_label_set_text(s_lbl_title,    st.episode_title);
         lv_label_set_text(s_lbl_subtitle, st.podcast_title);
+        lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_DOT);
         lv_obj_clear_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
@@ -365,6 +354,7 @@ void screen_now_playing_refresh(void *arg)
         rms_stop_tracking();
         lv_label_set_text(s_lbl_title,    "Nothing playing");
         lv_label_set_text(s_lbl_subtitle, "");
+        lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_DOT);
         lv_obj_add_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
@@ -469,12 +459,25 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_set_style_radius(s_btn_next, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_align(s_btn_next, LV_ALIGN_BOTTOM_MID, 62, -16);
     lv_obj_clear_flag(s_btn_next, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_ext_click_area(s_btn_next, 10);
     ui_mark_selectable(s_btn_next);
     lv_obj_add_event_cb(s_btn_next, on_next_clicked, LV_EVENT_PRESSED, NULL);
     lv_obj_t *next_lbl = lv_label_create(s_btn_next);
     lv_label_set_text(next_lbl, LV_SYMBOL_NEXT);
     lv_obj_set_style_text_color(next_lbl, lv_color_white(), LV_PART_MAIN);
     lv_obj_center(next_lbl);
+
+    /* Right-side invisible extender for panels with right-edge touch drift. */
+    s_btn_next_hit = lv_btn_create(scr);
+    lv_obj_set_size(s_btn_next_hit, 32, 44);
+    lv_obj_align_to(s_btn_next_hit, s_btn_next, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+    lv_obj_set_style_bg_opa(s_btn_next_hit, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_btn_next_hit, 0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(s_btn_next_hit, 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(s_btn_next_hit, 0, LV_PART_MAIN);
+    lv_obj_clear_flag(s_btn_next_hit, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(s_btn_next_hit, on_next_clicked, LV_EVENT_PRESSED, NULL);
+    ui_mark_selectable(s_btn_next_hit);
 
     /* 1-second timer to keep progress bar live */
     s_timer = lv_timer_create(on_progress_timer, 1000, NULL);
