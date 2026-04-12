@@ -3,6 +3,8 @@
 /build/
 /app/build/
 /wear/build/
+/app/bin/
+/wear/bin/
 /captures/
 /.externalNativeBuild/
 /.cxx/
