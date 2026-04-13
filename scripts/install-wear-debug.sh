@@ -56,7 +56,10 @@ fi
 CONNECTED_DEVICES=()
 while IFS= read -r device_serial; do
   CONNECTED_DEVICES+=("$device_serial")
-done < <(adb devices | awk 'NR > 1 && $2 == "device" { print $1 }')
+done < <(
+  adb devices \
+    | sed -nE '/[[:space:]]device$/ { s/[[:space:]]+device$//; s/[[:space:]]+$//; p; }'
+)
 
 if [[ ${#CONNECTED_DEVICES[@]} -eq 0 ]]; then
   echo "No ADB devices connected"

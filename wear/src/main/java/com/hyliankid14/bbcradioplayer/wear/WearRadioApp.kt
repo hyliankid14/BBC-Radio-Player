@@ -115,20 +115,6 @@ fun WearRadioApp(viewModel: WearViewModel = viewModel()) {
     }
     val batteryPercent = rememberBatteryPercent()
     val nowPlayingState = viewModel.nowPlaying
-    val currentStationName = remember(nowPlayingState?.stationId) {
-        nowPlayingState?.stationId?.let { id -> viewModel.stations.firstOrNull { it.id == id }?.title }
-    }
-    val bottomArcLabel = when (screen) {
-        Screen.HOME -> ""
-        Screen.STATIONS_MENU -> "Stations"
-        Screen.FAVOURITES -> "Favourites"
-        Screen.STATIONS_NATIONAL -> "National"
-        Screen.STATIONS_REGIONS -> "Regions"
-        Screen.STATIONS_LOCAL -> "Local"
-        Screen.PODCASTS -> "Podcasts"
-        Screen.EPISODES -> selectedPodcast?.title ?: "Episodes"
-        Screen.NOW_PLAYING -> currentStationName ?: "Now Playing"
-    }
 
     MaterialTheme {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -357,8 +343,6 @@ fun WearRadioApp(viewModel: WearViewModel = viewModel()) {
                         modifier = Modifier.size(16.dp)
                     )
                 }
-            } else {
-                BottomCurvedLabel(bottomArcLabel, showBackdrop = true)
             }
         }
     }
@@ -366,6 +350,7 @@ fun WearRadioApp(viewModel: WearViewModel = viewModel()) {
 
 private val ListContentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 16.dp, bottom = 16.dp)
 private val HeaderHorizontalSafePadding = 28.dp
+private const val RoundSafeChipWidthFraction = 0.94f
 private const val STATION_SHOW_REFRESH_POLL_MS = 30_000L
 
 private val AggressiveEdgeScaling = ScalingLazyColumnDefaults.scalingParams(
@@ -415,14 +400,14 @@ private fun HomeScreen(
                 label = { Text("Stations", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                 secondaryLabel = { Text("Favourites and All Stations", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                 colors = ChipDefaults.primaryChipColors(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
             )
             Chip(
                 onClick = onOpenPodcasts,
                 label = { Text("Podcasts", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                 secondaryLabel = { Text("Subscribed shows", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                 colors = ChipDefaults.primaryChipColors(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
             )
         }
     }
@@ -451,7 +436,7 @@ private fun StationsMenuScreen(
                     label = { Text("Favourites", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     secondaryLabel = { Text("Synced from phone", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     colors = ChipDefaults.primaryChipColors(),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
                 )
             }
             item {
@@ -460,7 +445,7 @@ private fun StationsMenuScreen(
                     label = { Text("National", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     secondaryLabel = { Text("UK-wide stations", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     colors = ChipDefaults.secondaryChipColors(),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
                 )
             }
             item {
@@ -469,7 +454,7 @@ private fun StationsMenuScreen(
                     label = { Text("Regions", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     secondaryLabel = { Text("Nations and regions", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     colors = ChipDefaults.secondaryChipColors(),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
                 )
             }
             item {
@@ -478,7 +463,7 @@ private fun StationsMenuScreen(
                     label = { Text("Local", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     secondaryLabel = { Text("Local BBC stations", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     colors = ChipDefaults.secondaryChipColors(),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
                 )
             }
         }
@@ -533,7 +518,7 @@ private fun StationListScreen(
                                     .clip(CircleShape)
                             )
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
                         colors = ChipDefaults.primaryChipColors()
                     )
                 }
@@ -581,7 +566,7 @@ private fun PodcastListScreen(
                     Chip(
                         onClick = onRetry,
                         label = { Text("Retry", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
                         colors = ChipDefaults.secondaryChipColors()
                     )
                 }
@@ -633,7 +618,7 @@ private fun PodcastListScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
                     colors = ChipDefaults.primaryChipColors()
                 )
             }
@@ -644,7 +629,7 @@ private fun PodcastListScreen(
                         onClick = { visibleCount += 8 },
                         label = { Text("Load more", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                         secondaryLabel = { Text("${podcasts.size - visibleCount} remaining", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
                         colors = ChipDefaults.secondaryChipColors()
                     )
                 }
@@ -696,7 +681,7 @@ private fun EpisodeListScreen(
                             }
                             Text(text = secondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
                         colors = ChipDefaults.primaryChipColors()
                     )
                 }
@@ -707,7 +692,7 @@ private fun EpisodeListScreen(
                             onClick = { visibleCount += 8 },
                             label = { Text("Load older", maxLines = 2, overflow = TextOverflow.Ellipsis) },
                             secondaryLabel = { Text("${episodes.size - visibleCount} remaining", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
                             colors = ChipDefaults.secondaryChipColors()
                         )
                     }
