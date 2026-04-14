@@ -7,7 +7,9 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_sntp.h"
 #include "nvs_flash.h"
+#include <time.h>
 
 #include "bsp.h"
 #include "bsp_display.h"
@@ -110,6 +112,38 @@ static bool wifi_connect(void)
     return ok;
 }
 
+static void sync_time_if_needed(void)
+{
+    time_t now = time(NULL);
+    if (now >= 1700000000) {
+        return;
+    }
+
+    ESP_LOGI(TAG, "System time not set, starting SNTP sync");
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_setservername(1, "time.google.com");
+    sntp_init();
+
+    for (int i = 0; i < 30; i++) {
+        vTaskDelay(pdMS_TO_TICKS(200));
+        now = time(NULL);
+        if (now >= 1700000000) {
+            break;
+        }
+    }
+
+    if (time(NULL) >= 1700000000) {
+        struct tm tm_utc;
+        gmtime_r(&now, &tm_utc);
+        char buf[32];
+        strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm_utc);
+        ESP_LOGI(TAG, "SNTP sync complete: %s", buf);
+    } else {
+        ESP_LOGW(TAG, "SNTP sync timed out; ESS timing may be stale");
+    }
+}
+
 /* ── Entry point ─────────────────────────────────────────────────────── */
 void app_main(void)
 {
@@ -172,6 +206,9 @@ void app_main(void)
 
     if (!wifi_ok) {
         ESP_LOGW(TAG, "No WiFi – live stations unavailable");
+    } else {
+        sync_time_if_needed();
+        screen_stations_start_title_fetch();
     }
 
     ESP_LOGI(TAG, "BBC Radio Player ready");

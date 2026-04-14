@@ -29,6 +29,19 @@ static bool      s_display_sleeping = false;
 #define UI_TOUCH_MIN_SIZE    44
 #define UI_PWR_HOLD_MS       1400
 
+#define UI_BRIGHTNESS_OFF    0
+#define UI_BRIGHTNESS_LOW    20
+#define UI_BRIGHTNESS_MEDIUM 50
+#define UI_BRIGHTNESS_HIGH   80
+
+static const int s_brightness_steps[] = {
+    UI_BRIGHTNESS_OFF,
+    UI_BRIGHTNESS_LOW,
+    UI_BRIGHTNESS_MEDIUM,
+    UI_BRIGHTNESS_HIGH,
+};
+static int s_brightness_step_index = 3;
+
 static lv_obj_t   *s_volume_overlay = NULL;
 static lv_obj_t   *s_volume_bar = NULL;
 static lv_obj_t   *s_volume_label = NULL;
@@ -58,23 +71,29 @@ static void ui_wake_display_if_needed(void)
     if (!s_display_sleeping) {
         return;
     }
-    bsp_display_brightness_set(UI_ACTIVE_BRIGHTNESS);
+    s_brightness_step_index = 3;
+    bsp_display_brightness_set(s_brightness_steps[s_brightness_step_index]);
     s_display_sleeping = false;
 }
 
-static void ui_wake_display_async(void *arg)
+static void ui_cycle_display_brightness_async(void *arg)
 {
     LV_UNUSED(arg);
-    ui_wake_display_if_needed();
-    ESP_LOGI(TAG, "Display woken");
-}
+    int step_count = (int)(sizeof(s_brightness_steps) / sizeof(s_brightness_steps[0]));
+    s_brightness_step_index = (s_brightness_step_index + 1) % step_count;
+    int brightness = s_brightness_steps[s_brightness_step_index];
+    bsp_display_brightness_set(brightness);
+    s_display_sleeping = (brightness == UI_BRIGHTNESS_OFF);
 
-static void ui_sleep_display_async(void *arg)
-{
-    LV_UNUSED(arg);
-    bsp_display_brightness_set(0);
-    s_display_sleeping = true;
-    ESP_LOGI(TAG, "Display sleeping");
+    const char *label = "High";
+    if (s_brightness_step_index == 0) {
+        label = "Off";
+    } else if (s_brightness_step_index == 1) {
+        label = "Low";
+    } else if (s_brightness_step_index == 2) {
+        label = "Medium";
+    }
+    ESP_LOGI(TAG, "Button PWR short (brightness: %s, %d%%)", label, brightness);
 }
 
 static void ui_power_off_timer_cb(lv_timer_t *timer)
@@ -387,13 +406,7 @@ static void button_poll_task(void *arg)
         }
         if (last_pwr == 0 && pwr == 1 && now >= pwr_unlock) {
             if (!pwr_hold_handled) {
-                if (s_display_sleeping) {
-                    ESP_LOGI(TAG, "Button PWR short (wake display)");
-                    lv_async_call(ui_wake_display_async, NULL);
-                } else {
-                    ESP_LOGI(TAG, "Button PWR short (sleep display)");
-                    lv_async_call(ui_sleep_display_async, NULL);
-                }
+                lv_async_call(ui_cycle_display_brightness_async, NULL);
             }
             pwr_unlock = now + debounce_ms;
         }
@@ -438,7 +451,7 @@ void ui_manager_init(void)
     if (s_battery_timer == NULL) {
         s_battery_timer = lv_timer_create(battery_timer_cb, 5000, NULL);
     }
-    ESP_LOGI(TAG, "UI manager initialised (+/KEY=vol+, BOOT/-=vol-, PWR short=sleep, hold=off)");
+    ESP_LOGI(TAG, "UI manager initialised (+/KEY=vol+, BOOT/-=vol-, PWR short=brightness cycle, hold=off)");
 }
 
 void ui_mark_selectable(lv_obj_t *obj)
@@ -497,7 +510,7 @@ void ui_create_header(lv_obj_t *parent, const char *title, bool show_back)
     lv_label_set_text(lbl, title);
     lv_obj_set_style_text_color(lbl, UI_COLOR_TEXT, LV_PART_MAIN);
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 1);
 
     if (show_back) {
         lv_obj_t *back_btn = lv_btn_create(hdr);
@@ -512,20 +525,21 @@ void ui_create_header(lv_obj_t *parent, const char *title, bool show_back)
         lv_obj_set_style_radius(back_btn, 0, LV_PART_MAIN);
         lv_obj_set_style_pad_all(back_btn, 0, LV_PART_MAIN);
         lv_obj_clear_flag(back_btn, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_ext_click_area(back_btn, 14);
         lv_obj_add_event_cb(back_btn, ui_back_clicked, LV_EVENT_CLICKED, NULL);
         ui_mark_selectable(back_btn);
 
         lv_obj_t *back = lv_label_create(back_btn);
         lv_label_set_text(back, LV_SYMBOL_LEFT);
         lv_obj_set_style_text_color(back, UI_COLOR_TEXT, LV_PART_MAIN);
-        lv_obj_center(back);
+        lv_obj_align(back, LV_ALIGN_CENTER, 0, 1);
     }
 
     if (s_battery_label_count < MAX_BAT_LABELS) {
         lv_obj_t *bat = lv_label_create(hdr);
         lv_obj_set_style_text_color(bat, UI_COLOR_TEXT, LV_PART_MAIN);
         lv_obj_set_style_text_font(bat, &lv_font_montserrat_14, LV_PART_MAIN);
-        lv_obj_align(bat, LV_ALIGN_RIGHT_MID, -8, 0);
+        lv_obj_align(bat, LV_ALIGN_RIGHT_MID, -8, 1);
         s_battery_labels[s_battery_label_count++] = bat;
         char text[16];
         battery_label_text(text, sizeof(text));

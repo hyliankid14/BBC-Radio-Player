@@ -68,3 +68,4 @@ GITLAB_SUBMISSION_STEPS.md
 .github/agents/Ask.agent.md
 .github/agents/Explore.agent.md
 .github/agents/Plan.agent.md
+app/src/main/assets/adi-registration.properties

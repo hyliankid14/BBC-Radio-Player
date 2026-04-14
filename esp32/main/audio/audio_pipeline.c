@@ -14,6 +14,7 @@
 
 #if BBC_HAS_ADF
 #include "esp_http_client.h"
+#include "freertos/ringbuf.h"
 #endif
 #if BBC_HAS_ADF
 #include "esp_audio_simple_dec.h"
@@ -38,11 +39,14 @@ static bool s_use_adf = false;
 
 #define AUDIO_TONE_FRAME_SAMPLES 256
 #define AUDIO_TONE_AMPLITUDE     10000
-#define HTTP_CHUNK_BYTES         4096
+#define HTTP_CHUNK_BYTES         8192
 #define PLAYLIST_BUF_BYTES       4096
-#define PCM_BUF_BYTES            8192
-#define PENDING_BUF_BYTES        131072
+#define PCM_BUF_BYTES            16384
+#define PENDING_BUF_BYTES        196608
 #define PENDING_BUF_BYTES_FALLBACK 32768
+/* 512 KiB PCM ring buffer in PSRAM — ~2.67 s at 48 kHz stereo 16-bit.
+ * Bridges the ~300 ms gap between HLS segments (playlist fetch + HTTP connect). */
+#define PCM_RING_BUF_BYTES       (512UL * 1024UL)
 
 #if BBC_HAS_ADF
 typedef struct {
@@ -52,6 +56,20 @@ typedef struct {
 } adf_state_t;
 
 static adf_state_t s_adf = {0};
+
+/* PCM ring buffer — decoder writes here, codec_drainer_task reads to I2S. */
+static RingbufHandle_t   s_pcm_ringbuf        = NULL;
+static TaskHandle_t      s_codec_drainer_task = NULL;
+static volatile bool     s_drainer_active     = false;
+
+static void *alloc_pref_psram(size_t size)
+{
+    void *p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!p) {
+        p = malloc(size);
+    }
+    return p;
+}
 
 static bool url_is_absolute(const char *url)
 {
@@ -121,10 +139,11 @@ static bool http_read_text(const char *url, char *buf, size_t buf_len)
         esp_http_client_config_t cfg = {
             .url = url,
             .method = HTTP_METHOD_GET,
-            .timeout_ms = 8000,
+            .timeout_ms = 5000,
             .crt_bundle_attach = esp_crt_bundle_attach,
             .buffer_size = HTTP_CHUNK_BYTES,
             .max_redirection_count = 5,
+            .keep_alive_enable = true,
         };
         s_playlist_client = esp_http_client_init(&cfg);
         if (!s_playlist_client) {
@@ -295,10 +314,32 @@ static size_t decode_pending_bytes(esp_audio_simple_dec_handle_t dec,
             }
         }
         if (out.decoded_size > 0) {
-            size_t written = 0;
-            bsp_codec_write(*pcm_buf, out.decoded_size, &written);
             decoded_total += out.decoded_size;
-            written_total += written;
+            if (s_pcm_ringbuf) {
+                /* Write PCM to ring buffer in 4 KiB slices so the stream task
+                 * can observe s_playing=false within ~20 ms on stop. */
+                const uint8_t *ptr  = *pcm_buf;
+                size_t         left = out.decoded_size;
+                while (left > 0) {
+                    size_t chunk = left < 4096u ? left : 4096u;
+                    BaseType_t sent = pdFALSE;
+                    for (int retry = 0; retry < 6 && s_playing && s_use_adf; retry++) {
+                        sent = xRingbufferSend(s_pcm_ringbuf, ptr, chunk, pdMS_TO_TICKS(60));
+                        if (sent == pdTRUE) {
+                            break;
+                        }
+                    }
+                    if (sent != pdTRUE) {
+                        ESP_LOGW(TAG, "PCM ring buffer congested; dropping %u bytes", (unsigned)chunk);
+                    }
+                    ptr  += chunk;
+                    left -= chunk;
+                }
+            } else {
+                size_t written = 0;
+                bsp_codec_write(*pcm_buf, out.decoded_size, &written);
+            }
+            written_total += out.decoded_size;
         }
         if (raw.consumed == 0 && out.decoded_size == 0) {
             break;
@@ -337,10 +378,11 @@ static void stream_segment_encoded(const char *segment_url,
         esp_http_client_config_t cfg = {
             .url = segment_url,
             .method = HTTP_METHOD_GET,
-            .timeout_ms = 8000,
+            .timeout_ms = 5000,
             .crt_bundle_attach = esp_crt_bundle_attach,
             .buffer_size = HTTP_CHUNK_BYTES,
             .max_redirection_count = 5,
+            .keep_alive_enable = true,
         };
         s_segment_client = esp_http_client_init(&cfg);
         if (!s_segment_client) {
@@ -494,7 +536,8 @@ static void adf_pcm_task(void *arg)
     }
 
     esp_audio_simple_dec_type_t dec_type = pick_decoder_type(s_current_url);
-    esp_ts_dec_cfg_t ts_cfg = { .aac_plus_enable = false };
+    /* Enable HE-AAC/AAC+ support for lower-bitrate BBC HLS variants. */
+    esp_ts_dec_cfg_t ts_cfg = { .aac_plus_enable = true };
     esp_audio_simple_dec_cfg_t dec_cfg = {
         .dec_type = dec_type,
         .dec_cfg  = (dec_type == ESP_AUDIO_SIMPLE_DEC_TYPE_TS) ? &ts_cfg : NULL,
@@ -508,9 +551,9 @@ static void adf_pcm_task(void *arg)
         return;
     }
 
-    uint8_t *in_buf = malloc(HTTP_CHUNK_BYTES);
+    uint8_t *in_buf = alloc_pref_psram(HTTP_CHUNK_BYTES);
     uint32_t pcm_size = PCM_BUF_BYTES;
-    uint8_t *pcm_buf = malloc(pcm_size);
+    uint8_t *pcm_buf = alloc_pref_psram(pcm_size);
     size_t pending_cap = PENDING_BUF_BYTES;
     uint8_t *pending_buf = NULL;
     if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) >= pending_cap) {
@@ -526,10 +569,10 @@ static void adf_pcm_task(void *arg)
         pending_cap = PENDING_BUF_BYTES_FALLBACK;
         pending_buf = malloc(pending_cap);
     }
-    char *playlist_buf = malloc(PLAYLIST_BUF_BYTES);
-    char *media_playlist_url = malloc(512);
+    char *playlist_buf = alloc_pref_psram(PLAYLIST_BUF_BYTES);
+    char *media_playlist_url = alloc_pref_psram(512);
     char last_segment_url[512] = {0};
-    char (*entry_buf)[256] = malloc(sizeof(char[8][256]));
+    char (*entry_buf)[256] = alloc_pref_psram(sizeof(char[8][256]));
     if (!in_buf || !pcm_buf || !pending_buf || !playlist_buf || !media_playlist_url || !entry_buf) {
         ESP_LOGE(TAG, "Stream task alloc failed");
         free(in_buf);
@@ -596,8 +639,8 @@ static void adf_pcm_task(void *arg)
         int newest = seg_count - 1;
         int start = newest;
         if (last_segment_url[0] == '\0') {
-            /* First pass: prebuffer from one segment behind if available. */
-            start = newest - 1;
+            /* First pass: build a slightly deeper cushion for live radio. */
+            start = newest - 3;
             if (start < 0) {
                 start = 0;
             }
@@ -611,7 +654,7 @@ static void adf_pcm_task(void *arg)
                     break;
                 }
             }
-            start = (found >= 0) ? (found + 1) : (newest - 1);
+            start = (found >= 0) ? (found + 1) : (newest - 3);
             if (start < 0) {
                 start = 0;
             }
@@ -672,6 +715,56 @@ static void adf_stop_locked(void)
         }
         vTaskDelay(pdMS_TO_TICKS(200));
     }
+    /* Stop drainer AFTER stream task exits so the ring buffer remains
+     * drainable while the stream task is still trying to write to it. */
+    if (s_codec_drainer_task) {
+        s_drainer_active = false;
+        for (int i = 0; i < 30 && s_codec_drainer_task != NULL; ++i) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        if (s_codec_drainer_task) {
+            vTaskDelete(s_codec_drainer_task);
+            s_codec_drainer_task = NULL;
+        }
+    }
+    if (s_pcm_ringbuf) {
+        vRingbufferDelete(s_pcm_ringbuf);
+        s_pcm_ringbuf = NULL;
+    }
+}
+
+/* Drains the PCM ring buffer to the I2S codec at audio rate.
+ * Runs on core 0 (separate from stream_worker on core 1) so network activity
+ * on core 1 never blocks the codec output path.
+ * Writes silence when the ring buffer is empty to prevent I2S DMA underrun. */
+static void codec_drainer_task(void *arg)
+{
+    /* 10 ms of silence @ 48 kHz stereo 16-bit = 48000*2*2*0.01 = 1920 bytes */
+    static const uint8_t silence[1920];
+    uint32_t empty_polls = 0;
+    while (s_drainer_active) {
+        size_t  item_size = 0;
+        void   *item      = xRingbufferReceiveUpTo(s_pcm_ringbuf, &item_size,
+                                                   pdMS_TO_TICKS(40), 4096);
+        if (item) {
+            empty_polls = 0;
+            size_t wr = 0;
+            bsp_codec_write(item, item_size, &wr);
+            vRingbufferReturnItem(s_pcm_ringbuf, item);
+        } else {
+            empty_polls++;
+            /* Tolerate a brief producer jitter before injecting silence. */
+            if (empty_polls >= 2) {
+                size_t wr = 0;
+                bsp_codec_write((void *)silence, sizeof(silence), &wr);
+                if ((empty_polls % 25U) == 0U) {
+                    ESP_LOGW(TAG, "PCM underrun ongoing (empty_polls=%u)", (unsigned)empty_polls);
+                }
+            }
+        }
+    }
+    s_codec_drainer_task = NULL;
+    vTaskDelete(NULL);
 }
 
 static esp_err_t adf_start_stream(const char *url, bool is_live)
@@ -686,6 +779,23 @@ static esp_err_t adf_start_stream(const char *url, bool is_live)
     ESP_LOGI(TAG, "Starting direct stream worker: %.80s", url);
     ESP_LOGI(TAG, "Free heap: %"PRIu32, esp_get_free_heap_size());
     gpio_set_level(BSP_PA_CTRL, 1);   /* Ensure PA is enabled for real stream playback */
+
+    /* Create PSRAM-backed PCM ring buffer and start codec drainer. */
+    s_pcm_ringbuf = xRingbufferCreateWithCaps(PCM_RING_BUF_BYTES,
+                                              RINGBUF_TYPE_BYTEBUF,
+                                              MALLOC_CAP_SPIRAM);
+    if (!s_pcm_ringbuf) {
+        /* Fallback: small ring buffer in internal RAM. */
+        s_pcm_ringbuf = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
+        ESP_LOGW(TAG, "PCM ring buffer in internal RAM (PSRAM alloc failed)");
+    }
+    if (s_pcm_ringbuf) {
+        s_drainer_active = true;
+        xTaskCreatePinnedToCore(codec_drainer_task, "pcm_drainer", 4096,
+                                NULL, 9, &s_codec_drainer_task, 0);
+        ESP_LOGI(TAG, "PCM ring buffer created (%lu KiB), drainer task started",
+                 (unsigned long)(PCM_RING_BUF_BYTES / 1024));
+    }
 
     /* Mark stream mode active before creating worker so it doesn't exit early. */
     s_use_adf = true;
