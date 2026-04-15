@@ -410,7 +410,7 @@ def _build_new_podcast_snapshot(
     state = {
         "schemaVersion": 1,
         "generatedAt": generated_at,
-        "knownIds": sorted(current_ids),
+        "knownIds": sorted(current_ids | prev_known_ids),
         "firstSeenEpochs": first_seen,
     }
 
