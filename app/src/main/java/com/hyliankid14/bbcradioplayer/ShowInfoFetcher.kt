@@ -53,72 +53,6 @@ object ShowInfoFetcher {
         StationRepository.getStations().associate { it.id to it.serviceId }
     }
 
-    /**
-     * Maps a BBC service ID to the URL path segment used by the BBC website's schedule pages.
-     * The full schedule URL for a date is:
-     *   https://www.bbc.co.uk/{path}/{year}/{month}/{day}
-     * where {path} is the value in this map for the given serviceId.
-     *
-     * Entries are only required where the path cannot be auto-derived. Most local stations
-     * follow the auto-derivation rule: "bbc_radio_{name}" → "radio{name}/programmes/schedules".
-     */
-    private val schedulePathMap = mapOf(
-        // National
-        "bbc_radio_one"                    to "radio1/programmes/schedules",
-        "bbc_1xtra"                        to "1xtra/programmes/schedules",
-        "bbc_radio_two"                    to "radio2/programmes/schedules",
-        "bbc_radio_three"                  to "radio3/programmes/schedules",
-        "bbc_radio_fourfm"                 to "radio4/programmes/schedules/fm",
-        "bbc_radio_four_extra"             to "radio4extra/programmes/schedules",
-        "bbc_radio_five_live"              to "5live/programmes/schedules",
-        "bbc_radio_five_live_sports_extra" to "5livesportsextra/programmes/schedules",
-        "bbc_6music"                       to "6music/programmes/schedules",
-        "bbc_world_service"                to "worldserviceradio/programmes/schedules/uk",
-        "bbc_asian_network"                to "asiannetwork/programmes/schedules",
-        // Regions
-        "bbc_radio_cymru"                  to "radiocymru/programmes/schedules",
-        "bbc_radio_foyle"                  to "radiofoyle/programmes/schedules",
-        "bbc_radio_nan_gaidheal"           to "radionangaidheal/programmes/schedules",
-        "bbc_radio_orkney"                 to "radioscotland/programmes/schedules/orkney",
-        "bbc_radio_scotland_fm"            to "radioscotland/programmes/schedules/fm",
-        "bbc_radio_scotland_mw"            to "radioscotland/programmes/schedules/mw",
-        "bbc_radio_shetland"               to "radioscotland/programmes/schedules/shetland",
-        "bbc_radio_ulster"                 to "radioulster/programmes/schedules",
-        "bbc_radio_wales_fm"               to "radiowales/programmes/schedules/fm",
-        "bbc_radio_wales_am"               to "radiowales/programmes/schedules/mw",
-        // Local stations whose URL path differs from the auto-derived form
-        "bbc_radio_cambridge"              to "radiocambridgeshire/programmes/schedules",
-        "bbc_radio_coventry_warwickshire"  to "bbccoventryandwarwickshire/programmes/schedules",
-        "bbc_radio_essex"                  to "bbcessex/programmes/schedules",
-        "bbc_radio_hereford_worcester"     to "bbcherefordandworcester/programmes/schedules",
-        "bbc_radio_newcastle"              to "bbcnewcastle/programmes/schedules",
-        "bbc_radio_somerset_sound"         to "bbcsomerset/programmes/schedules",
-        "bbc_radio_surrey"                 to "bbcsurrey/programmes/schedules",
-        "bbc_radio_sussex"                 to "bbcsussex/programmes/schedules",
-        "bbc_tees"                         to "bbctees/programmes/schedules",
-        "bbc_three_counties_radio"         to "threecountiesradio/programmes/schedules",
-        "bbc_wm"                           to "wm/programmes/schedules",
-        "bbc_radio_wiltshire"              to "bbcwiltshire/programmes/schedules",
-        "bbc_london"                       to "radiolondon/programmes/schedules",
-    )
-
-    /**
-     * Returns the BBC website schedule URL path for [serviceId], or null if the station
-     * has no dedicated BBC schedule page.
-     *
-     * Stations with a serviceId of the form "bbc_radio_{name}" are auto-derived as
-     * "radio{name}/programmes/schedules" unless overridden in [schedulePathMap].
-     */
-    private fun schedulePathFor(serviceId: String): String? {
-        schedulePathMap[serviceId]?.let { return it }
-        // Auto-derive for standard "bbc_radio_{name}" service IDs
-        if (serviceId.startsWith("bbc_radio_")) {
-            val name = serviceId.removePrefix("bbc_radio_").replace("_", "")
-            return "radio$name/programmes/schedules"
-        }
-        return null
-    }
-    
     suspend fun getCurrentShow(stationId: String): CurrentShow = withContext(Dispatchers.IO) {
         try {
             val serviceId = serviceIdMap[stationId] ?: return@withContext CurrentShow("BBC Radio")
@@ -226,9 +160,8 @@ object ShowInfoFetcher {
             // Today: the ESS API (no date param) returns the live current-day schedule reliably.
             fetchScheduleEntriesFromEss(serviceId)
         } else {
-            // Past / future: the ESS API stopped providing date-based data after March 2025.
-            // Fetch the BBC website schedule HTML and extract the JSON-LD structured data instead.
-            fetchScheduleViaHtml(serviceId, date)
+            // Past / future: use BBC Sounds schedule API for date-specific listings.
+            fetchScheduleEntriesFromRms(serviceId, date)
         }
     }
 
@@ -305,108 +238,72 @@ object ShowInfoFetcher {
         return entries
     }
     
-    private suspend fun fetchScheduleViaHtml(serviceId: String, date: String): List<ScheduleEntry> {
-        val path = schedulePathFor(serviceId) ?: run {
-            Log.w(TAG, "No BBC schedule path for serviceId=$serviceId")
-            return emptyList()
-        }
-        val parts = date.split("-")
-        if (parts.size != 3) return emptyList()
-        val (year, month, day) = parts
-        val url = "https://www.bbc.co.uk/$path/$year/$month/$day"
-        Log.d(TAG, "Fetching schedule HTML: $url")
+    private suspend fun fetchScheduleEntriesFromRms(serviceId: String, date: String): List<ScheduleEntry> {
+        val url = "https://rms.api.bbc.co.uk/v2/experience/inline/schedules/$serviceId/$date"
+        Log.d(TAG, "Fetching dated schedule from RMS API: $url")
         return try {
             val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
             connection.connectTimeout = 15000
             connection.readTimeout = 15000
-            // Mimic a browser so the BBC website serves the regular HTML
-            connection.setRequestProperty("User-Agent",
-                "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 Chrome/120 Safari/537.36")
-            connection.setRequestProperty("Accept",
-                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            connection.setRequestProperty("User-Agent", "AndroidAutoRadioPlayer/1.0")
+
             val responseCode = connection.responseCode
             if (responseCode != 200) {
-                Log.w(TAG, "BBC schedule page returned HTTP $responseCode for $url")
+                Log.w(TAG, "RMS schedule endpoint returned HTTP $responseCode for $url")
                 connection.disconnect()
                 return emptyList()
             }
-            val html = connection.inputStream.bufferedReader(Charsets.UTF_8).readText()
+
+            val response = connection.inputStream.bufferedReader(Charsets.UTF_8).readText()
             connection.disconnect()
-            parseScheduleFromHtml(html)
+            parseScheduleFromRmsResponse(response)
         } catch (e: Exception) {
-            Log.w(TAG, "Error fetching BBC schedule HTML for $serviceId/$date: ${e.message}")
+            Log.w(TAG, "Error fetching dated RMS schedule for $serviceId/$date: ${e.message}")
             emptyList()
         }
     }
 
-    /**
-     * Parses schedule entries from the BBC website schedule HTML page.
-     *
-     * The BBC embeds programme data as JSON-LD in `<script type="application/ld+json">` blocks.
-     * One of those blocks contains an `@graph` array where each entry represents a programme
-     * broadcast with a `publication` object holding `startDate` (and possibly `endDate`).
-     */
-    private fun parseScheduleFromHtml(html: String): List<ScheduleEntry> {
+    private fun parseScheduleFromRmsResponse(json: String): List<ScheduleEntry> {
         val entries = mutableListOf<ScheduleEntry>()
         try {
-            // Extract all JSON-LD <script> blocks
-            val jsonLdRegex = Regex(
-                """<script[^>]+type=["']application/ld\+json["'][^>]*>(.*?)</script>""",
-                setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)
-            )
-            val jsonLdBlocks = jsonLdRegex.findAll(html).map { it.groupValues[1].trim() }
+            val root = org.json.JSONObject(json)
+            val modules = root.optJSONArray("data") ?: return entries
 
-            // Find the block that contains a @graph array (schedule entries)
-            var graphArray: org.json.JSONArray? = null
-            for (block in jsonLdBlocks) {
-                try {
-                    val obj = org.json.JSONObject(block)
-                    val graph = obj.optJSONArray("@graph")
-                    if (graph != null && graph.length() > 0) {
-                        graphArray = graph
-                        break
-                    }
-                } catch (e: Exception) { continue }
-            }
+            for (i in 0 until modules.length()) {
+                val module = modules.optJSONObject(i) ?: continue
+                val items = module.optJSONArray("data") ?: continue
 
-            val graph = graphArray ?: run {
-                Log.w(TAG, "No @graph block found in BBC schedule HTML")
-                return entries
-            }
+                for (j in 0 until items.length()) {
+                    val item = items.optJSONObject(j) ?: continue
+                    if (item.optString("type") != "broadcast_summary") continue
 
-            data class Raw(val startMs: Long, val endMs: Long?, val title: String, val epTitle: String?)
-            val rawList = mutableListOf<Raw>()
+                    val startMs = parseIso8601Date(item.optString("start")) ?: continue
+                    val endMs = parseIso8601Date(item.optString("end")) ?: continue
 
-            for (i in 0 until graph.length()) {
-                val item = try { graph.getJSONObject(i) } catch (e: Exception) { continue }
-                val publication = item.optJSONObject("publication") ?: continue
-                val startStr = publication.optString("startDate").takeIf { it.isNotEmpty() } ?: continue
-                val endStr   = publication.optString("endDate").takeIf { it.isNotEmpty() }
-                val startMs  = parseIso8601Date(startStr) ?: continue
-                val endMs    = endStr?.let { parseIso8601Date(it) }
+                    val titles = item.optJSONObject("titles")
+                    val title = titles?.optString("primary")?.takeIf { it.isNotEmpty() } ?: continue
+                    val secondary = titles.optString("secondary").takeIf { it.isNotEmpty() }
+                    val episodeTitle = secondary?.takeIf { it != title }
 
-                val showTitle  = item.optJSONObject("partOfSeries")?.optString("name")?.takeIf { it.isNotEmpty() }
-                val episodeName = item.optString("name").takeIf { it.isNotEmpty() }
-                val title = showTitle ?: episodeName ?: continue
-                val epTitle = if (showTitle != null && !episodeName.isNullOrEmpty() && episodeName != showTitle) episodeName else null
+                    val imageUrl = item.optString("image_url")
+                        .takeIf { it.startsWith("http") }
+                        ?.replace("{recipe}", "320x320")
 
-                rawList.add(Raw(startMs, endMs, title, epTitle))
-            }
-
-            rawList.sortBy { it.startMs }
-
-            for (i in rawList.indices) {
-                val raw = rawList[i]
-                // Use the endDate from JSON-LD if present; otherwise use the next show's start time;
-                // as a last resort extend by 2 hours.
-                val endMs = raw.endMs
-                    ?: rawList.getOrNull(i + 1)?.startMs
-                    ?: (raw.startMs + 2 * 60 * 60 * 1000L)
-                entries.add(ScheduleEntry(raw.title, raw.epTitle, raw.startMs, endMs, null))
+                    entries.add(
+                        ScheduleEntry(
+                            title = title,
+                            episodeTitle = episodeTitle,
+                            startTimeMs = startMs,
+                            endTimeMs = endMs,
+                            imageUrl = imageUrl
+                        )
+                    )
+                }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Error parsing BBC schedule HTML: ${e.message}")
+            Log.w(TAG, "Error parsing RMS schedule response: ${e.message}")
         }
+        entries.sortBy { it.startTimeMs }
         return entries
     }
 
