@@ -45,9 +45,9 @@ class ScheduleActivity : AppCompatActivity() {
     private var stationTitle = ""
     private var podcastsByTitle: Map<String, Podcast> = emptyMap()
 
-    // Number of days in each direction
-    private val DAYS_EACH_WAY = 7
-    private val TODAY_TAB_INDEX = DAYS_EACH_WAY // index 7 in a 0..14 array
+    // Number of days shown in each direction from today
+    private val daysEachWay = 7
+    private val todayTabIndex = daysEachWay // index 7 in a 0..14 array
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -93,7 +93,7 @@ class ScheduleActivity : AppCompatActivity() {
             podcastsByTitle = podcasts.associateBy { it.title.lowercase() }
 
             // Load today's schedule on startup
-            loadScheduleForTabIndex(TODAY_TAB_INDEX)
+            loadScheduleForTabIndex(todayTabIndex)
         }
 
         tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
@@ -108,22 +108,22 @@ class ScheduleActivity : AppCompatActivity() {
     private fun buildDateTabs() {
         val today = Calendar.getInstance()
         val tabLabelFormat = SimpleDateFormat("EEE d", Locale.getDefault())
-        val totalDays = DAYS_EACH_WAY * 2 + 1
+        val totalDays = daysEachWay * 2 + 1
 
         for (i in 0 until totalDays) {
             val cal = today.clone() as Calendar
-            cal.add(Calendar.DAY_OF_YEAR, i - DAYS_EACH_WAY)
+            cal.add(Calendar.DAY_OF_YEAR, i - daysEachWay)
 
             val tab = tabs.newTab()
-            tab.text = if (i == TODAY_TAB_INDEX) getString(R.string.schedule_today)
+            tab.text = if (i == todayTabIndex) getString(R.string.schedule_today)
                        else tabLabelFormat.format(cal.time)
             // Store the date string in the tag
             tab.tag = dateStringFor(cal)
-            tabs.addTab(tab, i == TODAY_TAB_INDEX)
+            tabs.addTab(tab, i == todayTabIndex)
         }
 
         // Scroll tab strip to centre on today
-        tabs.setScrollPosition(TODAY_TAB_INDEX, 0f, false)
+        tabs.setScrollPosition(todayTabIndex, 0f, false)
     }
 
     private fun dateStringFor(cal: Calendar): String {
@@ -153,6 +153,7 @@ class ScheduleActivity : AppCompatActivity() {
                     displaySchedule(entries, dateStr)
                 }
             } catch (e: Exception) {
+                android.util.Log.w("ScheduleActivity", "Failed to load schedule for $dateStr: ${e.message}")
                 if (tabs.selectedTabPosition == tabIndex) {
                     showLoading(false)
                     empty.visibility = View.VISIBLE
