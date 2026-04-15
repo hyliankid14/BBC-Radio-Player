@@ -1295,7 +1295,7 @@ class PodcastsFragment : Fragment() {
                                     .ifEmpty { repository.getAvailableEarliestUpdatesNow(allPodcasts) }
                             }
                             val prewarmedNewlyAdded = withContext(Dispatchers.IO) {
-                                repository.fetchNewlyAddedPodcastEpochs(allPodcasts)
+                                repository.fetchNewlyAddedPodcastEpochs(allPodcasts, forceRefresh = true)
                             }
                             if (prewarmedEarliest.isNotEmpty()) {
                                 cachedEarliestUpdates = prewarmedEarliest
@@ -1558,7 +1558,7 @@ class PodcastsFragment : Fragment() {
                 }
                 updateLoadingProgress(PROGRESS_NEW_BOUNDS_FETCHED)
                 val resolvedNewlyAdded = withContext(Dispatchers.IO) {
-                    repository.fetchNewlyAddedPodcastEpochs(allPodcasts)
+                    repository.fetchNewlyAddedPodcastEpochs(allPodcasts, forceRefresh = true)
                 }
                 updateLoadingProgress(PROGRESS_NEW_EPOCHS_FETCHED)
 
