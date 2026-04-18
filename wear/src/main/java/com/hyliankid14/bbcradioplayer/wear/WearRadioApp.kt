@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
@@ -348,9 +349,7 @@ fun WearRadioApp(viewModel: WearViewModel = viewModel()) {
     }
 }
 
-private val ListContentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 16.dp, bottom = 16.dp)
 private val HeaderHorizontalSafePadding = 28.dp
-private const val RoundSafeChipWidthFraction = 0.94f
 private const val STATION_SHOW_REFRESH_POLL_MS = 30_000L
 
 private val AggressiveEdgeScaling = ScalingLazyColumnDefaults.scalingParams(
@@ -385,6 +384,9 @@ private fun HomeScreen(
     onOpenStations: () -> Unit,
     onOpenPodcasts: () -> Unit
 ) {
+    val chipWidthFraction = roundSafeChipWidthFraction()
+    val secondaryMaxLines = secondaryMaxLinesForFontScale()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -398,16 +400,16 @@ private fun HomeScreen(
             Chip(
                 onClick = onOpenStations,
                 label = { Text("Stations", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                secondaryLabel = { Text("Favourites and All Stations", maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                secondaryLabel = { Text("Favourites and All Stations", maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis) },
                 colors = ChipDefaults.primaryChipColors(),
-                modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
+                modifier = Modifier.fillMaxWidth(chipWidthFraction)
             )
             Chip(
                 onClick = onOpenPodcasts,
                 label = { Text("Podcasts", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                secondaryLabel = { Text("Subscribed shows", maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                secondaryLabel = { Text("Subscribed shows", maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis) },
                 colors = ChipDefaults.primaryChipColors(),
-                modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
+                modifier = Modifier.fillMaxWidth(chipWidthFraction)
             )
         }
     }
@@ -421,12 +423,15 @@ private fun StationsMenuScreen(
     onOpenLocalStations: () -> Unit
 ) {
     val listState = rememberScalingLazyListState()
+    val listContentPadding = listContentPaddingForFontScale()
+    val chipWidthFraction = roundSafeChipWidthFraction()
+    val secondaryMaxLines = secondaryMaxLinesForFontScale()
 
     Box(modifier = Modifier.fillMaxSize()) {
         ScalingLazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = ListContentPadding,
+            contentPadding = listContentPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             scalingParams = AggressiveEdgeScaling
         ) {
@@ -434,36 +439,36 @@ private fun StationsMenuScreen(
                 Chip(
                     onClick = onOpenFavourites,
                     label = { Text("Favourites", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                    secondaryLabel = { Text("Synced from phone", maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                    secondaryLabel = { Text("Synced from phone", maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis) },
                     colors = ChipDefaults.primaryChipColors(),
-                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
+                    modifier = Modifier.fillMaxWidth(chipWidthFraction)
                 )
             }
             item {
                 Chip(
                     onClick = onOpenNationalStations,
                     label = { Text("National", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                    secondaryLabel = { Text("UK-wide stations", maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                    secondaryLabel = { Text("UK-wide stations", maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis) },
                     colors = ChipDefaults.secondaryChipColors(),
-                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
+                    modifier = Modifier.fillMaxWidth(chipWidthFraction)
                 )
             }
             item {
                 Chip(
                     onClick = onOpenRegionalStations,
                     label = { Text("Regions", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                    secondaryLabel = { Text("Nations and regions", maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                    secondaryLabel = { Text("Nations and regions", maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis) },
                     colors = ChipDefaults.secondaryChipColors(),
-                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
+                    modifier = Modifier.fillMaxWidth(chipWidthFraction)
                 )
             }
             item {
                 Chip(
                     onClick = onOpenLocalStations,
                     label = { Text("Local", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                    secondaryLabel = { Text("Local BBC stations", maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                    secondaryLabel = { Text("Local BBC stations", maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis) },
                     colors = ChipDefaults.secondaryChipColors(),
-                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction)
+                    modifier = Modifier.fillMaxWidth(chipWidthFraction)
                 )
             }
         }
@@ -481,12 +486,15 @@ private fun StationListScreen(
     emptyText: String
 ) {
     val listState = rememberScalingLazyListState()
+    val listContentPadding = listContentPaddingForFontScale()
+    val chipWidthFraction = roundSafeChipWidthFraction()
+    val secondaryMaxLines = secondaryMaxLinesForFontScale()
 
     Box(modifier = Modifier.fillMaxSize()) {
         ScalingLazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = ListContentPadding,
+            contentPadding = listContentPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             scalingParams = AggressiveEdgeScaling
         ) {
@@ -505,7 +513,7 @@ private fun StationListScreen(
                         secondaryLabel = {
                             Text(
                                 showDetail ?: showTitle ?: "On air now",
-                                maxLines = 2,
+                                maxLines = secondaryMaxLines,
                                 overflow = TextOverflow.Ellipsis
                             )
                         },
@@ -518,7 +526,7 @@ private fun StationListScreen(
                                     .clip(CircleShape)
                             )
                         },
-                        modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
+                        modifier = Modifier.fillMaxWidth(chipWidthFraction),
                         colors = ChipDefaults.primaryChipColors()
                     )
                 }
@@ -547,12 +555,15 @@ private fun PodcastListScreen(
     var visibleCount by rememberSaveable { mutableStateOf(8) }
     val visiblePodcasts = podcasts.take(visibleCount.coerceAtMost(podcasts.size))
     val listState = rememberScalingLazyListState()
+    val listContentPadding = listContentPaddingForFontScale()
+    val chipWidthFraction = roundSafeChipWidthFraction()
+    val secondaryMaxLines = secondaryMaxLinesForFontScale()
 
     Box(modifier = Modifier.fillMaxSize()) {
         ScalingLazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = ListContentPadding,
+            contentPadding = listContentPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             scalingParams = AggressiveEdgeScaling
         ) {
@@ -566,7 +577,7 @@ private fun PodcastListScreen(
                     Chip(
                         onClick = onRetry,
                         label = { Text("Retry", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
+                        modifier = Modifier.fillMaxWidth(chipWidthFraction),
                         colors = ChipDefaults.secondaryChipColors()
                     )
                 }
@@ -618,7 +629,7 @@ private fun PodcastListScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
+                    modifier = Modifier.fillMaxWidth(chipWidthFraction),
                     colors = ChipDefaults.primaryChipColors()
                 )
             }
@@ -628,8 +639,8 @@ private fun PodcastListScreen(
                     Chip(
                         onClick = { visibleCount += 8 },
                         label = { Text("Load more", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                        secondaryLabel = { Text("${podcasts.size - visibleCount} remaining", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
+                        secondaryLabel = { Text("${podcasts.size - visibleCount} remaining", maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis) },
+                        modifier = Modifier.fillMaxWidth(chipWidthFraction),
                         colors = ChipDefaults.secondaryChipColors()
                     )
                 }
@@ -652,12 +663,15 @@ private fun EpisodeListScreen(
     var visibleCount by rememberSaveable(podcast?.id) { mutableStateOf(8) }
     val visibleEpisodes = episodes.take(visibleCount.coerceAtMost(episodes.size))
     val listState = rememberScalingLazyListState()
+    val listContentPadding = listContentPaddingForFontScale()
+    val chipWidthFraction = roundSafeChipWidthFraction()
+    val secondaryMaxLines = secondaryMaxLinesForFontScale()
 
     Box(modifier = Modifier.fillMaxSize()) {
         ScalingLazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = ListContentPadding,
+            contentPadding = listContentPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             scalingParams = AggressiveEdgeScaling
         ) {
@@ -679,9 +693,9 @@ private fun EpisodeListScreen(
                                 episode.pubDate.isNotBlank() -> episode.pubDate
                                 else -> "Play episode"
                             }
-                            Text(text = secondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(text = secondary, maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis)
                         },
-                        modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
+                        modifier = Modifier.fillMaxWidth(chipWidthFraction),
                         colors = ChipDefaults.primaryChipColors()
                     )
                 }
@@ -691,8 +705,8 @@ private fun EpisodeListScreen(
                         Chip(
                             onClick = { visibleCount += 8 },
                             label = { Text("Load older", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                            secondaryLabel = { Text("${episodes.size - visibleCount} remaining", maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                            modifier = Modifier.fillMaxWidth(RoundSafeChipWidthFraction),
+                            secondaryLabel = { Text("${episodes.size - visibleCount} remaining", maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.fillMaxWidth(chipWidthFraction),
                             colors = ChipDefaults.secondaryChipColors()
                         )
                     }
@@ -739,6 +753,42 @@ private fun RoundSafeHeaderMessage(text: String, maxLines: Int) {
                 .padding(horizontal = HeaderHorizontalSafePadding)
         )
     }
+}
+
+@Composable
+private fun listContentPaddingForFontScale(): PaddingValues {
+    val fontScale = LocalConfiguration.current.fontScale
+    val horizontal = when {
+        fontScale >= 1.4f -> 14.dp
+        fontScale >= 1.2f -> 12.dp
+        else -> 10.dp
+    }
+    val top = when {
+        fontScale >= 1.4f -> 34.dp
+        fontScale >= 1.2f -> 28.dp
+        else -> 22.dp
+    }
+    val bottom = when {
+        fontScale >= 1.4f -> 28.dp
+        fontScale >= 1.2f -> 24.dp
+        else -> 20.dp
+    }
+    return PaddingValues(start = horizontal, end = horizontal, top = top, bottom = bottom)
+}
+
+@Composable
+private fun roundSafeChipWidthFraction(): Float {
+    val fontScale = LocalConfiguration.current.fontScale
+    return when {
+        fontScale >= 1.4f -> 0.88f
+        fontScale >= 1.2f -> 0.90f
+        else -> 0.93f
+    }
+}
+
+@Composable
+private fun secondaryMaxLinesForFontScale(): Int {
+    return if (LocalConfiguration.current.fontScale >= 1.2f) 1 else 2
 }
 
 private fun formatPosition(positionMs: Long): String {
