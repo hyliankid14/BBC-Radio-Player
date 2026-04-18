@@ -223,21 +223,23 @@
             android:gravity="end" />
     </LinearLayout>
 
-    <!-- Podcast progress indicator (Material 3, determinate, no playhead marker) -->
-    <com.google.android.material.progressindicator.LinearProgressIndicator
-        style="@style/Widget.Material3.LinearProgressIndicator"
+    <!-- Podcast scrubber — Material 3 expressive Slider, draggable, floating time label -->
+    <com.google.android.material.slider.Slider
+        style="@style/Widget.Material3.Slider"
         android:id="@+id/playback_seekbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        android:layout_marginStart="24dp"
-        android:layout_marginEnd="24dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
         android:layout_marginBottom="12dp"
-        android:max="1000"
-        android:progress="0"
-        app:trackThickness="6dp"
-        app:trackCornerRadius="3dp"
+        android:valueFrom="0.0"
+        android:valueTo="1.0"
+        app:trackHeight="6dp"
+        app:thumbRadius="10dp"
+        app:thumbTrackGapSize="4dp"
         app:trackStopIndicatorSize="0dp"
+        app:labelBehavior="floating"
         app:layout_constraintBottom_toTopOf="@id/playback_controls"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
