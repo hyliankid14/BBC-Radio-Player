@@ -6,6 +6,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.widget.ImageView
+import com.google.android.material.slider.BaseSlider
 import com.google.android.material.slider.Slider
 import android.widget.TextView
 import android.text.method.ScrollingMovementMethod
@@ -195,6 +196,7 @@ class NowPlayingActivity : AppCompatActivity() {
         openPodcastButton = findViewById(R.id.now_playing_open_podcast)
         progressGroup = findViewById(R.id.podcast_progress_group)
         seekBar = findViewById(R.id.playback_seekbar)
+        seekBar.labelBehavior = BaseSlider.LABEL_GONE
         elapsedView = findViewById(R.id.playback_elapsed)
         remainingView = findViewById(R.id.playback_remaining)
         markPlayedButton = findViewById(R.id.now_playing_mark_played) 
@@ -273,16 +275,6 @@ class NowPlayingActivity : AppCompatActivity() {
             }
         }
         
-        // Format slider label to show time instead of decimal value
-        seekBar.setLabelFormatter { value ->
-            val show = PlaybackStateHelper.getCurrentShow()
-            val duration = show.segmentDurationMs
-                ?: ((previewEpisodeProp?.durationMins?.takeIf { it >= 0 } ?: 0) * 60_000L).takeIf { it > 0 }
-                ?: return@setLabelFormatter "0:00"
-            val timeMs = (duration * value).toLong()
-            formatTime(timeMs)
-        }
-
         // Register listener for show changes
         PlaybackStateHelper.onShowChange(showChangeListener)
 
