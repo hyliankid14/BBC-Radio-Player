@@ -17,6 +17,7 @@ import android.content.res.ColorStateList
 import androidx.core.content.ContextCompat
 import android.net.Uri
 import android.widget.Button
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
@@ -37,6 +38,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.RadioGroup
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
@@ -1527,12 +1530,32 @@ class MainActivity : AppCompatActivity() {
                 }
             }, highlightSubscribed = true, showSubscribedIcon = false)
 
+            // Set drag handles visibility based on current sort preference
+            val initialSort = SubscribedPodcastSortPreference.getSortOrder(this)
+            favPodcastAdapter.showDragHandles = (initialSort == SubscribedPodcastSortPreference.SORT_MANUAL)
+
             favoritesPodcastsRecycler.adapter = favPodcastAdapter
 
-            // Attach swipe-to-unsubscribe (only once)
+            // Attach combined drag-to-reorder / swipe-to-unsubscribe ItemTouchHelper (only once)
             if (podcastsItemTouchHelper == null) {
-                val swipeCallbackPodcasts = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-                    override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
+                val combinedCallback = object : ItemTouchHelper.Callback() {
+                    override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+                        val isManual = SubscribedPodcastSortPreference.getSortOrder(this@MainActivity) ==
+                            SubscribedPodcastSortPreference.SORT_MANUAL
+                        return if (isManual) {
+                            makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
+                        } else {
+                            makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
+                        }
+                    }
+
+                    override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                        val fromPos = viewHolder.bindingAdapterPosition
+                        val toPos = target.bindingAdapterPosition
+                        if (fromPos == RecyclerView.NO_POSITION || toPos == RecyclerView.NO_POSITION) return false
+                        (recyclerView.adapter as? PodcastAdapter)?.moveItem(fromPos, toPos)
+                        return true
+                    }
 
                     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                         val pos = viewHolder.bindingAdapterPosition
@@ -1559,13 +1582,27 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
 
+                    override fun isLongPressDragEnabled(): Boolean = false
+
                     override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                         super.clearView(recyclerView, viewHolder)
                         viewHolder.itemView.invalidate()
                         try { viewHolder.itemView.setTag(R.id.swipe_haptic_trigger, false) } catch (_: Exception) { }
+                        // Persist manual order after a drag is released
+                        if (SubscribedPodcastSortPreference.getSortOrder(this@MainActivity) ==
+                            SubscribedPodcastSortPreference.SORT_MANUAL) {
+                            val adapter = recyclerView.adapter as? PodcastAdapter
+                            if (adapter != null) {
+                                SubscribedPodcastSortPreference.setManualOrder(this@MainActivity, adapter.getPodcasts().map { it.id })
+                            }
+                        }
                     }
 
                     override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
+                        if (actionState != ItemTouchHelper.ACTION_STATE_SWIPE) {
+                            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                            return
+                        }
                         if (kotlin.math.abs(dX) < 0.5f && !isCurrentlyActive) {
                             super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                             return
@@ -1636,7 +1673,16 @@ class MainActivity : AppCompatActivity() {
                         super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                     }
                 }
-                podcastsItemTouchHelper = ItemTouchHelper(swipeCallbackPodcasts).also { it.attachToRecyclerView(favoritesPodcastsRecycler) }
+                podcastsItemTouchHelper = ItemTouchHelper(combinedCallback).also { helper ->
+                    helper.attachToRecyclerView(favoritesPodcastsRecycler)
+                    favPodcastAdapter.onStartDrag = { viewHolder -> helper.startDrag(viewHolder) }
+                }
+            } else {
+                // Re-wire onStartDrag to the existing helper whenever the adapter is recreated
+                val helper = podcastsItemTouchHelper
+                if (helper != null) {
+                    favPodcastAdapter.onStartDrag = { viewHolder -> helper.startDrag(viewHolder) }
+                }
             }
 
             Thread {
@@ -1647,7 +1693,7 @@ class MainActivity : AppCompatActivity() {
                 val fastSubs = repo.getAvailablePodcastsNow().filter { subscribedIds.contains(it.id) }
                 val fastUpdates = repo.getAvailableUpdatesNow(fastSubs)
                 if (fastSubs.isNotEmpty()) {
-                    val fastSorted = fastSubs.sortedByDescending { fastUpdates[it.id] ?: 0L }
+                    val fastSorted = SubscribedPodcastSortPreference.applySortOrder(this, fastSubs, fastUpdates)
                     val fastNewSet = fastSorted.filter { p ->
                         (fastUpdates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this, p.id)
                     }.map { it.id }.toSet()
@@ -1669,7 +1715,7 @@ class MainActivity : AppCompatActivity() {
                 val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
                 var subs = all.filter { subscribedIds.contains(it.id) }
                 val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (e: Exception) { emptyMap<String, Long>() }
-                subs = subs.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
+                subs = SubscribedPodcastSortPreference.applySortOrder(this, subs, updates)
                 // Determine which subscriptions have unseen episodes (latest update > last played epoch)
                 val newSet = subs.filter { p ->
                     val latest = updates[p.id] ?: 0L
@@ -1800,6 +1846,7 @@ class MainActivity : AppCompatActivity() {
         when (tab) {
             "stations" -> {
                 supportActionBar?.title = "Favourite Stations"
+                invalidateOptionsMenu()
                 refreshFavoriteStationsEmptyState()
                 // Hide recent songs views so they don't persist into the blank space below favourite stations
                 try { findViewById<View>(R.id.recent_songs_list).visibility = View.GONE } catch (_: Exception) { }
@@ -1816,6 +1863,7 @@ class MainActivity : AppCompatActivity() {
             }
             "subscribed" -> {
                 supportActionBar?.title = "Subscribed Podcasts"
+                invalidateOptionsMenu()
                 stationsList.visibility = View.GONE
                 try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<View>(R.id.favorites_podcasts_container).visibility = View.VISIBLE } catch (_: Exception) { }
@@ -1861,7 +1909,7 @@ class MainActivity : AppCompatActivity() {
                             val fastSubs = repo.getAvailablePodcastsNow().filter { ids.contains(it.id) }
                             val fastUpdates = repo.getAvailableUpdatesNow(fastSubs)
                             if (fastSubs.isNotEmpty()) {
-                                val fastSorted = fastSubs.sortedByDescending { fastUpdates[it.id] ?: 0L }
+                                val fastSorted = SubscribedPodcastSortPreference.applySortOrder(this@MainActivity, fastSubs, fastUpdates)
                                 val fastNewSet = fastSorted.filter { p ->
                                     (fastUpdates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
                                 }.map { it.id }.toSet()
@@ -1880,7 +1928,7 @@ class MainActivity : AppCompatActivity() {
                         val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (e: Exception) { emptyList<Podcast>() }
                         val podcasts = all.filter { ids.contains(it.id) }
                         val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(podcasts) } } catch (e: Exception) { emptyMap<String, Long>() }
-                        val sorted = podcasts.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
+                        val sorted = SubscribedPodcastSortPreference.applySortOrder(this@MainActivity, podcasts, updates)
                         val newSet = sorted.filter { p ->
                             val latest = updates[p.id] ?: 0L
                             val lastPlayed = PlayedEpisodesPreference.getLastPlayedEpoch(this@MainActivity, p.id)
@@ -1920,6 +1968,12 @@ class MainActivity : AppCompatActivity() {
                                         commit()
                                     }
                                 }, highlightSubscribed = true, showSubscribedIcon = false)
+                                val currentSort = SubscribedPodcastSortPreference.getSortOrder(this@MainActivity)
+                                podcastAdapter.showDragHandles = (currentSort == SubscribedPodcastSortPreference.SORT_MANUAL)
+                                val helper = podcastsItemTouchHelper
+                                if (helper != null) {
+                                    podcastAdapter.onStartDrag = { viewHolder -> helper.startDrag(viewHolder) }
+                                }
                                 rv.adapter = podcastAdapter
                                 podcastAdapter.updatePodcasts(sorted)
                                 podcastAdapter.updateNewEpisodes(newSet)
@@ -1934,6 +1988,7 @@ class MainActivity : AppCompatActivity() {
             }
             "saved" -> {
                 supportActionBar?.title = "Saved Episodes"
+                invalidateOptionsMenu()
                 stationsList.visibility = View.GONE
                 try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE } catch (_: Exception) { }
@@ -1948,6 +2003,7 @@ class MainActivity : AppCompatActivity() {
             }
             "searches" -> {
                 supportActionBar?.title = "Saved Searches"
+                invalidateOptionsMenu()
                 stationsList.visibility = View.GONE
                 try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE } catch (_: Exception) { }
@@ -1964,6 +2020,7 @@ class MainActivity : AppCompatActivity() {
             }
             "history" -> {
                 supportActionBar?.title = "History"
+                invalidateOptionsMenu()
                 stationsList.visibility = View.GONE
                 try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE } catch (_: Exception) { }
@@ -2199,6 +2256,105 @@ class MainActivity : AppCompatActivity() {
             else -> "All Stations"
         }
         supportActionBar?.title = title
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.top_app_bar_menu, menu)
+        return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        val sortItem = menu.findItem(R.id.action_subscribed_sort)
+        sortItem?.isVisible = currentMode == "favorites" && isButtonChecked(R.id.fav_tab_subscribed)
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_subscribed_sort -> {
+                val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.top_app_bar)
+                val anchor: View = toolbar ?: window.decorView
+                showSubscribedSortMenu(anchor)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    /**
+     * Show a popup menu anchored to [anchor] with all four sort options for subscribed podcasts.
+     * The currently active sort option is shown as checked.
+     */
+    private fun showSubscribedSortMenu(anchor: View) {
+        val popup = PopupMenu(this, anchor)
+        popup.menu.apply {
+            add(Menu.NONE, 1, 0, "Most recently updated")
+            add(Menu.NONE, 2, 1, "Least recently updated")
+            add(Menu.NONE, 3, 2, "Alphabetical (A-Z)")
+            add(Menu.NONE, 4, 3, "Manual sort")
+        }
+        val current = SubscribedPodcastSortPreference.getSortOrder(this)
+        val checkedId = when (current) {
+            SubscribedPodcastSortPreference.SORT_MOST_RECENTLY_UPDATED -> 1
+            SubscribedPodcastSortPreference.SORT_LEAST_RECENTLY_UPDATED -> 2
+            SubscribedPodcastSortPreference.SORT_ALPHABETICAL -> 3
+            SubscribedPodcastSortPreference.SORT_MANUAL -> 4
+            else -> 1
+        }
+        for (i in 0 until popup.menu.size()) {
+            val menuItem = popup.menu.getItem(i)
+            menuItem.isCheckable = true
+            menuItem.isChecked = (menuItem.itemId == checkedId)
+        }
+        popup.setOnMenuItemClickListener { menuItem ->
+            val newSort = when (menuItem.itemId) {
+                1 -> SubscribedPodcastSortPreference.SORT_MOST_RECENTLY_UPDATED
+                2 -> SubscribedPodcastSortPreference.SORT_LEAST_RECENTLY_UPDATED
+                3 -> SubscribedPodcastSortPreference.SORT_ALPHABETICAL
+                4 -> SubscribedPodcastSortPreference.SORT_MANUAL
+                else -> return@setOnMenuItemClickListener false
+            }
+            SubscribedPodcastSortPreference.setSortOrder(this, newSort)
+            applySubscribedPodcastSort(newSort)
+            true
+        }
+        popup.show()
+    }
+
+    /**
+     * Re-sort the subscribed podcasts adapter and toggle drag handles based on [sortOrder].
+     * When switching to manual sort the existing display order is saved as the manual order.
+     */
+    private fun applySubscribedPodcastSort(sortOrder: String) {
+        try {
+            val rv = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler) ?: return
+            val adapter = rv.adapter as? PodcastAdapter ?: return
+            val isManual = sortOrder == SubscribedPodcastSortPreference.SORT_MANUAL
+            if (isManual) {
+                // Save the current display order as the starting manual order (if none saved yet)
+                val existingManual = SubscribedPodcastSortPreference.getManualOrder(this)
+                if (existingManual.isEmpty()) {
+                    SubscribedPodcastSortPreference.setManualOrder(this, adapter.getPodcasts().map { it.id })
+                }
+                adapter.showDragHandles = true
+            } else {
+                adapter.showDragHandles = false
+                // Re-fetch updates and re-sort
+                val ids = PodcastSubscriptions.getSubscribedIds(this)
+                if (ids.isNotEmpty()) {
+                    Thread {
+                        try {
+                            val repo = PodcastRepository(this)
+                            val all = try { kotlinx.coroutines.runBlocking { repo.fetchPodcasts(false) } } catch (_: Exception) { emptyList<Podcast>() }
+                            val subs = all.filter { ids.contains(it.id) }
+                            val updates = try { kotlinx.coroutines.runBlocking { repo.fetchLatestUpdates(subs) } } catch (_: Exception) { emptyMap<String, Long>() }
+                            val sorted = SubscribedPodcastSortPreference.applySortOrder(this, subs, updates)
+                            runOnUiThread { adapter.updatePodcasts(sorted) }
+                        } catch (_: Exception) { }
+                    }.start()
+                }
+            }
+        } catch (_: Exception) { }
     }
 
     // Update visuals for the favorites button group (tablet shows labels; phone icon-only)

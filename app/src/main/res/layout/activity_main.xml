@@ -15,7 +15,6 @@
         android:background="?attr/colorSurfaceContainer"
         app:titleTextColor="?attr/colorOnSurface"
         app:navigationIconTint="?attr/colorOnSurface"
-        app:menu="@menu/top_app_bar_menu"
         android:elevation="4dp" />
 
     <!-- Fill the small gap under the app bar with the same surface colour -->
