@@ -34,6 +34,19 @@ class PodcastAdapter(
     // Cache subscription and notification status to avoid repeated SharedPreferences reads
     private var subscribedIds: Set<String> = emptySet()
     private var notificationsEnabledIds: Set<String> = emptySet()
+
+    /** When true, drag handle icons are shown on each podcast row. */
+    var showDragHandles: Boolean = false
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
+
+    /**
+     * Called when the user touches the drag handle. The host should call
+     * [ItemTouchHelper.startDrag] on the provided ViewHolder.
+     */
+    var onStartDrag: ((RecyclerView.ViewHolder) -> Unit)? = null
     
     init {
         refreshSubscriptionCache()
@@ -92,6 +105,21 @@ class PodcastAdapter(
         notifyItemInserted(insertPos)
     }
 
+    /**
+     * Move a podcast from [from] to [to] within the adapter and notify. Used for drag reorder.
+     */
+    fun moveItem(from: Int, to: Int) {
+        if (from !in podcasts.indices || to !in podcasts.indices) return
+        val item = podcasts.removeAt(from)
+        podcasts.add(to, item)
+        notifyItemMoved(from, to)
+    }
+
+    /**
+     * Return an immutable snapshot of the current podcast list (in display order).
+     */
+    fun getPodcasts(): List<Podcast> = podcasts.toList()
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PodcastViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.item_podcast, parent, false)
         return PodcastViewHolder(view, onPodcastClick)
@@ -113,6 +141,7 @@ class PodcastAdapter(
         private val descriptionView: TextView = itemView.findViewById(R.id.podcast_description)
         private val genresView: TextView = itemView.findViewById(R.id.podcast_genres)
         private val notificationBell: ImageView = itemView.findViewById(R.id.podcast_notification_bell)
+        private val dragHandle: ImageView? = itemView.findViewById(R.id.podcast_drag_handle)
 
         init {
             // Use adapter position to safely resolve the podcast at the time of the click
@@ -147,6 +176,13 @@ class PodcastAdapter(
                     android.util.Log.d("PodcastAdapter", "Tapped podcast image: ${podcast.title}")
                     onPodcastClick(podcast)
                 }
+            }
+
+            dragHandle?.setOnTouchListener { _, event ->
+                if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                    onStartDrag?.invoke(this)
+                }
+                false
             }
             
             // Bell icon click handler - toggle notifications
@@ -217,6 +253,9 @@ class PodcastAdapter(
             } else {
                 newDot?.visibility = View.GONE
             }
+
+            // Show or hide drag handle based on adapter property
+            dragHandle?.visibility = if (showDragHandles) View.VISIBLE else View.GONE
 
             // Highlight subscribed podcasts when used in the Favorites list using fixed lavender color
             if ((itemView.context as? android.app.Activity) != null && (bindingAdapterPosition >= 0)) {

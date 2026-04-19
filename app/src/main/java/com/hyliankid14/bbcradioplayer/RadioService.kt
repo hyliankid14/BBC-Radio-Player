@@ -915,9 +915,9 @@ class RadioService : MediaBrowserServiceCompat() {
                                 val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                                 val podcasts = all.filter { subscribed.contains(it.id) }
                                 if (podcasts.isNotEmpty()) {
-                                    // Fetch cached latest update epochs and sort subscribed podcasts by newest update first
+                                    // Fetch cached latest update epochs and sort subscribed podcasts per user preference
                                     val updates = withContext(Dispatchers.IO) { repo.fetchLatestUpdates(podcasts) }
-                                    val sorted = podcasts.sortedByDescending { updates[it.id] ?: Long.MAX_VALUE }
+                                    val sorted = SubscribedPodcastSortPreference.applySortOrder(this@RadioService, podcasts, updates)
                                     val itemsPodcasts = sorted.map { p ->
                                         val subtitle = if ((updates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@RadioService, p.id)) "New" else ""
                                         MediaItem(
