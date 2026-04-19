@@ -1285,18 +1285,17 @@ class PodcastsFragment : Fragment() {
                 }
 
                 // Background prewarm for New Podcasts metadata so switching sort feels instant.
-                // This keeps lazy-loading behaviour for startup but avoids "first tap is empty".
+                // Keep this path lightweight: prefer cached bounds and the dedicated small
+                // new-podcasts snapshot, and avoid forcing full cloud-index downloads here.
                 if (allPodcasts.isNotEmpty() && (cachedEarliestUpdates.isEmpty() || cachedNewlyAddedPodcastEpochs.isEmpty())) {
                     viewLifecycleOwner.lifecycleScope.launch {
                         try {
                             val prewarmedEarliest = withContext(Dispatchers.IO) {
-                                repository.fetchCloudPodcastDateBounds(allPodcasts)
-                                    .mapValues { it.value.earliestEpisodeEpoch }
-                                    .ifEmpty { repository.getAvailableCloudEarliestUpdatesNow(allPodcasts) }
+                                repository.getAvailableCloudEarliestUpdatesNow(allPodcasts)
                                     .ifEmpty { repository.getAvailableEarliestUpdatesNow(allPodcasts) }
                             }
                             val prewarmedNewlyAdded = withContext(Dispatchers.IO) {
-                                repository.fetchNewlyAddedPodcastEpochs(allPodcasts, forceRefresh = true)
+                                repository.fetchNewlyAddedPodcastEpochs(allPodcasts, forceRefresh = false)
                             }
                             if (prewarmedEarliest.isNotEmpty()) {
                                 cachedEarliestUpdates = prewarmedEarliest
@@ -1547,27 +1546,23 @@ class PodcastsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
+                // Phase 1 (fast): return immediately available data first so the New Podcasts
+                // tab can populate without waiting for full index-summary downloads.
                 val resolvedEarliest = withContext(Dispatchers.IO) {
-                    repository.fetchCloudPodcastDateBounds(allPodcasts)
-                        .mapValues { it.value.earliestEpisodeEpoch }
-                        .ifEmpty {
-                            repository.fetchPodcastDateBounds(allPodcasts)
-                                .mapValues { it.value.earliestEpisodeEpoch }
-                                .filterValues { it > 0L }
-                        }
+                    repository.getAvailableCloudEarliestUpdatesNow(allPodcasts)
                         .ifEmpty { repository.getAvailableEarliestUpdatesNow(allPodcasts) }
                 }
                 updateLoadingProgress(PROGRESS_NEW_BOUNDS_FETCHED)
                 val resolvedNewlyAdded = withContext(Dispatchers.IO) {
-                    repository.fetchNewlyAddedPodcastEpochs(allPodcasts, forceRefresh = true)
+                    repository.fetchNewlyAddedPodcastEpochs(allPodcasts, forceRefresh = false)
                 }
                 updateLoadingProgress(PROGRESS_NEW_EPOCHS_FETCHED)
 
                 var finalEarliest = resolvedEarliest
                 var finalNewlyAdded = resolvedNewlyAdded
 
-                // First installs may race cloud index warm-up and return empty once.
-                // Retry once with forceRefresh before showing an empty New Podcasts list.
+                // Phase 2 (slow fallback): only if fast sources produced no usable metadata,
+                // do one forced refresh that may require downloading cloud index summary data.
                 if (finalEarliest.isEmpty() && finalNewlyAdded.isEmpty()) {
                     android.util.Log.d("PodcastsFragment", "Retrying New Podcasts metadata with forceRefresh")
                     finalEarliest = withContext(Dispatchers.IO) {
