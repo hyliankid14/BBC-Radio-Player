@@ -3030,10 +3030,9 @@ class PodcastsFragment : Fragment() {
 
     private fun sortPodcasts(podcasts: List<Podcast>): List<Podcast> {
         return when (normalizeSortValue(currentSort)) {
-            SORT_MOST_POPULAR -> podcasts.sortedWith(
-                compareBy<Podcast> { getPopularRank(it) }
-                    .thenByDescending { if (!hasPopularRank(it)) latestEpisodeEpoch(it) else 0L }
-            )
+            SORT_MOST_POPULAR -> podcasts
+                .filter { hasPopularRank(it) }
+                .sortedWith(compareBy { getPopularRank(it) })
             SORT_MOST_RECENT_EPISODES -> podcasts.sortedWith(
                 compareByDescending<Podcast> { latestEpisodeEpoch(it) }
                     .thenBy { it.title }
