@@ -19,6 +19,7 @@ static const char *TAG = "now_playing";
 
 static lv_obj_t   *s_lbl_title     = NULL;
 static lv_obj_t   *s_lbl_subtitle  = NULL;
+static lv_obj_t   *s_lbl_header_title = NULL;
 static lv_obj_t   *s_station_badge = NULL;
 static lv_obj_t   *s_station_badge_lbl = NULL;
 static const station_t *s_last_station = NULL;
@@ -816,6 +817,7 @@ static void on_screen_delete(lv_event_t *e)
     rms_stop_tracking();
     s_lbl_title     = NULL;
     s_lbl_subtitle  = NULL;
+    s_lbl_header_title = NULL;
     s_station_badge = NULL;
     s_station_badge_lbl = NULL;
     s_btn_playpause = NULL;
@@ -860,6 +862,13 @@ void screen_now_playing_refresh(void *arg)
     playback_state_t st = playback_get_state();
 
     if (st.type == PLAYBACK_STATION && st.station) {
+        if (s_lbl_header_title) {
+            lv_label_set_text(s_lbl_header_title, "Now Playing");
+            lv_label_set_long_mode(s_lbl_header_title, LV_LABEL_LONG_DOT);
+            lv_obj_set_width(s_lbl_header_title, 160);
+            lv_obj_set_style_anim_speed(s_lbl_header_title, 20, LV_PART_MAIN);
+            lv_obj_align(s_lbl_header_title, LV_ALIGN_CENTER, 0, 1);
+        }
         char station_title[64];
         station_display_title(st.station, station_title, sizeof(station_title));
         s_last_station = st.station;
@@ -873,12 +882,22 @@ void screen_now_playing_refresh(void *arg)
         }
         lv_label_set_text(s_lbl_title,    station_title);
         lv_label_set_text(s_lbl_subtitle, s_rms_text[0] ? s_rms_text : (s_ess_text[0] ? s_ess_text : "BBC Radio Live"));
+        lv_label_set_long_mode(s_lbl_title, LV_LABEL_LONG_DOT);
         lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_SCROLL_CIRCULAR);
+        lv_obj_set_style_anim_speed(s_lbl_title, 18, LV_PART_MAIN);
         lv_obj_set_style_anim_speed(s_lbl_subtitle, 20, LV_PART_MAIN);
         lv_obj_add_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
     } else if (st.type == PLAYBACK_EPISODE) {
+        if (s_lbl_header_title) {
+            const char *header_title = st.podcast_title[0] ? st.podcast_title : "Now Playing";
+            lv_label_set_text(s_lbl_header_title, header_title);
+            lv_label_set_long_mode(s_lbl_header_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
+            lv_obj_set_width(s_lbl_header_title, 160);
+            lv_obj_set_style_anim_speed(s_lbl_header_title, 20, LV_PART_MAIN);
+            lv_obj_align(s_lbl_header_title, LV_ALIGN_CENTER, 0, 1);
+        }
         rms_stop_tracking();
         lv_obj_set_width(s_lbl_title, TITLE_W_NO_BADGE);
         lv_obj_align(s_lbl_title, LV_ALIGN_TOP_LEFT, TITLE_X_NO_BADGE, UI_HEADER_HEIGHT + 25);
@@ -886,8 +905,11 @@ void screen_now_playing_refresh(void *arg)
             lv_obj_add_flag(s_station_badge, LV_OBJ_FLAG_HIDDEN);
         }
         lv_label_set_text(s_lbl_title,    st.episode_title);
-        lv_label_set_text(s_lbl_subtitle, st.podcast_title);
+        lv_label_set_text(s_lbl_subtitle, "");
+        lv_label_set_long_mode(s_lbl_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_DOT);
+        lv_obj_set_style_anim_speed(s_lbl_title, 18, LV_PART_MAIN);
+        lv_obj_set_style_anim_speed(s_lbl_subtitle, 20, LV_PART_MAIN);
         lv_obj_clear_flag(s_bar_progress,  LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
@@ -911,6 +933,13 @@ void screen_now_playing_refresh(void *arg)
         }
     } else {
         rms_stop_tracking();
+        if (s_lbl_header_title) {
+            lv_label_set_text(s_lbl_header_title, "Now Playing");
+            lv_label_set_long_mode(s_lbl_header_title, LV_LABEL_LONG_DOT);
+            lv_obj_set_width(s_lbl_header_title, 160);
+            lv_obj_set_style_anim_speed(s_lbl_header_title, 20, LV_PART_MAIN);
+            lv_obj_align(s_lbl_header_title, LV_ALIGN_CENTER, 0, 1);
+        }
         if (s_last_station) {
             char station_title[64];
             station_display_title(s_last_station, station_title, sizeof(station_title));
@@ -962,6 +991,16 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_add_event_cb(scr, on_screen_delete, LV_EVENT_DELETE, NULL);
 
     ui_create_header(scr, "Now Playing", true);
+    lv_obj_t *hdr = lv_obj_get_child(scr, 0);
+    if (hdr) {
+        s_lbl_header_title = lv_obj_get_child(hdr, 0);
+        if (s_lbl_header_title) {
+            lv_label_set_long_mode(s_lbl_header_title, LV_LABEL_LONG_DOT);
+            lv_obj_set_width(s_lbl_header_title, 160);
+            lv_obj_set_style_text_align(s_lbl_header_title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+            lv_obj_align(s_lbl_header_title, LV_ALIGN_CENTER, 0, 1);
+        }
+    }
 
     /* Station logo badge (shown for live radio). */
     s_station_badge = lv_obj_create(scr);
@@ -999,15 +1038,15 @@ lv_obj_t *screen_now_playing_create(void)
     /* Progress bar (episode mode only, hidden for live radio) */
     s_bar_progress = lv_bar_create(scr);
     lv_obj_remove_style_all(s_bar_progress);
-    lv_obj_set_size(s_bar_progress, 224, 3);
-    lv_obj_align(s_bar_progress, LV_ALIGN_TOP_MID, 0, UI_HEADER_HEIGHT + 86);
+    lv_obj_set_size(s_bar_progress, 224, 1);
+    lv_obj_align(s_bar_progress, LV_ALIGN_TOP_MID, 0, UI_HEADER_HEIGHT + 76);
     lv_obj_set_style_bg_color(s_bar_progress, lv_color_make(0x44, 0x44, 0x44), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_bar_progress, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_bg_color(s_bar_progress, UI_COLOR_BBC_RED, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(s_bar_progress, LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_border_width(s_bar_progress, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(s_bar_progress, 2, LV_PART_MAIN);
-    lv_obj_set_style_radius(s_bar_progress, 2, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(s_bar_progress, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_bar_progress, 0, LV_PART_INDICATOR);
     lv_bar_set_range(s_bar_progress, 0, 100);
     lv_bar_set_value(s_bar_progress, 0, LV_ANIM_OFF);
     lv_obj_add_flag(s_bar_progress, LV_OBJ_FLAG_HIDDEN);
@@ -1017,7 +1056,7 @@ lv_obj_t *screen_now_playing_create(void)
     lv_label_set_text(s_lbl_elapsed, "0:00");
     lv_obj_set_style_text_color(s_lbl_elapsed, UI_COLOR_SUBTEXT, LV_PART_MAIN);
     lv_obj_set_style_text_font(s_lbl_elapsed, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_align(s_lbl_elapsed, LV_ALIGN_TOP_MID, -92, UI_HEADER_HEIGHT + 96);
+    lv_obj_align(s_lbl_elapsed, LV_ALIGN_TOP_MID, -92, UI_HEADER_HEIGHT + 84);
     lv_obj_add_flag(s_lbl_elapsed, LV_OBJ_FLAG_HIDDEN);
 
     /* Remaining time label (right of bar) */
@@ -1025,7 +1064,7 @@ lv_obj_t *screen_now_playing_create(void)
     lv_label_set_text(s_lbl_remaining, "");
     lv_obj_set_style_text_color(s_lbl_remaining, UI_COLOR_SUBTEXT, LV_PART_MAIN);
     lv_obj_set_style_text_font(s_lbl_remaining, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_align(s_lbl_remaining, LV_ALIGN_TOP_MID, 92, UI_HEADER_HEIGHT + 96);
+    lv_obj_align(s_lbl_remaining, LV_ALIGN_TOP_MID, 92, UI_HEADER_HEIGHT + 84);
     lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
 
     /* Previous button */
@@ -1035,8 +1074,9 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_set_style_radius(s_btn_prev, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_align(s_btn_prev, LV_ALIGN_BOTTOM_MID, -62, -16);
     lv_obj_clear_flag(s_btn_prev, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_ext_click_area(s_btn_prev, 10);
     ui_mark_selectable(s_btn_prev);
-    lv_obj_add_event_cb(s_btn_prev, on_prev_clicked, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(s_btn_prev, on_prev_clicked, LV_EVENT_CLICKED, NULL);
     lv_obj_t *prev_lbl = lv_label_create(s_btn_prev);
     lv_label_set_text(prev_lbl, LV_SYMBOL_PREV);
     lv_obj_set_style_text_color(prev_lbl, lv_color_white(), LV_PART_MAIN);
@@ -1065,7 +1105,7 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_clear_flag(s_btn_next, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_ext_click_area(s_btn_next, 10);
     ui_mark_selectable(s_btn_next);
-    lv_obj_add_event_cb(s_btn_next, on_next_clicked, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(s_btn_next, on_next_clicked, LV_EVENT_CLICKED, NULL);
     lv_obj_t *next_lbl = lv_label_create(s_btn_next);
     lv_label_set_text(next_lbl, LV_SYMBOL_NEXT);
     lv_obj_set_style_text_color(next_lbl, lv_color_white(), LV_PART_MAIN);
@@ -1080,7 +1120,7 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_set_style_shadow_width(s_btn_next_hit, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(s_btn_next_hit, 0, LV_PART_MAIN);
     lv_obj_clear_flag(s_btn_next_hit, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_event_cb(s_btn_next_hit, on_next_clicked, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(s_btn_next_hit, on_next_clicked, LV_EVENT_CLICKED, NULL);
     ui_mark_selectable(s_btn_next_hit);
 
     /* 1-second timer to keep progress bar live */

@@ -503,10 +503,10 @@ podcast_t *podcast_index_random(void)
 
 /* ── Episode fetcher (downloads individual RSS feed) ───────────────── */
 
-#define MAX_RECENT_EPISODES 3
-#define EPISODE_FETCH_INITIAL_CAP 2048
-#define EPISODE_FETCH_GROWTH 1024
-#define EPISODE_FETCH_MAX_CAP 6144
+#define MAX_RECENT_EPISODES 8
+#define EPISODE_FETCH_INITIAL_CAP 4096
+#define EPISODE_FETCH_GROWTH 2048
+#define EPISODE_FETCH_MAX_CAP 12288
 
 static esp_err_t parse_rss_episodes(const char *xml, podcast_t *podcast)
 {

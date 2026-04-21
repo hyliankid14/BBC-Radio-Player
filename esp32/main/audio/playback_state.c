@@ -4,6 +4,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 #include <string.h>
 
 static const char *TAG = "playback_state";
@@ -16,6 +17,51 @@ static SemaphoreHandle_t s_station_op_mutex;
 static int32_t s_episode_offset_secs = 0;  /* position (secs) at last start/resume */
 static int64_t s_episode_start_us    = 0;  /* wall-clock (µs) at last start/resume  */
 static bool    s_episode_is_paused   = false;
+static bool    s_episode_audio_active = false;
+static TaskHandle_t s_seek_task = NULL;
+static volatile int32_t s_pending_seek_target_secs = -1;
+
+#define SEEK_COALESCE_MS 120
+
+static void seek_apply_task(void *arg)
+{
+    (void)arg;
+
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(SEEK_COALESCE_MS));
+
+        xSemaphoreTake(s_mutex, portMAX_DELAY);
+        int32_t target = s_pending_seek_target_secs;
+        s_pending_seek_target_secs = -1;
+
+        if (target < 0 || s_state.type != PLAYBACK_EPISODE) {
+            xSemaphoreGive(s_mutex);
+            break;
+        }
+
+        int32_t duration_secs = s_state.episode_duration_secs;
+        xSemaphoreGive(s_mutex);
+
+        esp_err_t ret = bbc_audio_seek_to(target, duration_secs);
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Seek failed pos=%ld err=0x%x", (long)target, (unsigned)ret);
+            continue;
+        }
+
+        xSemaphoreTake(s_mutex, portMAX_DELAY);
+        if (s_state.type == PLAYBACK_EPISODE) {
+            s_episode_offset_secs = target;
+            s_episode_start_us = esp_timer_get_time();
+            s_episode_is_paused = false;
+            s_episode_audio_active = false;
+            s_state.is_playing = false;
+        }
+        xSemaphoreGive(s_mutex);
+    }
+
+    s_seek_task = NULL;
+    vTaskDelete(NULL);
+}
 
 void playback_state_init(void)
 {
@@ -53,7 +99,7 @@ esp_err_t playback_play_episode(const podcast_t *podcast, const episode_t *episo
 
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     s_state.type                  = PLAYBACK_EPISODE;
-    s_state.is_playing            = true;
+    s_state.is_playing            = bbc_audio_is_playing();
     s_state.is_live               = false;
     s_state.station               = NULL;
     s_state.episode_duration_secs = episode->duration_secs;
@@ -63,6 +109,7 @@ esp_err_t playback_play_episode(const podcast_t *podcast, const episode_t *episo
     s_episode_offset_secs = 0;
     s_episode_start_us    = esp_timer_get_time();
     s_episode_is_paused   = false;
+    s_episode_audio_active = s_state.is_playing;
     xSemaphoreGive(s_mutex);
 
     ESP_LOGI(TAG, "Playing episode: %s — %s", podcast->title, episode->title);
@@ -79,6 +126,7 @@ esp_err_t playback_stop(void)
     s_episode_offset_secs = 0;
     s_episode_start_us    = 0;
     s_episode_is_paused   = false;
+    s_episode_audio_active = false;
     xSemaphoreGive(s_mutex);
     xSemaphoreGive(s_station_op_mutex);
     return ESP_OK;
@@ -109,6 +157,7 @@ esp_err_t playback_toggle(void)
 playback_state_t playback_get_state(void)
 {
     xSemaphoreTake(s_mutex, portMAX_DELAY);
+    s_state.is_playing = bbc_audio_is_playing();
     playback_state_t copy = s_state;
     xSemaphoreGive(s_mutex);
     return copy;
@@ -119,7 +168,22 @@ int32_t playback_get_position_secs(void)
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     int32_t pos = 0;
     if (s_state.type == PLAYBACK_EPISODE && s_episode_start_us != 0) {
-        if (s_episode_is_paused) {
+        bool audio_playing = bbc_audio_is_playing();
+
+        if (audio_playing && !s_episode_audio_active) {
+            s_episode_start_us = esp_timer_get_time();
+            s_episode_audio_active = true;
+            s_episode_is_paused = false;
+        }
+
+        if (!audio_playing) {
+            s_episode_audio_active = false;
+            s_state.is_playing = false;
+        } else {
+            s_state.is_playing = true;
+        }
+
+        if (s_episode_is_paused || !audio_playing) {
             pos = s_episode_offset_secs;
         } else {
             pos = s_episode_offset_secs +
@@ -132,6 +196,8 @@ int32_t playback_get_position_secs(void)
 
 esp_err_t playback_seek_relative(int delta_secs)
 {
+    int32_t target_pos = 0;
+
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     if (s_state.type != PLAYBACK_EPISODE) {
         xSemaphoreGive(s_mutex);
@@ -145,9 +211,16 @@ esp_err_t playback_seek_relative(int delta_secs)
     if (pos < 0) pos = 0;
     if (s_state.episode_duration_secs > 0 && pos > s_state.episode_duration_secs)
         pos = s_state.episode_duration_secs;
-    s_episode_offset_secs = pos;
-    s_episode_start_us    = now_us;
+    target_pos = pos;
+    s_pending_seek_target_secs = target_pos;
     xSemaphoreGive(s_mutex);
+
+    if (s_seek_task == NULL) {
+        if (xTaskCreate(seek_apply_task, "seek_apply", 4096, NULL, 4, &s_seek_task) != pdPASS) {
+            s_seek_task = NULL;
+            return ESP_FAIL;
+        }
+    }
     return ESP_OK;
 }
 

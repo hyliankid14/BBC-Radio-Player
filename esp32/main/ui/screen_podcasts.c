@@ -7,26 +7,32 @@
 #include "freertos/task.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static const char *TAG = "screen_podcasts";
 
-#define POPULAR_FETCH_LIMIT 24
-#define POPULAR_PAGE_SIZE    6
+#define PODCAST_LIST_MAX_ITEMS 96
 
 static lv_obj_t *s_popular_list = NULL;
 static lv_obj_t *s_popular_spinner = NULL;
-static lv_obj_t *s_prev_btn = NULL;
-static lv_obj_t *s_next_btn = NULL;
-static lv_obj_t *s_page_label = NULL;
 static bool      s_fetch_in_progress = false;
 static bool      s_fetch_attempted = false;
 static esp_err_t s_last_fetch_err = ESP_OK;
-static size_t    s_popular_page = 0;
+
+typedef enum {
+    PODCAST_LIST_POPULAR = 0,
+    PODCAST_LIST_NEW,
+} podcast_list_mode_t;
+
+static podcast_list_mode_t s_list_mode = PODCAST_LIST_POPULAR;
 
 static const char *popular_loading_message(void)
 {
+    const char *kind = (s_list_mode == PODCAST_LIST_NEW) ? "new" : "popular";
     if (podcast_index_is_ready()) {
-        return "No popular podcasts available";
+        static char msg[40];
+        snprintf(msg, sizeof(msg), "No %s podcasts available", kind);
+        return msg;
     }
     if (s_last_fetch_err == ESP_ERR_NO_MEM) {
         return "Not enough memory for podcasts";
@@ -34,12 +40,9 @@ static const char *popular_loading_message(void)
     if (s_fetch_attempted && !s_fetch_in_progress && s_last_fetch_err != ESP_OK) {
         return "Could not load podcasts";
     }
-    return "Loading popular podcasts...";
-}
-
-static size_t popular_page_count(size_t total)
-{
-    return (total + POPULAR_PAGE_SIZE - 1) / POPULAR_PAGE_SIZE;
+    return (s_list_mode == PODCAST_LIST_NEW)
+        ? "Loading new podcasts..."
+        : "Loading popular podcasts...";
 }
 
 static void on_podcast_clicked(lv_event_t *e)
@@ -56,11 +59,11 @@ static void podcasts_fetch_task(void *arg)
 {
     LV_UNUSED(arg);
 
-    ESP_LOGI(TAG, "Fetching popular podcast index from Podcasts screen");
-    esp_err_t err = podcast_index_fetch_popular(POPULAR_FETCH_LIMIT);
+    ESP_LOGI(TAG, "Fetching podcast index from Podcasts screen");
+    esp_err_t err = podcast_index_fetch();
     s_last_fetch_err = err;
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "podcast_index_fetch_popular failed: %s", esp_err_to_name(err));
+        ESP_LOGW(TAG, "podcast_index_fetch failed: %s", esp_err_to_name(err));
     }
 
     s_fetch_in_progress = false;
@@ -83,33 +86,6 @@ static void ensure_podcast_fetch_started(void)
     }
 }
 
-static void update_pager(size_t total)
-{
-    size_t pages = popular_page_count(total);
-    if (pages == 0) {
-        pages = 1;
-    }
-    if (s_popular_page >= pages) {
-        s_popular_page = pages - 1;
-    }
-
-    if (s_page_label && lv_obj_is_valid(s_page_label)) {
-        char page_text[24];
-        snprintf(page_text, sizeof(page_text), "%u/%u",
-                 (unsigned)(s_popular_page + 1), (unsigned)pages);
-        lv_label_set_text(s_page_label, page_text);
-    }
-
-    if (s_prev_btn && lv_obj_is_valid(s_prev_btn)) {
-        if (s_popular_page == 0) lv_obj_add_state(s_prev_btn, LV_STATE_DISABLED);
-        else lv_obj_clear_state(s_prev_btn, LV_STATE_DISABLED);
-    }
-    if (s_next_btn && lv_obj_is_valid(s_next_btn)) {
-        if (s_popular_page + 1 >= pages) lv_obj_add_state(s_next_btn, LV_STATE_DISABLED);
-        else lv_obj_clear_state(s_next_btn, LV_STATE_DISABLED);
-    }
-}
-
 static void add_popular_rows(void)
 {
     size_t count = 0;
@@ -123,27 +99,52 @@ static void add_popular_rows(void)
         lv_obj_set_style_text_color(lbl, UI_COLOR_SUBTEXT, LV_PART_MAIN);
         lv_obj_set_style_pad_top(lbl, 10, LV_PART_MAIN);
         lv_obj_set_style_pad_left(lbl, 8, LV_PART_MAIN);
-        update_pager(0);
         return;
     }
 
-    size_t start = s_popular_page * POPULAR_PAGE_SIZE;
-    size_t end = start + POPULAR_PAGE_SIZE;
-    if (end > count) {
-        end = count;
+    podcast_t *filtered[PODCAST_LIST_MAX_ITEMS];
+    size_t filtered_count = 0;
+    for (size_t i = 0; i < count && filtered_count < PODCAST_LIST_MAX_ITEMS; i++) {
+        bool include = (s_list_mode == PODCAST_LIST_NEW)
+            ? all[i].is_new
+            : (all[i].popularity_rank > 0);
+        if (include) {
+            filtered[filtered_count++] = &all[i];
+        }
     }
 
-    for (size_t i = start; i < end; i++) {
-        lv_obj_t *btn = lv_list_add_btn(s_popular_list, LV_SYMBOL_AUDIO, all[i].title);
+    for (size_t i = 0; i < filtered_count; i++) {
+        for (size_t j = i + 1; j < filtered_count; j++) {
+            int lhs = (s_list_mode == PODCAST_LIST_NEW)
+                ? filtered[i]->new_rank
+                : filtered[i]->popularity_rank;
+            int rhs = (s_list_mode == PODCAST_LIST_NEW)
+                ? filtered[j]->new_rank
+                : filtered[j]->popularity_rank;
+            if (lhs == 0 || (rhs != 0 && rhs < lhs)) {
+                podcast_t *tmp = filtered[i];
+                filtered[i] = filtered[j];
+                filtered[j] = tmp;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < filtered_count; i++) {
+        lv_obj_t *btn = lv_list_add_btn(s_popular_list, LV_SYMBOL_AUDIO, filtered[i]->title);
         lv_obj_set_style_bg_color(btn, UI_COLOR_CARD_BG, LV_PART_MAIN);
         lv_obj_set_style_text_color(btn, UI_COLOR_TEXT, LV_PART_MAIN);
         lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
         lv_obj_set_style_radius(btn, 0, LV_PART_MAIN);
+        lv_obj_set_style_outline_width(btn, 0, LV_PART_MAIN);
+        lv_obj_set_style_shadow_width(btn, 0, LV_PART_MAIN);
+        lv_obj_t *btn_text = lv_obj_get_child(btn, 1);
+        if (btn_text) {
+            lv_label_set_long_mode(btn_text, LV_LABEL_LONG_SCROLL_CIRCULAR);
+            lv_obj_set_style_anim_speed(btn_text, 24, LV_PART_MAIN);
+        }
         ui_mark_selectable(btn);
-        lv_obj_add_event_cb(btn, on_podcast_clicked, LV_EVENT_CLICKED, &all[i]);
+        lv_obj_add_event_cb(btn, on_podcast_clicked, LV_EVENT_CLICKED, filtered[i]);
     }
-
-    update_pager(count);
 }
 
 void screen_podcasts_refresh(void *arg)
@@ -164,31 +165,9 @@ void screen_podcasts_refresh(void *arg)
     }
 }
 
-static void on_prev_page(lv_event_t *e)
+static lv_obj_t *create_popular_screen(const char *header_title, podcast_list_mode_t mode)
 {
-    LV_UNUSED(e);
-    if (s_popular_page == 0) {
-        return;
-    }
-    s_popular_page--;
-    screen_podcasts_refresh(NULL);
-}
-
-static void on_next_page(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    size_t count = 0;
-    (void)podcast_index_get_all(&count);
-    size_t pages = popular_page_count(count);
-    if (pages == 0 || s_popular_page + 1 >= pages) {
-        return;
-    }
-    s_popular_page++;
-    screen_podcasts_refresh(NULL);
-}
-
-static lv_obj_t *create_popular_screen(void)
-{
+    s_list_mode = mode;
     lv_obj_t *scr = lv_obj_create(NULL);
     lv_obj_remove_style_all(scr);
     lv_obj_set_style_bg_color(scr, UI_COLOR_DARK_BG, LV_PART_MAIN);
@@ -200,65 +179,23 @@ static lv_obj_t *create_popular_screen(void)
     lv_obj_set_style_pad_all(scr, 0, LV_PART_MAIN);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
-    ui_create_header(scr, "Popular Podcasts", true);
+    ui_create_header(scr, header_title, true);
 
     s_popular_list = lv_list_create(scr);
-    lv_obj_set_size(s_popular_list, 240, 240 - UI_HEADER_HEIGHT - 32);
+    lv_obj_set_size(s_popular_list, 240, 240 - UI_HEADER_HEIGHT);
     lv_obj_align(s_popular_list, LV_ALIGN_TOP_LEFT, 0, UI_HEADER_HEIGHT);
     lv_obj_set_style_bg_color(s_popular_list, UI_COLOR_DARK_BG, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_popular_list, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_popular_list, 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(s_popular_list, 0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(s_popular_list, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_popular_list, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(s_popular_list, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_left(s_popular_list, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_right(s_popular_list, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_row(s_popular_list, 2, LV_PART_MAIN);
     lv_obj_set_scroll_dir(s_popular_list, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(s_popular_list, LV_SCROLLBAR_MODE_OFF);
-
-    lv_obj_t *pager = lv_obj_create(scr);
-    lv_obj_remove_style_all(pager);
-    lv_obj_set_size(pager, 240, 32);
-    lv_obj_align(pager, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_bg_color(pager, UI_COLOR_DARK_BG, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(pager, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(pager, 0, LV_PART_MAIN);
-    lv_obj_clear_flag(pager, LV_OBJ_FLAG_SCROLLABLE);
-
-    s_prev_btn = lv_btn_create(pager);
-    lv_obj_remove_style_all(s_prev_btn);
-    lv_obj_set_size(s_prev_btn, 52, 24);
-    lv_obj_align(s_prev_btn, LV_ALIGN_LEFT_MID, 8, 0);
-    lv_obj_set_style_bg_color(s_prev_btn, UI_COLOR_CARD_BG, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(s_prev_btn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_radius(s_prev_btn, 8, LV_PART_MAIN);
-    lv_obj_add_event_cb(s_prev_btn, on_prev_page, LV_EVENT_PRESSED, NULL);
-    lv_obj_add_event_cb(s_prev_btn, on_prev_page, LV_EVENT_CLICKED, NULL);
-    lv_obj_set_ext_click_area(s_prev_btn, 12);
-    ui_mark_selectable(s_prev_btn);
-    lv_obj_t *prev_lbl = lv_label_create(s_prev_btn);
-    lv_label_set_text(prev_lbl, "Prev");
-    lv_obj_set_style_text_color(prev_lbl, UI_COLOR_TEXT, LV_PART_MAIN);
-    lv_obj_center(prev_lbl);
-
-    s_next_btn = lv_btn_create(pager);
-    lv_obj_remove_style_all(s_next_btn);
-    lv_obj_set_size(s_next_btn, 52, 24);
-    lv_obj_align(s_next_btn, LV_ALIGN_RIGHT_MID, -8, 0);
-    lv_obj_set_style_bg_color(s_next_btn, UI_COLOR_CARD_BG, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(s_next_btn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_radius(s_next_btn, 8, LV_PART_MAIN);
-    lv_obj_add_event_cb(s_next_btn, on_next_page, LV_EVENT_PRESSED, NULL);
-    lv_obj_add_event_cb(s_next_btn, on_next_page, LV_EVENT_CLICKED, NULL);
-    lv_obj_set_ext_click_area(s_next_btn, 12);
-    ui_mark_selectable(s_next_btn);
-    lv_obj_t *next_lbl = lv_label_create(s_next_btn);
-    lv_label_set_text(next_lbl, "Next");
-    lv_obj_set_style_text_color(next_lbl, UI_COLOR_TEXT, LV_PART_MAIN);
-    lv_obj_center(next_lbl);
-
-    s_page_label = lv_label_create(pager);
-    lv_label_set_text(s_page_label, "1/1");
-    lv_obj_set_style_text_color(s_page_label, UI_COLOR_SUBTEXT, LV_PART_MAIN);
-    lv_obj_align(s_page_label, LV_ALIGN_CENTER, 0, 0);
 
     s_popular_spinner = lv_spinner_create(scr, 1000, 60);
     lv_obj_set_size(s_popular_spinner, 42, 42);
@@ -303,8 +240,14 @@ static lv_obj_t *make_tile(lv_obj_t *parent, const char *icon, const char *label
 static void on_open_popular(lv_event_t *e)
 {
     LV_UNUSED(e);
-    s_popular_page = 0;
-    lv_obj_t *scr = create_popular_screen();
+    lv_obj_t *scr = create_popular_screen("Popular Podcasts", PODCAST_LIST_POPULAR);
+    ui_push_screen(scr, LV_SCR_LOAD_ANIM_MOVE_LEFT);
+}
+
+static void on_open_new(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    lv_obj_t *scr = create_popular_screen("New Podcasts", PODCAST_LIST_NEW);
     ui_push_screen(scr, LV_SCR_LOAD_ANIM_MOVE_LEFT);
 }
 
@@ -332,16 +275,17 @@ lv_obj_t *screen_podcasts_create(void)
     lv_obj_set_style_outline_width(row, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(row, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(row, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(row, 8, LV_PART_MAIN);
     lv_obj_align(row, LV_ALIGN_CENTER, 0, 26);
     lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
     make_tile(row, LV_SYMBOL_LIST, "Popular", lv_color_make(0x1A, 0x73, 0xE8), on_open_popular);
+    make_tile(row, LV_SYMBOL_PLUS, "New", lv_color_make(0x00, 0x77, 0x49), on_open_new);
 
     s_popular_list = NULL;
     s_popular_spinner = NULL;
-    s_prev_btn = NULL;
-    s_next_btn = NULL;
-    s_page_label = NULL;
     s_fetch_in_progress = false;
     s_fetch_attempted = false;
     s_last_fetch_err = ESP_OK;

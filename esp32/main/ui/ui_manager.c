@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+#include <stdint.h>
 
 static const char *TAG = "ui_mgr";
 
@@ -54,6 +56,8 @@ static lv_timer_t *s_power_off_timer = NULL;
 static lv_obj_t  *s_battery_fills[MAX_BAT_WIDGETS];
 static int        s_battery_fill_count = 0;
 static lv_timer_t *s_battery_timer = NULL;
+
+static lv_timer_t *s_clock_timer = NULL;
 
 /* ── Button-driven LVGL input device ──────────────────────────────────── */
 #define BTN_PLUS_GPIO  4
@@ -294,6 +298,31 @@ static void battery_timer_cb(lv_timer_t *timer)
     battery_widgets_update();
 }
 
+static void ui_clock_timer_cb(lv_timer_t *timer)
+{
+    LV_UNUSED(timer);
+    /* Find all clock labels in the current screen and update them */
+    lv_obj_t *screen = lv_scr_act();
+    if (!screen) return;
+    
+    lv_obj_t *header = lv_obj_get_child(screen, 0);  /* Header is typically first child */
+    if (!header) return;
+    
+    /* Iterate through header children to find clock labels */
+    lv_obj_t *child = lv_obj_get_child(header, 0);
+    while (child) {
+        if (lv_obj_check_type(child, &lv_label_class) && lv_obj_get_user_data(child)) {
+            time_t now = time(NULL);
+            struct tm *timeinfo = localtime(&now);
+            char time_str[16];
+            strftime(time_str, sizeof(time_str), "%H:%M", timeinfo);
+            lv_label_set_text(child, time_str);
+            break;
+        }
+        child = lv_obj_get_child(header, lv_obj_get_child_id(child) + 1);
+    }
+}
+
 static void ui_focus_next_async(void *arg)
 {
     LV_UNUSED(arg);
@@ -531,11 +560,21 @@ void ui_create_header(lv_obj_t *parent, const char *title, bool show_back)
     lv_obj_set_style_radius(hdr, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(hdr, 0, LV_PART_MAIN);
 
-    lv_obj_t *lbl = lv_label_create(hdr);
-    lv_label_set_text(lbl, title);
-    lv_obj_set_style_text_color(lbl, UI_COLOR_TEXT, LV_PART_MAIN);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 1);
+    /* Clock display centered in header - only element shown */
+    /* Create fresh clock label for each header (don't reuse static reference) */
+    lv_obj_t *clock_lbl = lv_label_create(hdr);
+    lv_label_set_text(clock_lbl, "--:--");
+    lv_obj_set_style_text_color(clock_lbl, UI_COLOR_TEXT, LV_PART_MAIN);
+    lv_obj_set_style_text_font(clock_lbl, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_align(clock_lbl, LV_ALIGN_CENTER, 0, 1);
+    
+    /* Store clock label as tag so timer callback can find and update it */
+    lv_obj_set_user_data(clock_lbl, (void*)(uintptr_t)1);
+    
+    if (!s_clock_timer) {
+        s_clock_timer = lv_timer_create(ui_clock_timer_cb, 1000, NULL);
+        ui_clock_timer_cb(s_clock_timer);
+    }
 
     if (show_back) {
         lv_obj_t *back_btn = lv_btn_create(hdr);

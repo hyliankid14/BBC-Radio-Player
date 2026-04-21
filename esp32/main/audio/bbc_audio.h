@@ -2,6 +2,7 @@
 
 #include "esp_err.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 /*
  * BBC audio interface.
@@ -43,6 +44,9 @@ bool bbc_audio_is_live(void);
 
 /** Set output volume 0–100 %. */
 esp_err_t bbc_audio_set_volume(int percent);
+
+/** Seek to an absolute position (seconds) within the current non-live stream. */
+esp_err_t bbc_audio_seek_to(int32_t position_secs, int32_t duration_secs);
 
 #ifdef __cplusplus
 }
