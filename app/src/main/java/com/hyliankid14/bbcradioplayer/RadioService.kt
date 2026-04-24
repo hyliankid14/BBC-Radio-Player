@@ -139,6 +139,15 @@ class RadioService : MediaBrowserServiceCompat() {
     // emitted when the episode ends), causing handlePlayRequest to restart the same episode
     // from position 0 instead of letting the autoplay coroutine advance to the next one.
     @Volatile private var pendingAutoplayNextEpisode: Boolean = false
+    // Set to true whenever a podcast episode ends naturally (regardless of autoplay preference).
+    // Cleared only when new playback genuinely starts via playPodcastEpisode().
+    // Guards the STATE_ENDED restart path in handlePlayRequest for two race conditions:
+    //  1. Autoplay disabled: pendingAutoplayNextEpisode is never set, so the Android Auto
+    //     automatic onPlay() after STATE_STOPPED would otherwise restart the same episode.
+    //  2. Autoplay coroutine fails (no next episode / episode not in feed): the coroutine's
+    //     finally block clears pendingAutoplayNextEpisode immediately after sending
+    //     STATE_STOPPED, so a delayed onPlay() from Android Auto hits the unguarded path.
+    @Volatile private var podcastEpisodeEndedNoRestart: Boolean = false
 
     // Service-level episode cache for Android Auto pagination.
     // Keyed by podcast ID; populated on first episode load so subsequent page requests
@@ -1572,6 +1581,11 @@ class RadioService : MediaBrowserServiceCompat() {
 
                         // If playback ended for a podcast episode, attempt to autoplay next episode in the same podcast
                         if (playbackState == Player.STATE_ENDED && currentStationId.startsWith("podcast_")) {
+                            // Set the no-restart guard immediately when the episode ends so that
+                            // Android Auto's automatic onPlay() (triggered by STATE_STOPPED) cannot
+                            // restart the same episode via handlePlayRequest's STATE_ENDED path.
+                            // Cleared by playPodcastEpisode() when a new episode actually starts.
+                            podcastEpisodeEndedNoRestart = true
                             val currentEpisode = PlaybackStateHelper.getCurrentEpisodeId()
                             val podcastId = currentPodcastId
                             if (!podcastId.isNullOrEmpty() && !currentEpisode.isNullOrEmpty()) {
@@ -1786,8 +1800,8 @@ class RadioService : MediaBrowserServiceCompat() {
                     return
                 }
                 Player.STATE_ENDED -> {
-                    if (pendingAutoplayNextEpisode) {
-                        Log.d(TAG, "handlePlayRequest: autoplay-next coroutine in flight, skipping restart of ended episode (source=$source)")
+                    if (pendingAutoplayNextEpisode || podcastEpisodeEndedNoRestart) {
+                        Log.d(TAG, "handlePlayRequest: suppressing restart of ended episode (pendingAutoplay=$pendingAutoplayNextEpisode, noRestart=$podcastEpisodeEndedNoRestart, source=$source)")
                         return
                     }
                     Log.d(TAG, "handlePlayRequest: restarting ENDED media item from start (source=$source)")
@@ -2323,6 +2337,8 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         isStopped = false
         playerReconnectRunnable?.let { handler.removeCallbacks(it); playerReconnectRunnable = null }
         if (!mediaSession.isActive) mediaSession.isActive = true
+        // Switching to a radio station: clear podcast end guard so radio STATE_ENDED handling is not suppressed.
+        podcastEpisodeEndedNoRestart = false
         val station = StationRepository.getStations().firstOrNull { it.id == stationId }
         if (station == null) {
             Log.w(TAG, "Unknown station: $stationId")
@@ -3657,8 +3673,12 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             // Clear the autoplay-next-episode guard only after the new media item is queued.
             // This avoids Android Auto onPlay() races that can restart the previously ended item.
             pendingAutoplayNextEpisode = false
+            // New episode is starting: clear the no-restart guard so future onPlay() calls are
+            // handled normally (e.g., resume after pause, user replays from list).
+            podcastEpisodeEndedNoRestart = false
         } catch (e: Exception) {
             pendingAutoplayNextEpisode = false
+            podcastEpisodeEndedNoRestart = false
             Log.e(TAG, "Error playing podcast episode", e)
         }
     }
