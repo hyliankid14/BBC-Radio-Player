@@ -1080,7 +1080,13 @@ class RadioService : MediaBrowserServiceCompat() {
                         try {
                             val playlistId = parentId.removePrefix("playlist_")
                             val allEntries = PodcastPlaylists.getPlaylistEntries(this@RadioService, playlistId)
-                            val saved = PlaylistSortPreference.applySort(this@RadioService, playlistId, allEntries)
+                            val sorted = PlaylistSortPreference.applySort(this@RadioService, playlistId, allEntries)
+                            val hidePlayedEnabled = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this@RadioService)
+                            val saved = if (hidePlayedEnabled) {
+                                sorted.filterNot { PlayedEpisodesPreference.isPlayed(this@RadioService, it.id) }
+                            } else {
+                                sorted
+                            }
                             val savedDownloadedIds = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
                                 .map { it.id }.toSet()
                             val itemsSaved = saved.map { s ->
