@@ -27,7 +27,9 @@ class SearchResultsAdapter(
     private val onPodcastClick: (Podcast) -> Unit,
     private val onPlayEpisode: (Episode) -> Unit,
     private val onOpenEpisode: (Episode, Podcast) -> Unit,
-    private val prebuiltItems: List<Item>? = null
+    private val prebuiltItems: List<Item>? = null,
+    private val onEpisodeLongPress: ((Episode, Podcast) -> Unit)? = null,
+    private val onEpisodeSelectionClick: ((Episode, Podcast) -> Boolean)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     sealed class Item {
@@ -42,6 +44,7 @@ class SearchResultsAdapter(
 
     /** Authoritative total episode count set once the full FTS scan completes; -1 if not yet known. */
     private var episodeTotalCount: Int = -1
+    private var selectedEpisodeIds: Set<String> = emptySet()
 
     init {
         if (prebuiltItems != null) {
@@ -142,6 +145,11 @@ class SearchResultsAdapter(
         notifyItemRangeInserted(insertStart, filtered.size)
         // Section header count is intentionally not updated here; it stays hidden (-1) until
         // setEpisodeTotalCount() is called with the full FTS result count.
+    }
+
+    fun setSelectedEpisodeIds(ids: Set<String>) {
+        selectedEpisodeIds = ids
+        notifyDataSetChanged()
     }
 
     /**
@@ -304,14 +312,18 @@ class SearchResultsAdapter(
     }
 
     inner class EpisodeViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val textContainer: View? = itemView.findViewById(R.id.episode_text_container)
+        private val metaRow: View? = itemView.findViewById(R.id.episode_meta_row)
         private val titleView: TextView = itemView.findViewById(R.id.episode_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.episode_description)
         private val dateView: TextView = itemView.findViewById(R.id.episode_date)
         private val playButton: View? = itemView.findViewById(R.id.episode_play_icon)
         private val durationView: TextView? = itemView.findViewById(R.id.episode_duration)
+        private val selectionCheckBox: android.widget.CheckBox? = itemView.findViewById(R.id.episode_selection_checkbox)
         private val downloadIcon: ImageView? = itemView.findViewById(R.id.episode_download_icon)
 
         fun bindEnrichmentOnly(episode: Episode, podcast: Podcast) {
+            updateSelectionState(selectedEpisodeIds.contains(episode.id))
             dateView.text = formatDate(episode.pubDate)
             val durText = when {
                 episode.durationMins > 0 -> "${episode.durationMins} min"
@@ -333,6 +345,10 @@ class SearchResultsAdapter(
         }
 
         fun bind(episode: Episode, podcast: Podcast) {
+            val normalColor = resolveThemeColor(itemView.context, com.google.android.material.R.attr.colorSurface)
+            itemView.setBackgroundColor(normalColor)
+            updateSelectionState(selectedEpisodeIds.contains(episode.id))
+
             titleView.text = episode.title
             // Show podcast title as small subtitle appended to description for context
             val desc = sanitize(episode.description)
@@ -367,9 +383,44 @@ class SearchResultsAdapter(
             playButton?.setOnClickListener { onPlayEpisode(episode) }
 
             // Open preview (full activity) when title, podcast, or description tapped
-            titleView.setOnClickListener { onOpenEpisode(episode, podcast) }
-            podcastTitleView?.setOnClickListener { onOpenEpisode(episode, podcast) }
-            descriptionView.setOnClickListener { onOpenEpisode(episode, podcast) }
+            val clickHandler = View.OnClickListener {
+                if (onEpisodeSelectionClick?.invoke(episode, podcast) == true) return@OnClickListener
+                onOpenEpisode(episode, podcast)
+            }
+            val longClickHandler = View.OnLongClickListener {
+                onEpisodeLongPress?.invoke(episode, podcast)
+                true
+            }
+            itemView.setOnClickListener(clickHandler)
+            titleView.setOnClickListener(clickHandler)
+            podcastTitleView?.setOnClickListener(clickHandler)
+            descriptionView.setOnClickListener(clickHandler)
+            dateView.setOnClickListener(clickHandler)
+            durationView?.setOnClickListener(clickHandler)
+
+            itemView.setOnLongClickListener(longClickHandler)
+            titleView.setOnLongClickListener(longClickHandler)
+            podcastTitleView?.setOnLongClickListener(longClickHandler)
+            descriptionView.setOnLongClickListener(longClickHandler)
+            dateView.setOnLongClickListener(longClickHandler)
+            durationView?.setOnLongClickListener(longClickHandler)
+            playButton?.setOnLongClickListener(longClickHandler)
+        }
+
+        private fun updateSelectionState(isSelected: Boolean) {
+            val selecting = selectedEpisodeIds.isNotEmpty()
+            selectionCheckBox?.visibility = if (selecting) View.VISIBLE else View.GONE
+            selectionCheckBox?.isChecked = isSelected
+
+            // In multi-select mode, hide quick play and shift content right instead of reflowing text.
+            playButton?.visibility = if (selecting) View.GONE else View.VISIBLE
+            val slide = if (selecting) {
+                (12 * itemView.resources.displayMetrics.density)
+            } else {
+                0f
+            }
+            textContainer?.translationX = slide
+            metaRow?.translationX = slide
         }
 
         private fun sanitize(raw: String): String {
@@ -395,6 +446,16 @@ class SearchResultsAdapter(
             return parsed?.let {
                 OUTPUT_FORMAT.format(it)
             } ?: fallback
+        }
+    }
+
+    private fun resolveThemeColor(context: Context, attr: Int): Int {
+        val typedValue = android.util.TypedValue()
+        context.theme.resolveAttribute(attr, typedValue, true)
+        return if (typedValue.resourceId != 0) {
+            androidx.core.content.ContextCompat.getColor(context, typedValue.resourceId)
+        } else {
+            typedValue.data
         }
     }
 

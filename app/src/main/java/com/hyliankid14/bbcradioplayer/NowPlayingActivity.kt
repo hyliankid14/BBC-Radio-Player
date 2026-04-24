@@ -454,12 +454,15 @@ class NowPlayingActivity : AppCompatActivity() {
             finish()
             return
         }
-        if (backSource == "saved_episodes" || backSource == "history") {
-            val favTab = if (backSource == "saved_episodes") "saved" else "history"
+        if (backSource == "saved_episodes" || backSource == "history" || backSource == "playlists") {
+            val favTab = if (backSource == "history") "history" else "playlists"
             val returnIntent = Intent(this, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 putExtra("open_mode", "favorites")
                 putExtra("open_fav_tab", favTab)
+                if (backSource != "history") {
+                    putExtra("open_playlist_id", intent.getStringExtra("back_playlist_id") ?: PodcastPlaylists.DEFAULT_PLAYLIST_ID)
+                }
             }
             startActivity(returnIntent)
             finish()
@@ -1194,6 +1197,8 @@ class NowPlayingActivity : AppCompatActivity() {
                 val episodeId = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
                 val shareItem = menu.findItem(R.id.action_share)
                 shareItem.isVisible = !episodeId.isNullOrEmpty()
+                val addToPlaylistItem = menu.findItem(R.id.action_add_to_playlist)
+                addToPlaylistItem.isVisible = !episodeId.isNullOrEmpty()
 
                 // Subscribe / Unsubscribe: only show for podcast context
                 val subscribeItem = menu.findItem(R.id.action_subscribe)
@@ -1280,6 +1285,11 @@ class NowPlayingActivity : AppCompatActivity() {
                             ?: "British Radio Player"
                         
                         ShareUtil.shareEpisode(this, episode, podcastTitle)
+                        return true
+                    }
+
+                    R.id.action_add_to_playlist -> {
+                        showAddToPlaylistDialog()
                         return true
                     }
 
@@ -1627,6 +1637,77 @@ class NowPlayingActivity : AppCompatActivity() {
             favoriteButton.icon = ContextCompat.getDrawable(this, if (nowSaved) R.drawable.ic_bookmark else getUnsavedBookmarkIconRes())
             updateFavoriteButtonBackground()
         }
+    }
+
+    private fun currentEpisodeForPlaylistAction(): Pair<Episode, String>? {
+        val station = PlaybackStateHelper.getCurrentStation()
+        val episodeId = previewEpisodeProp?.id ?: PlaybackStateHelper.getCurrentEpisodeId() ?: currentShownEpisodeId
+        if (episodeId.isNullOrEmpty()) return null
+
+        val podcastTitle = PlaybackStateHelper.getCurrentStation()?.title
+            ?: supportActionBar?.title?.toString()
+            ?: showName.text?.toString()
+            ?: "Podcast"
+
+        val episode = previewEpisodeProp ?: playingEpisode ?: Episode(
+            id = episodeId,
+            title = episodeTitle.text?.toString() ?: PlaybackStateHelper.getCurrentShow().episodeTitle ?: "Episode",
+            description = fullDescriptionHtml.ifEmpty { PlaybackStateHelper.getCurrentShow().description ?: "" },
+            audioUrl = PlaybackStateHelper.getCurrentMediaUri() ?: "",
+            imageUrl = lastArtworkUrl ?: PlaybackStateHelper.getCurrentShow().imageUrl ?: "",
+            pubDate = releaseDateView.text?.toString() ?: "",
+            durationMins = 0,
+            podcastId = (station?.id?.removePrefix("podcast_") ?: previewEpisodeProp?.podcastId).orEmpty()
+        )
+        return episode to podcastTitle
+    }
+
+    private fun showAddToPlaylistDialog() {
+        val payload = currentEpisodeForPlaylistAction() ?: return
+        val episode = payload.first
+        val podcastTitle = payload.second
+        val playlists = PodcastPlaylists.getPlaylists(this)
+        val labels = playlists.map { it.name }.toMutableList().apply { add("Create new playlist") }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Add to playlist")
+            .setItems(labels.toTypedArray()) { _, which ->
+                if (which == playlists.size) {
+                    showCreatePlaylistForEpisodeDialog(episode, podcastTitle)
+                } else {
+                    val playlist = playlists[which]
+                    val added = PodcastPlaylists.addEpisodeToPlaylist(this, playlist.id, episode, podcastTitle)
+                    val message = if (added) "Added to ${playlist.name}" else "Already in ${playlist.name}"
+                    com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), message, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                        .setAnchorView(findViewById(R.id.playback_controls))
+                        .show()
+                }
+            }
+            .show()
+    }
+
+    private fun showCreatePlaylistForEpisodeDialog(episode: Episode, podcastTitle: String) {
+        val input = android.widget.EditText(this).apply {
+            hint = "Playlist name"
+            setSingleLine()
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Create playlist")
+            .setView(input)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Create") { _, _ ->
+                val name = input.text?.toString().orEmpty().trim()
+                if (name.isBlank()) {
+                    android.widget.Toast.makeText(this, "Playlist name required", android.widget.Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val playlist = PodcastPlaylists.createPlaylist(this, name)
+                PodcastPlaylists.addEpisodeToPlaylist(this, playlist.id, episode, podcastTitle)
+                com.google.android.material.snackbar.Snackbar.make(findViewById(android.R.id.content), "Added to ${playlist.name}", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                    .setAnchorView(findViewById(R.id.playback_controls))
+                    .show()
+            }
+            .show()
     }
 
     private fun startPlaybackStateUpdates() {

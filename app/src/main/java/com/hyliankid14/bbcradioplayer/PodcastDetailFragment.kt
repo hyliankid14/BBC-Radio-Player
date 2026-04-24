@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PodcastDetailFragment : Fragment() {
     private lateinit var repository: PodcastRepository
@@ -40,11 +41,20 @@ class PodcastDetailFragment : Fragment() {
     private var reachedEnd = false
     private val pageSize = 20
     private var hidePlayedEpisodes = false
+    private var canDeleteAllDownloadsForSubscription = false
     private val playedStatusReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
             // Refresh the episodes list when played status changes
             requireActivity().runOnUiThread {
                 episodesAdapter?.refreshPlayedState()
+            }
+        }
+    }
+    private val downloadStatusReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            if (!isAdded) return
+            requireActivity().runOnUiThread {
+                refreshSubscriptionDownloadMenuState()
             }
         }
     }
@@ -167,6 +177,7 @@ class PodcastDetailFragment : Fragment() {
                 PodcastSubscriptions.toggleSubscription(requireContext(), podcast.id)
                 val nowSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
                 updateSubscribeButton(nowSubscribed)
+                requireActivity().invalidateOptionsMenu()
                 // Show snackbar feedback anchored above system UI
                 val msg = if (nowSubscribed) "Subscribed to ${podcast.title}" else "Unsubscribed from ${podcast.title}"
                 com.google.android.material.snackbar.Snackbar.make(requireView(), msg, com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
@@ -203,6 +214,7 @@ class PodcastDetailFragment : Fragment() {
             // Listen for played-status changes so the list updates when items are marked/unmarked
             // Use RECEIVER_NOT_EXPORTED to satisfy Android's requirement for non-system broadcasts
             requireContext().registerReceiver(playedStatusReceiver, android.content.IntentFilter(PlayedEpisodesPreference.ACTION_PLAYED_STATUS_CHANGED), android.content.Context.RECEIVER_NOT_EXPORTED)
+            requireContext().registerReceiver(downloadStatusReceiver, android.content.IntentFilter(EpisodeDownloadManager.ACTION_DOWNLOAD_COMPLETE), android.content.Context.RECEIVER_NOT_EXPORTED)
 
             // Make the RecyclerView participate in the parent NestedScrollView instead of scrolling independently
             episodesRecycler.isNestedScrollingEnabled = false
@@ -242,6 +254,11 @@ class PodcastDetailFragment : Fragment() {
             override fun onPrepareMenu(menu: Menu) {
                 menu.findItem(R.id.action_toggle_episode_sort)?.title = getEpisodeSortMenuTitle()
                 menu.findItem(R.id.action_hide_played_episodes)?.isChecked = hidePlayedEpisodes
+                val podcast = currentPodcast
+                val item = menu.findItem(R.id.action_download_all_episodes)
+                val subscribed = podcast != null && PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
+                item?.isVisible = subscribed
+                item?.title = if (subscribed && canDeleteAllDownloadsForSubscription) "Delete all downloads" else "Download all episodes"
             }
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
                 return when (menuItem.itemId) {
@@ -257,10 +274,20 @@ class PodcastDetailFragment : Fragment() {
                         toggleHidePlayedEpisodes(menuItem)
                         true
                     }
+                    R.id.action_download_all_episodes -> {
+                        if (canDeleteAllDownloadsForSubscription) {
+                            promptDeleteAllDownloads()
+                        } else {
+                            promptDownloadAllEpisodes()
+                        }
+                        true
+                    }
                     else -> false
                 }
             }
         }, viewLifecycleOwner, Lifecycle.State.STARTED)
+
+        refreshSubscriptionDownloadMenuState()
     }
 
     private fun maybeLoadMoreIfContentShort() {
@@ -289,6 +316,7 @@ class PodcastDetailFragment : Fragment() {
             }
         }
         requireActivity().invalidateOptionsMenu()
+        refreshSubscriptionDownloadMenuState()
     }
 
     private fun openEpisodePreview(episode: Episode) {
@@ -340,6 +368,11 @@ class PodcastDetailFragment : Fragment() {
         try {
             requireContext().unregisterReceiver(playedStatusReceiver)
         } catch (e: Exception) {
+            // ignore
+        }
+        try {
+            requireContext().unregisterReceiver(downloadStatusReceiver)
+        } catch (_: Exception) {
             // ignore
         }
         episodesRecycler = null
@@ -399,6 +432,104 @@ class PodcastDetailFragment : Fragment() {
             com.google.android.material.snackbar.Snackbar.make(it, getString(messageRes), com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
                 .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
                 .show()
+        }
+    }
+
+    private fun promptDownloadAllEpisodes() {
+        val podcast = currentPodcast ?: return
+        if (!PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)) {
+            com.google.android.material.snackbar.Snackbar.make(requireView(), "Subscribe to this podcast to download all episodes", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
+                .show()
+            return
+        }
+
+        fragmentScope.launch {
+            val episodes = withContext(Dispatchers.IO) {
+                try {
+                    repository.fetchEpisodesIfNeeded(podcast)
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }
+            if (!isAdded) return@launch
+
+            val pending = episodes.filterNot { DownloadedEpisodes.isDownloaded(requireContext(), it) }
+            if (pending.isEmpty()) {
+                com.google.android.material.snackbar.Snackbar.make(requireView(), "All episodes are already downloaded", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                    .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
+                    .show()
+                return@launch
+            }
+
+            val startDownload = {
+                PodcastSubscriptions.downloadAllEpisodesForPodcast(requireContext(), podcast.id)
+                com.google.android.material.snackbar.Snackbar.make(requireView(), "Downloading ${pending.size} episode(s)", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                    .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
+                    .show()
+                refreshSubscriptionDownloadMenuState()
+            }
+
+            if (pending.size > 10) {
+                androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Download all episodes?")
+                    .setMessage("This will download ${pending.size} episodes and may use significant storage/data.")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Download") { _, _ -> startDownload() }
+                    .show()
+            } else {
+                startDownload()
+            }
+        }
+    }
+
+    private fun promptDeleteAllDownloads() {
+        val podcast = currentPodcast ?: return
+        val entries = DownloadedEpisodes.getDownloadedEpisodesForPodcast(requireContext(), podcast.id)
+        if (entries.isEmpty()) {
+            canDeleteAllDownloadsForSubscription = false
+            requireActivity().invalidateOptionsMenu()
+            return
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Delete all downloads?")
+            .setMessage("Delete ${entries.size} downloaded episode(s) for this podcast?")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Delete") { _, _ ->
+                entries.forEach { entry ->
+                    EpisodeDownloadManager.deleteDownload(requireContext(), entry.id, showToast = false)
+                }
+                com.google.android.material.snackbar.Snackbar.make(requireView(), "Deleted ${entries.size} download(s)", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT)
+                    .setAnchorView(requireActivity().findViewById(R.id.playback_controls))
+                    .show()
+                canDeleteAllDownloadsForSubscription = false
+                requireActivity().invalidateOptionsMenu()
+            }
+            .show()
+    }
+
+    private fun refreshSubscriptionDownloadMenuState() {
+        val podcast = currentPodcast ?: return
+        val context = context ?: return
+        if (!PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)) {
+            canDeleteAllDownloadsForSubscription = false
+            requireActivity().invalidateOptionsMenu()
+            return
+        }
+
+        fragmentScope.launch {
+            val allDownloaded = withContext(Dispatchers.IO) {
+                val episodes = try {
+                    repository.fetchEpisodesIfNeeded(podcast)
+                } catch (_: Exception) {
+                    emptyList<Episode>()
+                }
+                episodes.isNotEmpty() && episodes.all { DownloadedEpisodes.isDownloaded(context, it) }
+            }
+            if (!isAdded) return@launch
+            canDeleteAllDownloadsForSubscription = allDownloaded
+            requireActivity().invalidateOptionsMenu()
         }
     }
 

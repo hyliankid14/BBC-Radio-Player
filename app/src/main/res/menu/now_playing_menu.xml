@@ -14,6 +14,11 @@
         android:title="Share"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_add_to_playlist"
+        android:title="Add to playlist"
+        app:showAsAction="never" />
+
     <!-- Subscribe / Unsubscribe (dynamic title) -->
     <item
         android:id="@+id/action_subscribe"

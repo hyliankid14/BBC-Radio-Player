@@ -589,6 +589,8 @@ class EpisodeAdapter(
         private val playButton: MaterialButton = itemView.findViewById(R.id.episode_play_icon)
         private val playedIcon: TextView? = itemView.findViewById(R.id.episode_played_icon)
         private val downloadIcon: ImageView? = itemView.findViewById(R.id.episode_download_icon)
+        private val selectionCheckBox: android.widget.CheckBox? = itemView.findViewById(R.id.episode_selection_checkbox)
+        private val overflowButton: View? = itemView.findViewById(R.id.episode_overflow_button)
         private var isExpanded = false
         private val collapsedLines = 2
 
@@ -632,6 +634,9 @@ class EpisodeAdapter(
             titleView.text = episode.title
             isExpanded = false
             descriptionView.maxLines = collapsedLines
+            selectionCheckBox?.visibility = View.GONE
+            overflowButton?.visibility = View.GONE
+            playButton.visibility = View.VISIBLE
 
             // Show description text sanitized
             val fullDesc = sanitizeDescription(episode.description)

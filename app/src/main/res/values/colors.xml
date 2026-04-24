@@ -67,4 +67,5 @@
     
     <!-- Notification colors -->
     <color name="notification_dot_red">#FF5252</color>
+    <color name="playlist_selected_bg">#E8DEF8</color>
 </resources>

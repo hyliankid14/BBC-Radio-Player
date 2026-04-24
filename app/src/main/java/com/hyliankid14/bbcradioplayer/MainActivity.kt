@@ -44,6 +44,12 @@ import android.view.View
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.graphics.Color
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.TextPaint
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -112,6 +118,9 @@ class MainActivity : AppCompatActivity() {
 
     // Track whether a swipe-to-delete ItemTouchHelper has been attached to the Saved Episodes recycler
     private var savedItemTouchHelper: ItemTouchHelper? = null
+    private var activePlaylistId: String? = null
+    private var playlistSelectionPlaylistId: String? = null
+    private val selectedPlaylistEpisodeEntries = linkedMapOf<String, PodcastPlaylists.Entry>()
 
 
     // ItemTouchHelpers to manage swipe-to-delete for History and Subscribed Podcasts
@@ -271,10 +280,28 @@ class MainActivity : AppCompatActivity() {
 
         // Use Material Top App Bar instead of a classic action bar
         val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.top_app_bar)
+        val playlistSelectionToolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.playlist_selection_toolbar)
         try {
             setSupportActionBar(toolbar)
         } catch (e: IllegalStateException) {
             android.util.Log.w("MainActivity", "Could not set support action bar: ${e.message}")
+        }
+
+        playlistSelectionToolbar.setNavigationOnClickListener {
+            clearPlaylistEpisodeSelection()
+        }
+        playlistSelectionToolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_playlist_delete_downloads_selected -> {
+                    deleteDownloadsForSelectedPlaylistEpisodes()
+                    true
+                }
+                R.id.action_playlist_remove_selected -> {
+                    removeSelectedEpisodesFromActivePlaylist()
+                    true
+                }
+                else -> false
+            }
         }
 
         val mainRoot = findViewById<View>(R.id.main_root)
@@ -705,6 +732,7 @@ class MainActivity : AppCompatActivity() {
                 val favTab = intent.getStringExtra("open_fav_tab")
                 if (!favTab.isNullOrEmpty()) {
                     val tabId = when (favTab) {
+                        "playlists" -> R.id.fav_tab_saved
                         "saved" -> R.id.fav_tab_saved
                         "history" -> R.id.fav_tab_history
                         "subscribed" -> R.id.fav_tab_subscribed
@@ -719,8 +747,9 @@ class MainActivity : AppCompatActivity() {
                         } catch (e: Exception) {
                             android.util.Log.w("MainActivity", "Failed to persist fav tab selection: ${e.message}")
                         }
+                        activePlaylistId = intent.getStringExtra("open_playlist_id")
                         updateFavoritesToggleVisuals(tabId)
-                        showFavoritesTab(favTab)
+                        showFavoritesTab(if (favTab == "playlists") "saved" else favTab)
                     }
                 }
             }
@@ -798,204 +827,600 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) { }
     }
 
-    // Refresh the Saved Episodes UI card and adapter (called after import or when saved episodes change)
+    // Refresh the playlist UI card and adapter (Saved Episodes is the default playlist)
     private fun refreshSavedEpisodesSection() {
         try {
             val savedContainer = findViewById<View>(R.id.saved_episodes_container)
             val savedEmpty = findViewById<TextView>(R.id.saved_episodes_empty)
+            val playlistsEmpty = findViewById<TextView>(R.id.playlists_empty)
+            val playlistsRecycler = findViewById<RecyclerView>(R.id.playlists_recycler)
+            val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
+            val headerTitle = findViewById<TextView>(R.id.playlists_header_title)
+            val overflowButton = findViewById<ImageButton>(R.id.playlists_overflow_button)
+            val backButton = findViewById<ImageButton>(R.id.playlists_back_button)
+
             if (currentMode != "favorites") {
-                // Only show saved episodes when the Favorites view is active — avoids overlap in other views
+                clearPlaylistEpisodeSelection()
                 savedContainer.visibility = View.GONE
                 savedEmpty.visibility = View.GONE
-                try { findViewById<View>(R.id.saved_searches_container).visibility = View.GONE } catch (_: Exception) { }
+                playlistsEmpty.visibility = View.GONE
+                playlistsRecycler.visibility = View.GONE
+                savedRecycler.visibility = View.GONE
                 return
             }
 
-            refreshSavedSearchesSection()
+            overflowButton.setOnClickListener { showPlaylistsOverflowMenu(overflowButton) }
+            backButton.setOnClickListener {
+                activePlaylistId = null
+                refreshSavedEpisodesSection()
+            }
 
-            val savedEntries = SavedEpisodes.getSavedEntries(this)
-            val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
+            val savedTabActive = isButtonChecked(R.id.fav_tab_saved)
+            val playlists = PodcastPlaylists.getPlaylists(this)
+            val currentPlaylistId = activePlaylistId?.takeIf { requestedId -> playlists.any { it.id == requestedId } }
+            if (activePlaylistId != currentPlaylistId) activePlaylistId = currentPlaylistId
 
-            // Prepare saved episodes recycler and adapter; visibility is controlled by the "Saved" tab
-            if (savedEntries.isNotEmpty()) {
-                savedRecycler.layoutManager = LinearLayoutManager(this)
-                savedRecycler.isNestedScrollingEnabled = false
+            if (activePlaylistId == null) {
+                clearPlaylistEpisodeSelection()
+                headerTitle.text = "Playlists"
+                backButton.visibility = View.GONE
+                savedRecycler.visibility = View.GONE
                 savedEmpty.visibility = View.GONE
-                val savedAdapter = SavedEpisodesAdapter(this, savedEntries, onPlayEpisode = { episode, podcastTitle, podcastImage ->
-                    val intent = android.content.Intent(this, RadioService::class.java).apply {
-                        action = RadioService.ACTION_PLAY_PODCAST_EPISODE
-                        putExtra(RadioService.EXTRA_EPISODE, episode)
-                        putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
-                        putExtra(RadioService.EXTRA_PODCAST_TITLE, podcastTitle)
-                        putExtra(RadioService.EXTRA_PODCAST_IMAGE, episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage)
-                    }
-                    startService(intent)
-                }, onOpenEpisode = { episode, podcastTitle, podcastImage ->
-                    val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
-                        putExtra("preview_episode", episode)
-                        putExtra("preview_use_play_ui", true)
-                        putExtra("preview_podcast_title", podcastTitle)
-                        putExtra("preview_podcast_image", episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage)
-                        putExtra("back_source", "saved_episodes")
-                    }
-                    startActivity(intent)
-                }, onRemoveSaved = { id ->
-                    SavedEpisodes.remove(this, id)
-                    EpisodeDownloadManager.deleteDownload(this, id, showToast = false)
-                    val updated = SavedEpisodes.getSavedEntries(this)
-                    savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
-                })
+                playlistsRecycler.layoutManager = LinearLayoutManager(this)
+                playlistsRecycler.isNestedScrollingEnabled = false
+                val adapter = (playlistsRecycler.adapter as? PlaylistSummaryAdapter)
+                    ?: PlaylistSummaryAdapter(
+                        playlists = playlists,
+                        onOpenPlaylist = { playlist ->
+                            activePlaylistId = playlist.id
+                            refreshSavedEpisodesSection()
+                        },
+                        onRenamePlaylist = { playlist -> showRenamePlaylistDialog(playlist) },
+                        onDeletePlaylist = { playlist -> confirmDeletePlaylist(playlist) }
+                    ).also { playlistsRecycler.adapter = it }
+                adapter.updatePlaylists(playlists)
 
-                savedRecycler.adapter = savedAdapter
+                if (savedTabActive) {
+                    savedContainer.visibility = View.VISIBLE
+                    playlistsRecycler.visibility = View.VISIBLE
+                    playlistsEmpty.visibility = View.GONE
+                } else {
+                    savedContainer.visibility = View.GONE
+                    playlistsRecycler.visibility = View.GONE
+                    playlistsEmpty.visibility = View.GONE
+                }
+                return
+            }
 
-                // Attach swipe-to-delete (only once) so users can swipe an item to reveal a delete background + icon
-                if (savedItemTouchHelper == null) {
-                    val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-                        override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
+            val playlistId = activePlaylistId ?: PodcastPlaylists.DEFAULT_PLAYLIST_ID
+            if (playlistSelectionPlaylistId != playlistId) {
+                clearPlaylistEpisodeSelection()
+            }
+            val hidePlayed = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)
+            val allPlaylistEntries = PodcastPlaylists.getPlaylistEntries(this, playlistId)
+            val visiblePlaylistEntries = if (hidePlayed) {
+                allPlaylistEntries.filterNot { PlayedEpisodesPreference.isPlayed(this, it.id) }
+            } else {
+                allPlaylistEntries
+            }
+            val playlistEntries = PlaylistSortPreference.applySort(this, playlistId, visiblePlaylistEntries)
+            headerTitle.text = PodcastPlaylists.getPlaylistName(this, playlistId)
+            backButton.visibility = View.VISIBLE
+            playlistsRecycler.visibility = View.GONE
+            playlistsEmpty.visibility = View.GONE
 
-                        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                            val pos = viewHolder.bindingAdapterPosition
-                            if (pos != RecyclerView.NO_POSITION) {
-                                // Get the entry from the current adapter data (not a stale captured list)
-                                val currentSavedAdapter = savedRecycler.adapter as? SavedEpisodesAdapter
-                                val removedEntry = currentSavedAdapter?.getEntryAt(pos)
-                                if (removedEntry == null) {
-                                    try { savedRecycler.adapter?.notifyItemChanged(pos) } catch (_: Exception) { }
-                                    return
-                                }
-
-                                // Remove saved entry and refresh adapter immediately
-                                SavedEpisodes.remove(this@MainActivity, removedEntry.id)
-                                EpisodeDownloadManager.deleteDownload(this@MainActivity, removedEntry.id, showToast = false)
-                                val updated = SavedEpisodes.getSavedEntries(this@MainActivity)
-                                savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(updated) }
-
-                                // Show an Undo Snackbar — clicking Undo will restore the exact entry
-                                com.google.android.material.snackbar.Snackbar
-                                    .make(findViewById(android.R.id.content), "Saved episode removed", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
-                                    .setAction("Undo") {
-                                        SavedEpisodes.saveEntry(this@MainActivity, removedEntry)
-                                        val refreshed = SavedEpisodes.getSavedEntries(this@MainActivity)
-                                        savedRecycler.adapter?.let { (it as? SavedEpisodesAdapter)?.updateEntries(refreshed) }
-                                    }
-                                    .setAnchorView(findViewById(R.id.saved_episodes_container))
-                                    .show()
-                            }
+            savedRecycler.layoutManager = LinearLayoutManager(this)
+            savedRecycler.isNestedScrollingEnabled = false
+            val adapter = (savedRecycler.adapter as? PlaylistEpisodesAdapter)
+                ?: PlaylistEpisodesAdapter(
+                    context = this,
+                    entries = playlistEntries,
+                    onPlayEpisode = { episode, podcastTitle, podcastImage ->
+                        val intent = android.content.Intent(this, RadioService::class.java).apply {
+                            action = RadioService.ACTION_PLAY_PODCAST_EPISODE
+                            putExtra(RadioService.EXTRA_EPISODE, episode)
+                            putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
+                            putExtra(RadioService.EXTRA_PODCAST_TITLE, podcastTitle)
+                            putExtra(RadioService.EXTRA_PODCAST_IMAGE, episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage)
                         }
-
-                        override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
-                            super.clearView(recyclerView, viewHolder)
-                            // Force a redraw of the item so any temporary canvas drawing is cleared
-                            viewHolder.itemView.invalidate()
-                            // Reset the haptic trigger tag so subsequent swipes can trigger again
-                            try { viewHolder.itemView.setTag(R.id.swipe_haptic_trigger, false) } catch (_: Exception) { }
+                        startService(intent)
+                    },
+                    onOpenEpisode = { episode, podcastTitle, podcastImage ->
+                        val intent = android.content.Intent(this, NowPlayingActivity::class.java).apply {
+                            putExtra("preview_episode", episode)
+                            putExtra("preview_use_play_ui", true)
+                            putExtra("preview_podcast_title", podcastTitle)
+                            putExtra("preview_podcast_image", episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage)
+                            putExtra("back_source", "playlists")
+                            putExtra("back_playlist_id", playlistId)
                         }
+                        startActivity(intent)
+                    },
+                    onRemoveSaved = { id ->
+                        PodcastPlaylists.removeEpisode(this, playlistId, id)
+                        EpisodeDownloadManager.deleteDownload(this, id, showToast = false)
+                        refreshSavedEpisodesSection()
+                    },
+                    onEpisodeLongPress = { entry ->
+                        onPlaylistEpisodeLongPress(playlistId, entry)
+                    },
+                    onEpisodeSelectionClick = { entry ->
+                        onPlaylistEpisodeSelectionClick(playlistId, entry)
+                    }
+                ).also { savedRecycler.adapter = it }
+            adapter.updatePlaylistEntries(playlistEntries)
+            // Preserve current selections when refreshing adapter
+            adapter.setSelectedEntryIds(selectedPlaylistEpisodeEntries.keys)
+            updatePlaylistSelectionToolbar()
 
-                        override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
-                            // If there's no displacement and the user isn't actively swiping, let the
-                            // default implementation handle drawing — this avoids leaving the icon
-                            // drawn after a partially-completed swipe is released.
-                            if (kotlin.math.abs(dX) < 0.5f && !isCurrentlyActive) {
-                                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            if (savedItemTouchHelper == null) {
+                val swipeCallback = object : ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+                    override fun getDragDirs(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+                        val playlist = activePlaylistId ?: return 0
+                        val isManual = PlaylistSortPreference.getSortOrder(this@MainActivity, playlist) == PlaylistSortPreference.SORT_MANUAL
+                        val hidePlayedEnabled = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this@MainActivity)
+                        return if (isManual && !hidePlayedEnabled) super.getDragDirs(recyclerView, viewHolder) else 0
+                    }
+
+                    override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                        val playlistAdapter = recyclerView.adapter as? PlaylistEpisodesAdapter ?: return false
+                        val moved = playlistAdapter.moveEntry(viewHolder.bindingAdapterPosition, target.bindingAdapterPosition)
+                        if (moved) {
+                            val playlist = activePlaylistId ?: return true
+                            PlaylistSortPreference.setManualOrder(this@MainActivity, playlist, playlistAdapter.getPlaylistEntries().map { it.id })
+                        }
+                        return moved
+                    }
+
+                    override fun isLongPressDragEnabled(): Boolean {
+                        val playlist = activePlaylistId ?: return false
+                        val isManual = PlaylistSortPreference.getSortOrder(this@MainActivity, playlist) == PlaylistSortPreference.SORT_MANUAL
+                        val hidePlayedEnabled = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this@MainActivity)
+                        return isManual && !hidePlayedEnabled
+                    }
+
+                    override fun isItemViewSwipeEnabled(): Boolean = activePlaylistId != null
+
+                    override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                        val currentPlaylist = activePlaylistId ?: PodcastPlaylists.DEFAULT_PLAYLIST_ID
+                        val pos = viewHolder.bindingAdapterPosition
+                        if (pos != RecyclerView.NO_POSITION) {
+                            val currentAdapter = savedRecycler.adapter as? PlaylistEpisodesAdapter
+                            val removedEntry = currentAdapter?.getPlaylistEntryAt(pos)
+                            if (removedEntry == null) {
+                                try { savedRecycler.adapter?.notifyItemChanged(pos) } catch (_: Exception) { }
                                 return
                             }
 
-                            val itemView = viewHolder.itemView
-                            val paint = android.graphics.Paint()
-                            val icon = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.ic_menu_delete)
-                            val backgroundColor = android.graphics.Color.parseColor("#f44336") // material red 500
-                            paint.color = backgroundColor
+                            PodcastPlaylists.removeEpisode(this@MainActivity, currentPlaylist, removedEntry.id)
+                            EpisodeDownloadManager.deleteDownload(this@MainActivity, removedEntry.id, showToast = false)
+                            selectedPlaylistEpisodeEntries.remove(removedEntry.id)
+                            refreshSavedEpisodesSection()
 
-                            // Trigger a short haptic feedback once when swipe passes threshold
-                            val triggerThreshold = itemView.width * 0.25f
-                            val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
-                            if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
-                                try {
-                                    // Ensure haptic feedback is enabled on this view
-                                    itemView.isHapticFeedbackEnabled = true
-                                    val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-                                    if (!performed) {
-                                        // Fallback to Vibrator API for more reliable feedback on some devices
-                                        try {
-                                            val vib = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                                itemView.context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
-                                            } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                                itemView.context.getSystemService(android.os.Vibrator::class.java)
-                                            } else {
-                                                @Suppress("DEPRECATION")
-                                                itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-                                            }
-                                            if (vib != null) {
-                                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                                    vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
-                                                } else {
-                                                    @Suppress("DEPRECATION")
-                                                    vib.vibrate(20)
-                                                }
-                                            }
-                                        } catch (_: Exception) { }
-                                    }
-                                    itemView.setTag(R.id.swipe_haptic_trigger, true)
-                                } catch (_: Exception) { }
-                            }
-
-                            if (dX > 0) {
-                                // Swiping to the right — draw background from left edge to dX
-                                val rect = android.graphics.RectF(itemView.left.toFloat(), itemView.top.toFloat(), itemView.left + dX, itemView.bottom.toFloat())
-                                c.drawRect(rect, paint)
-                                icon?.let {
-                                    val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
-                                    val iconMargin = (itemView.height - it.intrinsicHeight) / 2
-                                    val iconLeft = itemView.left + iconMargin
-                                    val iconRight = iconLeft + it.intrinsicWidth
-                                    val iconBottom = iconTop + it.intrinsicHeight
-                                    it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
-                                    it.draw(c)
+                            com.google.android.material.snackbar.Snackbar
+                                .make(findViewById(android.R.id.content), "Episode removed from playlist", com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+                                .setAction("Undo") {
+                                    PodcastPlaylists.addEntry(this@MainActivity, currentPlaylist, removedEntry)
+                                    refreshSavedEpisodesSection()
                                 }
-                            } else {
-                                // Swiping to the left — draw background from right edge to dX
-                                val rect = android.graphics.RectF(itemView.right + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
-                                c.drawRect(rect, paint)
-                                icon?.let {
-                                    val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
-                                    val iconMargin = (itemView.height - it.intrinsicHeight) / 2
-                                    val iconRight = itemView.right - iconMargin
-                                    val iconLeft = iconRight - it.intrinsicWidth
-                                    val iconBottom = iconTop + it.intrinsicHeight
-                                    it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
-                                    it.draw(c)
-                                }
-                            }
-
-                            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                                .setAnchorView(findViewById(R.id.saved_episodes_container))
+                                .show()
                         }
                     }
-                    savedItemTouchHelper = ItemTouchHelper(swipeCallback).also { it.attachToRecyclerView(savedRecycler) }
-                }
 
-                // Show the saved episodes immediately if the Favorites view is active AND the Saved tab is selected.
-                val savedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved))
-                if (savedTabActive) {
-                    savedRecycler.visibility = View.VISIBLE
-                    savedEmpty.visibility = View.GONE
-                    savedContainer.visibility = View.VISIBLE
-                } else {
-                    // Keep the container hidden by default; the Saved tab will reveal it when selected
-                    savedRecycler.visibility = View.GONE
-                    savedEmpty.visibility = View.GONE
-                    savedContainer.visibility = View.GONE
+                    override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                        super.clearView(recyclerView, viewHolder)
+                        viewHolder.itemView.invalidate()
+                        try { viewHolder.itemView.setTag(R.id.swipe_haptic_trigger, false) } catch (_: Exception) { }
+                    }
+
+                    override fun onChildDraw(c: android.graphics.Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
+                        if (kotlin.math.abs(dX) < 0.5f && !isCurrentlyActive) {
+                            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                            return
+                        }
+
+                        val itemView = viewHolder.itemView
+                        val paint = android.graphics.Paint()
+                        val icon = ContextCompat.getDrawable(this@MainActivity, android.R.drawable.ic_menu_delete)
+                        paint.color = android.graphics.Color.parseColor("#f44336")
+                        val triggerThreshold = itemView.width * 0.25f
+                        val hasTriggered = (itemView.getTag(R.id.swipe_haptic_trigger) as? Boolean) ?: false
+                        if (!hasTriggered && kotlin.math.abs(dX) > triggerThreshold && isCurrentlyActive) {
+                            try {
+                                itemView.isHapticFeedbackEnabled = true
+                                val performed = itemView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                if (!performed) {
+                                    try {
+                                        val vib = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                            itemView.context.getSystemService(android.os.VibratorManager::class.java)?.defaultVibrator
+                                        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                            itemView.context.getSystemService(android.os.Vibrator::class.java)
+                                        } else {
+                                            @Suppress("DEPRECATION")
+                                            itemView.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                                        }
+                                        if (vib != null) {
+                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                                vib.vibrate(android.os.VibrationEffect.createOneShot(20, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                vib.vibrate(20)
+                                            }
+                                        }
+                                    } catch (_: Exception) { }
+                                }
+                                itemView.setTag(R.id.swipe_haptic_trigger, true)
+                            } catch (_: Exception) { }
+                        }
+
+                        if (dX > 0) {
+                            val rect = android.graphics.RectF(itemView.left.toFloat(), itemView.top.toFloat(), itemView.left + dX, itemView.bottom.toFloat())
+                            c.drawRect(rect, paint)
+                            icon?.let {
+                                val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                val iconLeft = itemView.left + iconMargin
+                                val iconRight = iconLeft + it.intrinsicWidth
+                                val iconBottom = iconTop + it.intrinsicHeight
+                                it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                it.draw(c)
+                            }
+                        } else {
+                            val rect = android.graphics.RectF(itemView.right + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat())
+                            c.drawRect(rect, paint)
+                            icon?.let {
+                                val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                                val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                                val iconRight = itemView.right - iconMargin
+                                val iconLeft = iconRight - it.intrinsicWidth
+                                val iconBottom = iconTop + it.intrinsicHeight
+                                it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                                it.draw(c)
+                            }
+                        }
+
+                        super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                    }
                 }
+                savedItemTouchHelper = ItemTouchHelper(swipeCallback).also { it.attachToRecyclerView(savedRecycler) }
+            }
+
+            if (savedTabActive) {
+                savedContainer.visibility = View.VISIBLE
+                savedRecycler.visibility = if (playlistEntries.isNotEmpty()) View.VISIBLE else View.GONE
+                savedEmpty.visibility = if (playlistEntries.isEmpty()) View.VISIBLE else View.GONE
             } else {
-                savedRecycler.adapter = null
-                val savedTabActive = (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved))
+                savedContainer.visibility = View.GONE
                 savedRecycler.visibility = View.GONE
-                savedEmpty.visibility = if (savedTabActive) View.VISIBLE else View.GONE
-                savedContainer.visibility = if (savedTabActive) View.VISIBLE else View.GONE
+                savedEmpty.visibility = View.GONE
             }
         } catch (e: Exception) {
-            // Swallow — UI refresh should never crash the app
             android.util.Log.w("MainActivity", "refreshSavedEpisodesSection failed: ${e.message}")
         }
+    }
+
+    private fun showPlaylistsOverflowMenu(anchor: View) {
+        val menu = PopupMenu(this, anchor)
+        val createId = 1
+        val sortNewestId = 2
+        val sortOldestId = 3
+        val sortTitleId = 4
+        val sortManualId = 5
+        val hidePlayedId = 6
+        val bulkDownloadId = 7
+        val bulkDeleteDownloadsId = 8
+
+        if (activePlaylistId == null) {
+            menu.menu.add(0, createId, 0, "Create playlist")
+        }
+        menu.menu.add(2, hidePlayedId, 20, "Hide played episodes")
+            .setCheckable(true)
+            .isChecked = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)
+
+        val currentPlaylist = activePlaylistId
+        if (currentPlaylist != null) {
+            menu.menu.add(1, sortNewestId, 10, "Sort: Newest first").isCheckable = true
+            menu.menu.add(1, sortOldestId, 11, "Sort: Oldest first").isCheckable = true
+            menu.menu.add(1, sortTitleId, 12, "Sort: Title").isCheckable = true
+            menu.menu.add(1, sortManualId, 13, "Sort: Manual").isCheckable = true
+            menu.menu.setGroupCheckable(1, true, true)
+
+            val allEntries = PodcastPlaylists.getPlaylistEntries(this, currentPlaylist)
+            if (allEntries.isNotEmpty()) {
+                if (areAllPlaylistEpisodesDownloaded(allEntries)) {
+                    menu.menu.add(3, bulkDeleteDownloadsId, 14, "Delete all episode downloads")
+                } else {
+                    menu.menu.add(3, bulkDownloadId, 14, "Download all episodes")
+                }
+            }
+
+            when (PlaylistSortPreference.getSortOrder(this, currentPlaylist)) {
+                PlaylistSortPreference.SORT_OLDEST_FIRST -> menu.menu.findItem(sortOldestId)?.isChecked = true
+                PlaylistSortPreference.SORT_TITLE -> menu.menu.findItem(sortTitleId)?.isChecked = true
+                PlaylistSortPreference.SORT_MANUAL -> menu.menu.findItem(sortManualId)?.isChecked = true
+                else -> menu.menu.findItem(sortNewestId)?.isChecked = true
+            }
+        }
+
+        menu.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                createId -> {
+                    showCreatePlaylistDialog()
+                    true
+                }
+                sortNewestId, sortOldestId, sortTitleId, sortManualId -> {
+                    val playlistId = activePlaylistId ?: return@setOnMenuItemClickListener false
+                    val sort = when (item.itemId) {
+                        sortOldestId -> PlaylistSortPreference.SORT_OLDEST_FIRST
+                        sortTitleId -> PlaylistSortPreference.SORT_TITLE
+                        sortManualId -> PlaylistSortPreference.SORT_MANUAL
+                        else -> PlaylistSortPreference.SORT_NEWEST_FIRST
+                    }
+
+                    if (sort == PlaylistSortPreference.SORT_MANUAL) {
+                        val currentIds = PodcastPlaylists.getPlaylistEntries(this, playlistId).map { it.id }
+                        if (PlaylistSortPreference.getManualOrder(this, playlistId).isEmpty()) {
+                            PlaylistSortPreference.setManualOrder(this, playlistId, currentIds)
+                        }
+                        if (PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)) {
+                            Toast.makeText(this, "Disable 'Hide played episodes in playlists' to reorder manually", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this, "Long press and drag episodes to reorder", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    PlaylistSortPreference.setSortOrder(this, playlistId, sort)
+                    refreshSavedEpisodesSection()
+                    true
+                }
+                hidePlayedId -> {
+                    val next = !PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)
+                    PlaybackPreference.setHidePlayedEpisodesInPlaylists(this, next)
+                    item.isChecked = next
+                    refreshSavedEpisodesSection()
+                    true
+                }
+                bulkDownloadId -> {
+                    val playlistId = activePlaylistId ?: return@setOnMenuItemClickListener false
+                    val entries = PodcastPlaylists.getPlaylistEntries(this, playlistId)
+                    maybeConfirmAndDownloadAllEpisodesForPlaylist(entries)
+                    true
+                }
+                bulkDeleteDownloadsId -> {
+                    val playlistId = activePlaylistId ?: return@setOnMenuItemClickListener false
+                    val entries = PodcastPlaylists.getPlaylistEntries(this, playlistId)
+                    deleteAllDownloadsForPlaylist(entries)
+                    refreshSavedEpisodesSection()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        menu.show()
+    }
+
+    private fun showCreatePlaylistDialog() {
+        val input = android.widget.EditText(this).apply {
+            hint = "Playlist name"
+            setSingleLine()
+        }
+        val container = createDialogInputContainer(input)
+        AlertDialog.Builder(this)
+            .setTitle("Create playlist")
+            .setView(container)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Create") { _, _ ->
+                val name = input.text?.toString().orEmpty().trim()
+                if (name.isBlank()) {
+                    Toast.makeText(this, "Playlist name required", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val playlist = PodcastPlaylists.createPlaylist(this, name)
+                activePlaylistId = playlist.id
+                refreshSavedEpisodesSection()
+            }
+            .show()
+    }
+
+    private fun showRenamePlaylistDialog(playlist: PodcastPlaylists.PlaylistSummary) {
+        val input = android.widget.EditText(this).apply {
+            setText(playlist.name)
+            setSelection(text?.length ?: 0)
+            setSingleLine()
+        }
+        val container = createDialogInputContainer(input)
+        AlertDialog.Builder(this)
+            .setTitle("Rename playlist")
+            .setView(container)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save") { _, _ ->
+                val name = input.text?.toString().orEmpty().trim()
+                if (name.isBlank()) {
+                    Toast.makeText(this, "Playlist name required", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                PodcastPlaylists.renamePlaylist(this, playlist.id, name)
+                refreshSavedEpisodesSection()
+            }
+            .show()
+    }
+
+    private fun confirmDeletePlaylist(playlist: PodcastPlaylists.PlaylistSummary) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete playlist")
+            .setMessage("Delete ${playlist.name}?")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Delete") { _, _ ->
+                PodcastPlaylists.getPlaylistEntries(this, playlist.id).forEach { entry ->
+                    EpisodeDownloadManager.deleteDownload(this, entry.id, showToast = false)
+                }
+                PodcastPlaylists.deletePlaylist(this, playlist.id)
+                if (activePlaylistId == playlist.id) activePlaylistId = null
+                refreshSavedEpisodesSection()
+            }
+            .show()
+    }
+
+    private fun createDialogInputContainer(input: android.widget.EditText): View {
+        val horizontalPaddingPx = (24 * resources.displayMetrics.density).toInt()
+        return android.widget.FrameLayout(this).apply {
+            setPadding(horizontalPaddingPx, 0, horizontalPaddingPx, 0)
+            input.layoutParams = android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+            addView(input)
+        }
+    }
+
+    private fun playlistEntryToEpisode(entry: PodcastPlaylists.Entry): Episode {
+        return Episode(
+            id = entry.id,
+            title = entry.title,
+            description = entry.description,
+            audioUrl = entry.audioUrl,
+            imageUrl = entry.imageUrl,
+            pubDate = entry.pubDate,
+            durationMins = entry.durationMins,
+            podcastId = entry.podcastId
+        )
+    }
+
+    private fun clearPlaylistEpisodeSelection() {
+        selectedPlaylistEpisodeEntries.clear()
+        playlistSelectionPlaylistId = null
+        (findViewById<RecyclerView>(R.id.saved_episodes_recycler).adapter as? PlaylistEpisodesAdapter)
+            ?.setSelectedEntryIds(emptySet())
+        updatePlaylistSelectionToolbar()
+    }
+
+    private fun togglePlaylistEpisodeSelection(playlistId: String, entry: PodcastPlaylists.Entry) {
+        if (playlistSelectionPlaylistId != playlistId) {
+            selectedPlaylistEpisodeEntries.clear()
+        }
+        playlistSelectionPlaylistId = playlistId
+        if (selectedPlaylistEpisodeEntries.containsKey(entry.id)) {
+            selectedPlaylistEpisodeEntries.remove(entry.id)
+        } else {
+            selectedPlaylistEpisodeEntries[entry.id] = entry
+        }
+        
+        // Update adapter's selected entries to show checkboxes
+        val adapter = findViewById<RecyclerView>(R.id.saved_episodes_recycler).adapter as? PlaylistEpisodesAdapter
+        adapter?.setSelectedEntryIds(selectedPlaylistEpisodeEntries.keys)
+        
+        updatePlaylistSelectionToolbar()
+    }
+
+    private fun updatePlaylistSelectionToolbar() {
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.playlist_selection_toolbar)
+        val count = selectedPlaylistEpisodeEntries.size
+        val shouldShow = count > 0 && currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved) && activePlaylistId != null
+        if (!shouldShow) {
+            toolbar.visibility = View.GONE
+            return
+        }
+
+        toolbar.title = if (count == 1) "1 selected" else "$count selected"
+        toolbar.visibility = View.VISIBLE
+    }
+
+    private fun onPlaylistEpisodeLongPress(playlistId: String, entry: PodcastPlaylists.Entry) {
+        // Enter selection mode by toggling the selected state of this episode
+        togglePlaylistEpisodeSelection(playlistId, entry)
+    }
+
+    private fun onPlaylistEpisodeSelectionClick(playlistId: String, entry: PodcastPlaylists.Entry): Boolean {
+        // Keep normal tap-to-open behavior unless selection mode is already active.
+        if (selectedPlaylistEpisodeEntries.isEmpty()) return false
+        togglePlaylistEpisodeSelection(playlistId, entry)
+        return true
+    }
+
+    private fun deleteDownloadsForSelectedPlaylistEpisodes() {
+        val selected = selectedPlaylistEpisodeEntries.values.toList()
+        if (selected.isEmpty()) return
+        var deleted = 0
+        selected.forEach { entry ->
+            if (EpisodeDownloadManager.deleteDownload(this, entry.id, showToast = false)) {
+                deleted++
+            }
+        }
+        Toast.makeText(this, "Deleted $deleted download(s)", Toast.LENGTH_SHORT).show()
+        clearPlaylistEpisodeSelection()
+        refreshSavedEpisodesSection()
+    }
+
+    private fun removeSelectedEpisodesFromActivePlaylist() {
+        val selected = selectedPlaylistEpisodeEntries.values.toList()
+        if (selected.isEmpty()) return
+        val playlistId = playlistSelectionPlaylistId ?: PodcastPlaylists.DEFAULT_PLAYLIST_ID
+        selected.forEach { entry ->
+            PodcastPlaylists.removeEpisode(this, playlistId, entry.id)
+            EpisodeDownloadManager.deleteDownload(this, entry.id, showToast = false)
+        }
+        Toast.makeText(this, "Removed ${selected.size} episode(s) from playlist", Toast.LENGTH_SHORT).show()
+        clearPlaylistEpisodeSelection()
+        refreshSavedEpisodesSection()
+    }
+
+    private fun areAllPlaylistEpisodesDownloaded(entries: List<PodcastPlaylists.Entry>): Boolean {
+        if (entries.isEmpty()) return false
+        return entries.all { DownloadedEpisodes.isDownloaded(this, playlistEntryToEpisode(it)) }
+    }
+
+    private fun maybeConfirmAndDownloadAllEpisodesForPlaylist(entries: List<PodcastPlaylists.Entry>) {
+        if (entries.isEmpty()) return
+        val pending = entries.filterNot { DownloadedEpisodes.isDownloaded(this, playlistEntryToEpisode(it)) }
+        if (pending.isEmpty()) {
+            Toast.makeText(this, "All episodes are already downloaded", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val start = {
+            startBulkPlaylistDownload(pending)
+        }
+
+        if (pending.size > 10) {
+            AlertDialog.Builder(this)
+                .setTitle("Download all episodes?")
+                .setMessage("This will download ${pending.size} episodes and may use significant storage/data.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Download") { _, _ -> start() }
+                .show()
+        } else {
+            start()
+        }
+    }
+
+    private fun startBulkPlaylistDownload(entries: List<PodcastPlaylists.Entry>) {
+        var started = 0
+        entries.forEach { entry ->
+            val episode = playlistEntryToEpisode(entry)
+            val startedDownload = EpisodeDownloadManager.downloadEpisode(
+                this,
+                episode,
+                entry.podcastTitle,
+                isAutoDownload = false,
+                suppressSuccessNotification = true
+            )
+            if (startedDownload) started++
+        }
+        EpisodeDownloadManager.showBulkDownloadQueuedNotification(this, started, "Playlist")
+        Toast.makeText(this, "Started $started download(s)", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun deleteAllDownloadsForPlaylist(entries: List<PodcastPlaylists.Entry>) {
+        if (entries.isEmpty()) return
+        var deleted = 0
+        entries.forEach { entry ->
+            if (EpisodeDownloadManager.deleteDownload(this, entry.id, showToast = false)) {
+                deleted++
+            }
+        }
+        Toast.makeText(this, "Deleted $deleted download(s)", Toast.LENGTH_SHORT).show()
     }
 
     // Refresh the History UI card and adapter (most-recent-first)
@@ -1403,6 +1828,7 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<com.google.android.material.button.MaterialButton>(R.id.fav_tab_saved).setOnClickListener {
             try { prefs.edit().putInt(LAST_FAV_TAB_KEY, R.id.fav_tab_saved).apply() } catch (_: Exception) { }
+            activePlaylistId = null
             updateFavoritesToggleVisuals(R.id.fav_tab_saved)
             showFavoritesTab("saved")
         }
@@ -1591,9 +2017,9 @@ class MainActivity : AppCompatActivity() {
                         // Persist manual order after a drag is released
                         if (SubscribedPodcastSortPreference.getSortOrder(this@MainActivity) ==
                             SubscribedPodcastSortPreference.SORT_MANUAL) {
-                            val adapter = recyclerView.adapter as? PodcastAdapter
-                            if (adapter != null) {
-                                SubscribedPodcastSortPreference.setManualOrder(this@MainActivity, adapter.getPodcasts().map { it.id })
+                            val podcastsAdapter = recyclerView.adapter as? PodcastAdapter
+                            if (podcastsAdapter != null) {
+                                SubscribedPodcastSortPreference.setManualOrder(this@MainActivity, podcastsAdapter.getPodcasts().map { it.id })
                             }
                         }
                     }
@@ -1786,6 +2212,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val playlistChangedReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            try {
+                runOnUiThread { refreshSavedEpisodesSection() }
+            } catch (_: Exception) { }
+        }
+    }
+
     // BroadcastReceiver to refresh the Recent Songs tab when a new song is detected
     private val recentSongsChangedReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
@@ -1843,6 +2277,9 @@ class MainActivity : AppCompatActivity() {
      * lifecycle methods (onResume) and other places outside the original local scope.
      */
     private fun showFavoritesTab(tab: String) {
+        if (tab != "saved") {
+            clearPlaylistEpisodeSelection()
+        }
         when (tab) {
             "stations" -> {
                 supportActionBar?.title = "Favourite Stations"
@@ -1987,14 +2424,13 @@ class MainActivity : AppCompatActivity() {
                 }.start()
             }
             "saved" -> {
-                supportActionBar?.title = "Saved Episodes"
+                supportActionBar?.title = "Playlists"
                 invalidateOptionsMenu()
                 stationsList.visibility = View.GONE
                 try { findViewById<TextView>(R.id.favorite_stations_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<View>(R.id.favorites_podcasts_container).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<TextView>(R.id.favorites_podcasts_empty).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<View>(R.id.saved_episodes_container).visibility = View.VISIBLE } catch (_: Exception) { }
-                try { findViewById<RecyclerView>(R.id.saved_episodes_recycler).visibility = View.VISIBLE } catch (_: Exception) { }
                 try { findViewById<View>(R.id.saved_searches_container).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<View>(R.id.favorites_history_container).visibility = View.GONE } catch (_: Exception) { }
                 try { findViewById<TextView>(R.id.favorites_history_empty).visibility = View.GONE } catch (_: Exception) { }
@@ -2051,6 +2487,9 @@ class MainActivity : AppCompatActivity() {
             registerReceiver(historyChangedReceiver, android.content.IntentFilter(PlayedHistoryPreference.ACTION_HISTORY_CHANGED), receiverFlags)
         } catch (_: Exception) {}
         try {
+            registerReceiver(playlistChangedReceiver, android.content.IntentFilter(PodcastPlaylists.ACTION_PLAYLISTS_CHANGED), receiverFlags)
+        } catch (_: Exception) {}
+        try {
             registerReceiver(downloadCompleteReceiver, android.content.IntentFilter(EpisodeDownloadManager.ACTION_DOWNLOAD_COMPLETE), receiverFlags)
         } catch (_: Exception) {}
         try {
@@ -2070,6 +2509,9 @@ class MainActivity : AppCompatActivity() {
             unregisterReceiver(historyChangedReceiver)
         } catch (_: Exception) {}
         try {
+            unregisterReceiver(playlistChangedReceiver)
+        } catch (_: Exception) {}
+        try {
             unregisterReceiver(downloadCompleteReceiver)
         } catch (_: Exception) {}
         try {
@@ -2080,6 +2522,7 @@ class MainActivity : AppCompatActivity() {
     private fun showSettings() {
         // Ensure history UI is hidden when navigating away from Favorites
         hideHistoryViews()
+        clearPlaylistEpisodeSelection()
         // Disable swipe navigation in Settings
         disableSwipeNavigation()
         currentMode = "settings"
@@ -2106,6 +2549,7 @@ class MainActivity : AppCompatActivity() {
     private fun showPodcasts() {
         // Ensure history UI is hidden when navigating away from Favorites
         hideHistoryViews()
+        clearPlaylistEpisodeSelection()
         // Disable swipe navigation in Podcasts
         disableSwipeNavigation()
         currentMode = "podcasts"
@@ -2495,7 +2939,7 @@ class MainActivity : AppCompatActivity() {
         val labels = mapOf(
             R.id.fav_tab_stations to "Stations",
             R.id.fav_tab_subscribed to "Subscribed",
-            R.id.fav_tab_saved to "Saved",
+            R.id.fav_tab_saved to "Playlists",
             R.id.fav_tab_searches to "Searches",
             R.id.fav_tab_history to "History"
         )
@@ -3809,7 +4253,7 @@ class MainActivity : AppCompatActivity() {
     // Export preferences to the given Uri as JSON. Returns true on success.
     private fun exportPreferencesToUri(uri: Uri): Boolean {
         return try {
-            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "saved_searches_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "subscription_refresh_prefs", "podcast_filter_prefs", "theme_prefs", "download_prefs")
+            val names = listOf("favorites_prefs", "podcast_subscriptions", "saved_episodes_prefs", "podcast_playlists_prefs", "saved_searches_prefs", "played_episodes_prefs", "played_history_prefs", "playback_prefs", "scrolling_prefs", "index_prefs", "subscription_refresh_prefs", "podcast_filter_prefs", "theme_prefs", "download_prefs")
             val root = JSONObject()
             for (name in names) {
                 val prefs = getSharedPreferences(name, MODE_PRIVATE)

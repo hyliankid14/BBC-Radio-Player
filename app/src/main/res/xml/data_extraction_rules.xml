@@ -7,6 +7,7 @@
         <include domain="sharedpref" path="playback_prefs.xml" />
         <include domain="sharedpref" path="scrolling_prefs.xml" />
         <include domain="sharedpref" path="saved_episodes_prefs.xml" />
+        <include domain="sharedpref" path="podcast_playlists_prefs.xml" />
         <include domain="sharedpref" path="played_episodes_prefs.xml" />
         <include domain="sharedpref" path="played_history_prefs.xml" />
         <include domain="sharedpref" path="download_prefs.xml" />
@@ -35,6 +36,7 @@
         <include domain="sharedpref" path="playback_prefs.xml" />
         <include domain="sharedpref" path="scrolling_prefs.xml" />
         <include domain="sharedpref" path="saved_episodes_prefs.xml" />
+        <include domain="sharedpref" path="podcast_playlists_prefs.xml" />
         <include domain="sharedpref" path="played_episodes_prefs.xml" />
         <include domain="sharedpref" path="played_history_prefs.xml" />
         <include domain="sharedpref" path="download_prefs.xml" />

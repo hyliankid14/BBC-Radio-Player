@@ -45,6 +45,7 @@ object EpisodeDownloadManager {
     private const val KEY_PREFIX_DIRECT_RETRY = "direct_retry_"
     private const val DOWNLOAD_FAILURE_CHANNEL_ID = "episode_download_failures"
     private const val DOWNLOAD_SUCCESS_CHANNEL_ID = "episode_download_success"
+    private const val DOWNLOAD_BULK_CHANNEL_ID = "episode_download_bulk"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -74,6 +75,7 @@ object EpisodeDownloadManager {
                 val repairedEpisode = normaliseEpisodeAudioUrl(originalEpisode)
                 val podcastTitle = json.optString("podcastTitle", "")
                 val autoDownload = json.optBoolean("autoDownload", false)
+                val suppressSuccessNotification = json.optBoolean("suppressSuccessNotification", false)
                 val pendingPath = json.optString("localPath", "")
                 val destinationFile = if (pendingPath.isNotBlank()) File(pendingPath) else buildDestinationFile(context, repairedEpisode)
 
@@ -120,6 +122,7 @@ object EpisodeDownloadManager {
                             put("podcastTitle", podcastTitle)
                             put("localPath", destinationFile.absolutePath)
                             put("autoDownload", autoDownload)
+                            put("suppressSuccessNotification", suppressSuccessNotification)
                         }.toString().toByteArray(),
                         android.util.Base64.DEFAULT
                     )
@@ -182,6 +185,7 @@ object EpisodeDownloadManager {
                         val episode = jsonToEpisode(json.getJSONObject("episode"))
                         val podcastTitle = json.optString("podcastTitle", "")
                         val autoDownload = json.optBoolean("autoDownload", false)
+                        val suppressSuccessNotification = json.optBoolean("suppressSuccessNotification", false)
                         val pendingPath = json.optString("localPath", "")
 
                         // Always use the path we specified, since we know it's a real file path
@@ -225,7 +229,7 @@ object EpisodeDownloadManager {
                         }
                         context.sendBroadcast(broadcastIntent)
 
-                        if (!autoDownload) {
+                        if (!autoDownload && !suppressSuccessNotification) {
                             showSuccessNotification(context, episode, podcastTitle)
                         }
 
@@ -278,7 +282,13 @@ object EpisodeDownloadManager {
      * Start downloading an episode.
      * Returns true if download started successfully, false otherwise.
      */
-    fun downloadEpisode(context: Context, episode: Episode, podcastTitle: String?, isAutoDownload: Boolean = false): Boolean {
+    fun downloadEpisode(
+        context: Context,
+        episode: Episode,
+        podcastTitle: String?,
+        isAutoDownload: Boolean = false,
+        suppressSuccessNotification: Boolean = false
+    ): Boolean {
         if (episode.audioUrl.isBlank()) {
             showToast(context, "Episode audio URL not available")
             return false
@@ -334,6 +344,7 @@ object EpisodeDownloadManager {
                     put("podcastTitle", podcastTitle ?: "")
                     put("localPath", destinationFile.absolutePath)
                     put("autoDownload", isAutoDownload)
+                    put("suppressSuccessNotification", suppressSuccessNotification)
                 }.toString().toByteArray(),
                 android.util.Base64.DEFAULT
             )
@@ -708,6 +719,7 @@ object EpisodeDownloadManager {
             }
             val podcastTitle = json.optString("podcastTitle", "")
             val autoDownload = json.optBoolean("autoDownload", false)
+            val suppressSuccessNotification = json.optBoolean("suppressSuccessNotification", false)
 
             val pendingPath = json.optString("localPath", "")
             val destinationFile = if (pendingPath.isNotBlank()) File(pendingPath) else buildDestinationFile(context, fallbackEpisode)
@@ -727,6 +739,7 @@ object EpisodeDownloadManager {
                     put("podcastTitle", podcastTitle)
                     put("localPath", destinationFile.absolutePath)
                     put("autoDownload", autoDownload)
+                    put("suppressSuccessNotification", suppressSuccessNotification)
                 }.toString().toByteArray(),
                 android.util.Base64.DEFAULT
             )
@@ -1052,6 +1065,50 @@ object EpisodeDownloadManager {
             NotificationManager.IMPORTANCE_DEFAULT
         )
         manager.createNotificationChannel(channel)
+    }
+
+    private fun ensureBulkChannel(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val existing = manager.getNotificationChannel(DOWNLOAD_BULK_CHANNEL_ID)
+        if (existing != null) return
+        val channel = NotificationChannel(
+            DOWNLOAD_BULK_CHANNEL_ID,
+            "Bulk episode downloads",
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        manager.createNotificationChannel(channel)
+    }
+
+    fun showBulkDownloadQueuedNotification(context: Context, queuedCount: Int, scopeLabel: String) {
+        if (queuedCount <= 0) return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val granted = ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                if (!granted) return
+            }
+
+            ensureBulkChannel(context)
+            val manager = NotificationManagerCompat.from(context)
+            if (!manager.areNotificationsEnabled()) return
+
+            val text = "$queuedCount episode(s) queued for $scopeLabel"
+            val notification = NotificationCompat.Builder(context, DOWNLOAD_BULK_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_download)
+                .setContentTitle("Bulk download started")
+                .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+
+            manager.notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to show bulk download notification", e)
+        }
     }
 
     private fun showFailureNotification(context: Context, episodeId: String, episodeTitle: String, reason: String) {

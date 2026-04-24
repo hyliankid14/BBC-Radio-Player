@@ -5,21 +5,27 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.ImageButton
+import android.widget.CheckBox
 import android.widget.TextView
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.text.HtmlCompat
 import androidx.core.content.ContextCompat
 
-class SavedEpisodesAdapter(
+open class SavedEpisodesAdapter(
     private val context: Context,
-    private var entries: List<SavedEpisodes.Entry>,
+    protected var entries: List<SavedEpisodes.Entry>,
     private val onPlayEpisode: (Episode, String, String) -> Unit,
     private val onOpenEpisode: (Episode, String, String) -> Unit,
-    private val onRemoveSaved: (String) -> Unit
+    private val onRemoveSaved: (String) -> Unit,
+    private val onEpisodeLongPress: ((SavedEpisodes.Entry) -> Unit)? = null,
+    private val onEpisodeSelectionClick: ((SavedEpisodes.Entry) -> Boolean)? = null,
+    private val onEpisodeOverflowClick: ((View, SavedEpisodes.Entry) -> Unit)? = null
 ) : RecyclerView.Adapter<SavedEpisodesAdapter.ViewHolder>() {
 
     private var downloadCompleteReceiver: android.content.BroadcastReceiver? = null
+    private var selectedEntryIds: Set<String> = emptySet()
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
@@ -63,6 +69,10 @@ class SavedEpisodesAdapter(
         val playedIcon: TextView? = view.findViewById(R.id.episode_played_icon)
         val downloadIcon: ImageView? = view.findViewById(R.id.episode_download_icon)
         val play: View? = view.findViewById(R.id.episode_play_icon)
+        val overflow: ImageButton? = view.findViewById(R.id.episode_overflow_button)
+        val selectionCheckBox: CheckBox? = view.findViewById(R.id.episode_selection_checkbox)
+        val textContainer: View? = view.findViewById(R.id.episode_text_container)
+        val metaRow: View? = view.findViewById(R.id.episode_meta_row)
     }
 
     private fun sanitize(raw: String): String {
@@ -156,18 +166,82 @@ class SavedEpisodesAdapter(
             holder.downloadIcon?.visibility = View.GONE
         }
 
-        holder.play?.setOnClickListener { onPlayEpisode(episode, e.podcastTitle, e.imageUrl) }
-        holder.itemView.setOnClickListener { onOpenEpisode(episode, e.podcastTitle, e.imageUrl) }
+        val isSelectionMode = selectedEntryIds.isNotEmpty()
+        val isSelected = selectedEntryIds.contains(e.id)
+        holder.selectionCheckBox?.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
+        holder.selectionCheckBox?.isChecked = isSelected
+
+        // Hide play button completely in selection mode (GONE not INVISIBLE) so the row
+        // doesn't reflow. Slide text content right instead, matching the search-results pattern.
+        holder.play?.visibility = if (isSelectionMode) View.GONE else View.VISIBLE
+        val slideX = if (isSelectionMode) {
+            (12 * holder.itemView.resources.displayMetrics.density)
+        } else {
+            0f
+        }
+        holder.textContainer?.animate()?.cancel()
+        holder.metaRow?.animate()?.cancel()
+        holder.textContainer?.animate()?.translationX(slideX)?.setDuration(150)?.start()
+        holder.metaRow?.animate()?.translationX(slideX)?.setDuration(150)?.start()
+
+        holder.overflow?.visibility = if (onEpisodeOverflowClick != null && !isSelectionMode) View.VISIBLE else View.GONE
+        holder.overflow?.setOnClickListener {
+            onEpisodeOverflowClick?.invoke(it, e)
+        }
+
+        // Checkbox click handler for selection mode
+        holder.selectionCheckBox?.setOnClickListener {
+            onEpisodeSelectionClick?.invoke(e)
+        }
+
+        val handleSelectionClick: (() -> Boolean) = {
+            onEpisodeSelectionClick?.invoke(e) == true
+        }
+
+        holder.play?.setOnClickListener {
+            if (!handleSelectionClick()) {
+                onPlayEpisode(episode, e.podcastTitle, e.imageUrl)
+            }
+        }
+        holder.itemView.setOnClickListener {
+            if (!handleSelectionClick()) {
+                onOpenEpisode(episode, e.podcastTitle, e.imageUrl)
+            }
+        }
+        holder.itemView.setOnLongClickListener {
+            if (onEpisodeLongPress != null) {
+                onEpisodeLongPress.invoke(e)
+                true
+            } else {
+                false
+            }
+        }
         // Long-press no longer removes episodes. Use swipe-to-delete in the Saved Episodes list instead.
     }
 
     override fun getItemCount(): Int = entries.size
 
-    fun getEntryAt(position: Int): SavedEpisodes.Entry? = entries.getOrNull(position)
+    open fun getEntryAt(position: Int): SavedEpisodes.Entry? = entries.getOrNull(position)
 
-    fun updateEntries(newEntries: List<SavedEpisodes.Entry>) {
+    open fun updateEntries(newEntries: List<SavedEpisodes.Entry>) {
         entries = newEntries
         notifyDataSetChanged()
+    }
+
+    fun setSelectedEntryIds(ids: Set<String>) {
+        selectedEntryIds = ids
+        notifyDataSetChanged()
+    }
+
+    open fun moveEntry(fromPosition: Int, toPosition: Int): Boolean {
+        if (fromPosition == toPosition) return false
+        if (fromPosition !in entries.indices || toPosition !in entries.indices) return false
+        val mutable = entries.toMutableList()
+        val moved = mutable.removeAt(fromPosition)
+        mutable.add(toPosition, moved)
+        entries = mutable
+        notifyItemMoved(fromPosition, toPosition)
+        return true
     }
 
     companion object {

@@ -70,6 +70,8 @@ class PodcastsFragment : Fragment() {
     // When restoring a large cached adapter, append items in chunks
     private var restoreAppendJob: kotlinx.coroutines.Job? = null
     private var usingCachedItemAppend: Boolean = false
+    private var searchSelectionSnackbar: com.google.android.material.snackbar.Snackbar? = null
+    private val selectedSearchEpisodes = LinkedHashMap<String, Pair<Episode, Podcast>>()
     // Flag to scroll to top when next results are displayed
     private var shouldScrollToTopOnNextResults: Boolean = false
     // Use viewLifecycleOwner.lifecycleScope for UI coroutines (auto-cancelled when the view is destroyed)
@@ -1449,6 +1451,7 @@ class PodcastsFragment : Fragment() {
         // Simplified path: delegate to a single, cancellable search implementation and skip legacy logic.
         // (Legacy incremental/FTS implementation remains below but is intentionally bypassed
         //  for now to keep the behavior minimal and deterministic.)
+        clearSearchEpisodeSelection()
         searchJob?.cancel()
         episodePaginationJob?.cancel()
         searchGeneration += 1L
@@ -1603,6 +1606,7 @@ class PodcastsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        clearSearchEpisodeSelection()
         try {
             requireContext().unregisterReceiver(subscriptionChangedReceiver)
         } catch (_: Exception) {
@@ -1866,7 +1870,9 @@ class PodcastsFragment : Fragment() {
                         onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                         onPlayEpisode = { ep -> playEpisode(ep) },
                         onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
-                        prebuiltItems = initialItems
+                        prebuiltItems = initialItems,
+                        onEpisodeLongPress = { ep, pod -> onEpisodeSearchLongPress(ep, pod) },
+                        onEpisodeSelectionClick = { ep, pod -> onEpisodeSearchSelectionClick(ep, pod) }
                     )
                     android.util.Log.d("PodcastsFragment", "onResume: created search adapter from cache (${cached.titleMatches.size}+${cached.descMatches.size}+${resolvedEpisodeMatches.size} results, fullEpisodes=${fullEpisodes.size}, prebuilt=${prebuilt?.size ?: 0})")
 
@@ -2033,6 +2039,128 @@ class PodcastsFragment : Fragment() {
         startActivity(intent)
     }
 
+    private fun onEpisodeSearchLongPress(episode: Episode, podcast: Podcast) {
+        toggleSearchEpisodeSelection(episode, podcast)
+    }
+
+    private fun onEpisodeSearchSelectionClick(episode: Episode, podcast: Podcast): Boolean {
+        if (selectedSearchEpisodes.isEmpty()) return false
+        toggleSearchEpisodeSelection(episode, podcast)
+        return true
+    }
+
+    private fun toggleSearchEpisodeSelection(episode: Episode, podcast: Podcast) {
+        if (selectedSearchEpisodes.containsKey(episode.id)) {
+            selectedSearchEpisodes.remove(episode.id)
+        } else {
+            selectedSearchEpisodes[episode.id] = episode to podcast
+        }
+
+        searchAdapter?.setSelectedEpisodeIds(selectedSearchEpisodes.keys)
+        updateSearchSelectionSnackbar()
+    }
+
+    private fun updateSearchSelectionSnackbar() {
+        val count = selectedSearchEpisodes.size
+        if (count == 0) {
+            searchSelectionSnackbar?.dismiss()
+            searchSelectionSnackbar = null
+            return
+        }
+
+        val hostView = view ?: return
+        val label = if (count == 1) "1 selected" else "$count selected"
+        val existing = searchSelectionSnackbar
+        if (existing != null) {
+            existing.setText(label)
+            return
+        }
+
+        searchSelectionSnackbar = com.google.android.material.snackbar.Snackbar
+            .make(hostView, label, com.google.android.material.snackbar.Snackbar.LENGTH_INDEFINITE)
+            .setAction("Add to playlist") { showBulkAddToPlaylistDialog() }
+            .also { bar ->
+                bar.addCallback(object : com.google.android.material.snackbar.Snackbar.Callback() {
+                    override fun onDismissed(transientBottomBar: com.google.android.material.snackbar.Snackbar?, event: Int) {
+                        if (selectedSearchEpisodes.isNotEmpty() && event != DISMISS_EVENT_ACTION) {
+                            clearSearchEpisodeSelection()
+                        }
+                    }
+                })
+                bar.show()
+            }
+    }
+
+    private fun clearSearchEpisodeSelection() {
+        selectedSearchEpisodes.clear()
+        searchAdapter?.setSelectedEpisodeIds(emptySet())
+        searchSelectionSnackbar?.dismiss()
+        searchSelectionSnackbar = null
+    }
+
+    private fun showBulkAddToPlaylistDialog() {
+        val selected = selectedSearchEpisodes.values.toList()
+        if (selected.isEmpty()) return
+
+        val context = requireContext()
+        val playlists = PodcastPlaylists.getPlaylists(context)
+        val names = playlists.map { it.name } + "Create new playlist"
+
+        androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle("Add to playlist")
+            .setItems(names.toTypedArray()) { _, which ->
+                if (which == playlists.size) {
+                    promptCreatePlaylistAndAddSelected(selected)
+                } else {
+                    addSelectedEpisodesToPlaylist(playlists[which].id, playlists[which].name, selected)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun promptCreatePlaylistAndAddSelected(selected: List<Pair<Episode, Podcast>>) {
+        val input = android.widget.EditText(requireContext()).apply {
+            hint = "Playlist name"
+            setSingleLine()
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Create playlist")
+            .setView(input)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Create") { _, _ ->
+                val name = input.text?.toString().orEmpty().trim()
+                if (name.isBlank()) {
+                    Toast.makeText(requireContext(), "Playlist name required", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val playlist = PodcastPlaylists.createPlaylist(requireContext(), name)
+                addSelectedEpisodesToPlaylist(playlist.id, playlist.name, selected)
+            }
+            .show()
+    }
+
+    private fun addSelectedEpisodesToPlaylist(
+        playlistId: String,
+        playlistName: String,
+        selected: List<Pair<Episode, Podcast>>
+    ) {
+        var added = 0
+        selected.forEach { (episode, podcast) ->
+            if (PodcastPlaylists.addEpisodeToPlaylist(requireContext(), playlistId, episode, podcast.title)) {
+                added += 1
+            }
+        }
+        val message = if (added == 1) {
+            "1 episode added to $playlistName"
+        } else {
+            "$added episodes added to $playlistName"
+        }
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        clearSearchEpisodeSelection()
+    }
+
     private fun createSearchAdapter(
         titles: List<Podcast>,
         descs: List<Podcast>,
@@ -2041,7 +2169,9 @@ class PodcastsFragment : Fragment() {
         return SearchResultsAdapter(requireContext(), titles, descs, episodes,
             onPodcastClick = { onPodcastClicked(it) },
             onPlayEpisode = { playEpisode(it) },
-            onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
+            onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
+            onEpisodeLongPress = { ep, pod -> onEpisodeSearchLongPress(ep, pod) },
+            onEpisodeSelectionClick = { ep, pod -> onEpisodeSearchSelectionClick(ep, pod) }
         )
     }
 
@@ -2498,7 +2628,9 @@ class PodcastsFragment : Fragment() {
                             episodeMatches = emptyList(),
                             onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                             onPlayEpisode = { ep -> playEpisode(ep) },
-                            onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
+                            onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
+                            onEpisodeLongPress = { ep, pod -> onEpisodeSearchLongPress(ep, pod) },
+                            onEpisodeSelectionClick = { ep, pod -> onEpisodeSearchSelectionClick(ep, pod) }
                         )
                         viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
                     }
@@ -2551,7 +2683,9 @@ class PodcastsFragment : Fragment() {
                                     episodeMatches = emptyList(),
                                     onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                                     onPlayEpisode = { ep -> playEpisode(ep) },
-                                    onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
+                                    onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
+                                    onEpisodeLongPress = { ep, pod -> onEpisodeSearchLongPress(ep, pod) },
+                                    onEpisodeSelectionClick = { ep, pod -> onEpisodeSearchSelectionClick(ep, pod) }
                                 )
                             }
                             val hintMessage = getString(R.string.search_no_results_download_hint)
@@ -2650,7 +2784,9 @@ class PodcastsFragment : Fragment() {
                             episodeMatches = quickEps,
                             onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                             onPlayEpisode = { ep -> playEpisode(ep) },
-                            onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) }
+                            onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
+                            onEpisodeLongPress = { ep, pod -> onEpisodeSearchLongPress(ep, pod) },
+                            onEpisodeSelectionClick = { ep, pod -> onEpisodeSearchSelectionClick(ep, pod) }
                         )
                         val hasContent = quickEps.isNotEmpty()
                         if (!hasContent && q.isNotEmpty()) {

@@ -156,6 +156,7 @@ class RadioService : MediaBrowserServiceCompat() {
     
     // Receiver to react to history/import changes so Android Auto clients can refresh
     private var historyChangeReceiver: android.content.BroadcastReceiver? = null
+    private var playlistChangeReceiver: android.content.BroadcastReceiver? = null
 
     private val placeholderBitmap by lazy {
         android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
@@ -205,6 +206,7 @@ class RadioService : MediaBrowserServiceCompat() {
         private const val MEDIA_ID_FAVORITES = "favorites"
         private const val MEDIA_ID_ALL_STATIONS = "all_stations"
         private const val MEDIA_ID_PODCASTS = "podcasts"
+        private const val MEDIA_ID_PODCASTS_PLAYLISTS = "podcasts_playlists"
         private const val MEDIA_ID_PODCASTS_DOWNLOADED = "podcasts_downloaded"
         private const val MEDIA_ID_PODCASTS_RANDOM = "podcasts_random"
         private const val ANDROID_AUTO_CLIENT_HINT = "gearhead"
@@ -235,6 +237,16 @@ class RadioService : MediaBrowserServiceCompat() {
                 }
             }
             registerReceiver(historyChangeReceiver, android.content.IntentFilter(PlayedHistoryPreference.ACTION_HISTORY_CHANGED))
+        } catch (_: Exception) { }
+        try {
+            playlistChangeReceiver = object : android.content.BroadcastReceiver() {
+                override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                    try { notifyChildrenChanged(MEDIA_ID_PODCASTS) } catch (_: Exception) { }
+                    try { notifyChildrenChanged(MEDIA_ID_PODCASTS_PLAYLISTS) } catch (_: Exception) { }
+                    try { notifyChildrenChanged("playlist_${PodcastPlaylists.DEFAULT_PLAYLIST_ID}") } catch (_: Exception) { }
+                }
+            }
+            registerReceiver(playlistChangeReceiver, android.content.IntentFilter(PodcastPlaylists.ACTION_PLAYLISTS_CHANGED))
         } catch (_: Exception) { }
         
         // Create and configure media session FIRST
@@ -902,10 +914,10 @@ class RadioService : MediaBrowserServiceCompat() {
                     result.sendResult(itemsWithShowInfo)
                 }
                 MEDIA_ID_PODCASTS -> {
-                    // Present four folders: Subscribed Podcasts, Saved Episodes, Downloaded Episodes, and History
+                    // Present podcast collections for Android Auto browsing.
                     val itemsPodcasts = mutableListOf<MediaItem>()
                     itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_subscribed").setTitle("Subscribed Podcasts").build(), MediaItem.FLAG_BROWSABLE))
-                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_saved_episodes").setTitle("Saved Episodes").build(), MediaItem.FLAG_BROWSABLE))
+                    itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId(MEDIA_ID_PODCASTS_PLAYLISTS).setTitle("Playlists").build(), MediaItem.FLAG_BROWSABLE))
                     itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId(MEDIA_ID_PODCASTS_DOWNLOADED).setTitle("Downloaded Episodes").build(), MediaItem.FLAG_BROWSABLE))
                     itemsPodcasts.add(MediaItem(MediaDescriptionCompat.Builder().setMediaId("podcasts_history").setTitle("History").build(), MediaItem.FLAG_BROWSABLE))
                     itemsPodcasts.add(
@@ -1006,9 +1018,27 @@ class RadioService : MediaBrowserServiceCompat() {
                             Log.e(TAG, "Error loading history for Android Auto", e)
                             result.sendResult(emptyList())
                         }
-                    } else if (parentId == "podcasts_saved_episodes") {
+                    } else if (parentId == MEDIA_ID_PODCASTS_PLAYLISTS) {
                         try {
-                            val saved = SavedEpisodes.getSavedEntries(this@RadioService)
+                            val playlistItems = PodcastPlaylists.getPlaylists(this@RadioService).map { playlist ->
+                                MediaItem(
+                                    MediaDescriptionCompat.Builder()
+                                        .setMediaId("playlist_${playlist.id}")
+                                        .setTitle(playlist.name)
+                                        .setSubtitle(if (playlist.itemCount == 1) "1 episode" else "${playlist.itemCount} episodes")
+                                        .build(),
+                                    MediaItem.FLAG_BROWSABLE
+                                )
+                            }
+                            result.sendResult(playlistItems)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error loading playlists for Android Auto", e)
+                            result.sendResult(emptyList())
+                        }
+                    } else if (parentId.startsWith("playlist_")) {
+                        try {
+                            val playlistId = parentId.removePrefix("playlist_")
+                            val saved = PodcastPlaylists.getPlaylistEntries(this@RadioService, playlistId)
                             val savedDownloadedIds = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
                                 .map { it.id }.toSet()
                             val itemsSaved = saved.map { s ->
@@ -1028,7 +1058,7 @@ class RadioService : MediaBrowserServiceCompat() {
                             }
                             result.sendResult(itemsSaved)
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error loading saved episodes for Android Auto", e)
+                            Log.e(TAG, "Error loading playlist episodes for Android Auto", e)
                             result.sendResult(emptyList())
                         }
                     } else if (parentId.startsWith("podcast_")) {
@@ -3910,7 +3940,8 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 // Saved episodes list changed — notify relevant media children and favorites UI
                 notifyChildrenChanged(MEDIA_ID_FAVORITES)
                 notifyChildrenChanged(MEDIA_ID_PODCASTS)
-                notifyChildrenChanged("podcasts_saved_episodes")
+                notifyChildrenChanged(MEDIA_ID_PODCASTS_PLAYLISTS)
+                notifyChildrenChanged("playlist_${PodcastPlaylists.DEFAULT_PLAYLIST_ID}")
             } else {
                 val podcastId = stationId.removePrefix("podcast_")
                 PodcastSubscriptions.toggleSubscription(this, podcastId)
@@ -4007,6 +4038,9 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         serviceScope.cancel()
         try {
             historyChangeReceiver?.let { unregisterReceiver(it) }
+        } catch (_: Exception) { }
+        try {
+            playlistChangeReceiver?.let { unregisterReceiver(it) }
         } catch (_: Exception) { }
         
         // Abandon audio focus (only needed for Android O+)

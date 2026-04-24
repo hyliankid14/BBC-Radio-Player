@@ -37,6 +37,8 @@ object PodcastSubscriptions {
             current.remove(podcastId)
             // Also remove notification preference when unsubscribing
             setNotificationsEnabled(context, podcastId, false)
+            // Unsubscribing should also clear downloaded episodes from this podcast.
+            deleteAllDownloadsForPodcast(context, podcastId)
         } else {
             current.add(podcastId)
             // Notifications remain disabled until the user opts in
@@ -136,6 +138,44 @@ object PodcastSubscriptions {
             } catch (_: Exception) {
                 // Silently handle errors - this is a best-effort operation
             }
+        }
+    }
+
+    fun downloadAllEpisodesForPodcast(context: Context, podcastId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val repo = PodcastRepository(context)
+                val allPodcasts = try { repo.fetchPodcasts(forceRefresh = false) } catch (_: Exception) { emptyList() }
+                val podcast = allPodcasts.find { it.id == podcastId } ?: return@launch
+                val episodes = try { repo.fetchEpisodesIfNeeded(podcast) } catch (_: Exception) { emptyList() }
+                var started = 0
+                episodes.forEach { episode ->
+                    if (!DownloadedEpisodes.isDownloaded(context, episode)) {
+                        try {
+                            val queued = EpisodeDownloadManager.downloadEpisode(
+                                context,
+                                episode,
+                                podcast.title,
+                                isAutoDownload = false,
+                                suppressSuccessNotification = true
+                            )
+                            if (queued) started += 1
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+                EpisodeDownloadManager.showBulkDownloadQueuedNotification(context, started, podcast.title)
+            } catch (_: Exception) {
+                // Best effort action from an explicit user request.
+            }
+        }
+    }
+
+    private fun deleteAllDownloadsForPodcast(context: Context, podcastId: String) {
+        if (podcastId.isBlank()) return
+        val entries = DownloadedEpisodes.getDownloadedEpisodesForPodcast(context, podcastId)
+        entries.forEach { entry ->
+            EpisodeDownloadManager.deleteDownload(context, entry.id, showToast = false)
         }
     }
 

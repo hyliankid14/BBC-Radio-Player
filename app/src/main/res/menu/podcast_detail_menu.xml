@@ -10,4 +10,9 @@
         android:title="@string/podcast_detail_hide_played_menu"
         android:checkable="true"
         android:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_download_all_episodes"
+        android:title="Download all episodes"
+        android:showAsAction="never" />
 </menu>

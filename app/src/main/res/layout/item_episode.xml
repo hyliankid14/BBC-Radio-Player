@@ -8,6 +8,19 @@
     android:foreground="?attr/selectableItemBackground">
 
 
+    <CheckBox
+        android:id="@+id/episode_selection_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:focusable="false"
+        android:clickable="false"
+        android:layout_marginStart="4dp"
+        android:contentDescription="Select episode"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/episode_play_icon"
         style="@style/Widget.MaterialComponents.Button.Icon"
@@ -28,15 +41,29 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <ImageButton
+        android:id="@+id/episode_overflow_button"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_more_vert"
+        android:visibility="gone"
+        android:contentDescription="Episode options"
+        app:tint="?attr/colorOnSurface"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/episode_play_icon" />
+
     <LinearLayout
         android:id="@+id/episode_text_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/episode_play_icon"
-        android:layout_marginStart="12dp"
+        app:layout_constraintStart_toEndOf="@id/episode_selection_checkbox"
+        app:layout_constraintEnd_toStartOf="@id/episode_overflow_button"
+        android:layout_marginStart="8dp"
         android:layout_marginEnd="8dp">
 
         <TextView
@@ -94,15 +121,16 @@
         app:constraint_referenced_ids="episode_text_container" />
 
     <LinearLayout
+        android:id="@+id/episode_meta_row"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:layout_marginTop="2dp"
         app:layout_constraintTop_toBottomOf="@id/episode_bottom_barrier"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/episode_play_icon"
-        android:layout_marginStart="12dp"
+        app:layout_constraintStart_toEndOf="@id/episode_selection_checkbox"
+        app:layout_constraintEnd_toStartOf="@id/episode_overflow_button"
+        android:layout_marginStart="8dp"
         android:layout_marginEnd="12dp">
 
         <TextView
