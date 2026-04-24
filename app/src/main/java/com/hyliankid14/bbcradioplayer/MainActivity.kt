@@ -898,12 +898,7 @@ class MainActivity : AppCompatActivity() {
             }
             val hidePlayed = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)
             val allPlaylistEntries = PodcastPlaylists.getPlaylistEntries(this, playlistId)
-            val visiblePlaylistEntries = if (hidePlayed) {
-                allPlaylistEntries.filterNot { PlayedEpisodesPreference.isPlayed(this, it.id) }
-            } else {
-                allPlaylistEntries
-            }
-            val playlistEntries = PlaylistSortPreference.applySort(this, playlistId, visiblePlaylistEntries)
+            val playlistEntries = PlaylistSortPreference.applySort(this, playlistId, allPlaylistEntries)
             headerTitle.text = PodcastPlaylists.getPlaylistName(this, playlistId)
             backButton.visibility = View.VISIBLE
             playlistsRecycler.visibility = View.GONE
@@ -922,6 +917,7 @@ class MainActivity : AppCompatActivity() {
                             putExtra(RadioService.EXTRA_PODCAST_ID, episode.podcastId)
                             putExtra(RadioService.EXTRA_PODCAST_TITLE, podcastTitle)
                             putExtra(RadioService.EXTRA_PODCAST_IMAGE, episode.imageUrl.takeIf { it.isNotEmpty() } ?: podcastImage)
+                            putExtra(RadioService.EXTRA_PLAYLIST_ID, playlistId)
                         }
                         startService(intent)
                     },
@@ -948,6 +944,7 @@ class MainActivity : AppCompatActivity() {
                         onPlaylistEpisodeSelectionClick(playlistId, entry)
                     }
                 ).also { savedRecycler.adapter = it }
+            adapter.setShowPlayedSection(hidePlayed)
             adapter.updatePlaylistEntries(playlistEntries)
             // Preserve current selections when refreshing adapter
             adapter.setSelectedEntryIds(selectedPlaylistEpisodeEntries.keys)
@@ -2178,6 +2175,11 @@ class MainActivity : AppCompatActivity() {
     private val playedStatusReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
             try {
+                // Refresh playlist adapter played section when an episode's played status changes
+                runOnUiThread {
+                    val savedRecycler = try { findViewById<RecyclerView>(R.id.saved_episodes_recycler) } catch (_: Exception) { null }
+                    (savedRecycler?.adapter as? PlaylistEpisodesAdapter)?.refreshPlayedState()
+                }
                 // Recompute which subscribed podcasts have newer episodes and update adapter
                 val subscribedIds = PodcastSubscriptions.getSubscribedIds(this@MainActivity)
                 if (subscribedIds.isEmpty()) return
