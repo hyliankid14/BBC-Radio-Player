@@ -839,9 +839,6 @@ class MainActivity : AppCompatActivity() {
             val playlistsEmpty = findViewById<TextView>(R.id.playlists_empty)
             val playlistsRecycler = findViewById<RecyclerView>(R.id.playlists_recycler)
             val savedRecycler = findViewById<RecyclerView>(R.id.saved_episodes_recycler)
-            val headerTitle = findViewById<TextView>(R.id.playlists_header_title)
-            val overflowButton = findViewById<ImageButton>(R.id.playlists_overflow_button)
-            val backButton = findViewById<ImageButton>(R.id.playlists_back_button)
 
             if (currentMode != "favorites") {
                 clearPlaylistEpisodeSelection()
@@ -850,13 +847,9 @@ class MainActivity : AppCompatActivity() {
                 playlistsEmpty.visibility = View.GONE
                 playlistsRecycler.visibility = View.GONE
                 savedRecycler.visibility = View.GONE
+                supportActionBar?.setDisplayHomeAsUpEnabled(false)
+                invalidateOptionsMenu()
                 return
-            }
-
-            overflowButton.setOnClickListener { showPlaylistsOverflowMenu(overflowButton) }
-            backButton.setOnClickListener {
-                activePlaylistId = null
-                refreshSavedEpisodesSection()
             }
 
             val savedTabActive = isButtonChecked(R.id.fav_tab_saved)
@@ -866,8 +859,9 @@ class MainActivity : AppCompatActivity() {
 
             if (activePlaylistId == null) {
                 clearPlaylistEpisodeSelection()
-                headerTitle.text = "Playlists"
-                backButton.visibility = View.GONE
+                supportActionBar?.title = "Playlists"
+                supportActionBar?.setDisplayHomeAsUpEnabled(false)
+                invalidateOptionsMenu()
                 savedRecycler.visibility = View.GONE
                 savedEmpty.visibility = View.GONE
                 playlistsRecycler.layoutManager = LinearLayoutManager(this)
@@ -903,8 +897,9 @@ class MainActivity : AppCompatActivity() {
             val hidePlayed = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)
             val allPlaylistEntries = PodcastPlaylists.getPlaylistEntries(this, playlistId)
             val playlistEntries = PlaylistSortPreference.applySort(this, playlistId, allPlaylistEntries)
-            headerTitle.text = PodcastPlaylists.getPlaylistName(this, playlistId)
-            backButton.visibility = View.VISIBLE
+            supportActionBar?.title = PodcastPlaylists.getPlaylistName(this, playlistId)
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            invalidateOptionsMenu()
             playlistsRecycler.visibility = View.GONE
             playlistsEmpty.visibility = View.GONE
 
@@ -1103,7 +1098,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPlaylistsOverflowMenu(anchor: View) {
         val menu = PopupMenu(this, anchor)
-        val createId = 1
         val sortNewestId = 2
         val sortOldestId = 3
         val sortTitleId = 4
@@ -1112,9 +1106,6 @@ class MainActivity : AppCompatActivity() {
         val bulkDownloadId = 7
         val bulkDeleteDownloadsId = 8
 
-        if (activePlaylistId == null) {
-            menu.menu.add(0, createId, 0, "Create playlist")
-        }
         menu.menu.add(2, hidePlayedId, 20, "Hide played episodes")
             .setCheckable(true)
             .isChecked = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)
@@ -1146,10 +1137,6 @@ class MainActivity : AppCompatActivity() {
 
         menu.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                createId -> {
-                    showCreatePlaylistDialog()
-                    true
-                }
                 sortNewestId, sortOldestId, sortTitleId, sortManualId -> {
                     val playlistId = activePlaylistId ?: return@setOnMenuItemClickListener false
                     val sort = when (item.itemId) {
@@ -2550,6 +2537,7 @@ class MainActivity : AppCompatActivity() {
         // Disable swipe navigation in Settings
         disableSwipeNavigation()
         currentMode = "settings"
+        invalidateOptionsMenu()
         fragmentContainer.visibility = View.GONE
         staticContentContainer.visibility = View.VISIBLE
         stationsView.visibility = View.GONE
@@ -2734,15 +2722,41 @@ class MainActivity : AppCompatActivity() {
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
         val sortItem = menu.findItem(R.id.action_subscribed_sort)
         sortItem?.isVisible = currentMode == "favorites" && isButtonChecked(R.id.fav_tab_subscribed)
+        val playlistMoreItem = menu.findItem(R.id.action_playlist_more)
+        playlistMoreItem?.isVisible = currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved)
+        val createPlaylistItem = menu.findItem(R.id.action_create_playlist)
+        createPlaylistItem?.isVisible = currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved)
         return super.onPrepareOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            android.R.id.home -> {
+                if (currentMode == "favorites" && isButtonChecked(R.id.fav_tab_saved) && activePlaylistId != null) {
+                    activePlaylistId = null
+                    refreshSavedEpisodesSection()
+                    true
+                } else {
+                    super.onOptionsItemSelected(item)
+                }
+            }
             R.id.action_subscribed_sort -> {
                 val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.top_app_bar)
-                if (toolbar != null) {
-                    showSubscribedSortMenu(toolbar)
+                val anchor = toolbar?.findViewById<View>(R.id.action_subscribed_sort) ?: toolbar
+                if (anchor != null) {
+                    showSubscribedSortMenu(anchor)
+                }
+                true
+            }
+            R.id.action_create_playlist -> {
+                showCreatePlaylistDialog()
+                true
+            }
+            R.id.action_playlist_more -> {
+                val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.top_app_bar)
+                val anchor = toolbar?.findViewById<View>(R.id.action_playlist_more) ?: toolbar
+                if (anchor != null) {
+                    showPlaylistsOverflowMenu(anchor)
                 }
                 true
             }
