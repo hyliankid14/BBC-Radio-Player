@@ -78,6 +78,7 @@ class RadioService : MediaBrowserServiceCompat() {
     private var currentStreamCandidateIndex: Int = 0
     private var currentStreamCandidates: List<String> = emptyList()
     private var currentPodcastId: String? = null
+    @Volatile private var currentPlaylistId: String? = null
     private var matchedPodcast: Podcast? = null  // Podcast matching currently playing radio show for Android Auto
     private var matchPodcastJob: kotlinx.coroutines.Job? = null
     private var matchPodcastGeneration: Int = 0
@@ -184,6 +185,7 @@ class RadioService : MediaBrowserServiceCompat() {
         const val EXTRA_PODCAST_ID = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_ID"
         const val EXTRA_PODCAST_TITLE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_TITLE"
         const val EXTRA_PODCAST_IMAGE = "com.hyliankid14.bbcradioplayer.EXTRA_PODCAST_IMAGE"
+        const val EXTRA_PLAYLIST_ID = "com.hyliankid14.bbcradioplayer.EXTRA_PLAYLIST_ID"
         const val EXTRA_SEEK_POSITION = "com.hyliankid14.bbcradioplayer.EXTRA_SEEK_POSITION"
         const val EXTRA_SEEK_FRACTION = "com.hyliankid14.bbcradioplayer.EXTRA_SEEK_FRACTION"
         const val EXTRA_SEEK_DELTA = "com.hyliankid14.bbcradioplayer.EXTRA_SEEK_DELTA"
@@ -292,6 +294,45 @@ class RadioService : MediaBrowserServiceCompat() {
                 mediaId?.let { id ->
                     if (id == MEDIA_ID_PODCASTS_RANDOM) {
                         playRandomPodcastMostRecentFromAuto()
+                    } else if (id.startsWith("playlistep_")) {
+                        // Playlist episode: format is "playlistep_<playlistId>|<episodeId>"
+                        val rest = id.removePrefix("playlistep_")
+                        val separatorIdx = rest.indexOf('|')
+                        if (separatorIdx >= 0) {
+                            val playlistId = rest.substring(0, separatorIdx)
+                            val episodeId = rest.substring(separatorIdx + 1)
+                            serviceScope.launch {
+                                try {
+                                    val entries = PodcastPlaylists.getPlaylistEntries(this@RadioService, playlistId)
+                                    val entry = entries.firstOrNull { it.id == episodeId }
+                                    if (entry != null) {
+                                        currentPlaylistId = playlistId
+                                        val ep = Episode(
+                                            id = entry.id,
+                                            title = entry.title,
+                                            description = entry.description,
+                                            audioUrl = entry.audioUrl,
+                                            imageUrl = entry.imageUrl,
+                                            pubDate = entry.pubDate,
+                                            durationMins = entry.durationMins,
+                                            podcastId = entry.podcastId
+                                        )
+                                        val playIntent = android.content.Intent().apply {
+                                            putExtra(EXTRA_PODCAST_TITLE, entry.podcastTitle)
+                                            putExtra(EXTRA_PODCAST_IMAGE, entry.imageUrl)
+                                            putExtra(EXTRA_PLAYLIST_ID, playlistId)
+                                        }
+                                        playPodcastEpisode(ep, playIntent)
+                                    } else {
+                                        Log.w(TAG, "Playlist episode not found: playlistId=$playlistId, episodeId=$episodeId")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error playing playlist episode from mediaId: $mediaId", e)
+                                }
+                            }
+                        } else {
+                            Log.w(TAG, "Malformed playlistep mediaId: $id")
+                        }
                     } else if (id.startsWith("podcast_episode_")) {
                         val episodeId = id.removePrefix("podcast_episode_")
                         serviceScope.launch {
@@ -1038,7 +1079,14 @@ class RadioService : MediaBrowserServiceCompat() {
                     } else if (parentId.startsWith("playlist_")) {
                         try {
                             val playlistId = parentId.removePrefix("playlist_")
-                            val saved = PodcastPlaylists.getPlaylistEntries(this@RadioService, playlistId)
+                            val allEntries = PodcastPlaylists.getPlaylistEntries(this@RadioService, playlistId)
+                            val sorted = PlaylistSortPreference.applySort(this@RadioService, playlistId, allEntries)
+                            val hidePlayedEnabled = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this@RadioService)
+                            val saved = if (hidePlayedEnabled) {
+                                sorted.filterNot { PlayedEpisodesPreference.isPlayed(this@RadioService, it.id) }
+                            } else {
+                                sorted
+                            }
                             val savedDownloadedIds = DownloadedEpisodes.getDownloadedEntries(this@RadioService)
                                 .map { it.id }.toSet()
                             val itemsSaved = saved.map { s ->
@@ -1048,7 +1096,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                 val inProgress = !played && progress > 0L
                                 MediaItem(
                                     MediaDescriptionCompat.Builder()
-                                        .setMediaId("podcast_episode_${s.id}")
+                                        .setMediaId("playlistep_${playlistId}|${s.id}")
                                         .setTitle(s.title)
                                         .setSubtitle(buildAutoEpisodeIconSubtitle(s.pubDate, played, inProgress, isDownloaded, s.podcastTitle))
                                         .setIconUri(android.net.Uri.parse(s.imageUrl))
@@ -1618,13 +1666,54 @@ class RadioService : MediaBrowserServiceCompat() {
                             podcastEpisodeEndedNoRestart = true
                             val currentEpisode = PlaybackStateHelper.getCurrentEpisodeId()
                             val podcastId = currentPodcastId
-                            if (!podcastId.isNullOrEmpty() && !currentEpisode.isNullOrEmpty()) {
+                            val playlistId = currentPlaylistId
+                            if (!currentEpisode.isNullOrEmpty()) {
                                 val autoplayPref = PlaybackPreference.getAutoplayNextEpisode(this@RadioService)
                                 if (autoplayPref == PlaybackPreference.AUTOPLAY_NEXT_NONE) {
                                     Log.d(TAG, "Autoplay disabled by user preference")
                                 } else if (isStopped) {
                                     Log.d(TAG, "Autoplay skipped: playback already stopped")
-                                } else {
+                                } else if (!playlistId.isNullOrEmpty()) {
+                                    // Playlist autoplay: advance to next episode in playlist order
+                                    pendingAutoplayNextEpisode = true
+                                    updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING)
+                                    serviceScope.launch {
+                                        try {
+                                            val allEntries = PodcastPlaylists.getPlaylistEntries(this@RadioService, playlistId)
+                                            val sortedEntries = PlaylistSortPreference.applySort(this@RadioService, playlistId, allEntries)
+                                            val currentIndex = sortedEntries.indexOfFirst { it.id == currentEpisode }
+                                            val nextEntry = if (currentIndex >= 0) sortedEntries.getOrNull(currentIndex + 1) else null
+                                            if (nextEntry != null && !isStopped) {
+                                                Log.d(TAG, "Autoplaying next playlist episode: ${nextEntry.title} (id=${nextEntry.id})")
+                                                val nextEp = Episode(
+                                                    id = nextEntry.id,
+                                                    title = nextEntry.title,
+                                                    description = nextEntry.description,
+                                                    audioUrl = nextEntry.audioUrl,
+                                                    imageUrl = nextEntry.imageUrl,
+                                                    pubDate = nextEntry.pubDate,
+                                                    durationMins = nextEntry.durationMins,
+                                                    podcastId = nextEntry.podcastId
+                                                )
+                                                val playIntent = Intent().apply {
+                                                    putExtra(EXTRA_PODCAST_TITLE, nextEntry.podcastTitle)
+                                                    putExtra(EXTRA_PODCAST_IMAGE, nextEntry.imageUrl)
+                                                    putExtra(EXTRA_PLAYLIST_ID, playlistId)
+                                                }
+                                                playPodcastEpisode(nextEp, playIntent)
+                                            } else {
+                                                Log.d(TAG, "No next episode in playlist: $playlistId")
+                                                updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.w(TAG, "Failed to autoplay next playlist episode: ${e.message}")
+                                            updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                        } finally {
+                                            pendingAutoplayNextEpisode = false
+                                        }
+                                    }
+                                } else if (!podcastId.isNullOrEmpty()) {
+                                    // Podcast autoplay: advance to next episode in podcast feed order
                                     // Signal buffering before launching the coroutine. Some Android Auto
                                     // head units call onStop() when they receive STATE_STOPPED from the
                                     // MediaSession, which sets isStopped=true and aborts the autoplay
@@ -2414,6 +2503,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         currentStationTitle = station.title
         currentStationId = station.id
         currentPodcastId = null
+        currentPlaylistId = null
         matchedPodcast = null
         matchPodcastJob?.cancel()
         matchPodcastJob = null
@@ -3092,6 +3182,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         PlaybackStateHelper.setCurrentMediaUri(null)
         PlaybackStateHelper.setIsPlaying(false)
         currentPodcastId = null
+        currentPlaylistId = null
         matchedPodcast = null
         matchPodcastJob?.cancel()
         matchPodcastJob = null
@@ -3381,6 +3472,7 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             // Update playback helper & state
             currentStationId = syntheticStation.id
             currentPodcastId = episode.podcastId
+            currentPlaylistId = intent?.getStringExtra(EXTRA_PLAYLIST_ID)
             matchedPodcast = null
             matchPodcastJob?.cancel()
             matchPodcastJob = null

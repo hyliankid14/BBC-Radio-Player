@@ -9,6 +9,8 @@ import android.widget.ImageButton
 import android.widget.CheckBox
 import android.widget.TextView
 import com.google.android.material.progressindicator.LinearProgressIndicator
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.text.HtmlCompat
 import androidx.core.content.ContextCompat
@@ -22,10 +24,55 @@ open class SavedEpisodesAdapter(
     private val onEpisodeLongPress: ((SavedEpisodes.Entry) -> Unit)? = null,
     private val onEpisodeSelectionClick: ((SavedEpisodes.Entry) -> Boolean)? = null,
     private val onEpisodeOverflowClick: ((View, SavedEpisodes.Entry) -> Unit)? = null
-) : RecyclerView.Adapter<SavedEpisodesAdapter.ViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    private sealed class DisplayItem {
+        data class EntryItem(val entry: SavedEpisodes.Entry) : DisplayItem()
+        object PlayedHeader : DisplayItem()
+    }
+
+    private var displayItems: List<DisplayItem> = entries.map { DisplayItem.EntryItem(it) }
+    private var showPlayedSection = false
+    private var playedSectionExpanded = false
 
     private var downloadCompleteReceiver: android.content.BroadcastReceiver? = null
     private var selectedEntryIds: Set<String> = emptySet()
+
+    private fun rebuildDisplayItems() {
+        if (!showPlayedSection) {
+            displayItems = entries.map { DisplayItem.EntryItem(it) }
+            notifyDataSetChanged()
+            return
+        }
+        val unplayed = entries.filter { !PlayedEpisodesPreference.isPlayed(context, it.id) }
+        val played = entries.filter { PlayedEpisodesPreference.isPlayed(context, it.id) }
+        displayItems = buildList {
+            addAll(unplayed.map { DisplayItem.EntryItem(it) })
+            if (played.isNotEmpty()) {
+                add(DisplayItem.PlayedHeader)
+                if (playedSectionExpanded) {
+                    addAll(played.map { DisplayItem.EntryItem(it) })
+                }
+            }
+        }
+        notifyDataSetChanged()
+    }
+
+    fun setShowPlayedSection(enabled: Boolean) {
+        if (showPlayedSection == enabled) return
+        showPlayedSection = enabled
+        if (!enabled) playedSectionExpanded = false
+        rebuildDisplayItems()
+    }
+
+    fun refreshPlayedState() {
+        rebuildDisplayItems()
+    }
+
+    private fun togglePlayedSection() {
+        playedSectionExpanded = !playedSectionExpanded
+        rebuildDisplayItems()
+    }
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
@@ -93,23 +140,63 @@ open class SavedEpisodesAdapter(
         val fallback = cleaned.replace(Regex("\\s+\\d{1,2}:\\d{2}(:\\d{2})?"), "").replace(Regex("\\s+\\d{1,2}$"), "").trim()
         return parsed?.let { OUTPUT_FORMAT.format(it) } ?: fallback
     }
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val v = LayoutInflater.from(context).inflate(R.layout.item_episode, parent, false)
-        return ViewHolder(v)
+    inner class PlayedSectionHeaderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val titleView: TextView = view.findViewById(R.id.section_title)
+
+        init {
+            view.isClickable = true
+            view.isFocusable = true
+            view.setOnClickListener { togglePlayedSection() }
+        }
+
+        fun bind(expanded: Boolean, count: Int) {
+            titleView.text = itemView.context.getString(R.string.podcast_detail_played_section_title)
+            val icon = if (expanded) R.drawable.ic_expand_less else R.drawable.ic_expand_more
+            val drawable = AppCompatResources.getDrawable(itemView.context, icon)?.mutate()
+            if (drawable != null) {
+                DrawableCompat.setTint(drawable, titleView.currentTextColor)
+            }
+            titleView.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, drawable, null)
+            titleView.compoundDrawablePadding = (8 * itemView.resources.displayMetrics.density).toInt()
+        }
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val e = entries[position]
-        holder.title.text = e.title
-        holder.desc.text = sanitize(e.description)
-        if (e.podcastTitle.isNullOrBlank()) {
-            holder.podcastTitle?.visibility = View.GONE
-        } else {
-            holder.podcastTitle?.visibility = View.VISIBLE
-            holder.podcastTitle?.text = e.podcastTitle
+    override fun getItemViewType(position: Int): Int {
+        return when (displayItems[position]) {
+            is DisplayItem.EntryItem -> VIEW_TYPE_EPISODE
+            DisplayItem.PlayedHeader -> VIEW_TYPE_PLAYED_HEADER
         }
-        holder.date.text = formatDate(e.pubDate)
-        holder.duration?.text = if (e.durationMins > 0) "${e.durationMins} min" else "–"
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return if (viewType == VIEW_TYPE_PLAYED_HEADER) {
+            val v = LayoutInflater.from(context).inflate(R.layout.item_section_header, parent, false)
+            PlayedSectionHeaderViewHolder(v)
+        } else {
+            val v = LayoutInflater.from(context).inflate(R.layout.item_episode, parent, false)
+            ViewHolder(v)
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        if (holder is PlayedSectionHeaderViewHolder) {
+            val playedCount = entries.count { PlayedEpisodesPreference.isPlayed(context, it.id) }
+            holder.bind(playedSectionExpanded, playedCount)
+            return
+        }
+        val episodeHolder = holder as ViewHolder
+        val item = displayItems[position] as? DisplayItem.EntryItem ?: return
+        val e = item.entry
+        episodeHolder.title.text = e.title
+        episodeHolder.desc.text = sanitize(e.description)
+        if (e.podcastTitle.isNullOrBlank()) {
+            episodeHolder.podcastTitle?.visibility = View.GONE
+        } else {
+            episodeHolder.podcastTitle?.visibility = View.VISIBLE
+            episodeHolder.podcastTitle?.text = e.podcastTitle
+        }
+        episodeHolder.date.text = formatDate(e.pubDate)
+        episodeHolder.duration?.text = if (e.durationMins > 0) "${e.durationMins} min" else "–"
         // Note: item_episode layout doesn't include an image view by default, so we don't attempt to load it here
 
         val episode = Episode(
@@ -125,72 +212,72 @@ open class SavedEpisodesAdapter(
 
         // Playback progress / played-state indicators
         try {
-            val progressMs = PlayedEpisodesPreference.getProgress(holder.itemView.context, episode.id)
+            val progressMs = PlayedEpisodesPreference.getProgress(episodeHolder.itemView.context, episode.id)
             val durMs = (episode.durationMins.takeIf { it > 0 } ?: 0) * 60_000L
-            val isPlayed = PlayedEpisodesPreference.isPlayed(holder.itemView.context, episode.id)
+            val isPlayed = PlayedEpisodesPreference.isPlayed(episodeHolder.itemView.context, episode.id)
 
             if (!isPlayed && durMs > 0 && progressMs > 0L) {
                 val ratio = (progressMs.toDouble() / durMs.toDouble()).coerceIn(0.0, 1.0)
                 val percent = kotlin.math.round(ratio * 100).toInt()
-                holder.progressBar.progress = percent
-                holder.progressBar.visibility = View.VISIBLE
+                episodeHolder.progressBar.progress = percent
+                episodeHolder.progressBar.visibility = View.VISIBLE
             } else {
-                holder.progressBar.visibility = View.GONE
+                episodeHolder.progressBar.visibility = View.GONE
             }
 
             if (isPlayed) {
-                holder.playedIcon?.text = "\u2713"
-                holder.playedIcon?.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.episode_check_green))
-                holder.playedIcon?.visibility = View.VISIBLE
+                episodeHolder.playedIcon?.text = "\u2713"
+                episodeHolder.playedIcon?.setTextColor(ContextCompat.getColor(episodeHolder.itemView.context, R.color.episode_check_green))
+                episodeHolder.playedIcon?.visibility = View.VISIBLE
             } else if (durMs > 0 && progressMs > 0L) {
                 val ratio = progressMs.toDouble() / durMs.toDouble()
                 if (ratio < 0.95) {
-                    holder.playedIcon?.text = "~"
-                    holder.playedIcon?.setTextColor(ContextCompat.getColor(holder.itemView.context, R.color.episode_tilde_amber))
-                    holder.playedIcon?.visibility = View.VISIBLE
+                    episodeHolder.playedIcon?.text = "~"
+                    episodeHolder.playedIcon?.setTextColor(ContextCompat.getColor(episodeHolder.itemView.context, R.color.episode_tilde_amber))
+                    episodeHolder.playedIcon?.visibility = View.VISIBLE
                 } else {
-                    holder.playedIcon?.visibility = View.GONE
+                    episodeHolder.playedIcon?.visibility = View.GONE
                 }
             } else {
-                holder.playedIcon?.visibility = View.GONE
+                episodeHolder.playedIcon?.visibility = View.GONE
             }
         } catch (_: Exception) {
-            holder.progressBar.visibility = View.GONE
-            holder.playedIcon?.visibility = View.GONE
+            episodeHolder.progressBar.visibility = View.GONE
+            episodeHolder.playedIcon?.visibility = View.GONE
         }
 
         // Show download icon if episode is downloaded
-        if (DownloadedEpisodes.isDownloaded(holder.itemView.context, episode)) {
-            holder.downloadIcon?.visibility = View.VISIBLE
+        if (DownloadedEpisodes.isDownloaded(episodeHolder.itemView.context, episode)) {
+            episodeHolder.downloadIcon?.visibility = View.VISIBLE
         } else {
-            holder.downloadIcon?.visibility = View.GONE
+            episodeHolder.downloadIcon?.visibility = View.GONE
         }
 
         val isSelectionMode = selectedEntryIds.isNotEmpty()
         val isSelected = selectedEntryIds.contains(e.id)
-        holder.selectionCheckBox?.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
-        holder.selectionCheckBox?.isChecked = isSelected
+        episodeHolder.selectionCheckBox?.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
+        episodeHolder.selectionCheckBox?.isChecked = isSelected
 
         // Hide play button completely in selection mode (GONE not INVISIBLE) so the row
         // doesn't reflow. Slide text content right instead, matching the search-results pattern.
-        holder.play?.visibility = if (isSelectionMode) View.GONE else View.VISIBLE
+        episodeHolder.play?.visibility = if (isSelectionMode) View.GONE else View.VISIBLE
         val slideX = if (isSelectionMode) {
-            (12 * holder.itemView.resources.displayMetrics.density)
+            (12 * episodeHolder.itemView.resources.displayMetrics.density)
         } else {
             0f
         }
-        holder.textContainer?.animate()?.cancel()
-        holder.metaRow?.animate()?.cancel()
-        holder.textContainer?.animate()?.translationX(slideX)?.setDuration(150)?.start()
-        holder.metaRow?.animate()?.translationX(slideX)?.setDuration(150)?.start()
+        episodeHolder.textContainer?.animate()?.cancel()
+        episodeHolder.metaRow?.animate()?.cancel()
+        episodeHolder.textContainer?.animate()?.translationX(slideX)?.setDuration(150)?.start()
+        episodeHolder.metaRow?.animate()?.translationX(slideX)?.setDuration(150)?.start()
 
-        holder.overflow?.visibility = if (onEpisodeOverflowClick != null && !isSelectionMode) View.VISIBLE else View.GONE
-        holder.overflow?.setOnClickListener {
+        episodeHolder.overflow?.visibility = if (onEpisodeOverflowClick != null && !isSelectionMode) View.VISIBLE else View.GONE
+        episodeHolder.overflow?.setOnClickListener {
             onEpisodeOverflowClick?.invoke(it, e)
         }
 
         // Checkbox click handler for selection mode
-        holder.selectionCheckBox?.setOnClickListener {
+        episodeHolder.selectionCheckBox?.setOnClickListener {
             onEpisodeSelectionClick?.invoke(e)
         }
 
@@ -198,17 +285,17 @@ open class SavedEpisodesAdapter(
             onEpisodeSelectionClick?.invoke(e) == true
         }
 
-        holder.play?.setOnClickListener {
+        episodeHolder.play?.setOnClickListener {
             if (!handleSelectionClick()) {
                 onPlayEpisode(episode, e.podcastTitle, e.imageUrl)
             }
         }
-        holder.itemView.setOnClickListener {
+        episodeHolder.itemView.setOnClickListener {
             if (!handleSelectionClick()) {
                 onOpenEpisode(episode, e.podcastTitle, e.imageUrl)
             }
         }
-        holder.itemView.setOnLongClickListener {
+        episodeHolder.itemView.setOnLongClickListener {
             if (onEpisodeLongPress != null) {
                 onEpisodeLongPress.invoke(e)
                 true
@@ -219,13 +306,15 @@ open class SavedEpisodesAdapter(
         // Long-press no longer removes episodes. Use swipe-to-delete in the Saved Episodes list instead.
     }
 
-    override fun getItemCount(): Int = entries.size
+    override fun getItemCount(): Int = displayItems.size
 
-    open fun getEntryAt(position: Int): SavedEpisodes.Entry? = entries.getOrNull(position)
+    open fun getEntryAt(position: Int): SavedEpisodes.Entry? {
+        return (displayItems.getOrNull(position) as? DisplayItem.EntryItem)?.entry
+    }
 
     open fun updateEntries(newEntries: List<SavedEpisodes.Entry>) {
         entries = newEntries
-        notifyDataSetChanged()
+        rebuildDisplayItems()
     }
 
     fun setSelectedEntryIds(ids: Set<String>) {
@@ -235,16 +324,21 @@ open class SavedEpisodesAdapter(
 
     open fun moveEntry(fromPosition: Int, toPosition: Int): Boolean {
         if (fromPosition == toPosition) return false
+        // Only support drag-reorder when the played section is not active
+        if (showPlayedSection) return false
         if (fromPosition !in entries.indices || toPosition !in entries.indices) return false
         val mutable = entries.toMutableList()
         val moved = mutable.removeAt(fromPosition)
         mutable.add(toPosition, moved)
         entries = mutable
-        notifyItemMoved(fromPosition, toPosition)
+        rebuildDisplayItems()
         return true
     }
 
     companion object {
+        private const val VIEW_TYPE_EPISODE = 0
+        private const val VIEW_TYPE_PLAYED_HEADER = 1
+
         private val DATE_FORMATS = listOf(
             "EEE, dd MMM yyyy HH:mm:ss Z",
             "dd MMM yyyy HH:mm:ss Z",
