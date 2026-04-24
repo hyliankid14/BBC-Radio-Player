@@ -56,6 +56,13 @@ NEW_PODCASTS_MAX_COUNT = 50
 NEW_PODCASTS_POLICY_START_EPOCH_MS = 1_742_774_400_000  # 2026-03-24T00:00:00Z
 NEW_PODCASTS_SNAPSHOT_OBJECT = "new-podcasts.json"
 NEW_PODCASTS_STATE_OBJECT = "new-podcasts-state.json"
+NEW_PODCASTS_ALLOWED_ID_PREFIXES = ("p", "m", "w")
+
+# Explicitly exclude long-running legacy programmes that may resurface with a
+# truncated feed and should never be treated as newly launched podcasts.
+LEGACY_NEW_PODCAST_EXCLUDE_IDS = {
+    "b0079fx0",  # All Things Considered
+}
 
 # Baseline seed list (ordered newest -> oldest within the initial curated set).
 # New podcasts discovered in the live index are assigned a fresher epoch and float above this set.
@@ -385,13 +392,23 @@ def _build_new_podcast_snapshot(
     # entire catalogue would be tagged as "new" at the same timestamp.
     if had_previous_state:
         for pid in current_ids - known_ids:
+            if pid in LEGACY_NEW_PODCAST_EXCLUDE_IDS:
+                continue
+            if not pid.startswith(NEW_PODCASTS_ALLOWED_ID_PREFIXES):
+                continue
             first_seen.setdefault(pid, now_ms)
 
     for pid, epoch in baseline_seed.items():
         if pid in current_ids:
             first_seen.setdefault(pid, epoch)
 
-    first_seen = {pid: epoch for pid, epoch in first_seen.items() if pid in current_ids and epoch > 0}
+    first_seen = {
+        pid: epoch
+        for pid, epoch in first_seen.items()
+        if pid in current_ids
+        and epoch > 0
+        and pid not in LEGACY_NEW_PODCAST_EXCLUDE_IDS
+    }
 
     top_entries = sorted(first_seen.items(), key=lambda kv: (-kv[1], kv[0]))[:NEW_PODCASTS_MAX_COUNT]
     snapshot = {
