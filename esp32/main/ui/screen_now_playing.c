@@ -7,6 +7,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_sntp.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdio.h>
@@ -19,7 +20,6 @@ static const char *TAG = "now_playing";
 
 static lv_obj_t   *s_lbl_title     = NULL;
 static lv_obj_t   *s_lbl_subtitle  = NULL;
-static lv_obj_t   *s_lbl_header_title = NULL;
 static lv_obj_t   *s_station_badge = NULL;
 static lv_obj_t   *s_station_badge_lbl = NULL;
 static const station_t *s_last_station = NULL;
@@ -34,6 +34,7 @@ static lv_timer_t *s_timer         = NULL;
 static TaskHandle_t s_rms_task     = NULL;
 static TaskHandle_t s_station_switch_task = NULL;
 static uint32_t     s_rms_gen      = 0;
+static bool         s_rms_restart_pending = false;
 static char         s_rms_service_id[48] = {0};
 static char         s_rms_text[128] = {0};
 static char         s_ess_text[128] = {0};
@@ -41,10 +42,12 @@ static volatile int s_pending_station_delta = 0;
 
 #define RMS_TEXT_MAX  128
 #define RMS_POLL_INTERVAL_MS 30000
-#define RMS_APPLY_DELAY_MS   15000
-#define RMS_INITIAL_RETRY_MS 5000
-#define ESS_REFRESH_EVERY_POLLS 2
+#define RMS_APPLY_DELAY_MS   1000
+#define RMS_INITIAL_RETRY_MS 8000
+#define ESS_REFRESH_EVERY_POLLS 6
 #define STATION_SWITCH_COALESCE_MS 120
+#define STATION_METADATA_SETTLE_MS 6000
+#define TLS_TIME_MIN_YEAR 2025
 
 #define TITLE_X_WITH_BADGE   56
 #define TITLE_X_NO_BADGE      8
@@ -175,8 +178,6 @@ static void preview_station_ui(const station_t *station)
         return;
     }
 
-    s_rms_gen++;
-    s_rms_task = NULL;
     strlcpy(s_rms_service_id, station->service_id ? station->service_id : "", sizeof(s_rms_service_id));
     s_last_station = station;
     s_rms_text[0] = '\0';
@@ -193,7 +194,8 @@ static void preview_station_ui(const station_t *station)
         station_display_title(station, station_title, sizeof(station_title));
         lv_label_set_text(s_lbl_title, station_title);
         lv_label_set_text(s_lbl_subtitle, "Loading...");
-        lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(s_lbl_title, LV_LABEL_LONG_DOT);
+        lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_SCROLL_CIRCULAR);
     }
 
     if (s_bar_progress)  lv_obj_add_flag(s_bar_progress, LV_OBJ_FLAG_HIDDEN);
@@ -204,7 +206,7 @@ static void preview_station_ui(const station_t *station)
 static void rms_stop_tracking(void)
 {
     s_rms_gen++;
-    s_rms_task = NULL;
+    s_rms_restart_pending = false;
     s_rms_service_id[0] = '\0';
     s_rms_text[0] = '\0';
 }
@@ -242,8 +244,54 @@ static bool parse_http_date_to_iso(const char *date_hdr, char *out, size_t out_l
     return true;
 }
 
+static bool tls_time_is_sane(void)
+{
+    time_t now = time(NULL);
+    if (now <= 0) {
+        return false;
+    }
+
+    struct tm tm_utc;
+    gmtime_r(&now, &tm_utc);
+    int year = tm_utc.tm_year + 1900;
+    return (year >= TLS_TIME_MIN_YEAR && year < 2100);
+}
+
+static void ensure_tls_time_sync_if_needed(void)
+{
+    static int64_t s_last_sync_attempt_us = 0;
+
+    if (tls_time_is_sane()) {
+        return;
+    }
+
+    int64_t now_us = esp_timer_get_time();
+    if (s_last_sync_attempt_us != 0 && (now_us - s_last_sync_attempt_us) < 30000000LL) {
+        return;
+    }
+    s_last_sync_attempt_us = now_us;
+
+    ESP_LOGW(TAG, "System time is not sane for TLS, requesting SNTP sync");
+    if (!esp_sntp_enabled()) {
+        esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        esp_sntp_setservername(0, "pool.ntp.org");
+        esp_sntp_setservername(1, "time.google.com");
+        esp_sntp_init();
+    }
+
+    for (int i = 0; i < 50; i++) {
+        if (tls_time_is_sane()) {
+            ESP_LOGI(TAG, "SNTP sync recovered TLS clock validity");
+            break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
 static char *rms_fetch_json(const char *service_id, int *status_code)
 {
+    ensure_tls_time_sync_if_needed();
+
     char url[160];
     /* Add a timestamp query to avoid CDN returning stale segment payloads. */
     snprintf(url, sizeof(url), "https://rms.api.bbc.co.uk/v2/services/%s/segments/latest?t=%lld",
@@ -278,7 +326,10 @@ static char *rms_fetch_json(const char *service_id, int *status_code)
     esp_http_client_set_header(client, "User-Agent", "BBC-Radio-Player/esp32");
     esp_http_client_set_header(client, "Accept", "application/json");
     if (esp_http_client_open(client, 0) != ESP_OK) {
-        ESP_LOGW(TAG, "RMS open failed for service=%s", service_id);
+        ESP_LOGW(TAG, "RMS open failed for service=%s free8=%u largest8=%u",
+                 service_id,
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
         esp_http_client_cleanup(client);
         free(buf);
         if (status_code) *status_code = -1;
@@ -317,6 +368,8 @@ static char *rms_fetch_json(const char *service_id, int *status_code)
 
 static char *ess_fetch_json(const char *service_id, char *now_iso, size_t now_iso_len)
 {
+    ensure_tls_time_sync_if_needed();
+
     char url[176];
     snprintf(url, sizeof(url), "https://ess.api.bbci.co.uk/schedules?serviceId=%s&mediatypes=audio&t=%lld",
              service_id, (long long)(esp_timer_get_time() / 1000LL));
@@ -325,10 +378,14 @@ static char *ess_fetch_json(const char *service_id, char *now_iso, size_t now_is
         now_iso[0] = '\0';
     }
 
-    /* ESS responses are larger than RMS; keep a bigger buffer to avoid truncating JSON. */
-    size_t cap = 32768;
-    char *buf = malloc(cap);
+    /* ESS payloads vary; prefer PSRAM-backed allocation to avoid internal heap pressure. */
+    size_t cap = 16384;
+    char *buf = heap_caps_malloc(cap, MALLOC_CAP_SPIRAM);
     if (!buf) {
+        buf = malloc(cap);
+    }
+    if (!buf) {
+        ESP_LOGW(TAG, "ESS buffer alloc failed (%u bytes) for service=%s", (unsigned)cap, service_id);
         return NULL;
     }
 
@@ -351,7 +408,10 @@ static char *ess_fetch_json(const char *service_id, char *now_iso, size_t now_is
     esp_http_client_set_header(client, "Accept", "application/json");
 
     if (esp_http_client_open(client, 0) != ESP_OK) {
-        ESP_LOGW(TAG, "ESS open failed for service=%s", service_id);
+        ESP_LOGW(TAG, "ESS open failed for service=%s free8=%u largest8=%u",
+                 service_id,
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
         esp_http_client_cleanup(client);
         free(buf);
         return NULL;
@@ -407,12 +467,38 @@ static bool rms_parse_text(const char *json, char *out, size_t out_len)
     cJSON *chosen = NULL;
     if (cJSON_IsArray(data)) {
         cJSON *item = NULL;
+
+        /* Prefer an explicitly now-playing entry with usable title fields. */
         cJSON_ArrayForEach(item, data) {
+            cJSON *titles = cJSON_GetObjectItemCaseSensitive(item, "titles");
+            cJSON *primary = titles ? cJSON_GetObjectItemCaseSensitive(titles, "primary") : NULL;
+            cJSON *secondary = titles ? cJSON_GetObjectItemCaseSensitive(titles, "secondary") : NULL;
+            cJSON *tertiary = titles ? cJSON_GetObjectItemCaseSensitive(titles, "tertiary") : NULL;
+            bool has_text = (cJSON_IsString(primary) && primary->valuestring[0] != '\0') ||
+                            (cJSON_IsString(secondary) && secondary->valuestring[0] != '\0') ||
+                            (cJSON_IsString(tertiary) && tertiary->valuestring[0] != '\0');
+
             cJSON *offset = cJSON_GetObjectItemCaseSensitive(item, "offset");
             cJSON *now_playing = offset ? cJSON_GetObjectItemCaseSensitive(offset, "now_playing") : NULL;
-            if (cJSON_IsBool(now_playing) && cJSON_IsTrue(now_playing)) {
+            if (has_text && cJSON_IsBool(now_playing) && cJSON_IsTrue(now_playing)) {
                 chosen = item;
                 break;
+            }
+        }
+
+        /* Fallback to the first item that has any usable text. */
+        if (!chosen) {
+            cJSON_ArrayForEach(item, data) {
+                cJSON *titles = cJSON_GetObjectItemCaseSensitive(item, "titles");
+                cJSON *primary = titles ? cJSON_GetObjectItemCaseSensitive(titles, "primary") : NULL;
+                cJSON *secondary = titles ? cJSON_GetObjectItemCaseSensitive(titles, "secondary") : NULL;
+                cJSON *tertiary = titles ? cJSON_GetObjectItemCaseSensitive(titles, "tertiary") : NULL;
+                if ((cJSON_IsString(primary) && primary->valuestring[0] != '\0') ||
+                    (cJSON_IsString(secondary) && secondary->valuestring[0] != '\0') ||
+                    (cJSON_IsString(tertiary) && tertiary->valuestring[0] != '\0')) {
+                    chosen = item;
+                    break;
+                }
             }
         }
     }
@@ -534,21 +620,45 @@ static bool ess_parse_show_title(const char *json, const char *now_iso_override,
 static void rms_task(void *arg)
 {
     uint32_t my_gen = (uint32_t)(uintptr_t)arg;
+    TaskHandle_t self = xTaskGetCurrentTaskHandle();
+    char tracked_service_id[48] = {0};
     char last_text[RMS_TEXT_MAX] = {0};
     char last_ess[RMS_TEXT_MAX] = {0};
     char pending_text[RMS_TEXT_MAX] = {0};
     uint32_t failure_count = 0;
+    uint32_t network_failure_streak = 0;
     uint32_t ess_polls_until_refresh = 0;
     bool pending_is_clear = false;
     int64_t pending_apply_us = 0;
+    int64_t station_settle_until_us = 0;
     int poll_interval_ms = RMS_INITIAL_RETRY_MS;
 
     while (my_gen == s_rms_gen) {
         playback_state_t st = playback_get_state();
-        if (st.type != PLAYBACK_STATION || !st.station || !st.is_live) {
+        if (st.type != PLAYBACK_STATION || !st.station) {
             break;
         }
 
+        if (strcmp(tracked_service_id, st.station->service_id) != 0) {
+            strlcpy(tracked_service_id, st.station->service_id, sizeof(tracked_service_id));
+            last_text[0] = '\0';
+            last_ess[0] = '\0';
+            pending_text[0] = '\0';
+            failure_count = 0;
+            ess_polls_until_refresh = 0;
+            pending_is_clear = false;
+            pending_apply_us = 0;
+            station_settle_until_us = esp_timer_get_time() + ((int64_t)STATION_METADATA_SETTLE_MS * 1000LL);
+            poll_interval_ms = RMS_INITIAL_RETRY_MS;
+            lv_async_call(rms_clear_async, NULL);
+        }
+
+        if (station_settle_until_us != 0 && esp_timer_get_time() < station_settle_until_us) {
+            vTaskDelay(pdMS_TO_TICKS(200));
+            continue;
+        }
+
+        bool loop_had_success = false;
         int rms_status = -1;
         char *json = rms_fetch_json(st.station->service_id, &rms_status);
         if (my_gen != s_rms_gen) {
@@ -564,6 +674,7 @@ static void rms_task(void *arg)
                     pending_is_clear = false;
                     pending_apply_us = esp_timer_get_time() + ((int64_t)RMS_APPLY_DELAY_MS * 1000LL);
                 }
+                loop_had_success = true;
             } else {
                 ESP_LOGW(TAG, "RMS parse produced empty text for service=%s", st.station->service_id);
                 if (last_text[0] != '\0' || !pending_is_clear) {
@@ -588,7 +699,8 @@ static void rms_task(void *arg)
             }
         }
 
-        if (ess_polls_until_refresh == 0 || last_ess[0] == '\0') {
+        bool need_ess = (last_text[0] == '\0') && (ess_polls_until_refresh == 0 || last_ess[0] == '\0');
+        if (need_ess) {
             char now_iso[20] = {0};
             char *ess_json = ess_fetch_json(st.station->service_id, now_iso, sizeof(now_iso));
             if (my_gen != s_rms_gen) {
@@ -605,6 +717,9 @@ static void rms_task(void *arg)
                         strlcpy(last_ess, show_title, sizeof(last_ess));
                             lv_async_call(ess_apply_text_async, payload);
                     }
+                    loop_had_success = true;
+                } else if (show_title[0] != '\0') {
+                    loop_had_success = true;
                 } else if (show_title[0] == '\0') {
                     ESP_LOGW(TAG, "ESS parse produced empty text for service=%s", st.station->service_id);
                 }
@@ -615,8 +730,20 @@ static void rms_task(void *arg)
             ess_polls_until_refresh--;
         }
 
+        if (loop_had_success) {
+            network_failure_streak = 0;
+        } else {
+            network_failure_streak++;
+        }
+
         if (last_text[0] != '\0' || last_ess[0] != '\0' || pending_text[0] != '\0') {
             poll_interval_ms = RMS_POLL_INTERVAL_MS;
+        } else if (network_failure_streak >= 12) {
+            poll_interval_ms = 60000;
+        } else if (network_failure_streak >= 6) {
+            poll_interval_ms = 30000;
+        } else if (network_failure_streak >= 3) {
+            poll_interval_ms = 15000;
         } else {
             poll_interval_ms = RMS_INITIAL_RETRY_MS;
         }
@@ -662,7 +789,7 @@ static void rms_task(void *arg)
         }
     }
 
-    if (my_gen == s_rms_gen) {
+    if (s_rms_task == self) {
         s_rms_task = NULL;
     }
     vTaskDelete(NULL);
@@ -676,11 +803,20 @@ static void rms_ensure_tracking(const station_t *station)
     }
 
     if (strcmp(s_rms_service_id, station->service_id) == 0 && s_rms_task != NULL) {
+        /* Keep restart_pending true until the previous generation actually exits. */
+        return;
+    }
+
+    if (s_rms_task != NULL) {
+        s_rms_gen++;
+        s_rms_restart_pending = true;
+        strlcpy(s_rms_service_id, station->service_id, sizeof(s_rms_service_id));
+        lv_async_call(rms_clear_async, NULL);
         return;
     }
 
     s_rms_gen++;
-    s_rms_task = NULL;
+    s_rms_restart_pending = false;
     strlcpy(s_rms_service_id, station->service_id, sizeof(s_rms_service_id));
     lv_async_call(rms_clear_async, NULL);
 
@@ -717,27 +853,18 @@ static void station_switch_task(void *arg)
             break;
         }
 
-        int idx = 0;
-        const station_t *all = stations_get_all();
-        size_t count = stations_count();
-        for (size_t i = 0; i < count; i++) {
-            if (&all[i] == st.station) {
-                idx = (int)i;
+        int steps = (delta < 0) ? -delta : delta;
+        for (int i = 0; i < steps; i++) {
+            esp_err_t err = (delta > 0) ? playback_next_station() : playback_prev_station();
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "station switch failed: 0x%x", (unsigned)err);
                 break;
             }
+
+            /* Clear stale metadata between steps; the active tracker will repopulate. */
+            lv_async_call(rms_clear_async, NULL);
         }
 
-        int next_idx = (idx + delta) % (int)count;
-        if (next_idx < 0) {
-            next_idx += (int)count;
-        }
-
-        preview_station_ui(&all[next_idx]);
-
-        esp_err_t err = playback_play_station(&all[next_idx]);
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG, "station switch failed: 0x%x", (unsigned)err);
-        }
         lv_async_call(screen_now_playing_refresh, NULL);
     }
 
@@ -748,24 +875,6 @@ static void station_switch_task(void *arg)
 static void queue_station_switch(int delta)
 {
     s_pending_station_delta += delta;
-
-    playback_state_t st = playback_get_state();
-    if (st.type == PLAYBACK_STATION && st.station) {
-        const station_t *all = stations_get_all();
-        size_t count = stations_count();
-        int idx = 0;
-        for (size_t i = 0; i < count; i++) {
-            if (&all[i] == st.station) {
-                idx = (int)i;
-                break;
-            }
-        }
-        int preview_idx = (idx + s_pending_station_delta) % (int)count;
-        if (preview_idx < 0) {
-            preview_idx += (int)count;
-        }
-        preview_station_ui(&all[preview_idx]);
-    }
 
     if (s_station_switch_task == NULL) {
         if (xTaskCreate(station_switch_task, "station_sw", 4096, NULL, 4, &s_station_switch_task) != pdPASS) {
@@ -817,7 +926,6 @@ static void on_screen_delete(lv_event_t *e)
     rms_stop_tracking();
     s_lbl_title     = NULL;
     s_lbl_subtitle  = NULL;
-    s_lbl_header_title = NULL;
     s_station_badge = NULL;
     s_station_badge_lbl = NULL;
     s_btn_playpause = NULL;
@@ -834,8 +942,8 @@ static void on_progress_timer(lv_timer_t *t)
 {
     (void)t;
     playback_state_t st = playback_get_state();
-    if (st.type == PLAYBACK_STATION && st.station && st.is_live) {
-        if (s_rms_task == NULL) {
+    if (st.type == PLAYBACK_STATION && st.station) {
+        if (s_rms_task == NULL || s_rms_restart_pending) {
             rms_ensure_tracking(st.station);
         }
     } else if (st.type == PLAYBACK_EPISODE) {
@@ -862,17 +970,10 @@ void screen_now_playing_refresh(void *arg)
     playback_state_t st = playback_get_state();
 
     if (st.type == PLAYBACK_STATION && st.station) {
-        if (s_lbl_header_title) {
-            lv_label_set_text(s_lbl_header_title, "Now Playing");
-            lv_label_set_long_mode(s_lbl_header_title, LV_LABEL_LONG_DOT);
-            lv_obj_set_width(s_lbl_header_title, 160);
-            lv_obj_set_style_anim_speed(s_lbl_header_title, 20, LV_PART_MAIN);
-            lv_obj_align(s_lbl_header_title, LV_ALIGN_CENTER, 0, 1);
-        }
         char station_title[64];
+        const char *live_subtitle = NULL;
         station_display_title(st.station, station_title, sizeof(station_title));
         s_last_station = st.station;
-        rms_ensure_tracking(st.station);
         lv_obj_set_width(s_lbl_title, TITLE_W_WITH_BADGE);
         lv_obj_align(s_lbl_title, LV_ALIGN_TOP_LEFT, TITLE_X_WITH_BADGE, UI_HEADER_HEIGHT + 25);
         if (s_station_badge && s_station_badge_lbl) {
@@ -880,8 +981,17 @@ void screen_now_playing_refresh(void *arg)
             lv_obj_set_style_bg_color(s_station_badge, station_logo_bg(st.station), LV_PART_MAIN);
             lv_label_set_text(s_station_badge_lbl, station_logo_label(st.station));
         }
-        lv_label_set_text(s_lbl_title,    station_title);
-        lv_label_set_text(s_lbl_subtitle, s_rms_text[0] ? s_rms_text : (s_ess_text[0] ? s_ess_text : "BBC Radio Live"));
+
+        if (s_rms_text[0]) {
+            live_subtitle = s_rms_text;
+        } else if (s_ess_text[0]) {
+            live_subtitle = s_ess_text;
+        } else {
+            live_subtitle = "Loading...";
+        }
+
+        lv_label_set_text(s_lbl_title, station_title);
+        lv_label_set_text(s_lbl_subtitle, live_subtitle);
         lv_label_set_long_mode(s_lbl_title, LV_LABEL_LONG_DOT);
         lv_label_set_long_mode(s_lbl_subtitle, LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_set_style_anim_speed(s_lbl_title, 18, LV_PART_MAIN);
@@ -890,14 +1000,6 @@ void screen_now_playing_refresh(void *arg)
         lv_obj_add_flag(s_lbl_elapsed,   LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
     } else if (st.type == PLAYBACK_EPISODE) {
-        if (s_lbl_header_title) {
-            const char *header_title = st.podcast_title[0] ? st.podcast_title : "Now Playing";
-            lv_label_set_text(s_lbl_header_title, header_title);
-            lv_label_set_long_mode(s_lbl_header_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
-            lv_obj_set_width(s_lbl_header_title, 160);
-            lv_obj_set_style_anim_speed(s_lbl_header_title, 20, LV_PART_MAIN);
-            lv_obj_align(s_lbl_header_title, LV_ALIGN_CENTER, 0, 1);
-        }
         rms_stop_tracking();
         lv_obj_set_width(s_lbl_title, TITLE_W_NO_BADGE);
         lv_obj_align(s_lbl_title, LV_ALIGN_TOP_LEFT, TITLE_X_NO_BADGE, UI_HEADER_HEIGHT + 25);
@@ -933,13 +1035,6 @@ void screen_now_playing_refresh(void *arg)
         }
     } else {
         rms_stop_tracking();
-        if (s_lbl_header_title) {
-            lv_label_set_text(s_lbl_header_title, "Now Playing");
-            lv_label_set_long_mode(s_lbl_header_title, LV_LABEL_LONG_DOT);
-            lv_obj_set_width(s_lbl_header_title, 160);
-            lv_obj_set_style_anim_speed(s_lbl_header_title, 20, LV_PART_MAIN);
-            lv_obj_align(s_lbl_header_title, LV_ALIGN_CENTER, 0, 1);
-        }
         if (s_last_station) {
             char station_title[64];
             station_display_title(s_last_station, station_title, sizeof(station_title));
@@ -968,11 +1063,15 @@ void screen_now_playing_refresh(void *arg)
         lv_obj_add_flag(s_lbl_remaining, LV_OBJ_FLAG_HIDDEN);
     }
 
-    lv_obj_t *btn_lbl = lv_obj_get_child(s_btn_playpause, 0);
-    if (st.type == PLAYBACK_STATION && st.is_playing) {
-        lv_label_set_text(btn_lbl, LV_SYMBOL_STOP);
-    } else {
-        lv_label_set_text(btn_lbl, st.is_playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+    if (s_btn_playpause && lv_obj_is_valid(s_btn_playpause)) {
+        lv_obj_t *btn_lbl = lv_obj_get_child(s_btn_playpause, 0);
+        if (btn_lbl) {
+            if (st.type == PLAYBACK_STATION && st.is_playing) {
+                lv_label_set_text(btn_lbl, LV_SYMBOL_STOP);
+            } else {
+                lv_label_set_text(btn_lbl, st.is_playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+            }
+        }
     }
 }
 
@@ -991,16 +1090,6 @@ lv_obj_t *screen_now_playing_create(void)
     lv_obj_add_event_cb(scr, on_screen_delete, LV_EVENT_DELETE, NULL);
 
     ui_create_header(scr, "Now Playing", true);
-    lv_obj_t *hdr = lv_obj_get_child(scr, 0);
-    if (hdr) {
-        s_lbl_header_title = lv_obj_get_child(hdr, 0);
-        if (s_lbl_header_title) {
-            lv_label_set_long_mode(s_lbl_header_title, LV_LABEL_LONG_DOT);
-            lv_obj_set_width(s_lbl_header_title, 160);
-            lv_obj_set_style_text_align(s_lbl_header_title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-            lv_obj_align(s_lbl_header_title, LV_ALIGN_CENTER, 0, 1);
-        }
-    }
 
     /* Station logo badge (shown for live radio). */
     s_station_badge = lv_obj_create(scr);

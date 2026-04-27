@@ -54,6 +54,7 @@ static lv_timer_t *s_power_off_timer = NULL;
 
 #define MAX_BAT_WIDGETS 16
 static lv_obj_t  *s_battery_fills[MAX_BAT_WIDGETS];
+static lv_obj_t  *s_battery_bolts[MAX_BAT_WIDGETS];
 static int        s_battery_fill_count = 0;
 static lv_timer_t *s_battery_timer = NULL;
 
@@ -261,7 +262,7 @@ static void ui_touch_wake_cb(lv_event_t *e)
 
 static lv_color_t battery_fill_color(int level, bool charging)
 {
-    if (charging)  return lv_color_make(0x00, 0xCC, 0xFF); /* cyan  */
+    if (charging)  return lv_color_make(0x2E, 0xC4, 0x4F); /* charging green */
     if (level >= 60) return lv_color_make(0x44, 0xBB, 0x44); /* green */
     if (level >= 20) return lv_color_make(0xFF, 0xAA, 0x00); /* amber */
     return lv_color_make(0xFF, 0x33, 0x33);                  /* red   */
@@ -288,6 +289,15 @@ static void battery_widgets_update(void)
             lv_obj_set_size(f, fill_w > 0 ? fill_w : 1, 10);
             lv_obj_set_style_bg_opa(f, fill_w > 0 ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
             lv_obj_set_style_bg_color(f, color, LV_PART_MAIN);
+        }
+
+        lv_obj_t *bolt = s_battery_bolts[i];
+        if (bolt && lv_obj_is_valid(bolt)) {
+            if (charging) {
+                lv_obj_clear_flag(bolt, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_add_flag(bolt, LV_OBJ_FLAG_HIDDEN);
+            }
         }
     }
 }
@@ -649,6 +659,16 @@ void ui_create_header(lv_obj_t *parent, const char *title, bool show_back)
         lv_obj_set_style_border_width(bat_fill, 0, LV_PART_MAIN);
         lv_obj_clear_flag(bat_fill, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
+        lv_obj_t *bat_bolt = lv_label_create(bat_body);
+        lv_label_set_text(bat_bolt, LV_SYMBOL_CHARGE);
+        lv_obj_set_style_text_color(bat_bolt, lv_color_white(), LV_PART_MAIN);
+        lv_obj_set_style_text_font(bat_bolt, &lv_font_montserrat_14, LV_PART_MAIN);
+        lv_obj_center(bat_bolt);
+        if (!charging) {
+            lv_obj_add_flag(bat_bolt, LV_OBJ_FLAG_HIDDEN);
+        }
+
         s_battery_fills[s_battery_fill_count++] = bat_fill;
+        s_battery_bolts[s_battery_fill_count - 1] = bat_bolt;
     }
 }
