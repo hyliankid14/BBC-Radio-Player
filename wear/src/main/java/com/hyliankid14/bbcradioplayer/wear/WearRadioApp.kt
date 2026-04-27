@@ -690,7 +690,7 @@ private fun EpisodeListScreen(
                             val secondary = when {
                                 isPlayed -> "Played"
                                 progressMs > 0L -> "Resume at ${formatPosition(progressMs)}"
-                                episode.pubDate.isNotBlank() -> episode.pubDate
+                                episode.pubDate.isNotBlank() -> episode.pubDate.replace(Regex("\\s[+-]\\d{4}$"), "")
                                 else -> "Play episode"
                             }
                             Text(text = secondary, maxLines = secondaryMaxLines, overflow = TextOverflow.Ellipsis)
