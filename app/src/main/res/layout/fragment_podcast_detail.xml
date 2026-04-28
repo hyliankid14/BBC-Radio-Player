@@ -154,7 +154,7 @@
         android:id="@+id/episode_selection_toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="top"
+        android:layout_gravity="bottom"
         android:visibility="gone"
         android:background="?attr/colorSurfaceContainer"
         android:minHeight="56dp"

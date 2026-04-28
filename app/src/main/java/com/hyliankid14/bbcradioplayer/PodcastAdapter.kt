@@ -289,9 +289,24 @@ class EpisodeAdapter(
 
     private var selectedEpisodeIds: Set<String> = emptySet()
 
-    fun setSelectedEpisodeIds(ids: Set<String>) {
-        selectedEpisodeIds = ids
-        notifyDataSetChanged()
+    fun setSelectedEpisodeIds(newIds: Set<String>) {
+        val prevIsSelectionMode = selectedEpisodeIds.isNotEmpty()
+        val newIsSelectionMode = newIds.isNotEmpty()
+        val prevIds = selectedEpisodeIds
+        selectedEpisodeIds = newIds
+
+        if (prevIsSelectionMode != newIsSelectionMode) {
+            // Selection mode switched on or off — all items need to update
+            // (play button ↔ checkbox visibility changes for every row)
+            notifyDataSetChanged()
+        } else {
+            // Already in selection mode — only notify the row(s) whose checked state changed
+            val changed = (prevIds + newIds) - prevIds.intersect(newIds)
+            changed.forEach { id ->
+                val pos = displayItems.indexOfFirst { it is DisplayItem.EpisodeRow && it.episode.id == id }
+                if (pos != -1) notifyItemChanged(pos)
+            }
+        }
     }
 
     private sealed class DisplayItem {
@@ -656,12 +671,28 @@ class EpisodeAdapter(
                     onOpenFull(currentEpisode)
                 }
             }
+            titleView.setOnLongClickListener {
+                if (onEpisodeLongPress != null) {
+                    onEpisodeLongPress.invoke(currentEpisode)
+                    true
+                } else {
+                    false
+                }
+            }
 
             descriptionView.isClickable = true
             descriptionView.isFocusable = true
             descriptionView.setOnClickListener {
                 if (onEpisodeSelectionClick?.invoke(currentEpisode) != true) {
                     onOpenFull(currentEpisode)
+                }
+            }
+            descriptionView.setOnLongClickListener {
+                if (onEpisodeLongPress != null) {
+                    onEpisodeLongPress.invoke(currentEpisode)
+                    true
+                } else {
+                    false
                 }
             }
 
