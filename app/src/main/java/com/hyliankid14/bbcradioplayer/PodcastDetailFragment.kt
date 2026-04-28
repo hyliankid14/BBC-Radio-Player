@@ -36,7 +36,9 @@ class PodcastDetailFragment : Fragment() {
     private var episodesRecycler: RecyclerView? = null
     private var loadingIndicator: CircularProgressIndicator? = null
     private var emptyState: TextView? = null
-    private var episodeSelectionToolbar: com.google.android.material.appbar.MaterialToolbar? = null
+    private var episodeSelectionToolbar: android.view.View? = null
+    private var actionTogglePlayed: android.widget.Button? = null
+    private var actionToggleDownload: android.widget.Button? = null
     private val selectedEpisodes = linkedMapOf<String, Episode>()
     private var currentOffset = 0
     private var isLoadingPage = false
@@ -215,25 +217,19 @@ class PodcastDetailFragment : Fragment() {
             episodesAdapter?.setHidePlayedEpisodes(hidePlayedEpisodes)
             episodesRecycler.adapter = episodesAdapter
 
-            val selectionToolbar = view.findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.episode_selection_toolbar)
-            episodeSelectionToolbar = selectionToolbar
-            selectionToolbar.setNavigationOnClickListener {
+            episodeSelectionToolbar = view.findViewById(R.id.episode_selection_toolbar)
+            actionTogglePlayed = view.findViewById(R.id.action_episode_toggle_played)
+            actionToggleDownload = view.findViewById(R.id.action_episode_toggle_download)
+            view.findViewById<android.widget.ImageButton>(R.id.episode_selection_close).setOnClickListener {
                 clearEpisodeSelection()
             }
-            selectionToolbar.setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    R.id.action_episode_toggle_played -> {
-                        val allPlayed = selectedEpisodes.values.all { PlayedEpisodesPreference.isPlayed(requireContext(), it.id) }
-                        if (allPlayed) markSelectedEpisodesUnplayed() else markSelectedEpisodesPlayed()
-                        true
-                    }
-                    R.id.action_episode_toggle_download -> {
-                        val allDownloaded = selectedEpisodes.values.all { DownloadedEpisodes.isDownloaded(requireContext(), it) }
-                        if (allDownloaded) deleteDownloadsForSelectedEpisodes() else downloadSelectedEpisodes()
-                        true
-                    }
-                    else -> false
-                }
+            actionTogglePlayed?.setOnClickListener {
+                val allPlayed = selectedEpisodes.values.all { PlayedEpisodesPreference.isPlayed(requireContext(), it.id) }
+                if (allPlayed) markSelectedEpisodesUnplayed() else markSelectedEpisodesPlayed()
+            }
+            actionToggleDownload?.setOnClickListener {
+                val allDownloaded = selectedEpisodes.values.all { DownloadedEpisodes.isDownloaded(requireContext(), it) }
+                if (allDownloaded) deleteDownloadsForSelectedEpisodes() else downloadSelectedEpisodes()
             }
 
             // Listen for played-status changes so the list updates when items are marked/unmarked
@@ -400,16 +396,13 @@ class PodcastDetailFragment : Fragment() {
             toolbar.visibility = View.GONE
             return
         }
-        toolbar.title = null
         toolbar.visibility = View.VISIBLE
 
         val allPlayed = selectedEpisodes.values.all { PlayedEpisodesPreference.isPlayed(requireContext(), it.id) }
-        toolbar.menu.findItem(R.id.action_episode_toggle_played)?.title =
-            if (allPlayed) "Mark as unplayed" else "Mark as played"
+        actionTogglePlayed?.text = if (allPlayed) "Mark as unplayed" else "Mark as played"
 
         val allDownloaded = selectedEpisodes.values.all { DownloadedEpisodes.isDownloaded(requireContext(), it) }
-        toolbar.menu.findItem(R.id.action_episode_toggle_download)?.title =
-            if (allDownloaded) "Delete downloads" else "Download"
+        actionToggleDownload?.text = if (allDownloaded) "Delete downloads" else "Download"
     }
 
     private fun markSelectedEpisodesPlayed() {
@@ -499,6 +492,8 @@ class PodcastDetailFragment : Fragment() {
         loadingIndicator = null
         emptyState = null
         episodeSelectionToolbar = null
+        actionTogglePlayed = null
+        actionToggleDownload = null
         selectedEpisodes.clear()
         // Reset action bar state. Always hide here — the destination fragment manages its own
         // toolbar (PodcastsFragment, PodcastSearchFragment, etc.). If the landing page needs
