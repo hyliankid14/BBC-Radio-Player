@@ -154,6 +154,7 @@ class PodcastAdapter(
         private val titleView: TextView = itemView.findViewById(R.id.podcast_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.podcast_description)
         private val genresView: TextView = itemView.findViewById(R.id.podcast_genres)
+        private val tagsScroll: android.widget.HorizontalScrollView? = itemView.findViewById(R.id.podcast_tags_scroll)
         private val tagsGroup: ChipGroup? = itemView.findViewById(R.id.podcast_tags_group)
         private val notificationBell: ImageView = itemView.findViewById(R.id.podcast_notification_bell)
         private val dragHandle: ImageView? = itemView.findViewById(R.id.podcast_drag_handle)
@@ -283,7 +284,7 @@ class PodcastAdapter(
             // Tag chips (shown when onTagRemoved/onTagAdded are set) or plain genres text
             if (tagsGroup != null && (onTagRemoved != null || onTagAdded != null)) {
                 genresView.visibility = View.GONE
-                tagsGroup.visibility = View.VISIBLE
+                tagsScroll?.visibility = View.VISIBLE
                 tagsGroup.removeAllViews()
                 val density = itemView.resources.displayMetrics.density
                 val tags = PodcastTagsPreference.getTags(itemView.context, podcast).sorted()
@@ -311,7 +312,7 @@ class PodcastAdapter(
                 addChip.setOnClickListener { onTagAdded?.invoke(podcast) }
                 tagsGroup.addView(addChip)
             } else {
-                tagsGroup?.visibility = View.GONE
+                tagsScroll?.visibility = View.GONE
                 val genresText = podcast.genres.take(2).joinToString(", ")
                 genresView.text = genresText
                 genresView.visibility = if (genresText.isNotEmpty()) View.VISIBLE else View.GONE
