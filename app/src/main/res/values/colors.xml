@@ -65,7 +65,7 @@
     <!-- Icon colors -->
     <color name="icon_on_surface">#1C1B1F</color>
     
-    <!-- Tag chip colours (theme purple) -->
+    <!-- Tag chip colors (theme purple) -->
     <color name="chip_tag_background">#EADDFF</color>
     <color name="chip_tag_text">#21005D</color>
 </resources>
