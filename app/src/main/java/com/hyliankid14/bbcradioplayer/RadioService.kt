@@ -1030,11 +1030,19 @@ class RadioService : MediaBrowserServiceCompat() {
                                 val all = withContext(Dispatchers.IO) { repo.fetchPodcasts(false) }
                                 val subscribedPodcasts = all.filter { subscribed.contains(it.id) }
                                 val tags = PodcastTagsPreference.getAllTagsForSubscribed(this@RadioService, subscribedPodcasts)
+                                val tagMap = buildMap<String, List<Podcast>> {
+                                    tags.forEach { tag ->
+                                        put(tag, PodcastTagsPreference.getPodcastsForTag(this@RadioService, tag, subscribedPodcasts))
+                                    }
+                                }
                                 val tagItems = tags.map { tag ->
+                                    val podcastsInTag = tagMap[tag] ?: emptyList()
+                                    val subtitle = podcastsInTag.take(3).joinToString(", ") { it.title }
                                     MediaItem(
                                         MediaDescriptionCompat.Builder()
                                             .setMediaId("$MEDIA_ID_PODCASTS_TAG_PREFIX${tag}")
                                             .setTitle(tag)
+                                            .setSubtitle(subtitle)
                                             .build(),
                                         MediaItem.FLAG_BROWSABLE
                                     )
