@@ -2020,7 +2020,7 @@ class MainActivity : AppCompatActivity() {
                         return if (isManual) {
                             makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
                         } else {
-                            makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
+                            makeMovementFlags(0, 0)
                         }
                     }
 
