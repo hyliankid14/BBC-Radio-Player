@@ -26,7 +26,8 @@ class PodcastAdapter(
     private val onOpenPlayer: (() -> Unit)? = null,
     private val highlightSubscribed: Boolean = false,
     private val showSubscribedIcon: Boolean = true,
-    private val showNotificationBell: Boolean = true
+    private val showNotificationBell: Boolean = true,
+    private val onLongPodcastClick: ((Podcast) -> Unit)? = null
 ) : RecyclerView.Adapter<PodcastAdapter.PodcastViewHolder>() {
 
     private var newEpisodeIds: Set<String> = emptySet()
@@ -151,6 +152,15 @@ class PodcastAdapter(
                     val podcast = this@PodcastAdapter.podcasts[pos]
                     android.util.Log.d("PodcastAdapter", "Tapped podcast row: ${podcast.title}")
                     onPodcastClick(podcast)
+                }
+            }
+            if (onLongPodcastClick != null) {
+                itemView.setOnLongClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos != RecyclerView.NO_POSITION && pos < this@PodcastAdapter.podcasts.size) {
+                        onLongPodcastClick.invoke(this@PodcastAdapter.podcasts[pos])
+                    }
+                    true
                 }
             }
             titleView.setOnClickListener {
