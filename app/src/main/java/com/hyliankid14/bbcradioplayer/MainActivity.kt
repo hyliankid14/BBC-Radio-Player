@@ -2447,23 +2447,48 @@ class MainActivity : AppCompatActivity() {
      */
     private fun showAddTagForPodcast(podcast: Podcast, onAdded: () -> Unit) {
         try {
-            val edit = android.widget.EditText(this).apply {
+            val density = resources.displayMetrics.density
+            val horizontalPaddingPx = (16 * density).toInt()
+            val verticalPaddingPx = (8 * density).toInt()
+
+            // Collect existing tags across all subscribed podcasts for autocomplete suggestions
+            val allTags = PodcastTagsPreference.getAllTagsForSubscribed(this, currentSubscribedPodcasts)
+                .filter { !PodcastTagsPreference.getTags(this, podcast).any { t -> t.equals(it, ignoreCase = true) } }
+
+            val autoComplete = android.widget.AutoCompleteTextView(this).apply {
                 hint = "New tag"
                 inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
                 imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
-                setPadding(48, 24, 48, 8)
+                gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                threshold = 1
+                val adapter = android.widget.ArrayAdapter(
+                    this@MainActivity,
+                    android.R.layout.simple_dropdown_item_1line,
+                    allTags
+                )
+                setAdapter(adapter)
             }
+
+            // Wrap in a container for proper left/right margins
+            val container = android.widget.FrameLayout(this).apply {
+                setPadding(horizontalPaddingPx, verticalPaddingPx, horizontalPaddingPx, 0)
+                addView(autoComplete, android.widget.FrameLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                ))
+            }
+
             val dialog = AlertDialog.Builder(this)
                 .setTitle("Add tag")
-                .setView(edit)
+                .setView(container)
                 .setPositiveButton("Add", null)
                 .setNegativeButton("Cancel", null)
                 .create()
             dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
             dialog.setOnShowListener {
-                edit.requestFocus()
+                autoComplete.requestFocus()
                 dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                    val tag = edit.text.toString().trim()
+                    val tag = autoComplete.text.toString().trim()
                     when {
                         tag.isEmpty() -> { /* no-op: keep dialog open */ }
                         PodcastTagsPreference.getTags(this, podcast).any { it.equals(tag, ignoreCase = true) } -> {
