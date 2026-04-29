@@ -2358,6 +2358,7 @@ class MainActivity : AppCompatActivity() {
     private fun refreshSubscribedTagsRecycler() {
         try {
             val tagsRv = findViewById<RecyclerView>(R.id.subscribed_tags_recycler) ?: return
+            val listRv = findViewById<RecyclerView>(R.id.favorites_podcasts_recycler)
             val subscribedIds = PodcastSubscriptions.getSubscribedIds(this)
             Thread {
                 val repo = PodcastRepository(this)
@@ -2375,11 +2376,8 @@ class MainActivity : AppCompatActivity() {
                         supportActionBar?.title = item.name
                         // Populate podcast list with filtered results
                         val filtered = PodcastTagsPreference.getPodcastsForTag(this@MainActivity, item.name, subscribed)
-                        val rv = try { findViewById<RecyclerView>(R.id.favorites_podcasts_recycler) } catch (_: Exception) { null }
-                        if (rv != null) {
-                            val podAdapter = rv.adapter as? PodcastAdapter
-                            podAdapter?.updatePodcasts(filtered)
-                        }
+                        val podAdapter = listRv?.adapter as? PodcastAdapter
+                        podAdapter?.updatePodcasts(filtered)
                         refreshSubscribedViewMode()
                     }
                     tagsRv.adapter = adapter
@@ -2445,6 +2443,19 @@ class MainActivity : AppCompatActivity() {
                         0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f
                     )
                     inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                    imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+                    setOnEditorActionListener { _, actionId, _ ->
+                        if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+                            val newTag = text.toString().trim()
+                            if (newTag.isNotEmpty()) {
+                                PodcastTagsPreference.addTag(context, podcast, newTag)
+                                text.clear()
+                                rebuildChips()
+                                if (subscribedViewMode == "tags") refreshSubscribedTagsRecycler()
+                            }
+                            true
+                        } else false
+                    }
                 }
                 val addBtn = android.widget.Button(context).apply {
                     text = "Add"
