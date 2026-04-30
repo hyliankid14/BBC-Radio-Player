@@ -160,6 +160,12 @@ class PodcastAdapter(
         private val notificationBell: ImageView = itemView.findViewById(R.id.podcast_notification_bell)
         private val dragHandle: ImageView? = itemView.findViewById(R.id.podcast_drag_handle)
 
+        // Cache the last-rendered tags so we can skip the removeAllViews/re-add cycle
+        // when bind() is called again for the same podcast with unchanged tags (e.g. after
+        // notifyDataSetChanged). Avoids the chip-flicker on the Subscribed Podcasts page.
+        private var lastTagsPodcastId: String? = null
+        private var lastTagsList: List<String> = emptyList()
+
         init {
             // Use adapter position to safely resolve the podcast at the time of the click
             itemView.setOnClickListener {
@@ -286,40 +292,57 @@ class PodcastAdapter(
             if (tagsGroup != null && (onTagRemoved != null || onTagAdded != null)) {
                 genresView.visibility = View.GONE
                 tagsScroll?.visibility = View.VISIBLE
-                tagsGroup.removeAllViews()
-                val density = itemView.resources.displayMetrics.density
                 val tags = PodcastTagsPreference.getTags(itemView.context, podcast).sorted()
-                val chipBg = android.content.res.ColorStateList.valueOf(
-                    androidx.core.content.ContextCompat.getColor(itemView.context, R.color.chip_tag_background))
-                val chipText = androidx.core.content.ContextCompat.getColor(itemView.context, R.color.chip_tag_text)
-                tags.forEach { tag ->
-                    val chip = Chip(itemView.context)
-                    chip.text = tag
-                    chip.textSize = 10f
-                    chip.chipMinHeight = 24f * density
-                    chip.chipStartPadding = 6f * density
-                    chip.chipEndPadding = 6f * density
-                    chip.isCloseIconVisible = true
-                    chip.closeIconSize = 14f * density
-                    chip.isClickable = false
-                    chip.isFocusable = false
-                    chip.chipBackgroundColor = chipBg
-                    chip.setTextColor(chipText)
-                    chip.closeIconTint = android.content.res.ColorStateList.valueOf(chipText)
-                    chip.setOnCloseIconClickListener { onTagRemoved?.invoke(podcast, tag) }
-                    tagsGroup.addView(chip)
+                // Only rebuild chips when the tag list has actually changed for this podcast.
+                // Skipping the removeAllViews/re-add cycle eliminates the flicker caused by
+                // notifyDataSetChanged() rebinding unchanged rows (e.g. when the Subscribed
+                // Podcasts page first opens).
+                if (podcast.id != lastTagsPodcastId || tags != lastTagsList) {
+                    lastTagsPodcastId = podcast.id
+                    lastTagsList = tags
+                    tagsGroup.removeAllViews()
+                    val density = itemView.resources.displayMetrics.density
+                    val chipBg = android.content.res.ColorStateList.valueOf(
+                        androidx.core.content.ContextCompat.getColor(itemView.context, R.color.chip_tag_background))
+                    val chipText = androidx.core.content.ContextCompat.getColor(itemView.context, R.color.chip_tag_text)
+                    tags.forEach { tag ->
+                        val chip = Chip(itemView.context)
+                        chip.text = tag
+                        chip.textSize = 10f
+                        chip.chipMinHeight = 24f * density
+                        chip.chipStartPadding = 6f * density
+                        chip.chipEndPadding = 6f * density
+                        chip.isCloseIconVisible = true
+                        chip.closeIconSize = 14f * density
+                        chip.isClickable = false
+                        chip.isFocusable = false
+                        chip.chipBackgroundColor = chipBg
+                        chip.setTextColor(chipText)
+                        chip.closeIconTint = android.content.res.ColorStateList.valueOf(chipText)
+                        chip.setOnCloseIconClickListener { onTagRemoved?.invoke(podcast, tag) }
+                        tagsGroup.addView(chip)
+                    }
+                    val addChip = Chip(itemView.context)
+                    addChip.text = "+"
+                    addChip.textSize = 10f
+                    addChip.chipMinHeight = 24f * density
+                    addChip.chipStartPadding = 6f * density
+                    addChip.chipEndPadding = 6f * density
+                    addChip.isCloseIconVisible = false
+                    addChip.chipBackgroundColor = chipBg
+                    addChip.setTextColor(chipText)
+                    addChip.setOnClickListener { onTagAdded?.invoke(podcast) }
+                    tagsGroup.addView(addChip)
+                } else {
+                    // Tags are the same — update listener closures on existing chips so they
+                    // reference the freshly bound `podcast` object, without touching the views.
+                    tags.forEachIndexed { index, tag ->
+                        (tagsGroup.getChildAt(index) as? Chip)
+                            ?.setOnCloseIconClickListener { onTagRemoved?.invoke(podcast, tag) }
+                    }
+                    (tagsGroup.getChildAt(tags.size) as? Chip)
+                        ?.setOnClickListener { onTagAdded?.invoke(podcast) }
                 }
-                val addChip = Chip(itemView.context)
-                addChip.text = "+"
-                addChip.textSize = 10f
-                addChip.chipMinHeight = 24f * density
-                addChip.chipStartPadding = 6f * density
-                addChip.chipEndPadding = 6f * density
-                addChip.isCloseIconVisible = false
-                addChip.chipBackgroundColor = chipBg
-                addChip.setTextColor(chipText)
-                addChip.setOnClickListener { onTagAdded?.invoke(podcast) }
-                tagsGroup.addView(addChip)
             } else {
                 tagsScroll?.visibility = View.GONE
                 val genresText = podcast.genres.take(2).joinToString(", ")
