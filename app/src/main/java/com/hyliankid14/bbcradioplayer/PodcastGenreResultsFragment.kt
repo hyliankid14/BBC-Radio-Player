@@ -43,8 +43,7 @@ class PodcastGenreResultsFragment : Fragment() {
         recycler.layoutManager = LinearLayoutManager(requireContext())
         adapter = PodcastAdapter(
             context = requireContext(),
-            onPodcastClick = { podcast -> openPodcastDetail(podcast) },
-            showNotificationBell = false
+            onPodcastClick = { podcast -> openPodcastDetail(podcast) }
         )
         recycler.adapter = adapter
 

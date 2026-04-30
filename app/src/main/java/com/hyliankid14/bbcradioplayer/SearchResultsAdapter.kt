@@ -272,7 +272,6 @@ class SearchResultsAdapter(
         private val titleView: TextView = itemView.findViewById(R.id.podcast_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.podcast_description)
         private val subscribedIcon: ImageView? = itemView.findViewById(R.id.podcast_subscribed_icon)
-        private val notificationBell: ImageView? = itemView.findViewById(R.id.podcast_notification_bell)
 
         fun bind(podcast: Podcast) {
             titleView.text = podcast.title
@@ -301,9 +300,6 @@ class SearchResultsAdapter(
             } else {
                 subscribedIcon?.visibility = View.GONE
             }
-
-            // Search results do not expose per-row notification toggles.
-            notificationBell?.visibility = View.GONE
 
             itemView.setOnClickListener { onPodcastClick(podcast) }
             titleView.setOnClickListener { onPodcastClick(podcast) }

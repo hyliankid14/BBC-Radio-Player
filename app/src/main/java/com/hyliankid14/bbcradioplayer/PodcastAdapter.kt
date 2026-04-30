@@ -29,15 +29,13 @@ class PodcastAdapter(
     private val onOpenPlayer: (() -> Unit)? = null,
     private val highlightSubscribed: Boolean = false,
     private val showSubscribedIcon: Boolean = true,
-    private val showNotificationBell: Boolean = true,
     private val onLongPodcastClick: ((Podcast) -> Unit)? = null
 ) : RecyclerView.Adapter<PodcastAdapter.PodcastViewHolder>() {
 
     private var newEpisodeIds: Set<String> = emptySet()
     
-    // Cache subscription and notification status to avoid repeated SharedPreferences reads
+    // Cache subscription status to avoid repeated SharedPreferences reads
     private var subscribedIds: Set<String> = emptySet()
-    private var notificationsEnabledIds: Set<String> = emptySet()
 
     /** When true, drag handle icons are shown on each podcast row. */
     var showDragHandles: Boolean = false
@@ -69,7 +67,6 @@ class PodcastAdapter(
     
     private fun refreshSubscriptionCache() {
         subscribedIds = PodcastSubscriptions.getSubscribedIds(context)
-        notificationsEnabledIds = PodcastSubscriptions.getNotificationsEnabledIds(context)
     }
 
     fun updatePodcasts(newPodcasts: List<Podcast>) {
@@ -157,7 +154,6 @@ class PodcastAdapter(
         private val genresView: TextView = itemView.findViewById(R.id.podcast_genres)
         private val tagsScroll: HorizontalScrollView? = itemView.findViewById(R.id.podcast_tags_scroll)
         private val tagsGroup: ChipGroup? = itemView.findViewById(R.id.podcast_tags_group)
-        private val notificationBell: ImageView = itemView.findViewById(R.id.podcast_notification_bell)
         private val dragHandle: ImageView? = itemView.findViewById(R.id.podcast_drag_handle)
 
         // Cache the last-rendered state so we can skip the removeAllViews/re-add cycle when
@@ -219,30 +215,6 @@ class PodcastAdapter(
                 }
                 false
             }
-            
-            // Bell icon click handler - toggle notifications
-            notificationBell.setOnClickListener {
-                val pos = bindingAdapterPosition
-                if (pos != RecyclerView.NO_POSITION && pos < this@PodcastAdapter.podcasts.size) {
-                    val podcast = this@PodcastAdapter.podcasts[pos]
-                    PodcastSubscriptions.toggleNotifications(itemView.context, podcast.id)
-                    refreshSubscriptionCache()
-                    
-                    // Show feedback
-                    val enabled = notificationsEnabledIds.contains(podcast.id)
-                    val msg = if (enabled) "Notifications enabled for ${podcast.title}" 
-                             else "Notifications disabled for ${podcast.title}"
-                    android.widget.Toast.makeText(itemView.context, msg, android.widget.Toast.LENGTH_SHORT).show()
-                    
-                    updateBellIcon(podcast.id)
-                }
-            }
-        }
-        
-        private fun updateBellIcon(podcastId: String) {
-            val enabled = notificationsEnabledIds.contains(podcastId)
-            val iconRes = if (enabled) R.drawable.ic_notifications else R.drawable.ic_notifications_off
-            notificationBell.setImageResource(iconRes)
         }
 
         fun bind(podcast: Podcast) {
@@ -270,14 +242,6 @@ class PodcastAdapter(
                 subscribedIcon?.visibility = View.VISIBLE
             } else {
                 subscribedIcon?.visibility = View.GONE
-            }
-
-            // Show notification bell only for subscribed podcasts when enabled
-            if (showNotificationBell && isSubscribed) {
-                notificationBell.visibility = View.VISIBLE
-                updateBellIcon(podcast.id)
-            } else {
-                notificationBell.visibility = View.GONE
             }
 
             // New-episode indicator dot (shown when this podcast has unseen episodes)

@@ -893,7 +893,7 @@ class PodcastsFragment : Fragment() {
         }
 
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        podcastAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast -> onPodcastClicked(podcast) }, showNotificationBell = false)
+        podcastAdapter = PodcastAdapter(requireContext(), onPodcastClick = { podcast -> onPodcastClicked(podcast) })
         recyclerView.itemAnimator = null
 
         requireContext().registerReceiver(
