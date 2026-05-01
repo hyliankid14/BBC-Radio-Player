@@ -41,6 +41,7 @@ class PodcastDetailFragment : Fragment() {
     private var actionToggleDownload: com.google.android.material.chip.Chip? = null
     private var actionAddToPlaylist: com.google.android.material.chip.Chip? = null
     private var chipsScrollView: android.widget.HorizontalScrollView? = null
+    private var chipsScrollPeekAnimator: android.animation.AnimatorSet? = null
     private var scrollToTopFab: com.google.android.material.floatingactionbutton.FloatingActionButton? = null
     private val selectedEpisodes = linkedMapOf<String, Episode>()
     private var currentOffset = 0
@@ -419,14 +420,29 @@ class PodcastDetailFragment : Fragment() {
             it.requestLayout()
         }
 
-        // On first reveal, do a brief scroll-right peek so the user knows chips can be scrolled
+        // On first reveal, do a brief scroll-right peek so the user knows chips can be scrolled.
+        // ValueAnimator drives scrollX directly so forward and return are smooth and properly
+        // sequenced — no timing race between smoothScrollTo calls.
         if (wasHidden) {
             chipsScrollView?.post {
                 val sv = chipsScrollView ?: return@post
                 val peekDistance = ((sv.getChildAt(0)?.width ?: 0) - sv.width).coerceAtLeast(0)
                 if (peekDistance > 0) {
-                    sv.smoothScrollTo(peekDistance, 0)
-                    sv.postDelayed({ sv.smoothScrollTo(0, 0) }, SCROLL_PEEK_DELAY_MS)
+                    val forward = android.animation.ValueAnimator.ofInt(0, peekDistance).apply {
+                        duration = SCROLL_PEEK_FORWARD_MS
+                        interpolator = android.view.animation.DecelerateInterpolator()
+                        addUpdateListener { sv.scrollX = it.animatedValue as Int }
+                    }
+                    val back = android.animation.ValueAnimator.ofInt(peekDistance, 0).apply {
+                        duration = SCROLL_PEEK_RETURN_MS
+                        interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                        addUpdateListener { sv.scrollX = it.animatedValue as Int }
+                    }
+                    android.animation.AnimatorSet().also { set ->
+                        chipsScrollPeekAnimator = set
+                        set.playSequentially(forward, back)
+                        set.start()
+                    }
                 }
             }
         }
@@ -589,6 +605,8 @@ class PodcastDetailFragment : Fragment() {
         actionTogglePlayed = null
         actionToggleDownload = null
         actionAddToPlaylist = null
+        chipsScrollPeekAnimator?.cancel()
+        chipsScrollPeekAnimator = null
         chipsScrollView = null
         scrollToTopFab = null
         selectedEpisodes.clear()
@@ -797,6 +815,7 @@ class PodcastDetailFragment : Fragment() {
     }
 
     companion object {
-        private const val SCROLL_PEEK_DELAY_MS = 600L
+        private const val SCROLL_PEEK_FORWARD_MS = 400L
+        private const val SCROLL_PEEK_RETURN_MS = 500L
     }
 }
