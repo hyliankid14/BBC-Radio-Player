@@ -39,6 +39,7 @@ class PodcastDetailFragment : Fragment() {
     private var episodeSelectionToolbar: android.view.View? = null
     private var actionTogglePlayed: android.widget.Button? = null
     private var actionToggleDownload: android.widget.Button? = null
+    private var actionAddToPlaylist: android.widget.Button? = null
     private var scrollToTopFab: com.google.android.material.floatingactionbutton.FloatingActionButton? = null
     private val selectedEpisodes = linkedMapOf<String, Episode>()
     private var currentOffset = 0
@@ -231,6 +232,10 @@ class PodcastDetailFragment : Fragment() {
             actionToggleDownload?.setOnClickListener {
                 val allDownloaded = selectedEpisodes.values.all { DownloadedEpisodes.isDownloaded(requireContext(), it) }
                 if (allDownloaded) deleteDownloadsForSelectedEpisodes() else downloadSelectedEpisodes()
+            }
+            actionAddToPlaylist = view.findViewById(R.id.action_episode_add_to_playlist)
+            actionAddToPlaylist?.setOnClickListener {
+                showBulkAddToPlaylistDialog()
             }
 
             // Listen for played-status changes so the list updates when items are marked/unmarked
@@ -469,6 +474,62 @@ class PodcastDetailFragment : Fragment() {
         clearEpisodeSelection()
     }
 
+    private fun showBulkAddToPlaylistDialog() {
+        val selected = selectedEpisodes.values.toList()
+        if (selected.isEmpty()) return
+
+        val context = requireContext()
+        val playlists = PodcastPlaylists.getPlaylists(context)
+        val names = playlists.map { it.name } + "Create new playlist"
+
+        androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle("Add to playlist")
+            .setItems(names.toTypedArray()) { _, which ->
+                if (which == playlists.size) {
+                    promptCreatePlaylistAndAddSelected(selected)
+                } else {
+                    addSelectedEpisodesToPlaylist(playlists[which].id, playlists[which].name, selected)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun promptCreatePlaylistAndAddSelected(selected: List<Episode>) {
+        val input = android.widget.EditText(requireContext()).apply {
+            hint = "Playlist name"
+            setSingleLine()
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Create playlist")
+            .setView(input)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Create") { _, _ ->
+                val name = input.text?.toString().orEmpty().trim()
+                if (name.isBlank()) {
+                    android.widget.Toast.makeText(requireContext(), "Playlist name required", android.widget.Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val playlist = PodcastPlaylists.createPlaylist(requireContext(), name)
+                addSelectedEpisodesToPlaylist(playlist.id, playlist.name, selected)
+            }
+            .show()
+    }
+
+    private fun addSelectedEpisodesToPlaylist(playlistId: String, playlistName: String, selected: List<Episode>) {
+        val podcastTitle = currentPodcast?.title
+        var added = 0
+        selected.forEach { episode ->
+            if (PodcastPlaylists.addEpisodeToPlaylist(requireContext(), playlistId, episode, podcastTitle)) {
+                added++
+            }
+        }
+        val message = if (added == 1) "1 episode added to $playlistName" else "$added episodes added to $playlistName"
+        android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_SHORT).show()
+        clearEpisodeSelection()
+    }
+
     private fun playEpisode(episode: Episode) {
         val intent = Intent(requireContext(), RadioService::class.java).apply {
             action = RadioService.ACTION_PLAY_PODCAST_EPISODE
@@ -507,6 +568,7 @@ class PodcastDetailFragment : Fragment() {
         episodeSelectionToolbar = null
         actionTogglePlayed = null
         actionToggleDownload = null
+        actionAddToPlaylist = null
         scrollToTopFab = null
         selectedEpisodes.clear()
         // Reset action bar state. Always hide here — the destination fragment manages its own
