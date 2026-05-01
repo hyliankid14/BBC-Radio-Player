@@ -37,9 +37,9 @@ class PodcastDetailFragment : Fragment() {
     private var loadingIndicator: CircularProgressIndicator? = null
     private var emptyState: TextView? = null
     private var episodeSelectionToolbar: android.view.View? = null
-    private var actionTogglePlayed: android.widget.Button? = null
-    private var actionToggleDownload: android.widget.Button? = null
-    private var actionAddToPlaylist: android.widget.Button? = null
+    private var actionTogglePlayed: com.google.android.material.chip.Chip? = null
+    private var actionToggleDownload: com.google.android.material.chip.Chip? = null
+    private var actionAddToPlaylist: com.google.android.material.chip.Chip? = null
     private var scrollToTopFab: com.google.android.material.floatingactionbutton.FloatingActionButton? = null
     private val selectedEpisodes = linkedMapOf<String, Episode>()
     private var currentOffset = 0
