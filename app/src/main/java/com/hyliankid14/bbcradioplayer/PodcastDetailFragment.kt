@@ -40,6 +40,7 @@ class PodcastDetailFragment : Fragment() {
     private var actionTogglePlayed: com.google.android.material.chip.Chip? = null
     private var actionToggleDownload: com.google.android.material.chip.Chip? = null
     private var actionAddToPlaylist: com.google.android.material.chip.Chip? = null
+    private var chipsScrollView: android.widget.HorizontalScrollView? = null
     private var scrollToTopFab: com.google.android.material.floatingactionbutton.FloatingActionButton? = null
     private val selectedEpisodes = linkedMapOf<String, Episode>()
     private var currentOffset = 0
@@ -220,6 +221,7 @@ class PodcastDetailFragment : Fragment() {
             episodesRecycler.adapter = episodesAdapter
 
             episodeSelectionToolbar = view.findViewById(R.id.episode_selection_toolbar)
+            chipsScrollView = view.findViewById(R.id.episode_chips_scroll)
             actionTogglePlayed = view.findViewById(R.id.action_episode_toggle_played)
             actionToggleDownload = view.findViewById(R.id.action_episode_toggle_download)
             view.findViewById<android.widget.ImageButton>(R.id.episode_selection_close).setOnClickListener {
@@ -410,10 +412,23 @@ class PodcastDetailFragment : Fragment() {
             }
             return
         }
+        val wasHidden = toolbar.visibility != View.VISIBLE
         toolbar.visibility = View.VISIBLE
         fab?.let {
             (it.layoutParams as? android.widget.FrameLayout.LayoutParams)?.bottomMargin = fabMarginDefaultPx + toolbarHeightPx
             it.requestLayout()
+        }
+
+        // On first reveal, do a brief scroll-right peek so the user knows chips can be scrolled
+        if (wasHidden) {
+            chipsScrollView?.post {
+                val sv = chipsScrollView ?: return@post
+                val peekDistance = ((sv.getChildAt(0)?.width ?: 0) - sv.width).coerceAtLeast(0)
+                if (peekDistance > 0) {
+                    sv.smoothScrollTo(peekDistance, 0)
+                    sv.postDelayed({ sv.smoothScrollTo(0, 0) }, SCROLL_PEEK_DELAY_MS)
+                }
+            }
         }
 
         val allPlayed = selectedEpisodes.values.all { PlayedEpisodesPreference.isPlayed(requireContext(), it.id) }
@@ -574,6 +589,7 @@ class PodcastDetailFragment : Fragment() {
         actionTogglePlayed = null
         actionToggleDownload = null
         actionAddToPlaylist = null
+        chipsScrollView = null
         scrollToTopFab = null
         selectedEpisodes.clear()
         // Reset action bar state. Always hide here — the destination fragment manages its own
@@ -778,5 +794,9 @@ class PodcastDetailFragment : Fragment() {
             isLoadingPage = false
             recycler.post { maybeLoadMoreIfContentShort() }
         }
+    }
+
+    companion object {
+        private const val SCROLL_PEEK_DELAY_MS = 600L
     }
 }
