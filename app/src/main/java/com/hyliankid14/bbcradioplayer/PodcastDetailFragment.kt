@@ -500,10 +500,15 @@ class PodcastDetailFragment : Fragment() {
             hint = "Playlist name"
             setSingleLine()
         }
+        val paddingPx = (24 * resources.displayMetrics.density).toInt()
+        val container = android.widget.FrameLayout(requireContext()).apply {
+            setPadding(paddingPx, 0, paddingPx, 0)
+            addView(input)
+        }
 
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Create playlist")
-            .setView(input)
+            .setView(container)
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Create") { _, _ ->
                 val name = input.text?.toString().orEmpty().trim()
