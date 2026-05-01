@@ -37,8 +37,11 @@ class PodcastDetailFragment : Fragment() {
     private var loadingIndicator: CircularProgressIndicator? = null
     private var emptyState: TextView? = null
     private var episodeSelectionToolbar: android.view.View? = null
-    private var actionTogglePlayed: android.widget.Button? = null
-    private var actionToggleDownload: android.widget.Button? = null
+    private var actionTogglePlayed: com.google.android.material.chip.Chip? = null
+    private var actionToggleDownload: com.google.android.material.chip.Chip? = null
+    private var actionAddToPlaylist: com.google.android.material.chip.Chip? = null
+    private var chipsScrollView: android.widget.HorizontalScrollView? = null
+    private var chipsScrollPeekAnimator: android.animation.AnimatorSet? = null
     private var scrollToTopFab: com.google.android.material.floatingactionbutton.FloatingActionButton? = null
     private val selectedEpisodes = linkedMapOf<String, Episode>()
     private var currentOffset = 0
@@ -219,6 +222,7 @@ class PodcastDetailFragment : Fragment() {
             episodesRecycler.adapter = episodesAdapter
 
             episodeSelectionToolbar = view.findViewById(R.id.episode_selection_toolbar)
+            chipsScrollView = view.findViewById(R.id.episode_chips_scroll)
             actionTogglePlayed = view.findViewById(R.id.action_episode_toggle_played)
             actionToggleDownload = view.findViewById(R.id.action_episode_toggle_download)
             view.findViewById<android.widget.ImageButton>(R.id.episode_selection_close).setOnClickListener {
@@ -231,6 +235,10 @@ class PodcastDetailFragment : Fragment() {
             actionToggleDownload?.setOnClickListener {
                 val allDownloaded = selectedEpisodes.values.all { DownloadedEpisodes.isDownloaded(requireContext(), it) }
                 if (allDownloaded) deleteDownloadsForSelectedEpisodes() else downloadSelectedEpisodes()
+            }
+            actionAddToPlaylist = view.findViewById(R.id.action_episode_add_to_playlist)
+            actionAddToPlaylist?.setOnClickListener {
+                showBulkAddToPlaylistDialog()
             }
 
             // Listen for played-status changes so the list updates when items are marked/unmarked
@@ -405,10 +413,38 @@ class PodcastDetailFragment : Fragment() {
             }
             return
         }
+        val wasHidden = toolbar.visibility != View.VISIBLE
         toolbar.visibility = View.VISIBLE
         fab?.let {
             (it.layoutParams as? android.widget.FrameLayout.LayoutParams)?.bottomMargin = fabMarginDefaultPx + toolbarHeightPx
             it.requestLayout()
+        }
+
+        // On first reveal, do a brief scroll-right peek so the user knows chips can be scrolled.
+        // ValueAnimator drives scrollX directly so forward and return are smooth and properly
+        // sequenced — no timing race between smoothScrollTo calls.
+        if (wasHidden) {
+            chipsScrollView?.post {
+                val sv = chipsScrollView ?: return@post
+                val peekDistance = ((sv.getChildAt(0)?.width ?: 0) - sv.width).coerceAtLeast(0)
+                if (peekDistance > 0) {
+                    val forward = android.animation.ValueAnimator.ofInt(0, peekDistance).apply {
+                        duration = SCROLL_PEEK_FORWARD_MS
+                        interpolator = android.view.animation.DecelerateInterpolator()
+                        addUpdateListener { sv.scrollX = it.animatedValue as Int }
+                    }
+                    val back = android.animation.ValueAnimator.ofInt(peekDistance, 0).apply {
+                        duration = SCROLL_PEEK_RETURN_MS
+                        interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                        addUpdateListener { sv.scrollX = it.animatedValue as Int }
+                    }
+                    android.animation.AnimatorSet().also { set ->
+                        chipsScrollPeekAnimator = set
+                        set.playSequentially(forward, back)
+                        set.start()
+                    }
+                }
+            }
         }
 
         val allPlayed = selectedEpisodes.values.all { PlayedEpisodesPreference.isPlayed(requireContext(), it.id) }
@@ -469,6 +505,67 @@ class PodcastDetailFragment : Fragment() {
         clearEpisodeSelection()
     }
 
+    private fun showBulkAddToPlaylistDialog() {
+        val selected = selectedEpisodes.values.toList()
+        if (selected.isEmpty()) return
+
+        val context = requireContext()
+        val playlists = PodcastPlaylists.getPlaylists(context)
+        val names = playlists.map { it.name } + "Create new playlist"
+
+        androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle("Add to playlist")
+            .setItems(names.toTypedArray()) { _, which ->
+                if (which == playlists.size) {
+                    promptCreatePlaylistAndAddSelected(selected)
+                } else {
+                    addSelectedEpisodesToPlaylist(playlists[which].id, playlists[which].name, selected)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun promptCreatePlaylistAndAddSelected(selected: List<Episode>) {
+        val input = android.widget.EditText(requireContext()).apply {
+            hint = "Playlist name"
+            setSingleLine()
+        }
+        val paddingPx = (24 * resources.displayMetrics.density).toInt()
+        val container = android.widget.FrameLayout(requireContext()).apply {
+            setPadding(paddingPx, 0, paddingPx, 0)
+            addView(input)
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Create playlist")
+            .setView(container)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Create") { _, _ ->
+                val name = input.text?.toString().orEmpty().trim()
+                if (name.isBlank()) {
+                    android.widget.Toast.makeText(requireContext(), "Playlist name required", android.widget.Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val playlist = PodcastPlaylists.createPlaylist(requireContext(), name)
+                addSelectedEpisodesToPlaylist(playlist.id, playlist.name, selected)
+            }
+            .show()
+    }
+
+    private fun addSelectedEpisodesToPlaylist(playlistId: String, playlistName: String, selected: List<Episode>) {
+        val podcastTitle = currentPodcast?.title
+        var added = 0
+        selected.forEach { episode ->
+            if (PodcastPlaylists.addEpisodeToPlaylist(requireContext(), playlistId, episode, podcastTitle)) {
+                added++
+            }
+        }
+        val message = if (added == 1) "1 episode added to $playlistName" else "$added episodes added to $playlistName"
+        android.widget.Toast.makeText(requireContext(), message, android.widget.Toast.LENGTH_SHORT).show()
+        clearEpisodeSelection()
+    }
+
     private fun playEpisode(episode: Episode) {
         val intent = Intent(requireContext(), RadioService::class.java).apply {
             action = RadioService.ACTION_PLAY_PODCAST_EPISODE
@@ -507,6 +604,10 @@ class PodcastDetailFragment : Fragment() {
         episodeSelectionToolbar = null
         actionTogglePlayed = null
         actionToggleDownload = null
+        actionAddToPlaylist = null
+        chipsScrollPeekAnimator?.cancel()
+        chipsScrollPeekAnimator = null
+        chipsScrollView = null
         scrollToTopFab = null
         selectedEpisodes.clear()
         // Reset action bar state. Always hide here — the destination fragment manages its own
@@ -711,5 +812,10 @@ class PodcastDetailFragment : Fragment() {
             isLoadingPage = false
             recycler.post { maybeLoadMoreIfContentShort() }
         }
+    }
+
+    companion object {
+        private const val SCROLL_PEEK_FORWARD_MS = 400L
+        private const val SCROLL_PEEK_RETURN_MS = 500L
     }
 }
