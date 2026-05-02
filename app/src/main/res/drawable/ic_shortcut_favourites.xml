@@ -6,9 +6,9 @@
         </shape>
     </item>
     <item
-        android:left="12dp"
-        android:top="12dp"
-        android:right="12dp"
-        android:bottom="12dp"
+        android:left="20dp"
+        android:top="20dp"
+        android:right="20dp"
+        android:bottom="20dp"
         android:drawable="@drawable/ic_shortcut_favourites_fg" />
 </layer-list>
