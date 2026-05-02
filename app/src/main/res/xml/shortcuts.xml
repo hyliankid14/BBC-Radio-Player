@@ -9,8 +9,8 @@
         android:shortcutLongLabel="@string/shortcut_favourites_long">
         <intent
             android:action="android.intent.action.MAIN"
-            android:targetPackage="com.hyliankid14.bbcradioplayer"
-            android:targetClass="com.hyliankid14.bbcradioplayer.MainActivity">
+            android:targetPackage="${applicationId}"
+            android:targetClass="${applicationId}.MainActivity">
             <extra android:name="open_mode" android:value="favorites" />
         </intent>
     </shortcut>
@@ -23,8 +23,8 @@
         android:shortcutLongLabel="@string/shortcut_radio_long">
         <intent
             android:action="android.intent.action.MAIN"
-            android:targetPackage="com.hyliankid14.bbcradioplayer"
-            android:targetClass="com.hyliankid14.bbcradioplayer.MainActivity">
+            android:targetPackage="${applicationId}"
+            android:targetClass="${applicationId}.MainActivity">
             <extra android:name="open_mode" android:value="list" />
         </intent>
     </shortcut>
@@ -37,8 +37,8 @@
         android:shortcutLongLabel="@string/shortcut_podcasts_long">
         <intent
             android:action="android.intent.action.MAIN"
-            android:targetPackage="com.hyliankid14.bbcradioplayer"
-            android:targetClass="com.hyliankid14.bbcradioplayer.MainActivity">
+            android:targetPackage="${applicationId}"
+            android:targetClass="${applicationId}.MainActivity">
             <extra android:name="open_mode" android:value="podcasts" />
         </intent>
     </shortcut>
