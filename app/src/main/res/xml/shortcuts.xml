@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <shortcut
+        android:shortcutId="shortcut_favourites"
+        android:enabled="true"
+        android:icon="@drawable/ic_star_outline"
+        android:shortcutShortLabel="@string/shortcut_favourites_short"
+        android:shortcutLongLabel="@string/shortcut_favourites_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.hyliankid14.bbcradioplayer"
+            android:targetClass="com.hyliankid14.bbcradioplayer.MainActivity">
+            <extra android:name="open_mode" android:value="favorites" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_radio"
+        android:enabled="true"
+        android:icon="@drawable/ic_list"
+        android:shortcutShortLabel="@string/shortcut_radio_short"
+        android:shortcutLongLabel="@string/shortcut_radio_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.hyliankid14.bbcradioplayer"
+            android:targetClass="com.hyliankid14.bbcradioplayer.MainActivity">
+            <extra android:name="open_mode" android:value="list" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_podcasts"
+        android:enabled="true"
+        android:icon="@drawable/ic_podcast"
+        android:shortcutShortLabel="@string/shortcut_podcasts_short"
+        android:shortcutLongLabel="@string/shortcut_podcasts_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.hyliankid14.bbcradioplayer"
+            android:targetClass="com.hyliankid14.bbcradioplayer.MainActivity">
+            <extra android:name="open_mode" android:value="podcasts" />
+        </intent>
+    </shortcut>
+
+</shortcuts>

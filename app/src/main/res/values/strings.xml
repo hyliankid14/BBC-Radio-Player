@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">British Radio Player</string>
+    <string name="shortcut_favourites_short">Favourites</string>
+    <string name="shortcut_favourites_long">Open Favourites</string>
+    <string name="shortcut_radio_short">Radio</string>
+    <string name="shortcut_radio_long">Open Radio</string>
+    <string name="shortcut_podcasts_short">Podcasts</string>
+    <string name="shortcut_podcasts_long">Open Podcasts</string>
     <string name="clear_search">Clear search</string>
     <string name="schedule_view">View schedule</string>
     <string name="schedule_now_playing">Now playing</string>
