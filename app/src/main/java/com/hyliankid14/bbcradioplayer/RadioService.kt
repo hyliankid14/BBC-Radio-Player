@@ -1753,9 +1753,19 @@ class RadioService : MediaBrowserServiceCompat() {
                                         try {
                                             val allEntries = PodcastPlaylists.getPlaylistEntries(this@RadioService, playlistId)
                                             val sortedEntries = PlaylistSortPreference.applySort(this@RadioService, playlistId, allEntries)
+                                            val hidePlayedEnabled = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this@RadioService)
                                             val currentIndex = sortedEntries.indexOfFirst { it.id == currentEpisode }
                                             val nextEntry = if (currentIndex >= 0) {
-                                                sortedEntries.getOrNull(currentIndex + 1)
+                                                if (hidePlayedEnabled) {
+                                                    // When "hide played" is on, the UI only shows unplayed episodes.
+                                                    // Advance to the next episode in sort order that has not been played,
+                                                    // skipping any played entries that would be hidden from the list.
+                                                    sortedEntries.asSequence().drop(currentIndex + 1).firstOrNull {
+                                                        !PlayedEpisodesPreference.isPlayed(this@RadioService, it.id)
+                                                    }
+                                                } else {
+                                                    sortedEntries.getOrNull(currentIndex + 1)
+                                                }
                                             } else {
                                                 null
                                             }
@@ -4095,8 +4105,20 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 // Parse pubDate to epoch using the shared parser so all date formats (including
                 // named timezones like "GMT") are handled consistently across the app.
                 val epoch = EpisodeDateParser.parsePubDateToEpoch(episode.pubDate).takeIf { it > 0L }
+                val wasAlreadyPlayed = PlayedEpisodesPreference.isPlayed(this, episode.id)
                 PlayedEpisodesPreference.markPlayedWithMeta(this, episode.id, episode.podcastId, epoch)
                 android.util.Log.d(TAG, "Marked episode as played (95% reached): ${episode.id}")
+                // If the "hide played episodes" filter is active for playlists, notify Android Auto
+                // to refresh the playlist so the just-completed episode disappears from its list.
+                // Only do this once (when the episode transitions from unplayed to played).
+                if (!wasAlreadyPlayed) {
+                    val activePlaylistId = currentPlaylistId
+                    if (activePlaylistId != null && PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)) {
+                        try { notifyChildrenChanged("playlist_${activePlaylistId}") } catch (e: Exception) {
+                            Log.w(TAG, "Failed to notify playlist children changed: ${e.message}")
+                        }
+                    }
+                }
                 
                 // Auto-delete downloaded episode if setting is enabled
                 try {
