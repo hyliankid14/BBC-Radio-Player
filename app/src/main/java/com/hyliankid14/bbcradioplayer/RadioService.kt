@@ -1769,7 +1769,12 @@ class RadioService : MediaBrowserServiceCompat() {
                                             } else {
                                                 null
                                             }
-                                            if (nextEntry != null && !isStopped) {
+                                            // Do not gate on isStopped here: some Android Auto head units
+                                            // react to STATE_STOPPED (sent before STATE_BUFFERING) with an
+                                            // immediate onStop(), setting isStopped=true before this coroutine
+                                            // runs. playPodcastEpisode() resets isStopped=false at its start,
+                                            // so proceeding is safe and ensures the next episode plays.
+                                            if (nextEntry != null) {
                                                 Log.d(TAG, "Autoplaying next playlist episode: ${nextEntry.title} (id=${nextEntry.id})")
                                                 val nextEp = Episode(
                                                     id = nextEntry.id,
@@ -2060,9 +2065,11 @@ class RadioService : MediaBrowserServiceCompat() {
         Log.d(TAG, "handlePlayRequest: player not resumable (source=$source, isStopped=$isStopped, state=$playerState), restarting from current/last media")
 
         // Android Auto commonly emits an automatic onPlay() after an episode reaches ENDED.
-        // When no next episode exists, suppress this implicit replay so the same episode does
-        // not start from the beginning again.
-        if (source == "MediaSession.onPlay" && currentStationId.startsWith("podcast_") && podcastEpisodeEndedNoRestart) {
+        // podcastEpisodeEndedNoRestart is set to prevent the same episode from restarting when
+        // the head unit issues an automatic onPlay() in response to the STATE_STOPPED broadcast.
+        // We cannot rely on currentStationId here because stopPlayback() clears it to "" before
+        // this guard is reached; the flag alone is a sufficient and accurate signal.
+        if (source == "MediaSession.onPlay" && podcastEpisodeEndedNoRestart) {
             Log.d(TAG, "handlePlayRequest: suppressing implicit onPlay replay after episode end (source=$source)")
             return
         }
@@ -4105,20 +4112,8 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
                 // Parse pubDate to epoch using the shared parser so all date formats (including
                 // named timezones like "GMT") are handled consistently across the app.
                 val epoch = EpisodeDateParser.parsePubDateToEpoch(episode.pubDate).takeIf { it > 0L }
-                val wasAlreadyPlayed = PlayedEpisodesPreference.isPlayed(this, episode.id)
                 PlayedEpisodesPreference.markPlayedWithMeta(this, episode.id, episode.podcastId, epoch)
                 android.util.Log.d(TAG, "Marked episode as played (95% reached): ${episode.id}")
-                // If the "hide played episodes" filter is active for playlists, notify Android Auto
-                // to refresh the playlist so the just-completed episode disappears from its list.
-                // Only do this once (when the episode transitions from unplayed to played).
-                if (!wasAlreadyPlayed) {
-                    val activePlaylistId = currentPlaylistId
-                    if (activePlaylistId != null && PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this)) {
-                        try { notifyChildrenChanged("playlist_${activePlaylistId}") } catch (e: Exception) {
-                            Log.w(TAG, "Failed to notify playlist children changed: ${e.message}")
-                        }
-                    }
-                }
                 
                 // Auto-delete downloaded episode if setting is enabled
                 try {
