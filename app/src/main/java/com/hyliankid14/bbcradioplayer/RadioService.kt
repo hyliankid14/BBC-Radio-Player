@@ -1753,13 +1753,28 @@ class RadioService : MediaBrowserServiceCompat() {
                                         try {
                                             val allEntries = PodcastPlaylists.getPlaylistEntries(this@RadioService, playlistId)
                                             val sortedEntries = PlaylistSortPreference.applySort(this@RadioService, playlistId, allEntries)
+                                            val hidePlayedEnabled = PlaybackPreference.isHidePlayedEpisodesInPlaylistsEnabled(this@RadioService)
                                             val currentIndex = sortedEntries.indexOfFirst { it.id == currentEpisode }
                                             val nextEntry = if (currentIndex >= 0) {
-                                                sortedEntries.getOrNull(currentIndex + 1)
+                                                if (hidePlayedEnabled) {
+                                                    // When "hide played" is on, the UI only shows unplayed episodes.
+                                                    // Advance to the next episode in sort order that has not been played,
+                                                    // skipping any played entries that would be hidden from the list.
+                                                    sortedEntries.asSequence().drop(currentIndex + 1).firstOrNull {
+                                                        !PlayedEpisodesPreference.isPlayed(this@RadioService, it.id)
+                                                    }
+                                                } else {
+                                                    sortedEntries.getOrNull(currentIndex + 1)
+                                                }
                                             } else {
                                                 null
                                             }
-                                            if (nextEntry != null && !isStopped) {
+                                            // Do not gate on isStopped here: some Android Auto head units
+                                            // react to STATE_STOPPED (sent before STATE_BUFFERING) with an
+                                            // immediate onStop(), setting isStopped=true before this coroutine
+                                            // runs. playPodcastEpisode() resets isStopped=false at its start,
+                                            // so proceeding is safe and ensures the next episode plays.
+                                            if (nextEntry != null) {
                                                 Log.d(TAG, "Autoplaying next playlist episode: ${nextEntry.title} (id=${nextEntry.id})")
                                                 val nextEp = Episode(
                                                     id = nextEntry.id,
@@ -2050,9 +2065,11 @@ class RadioService : MediaBrowserServiceCompat() {
         Log.d(TAG, "handlePlayRequest: player not resumable (source=$source, isStopped=$isStopped, state=$playerState), restarting from current/last media")
 
         // Android Auto commonly emits an automatic onPlay() after an episode reaches ENDED.
-        // When no next episode exists, suppress this implicit replay so the same episode does
-        // not start from the beginning again.
-        if (source == "MediaSession.onPlay" && currentStationId.startsWith("podcast_") && podcastEpisodeEndedNoRestart) {
+        // podcastEpisodeEndedNoRestart is set to prevent the same episode from restarting when
+        // the head unit issues an automatic onPlay() in response to the STATE_STOPPED broadcast.
+        // We cannot rely on currentStationId here because stopPlayback() clears it to "" before
+        // this guard is reached; the flag alone is a sufficient and accurate signal.
+        if (source == "MediaSession.onPlay" && podcastEpisodeEndedNoRestart) {
             Log.d(TAG, "handlePlayRequest: suppressing implicit onPlay replay after episode end (source=$source)")
             return
         }
