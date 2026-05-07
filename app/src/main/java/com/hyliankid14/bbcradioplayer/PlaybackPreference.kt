@@ -6,6 +6,7 @@ object PlaybackPreference {
     private const val PREFS_NAME = "playback_prefs"
     private const val KEY_LAST_STATION_ID = "last_station_id"
     private const val KEY_LAST_MEDIA_ID = "last_media_id"
+    private const val KEY_LAST_PLAYLIST_ID = "last_playlist_id"
     private const val KEY_AUTO_RESUME_ANDROID_AUTO = "auto_resume_android_auto"
     private const val KEY_HIDE_PLAYED_ANDROID_AUTO = "hide_played_android_auto"
     private const val KEY_HIDE_PLAYED_PLAYLISTS = "hide_played_playlists"
@@ -45,6 +46,20 @@ object PlaybackPreference {
         // Fall back to legacy station id if present
         val lastStation = prefs.getString(KEY_LAST_STATION_ID, null)
         return if (lastStation != null) "station_$lastStation" else null
+    }
+
+    fun setLastPlaylistId(context: Context, playlistId: String?) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (playlistId != null) {
+            prefs.edit().putString(KEY_LAST_PLAYLIST_ID, playlistId).apply()
+        } else {
+            prefs.edit().remove(KEY_LAST_PLAYLIST_ID).apply()
+        }
+    }
+
+    fun getLastPlaylistId(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_LAST_PLAYLIST_ID, null)
     }
 
     fun setAutoResumeAndroidAuto(context: Context, enabled: Boolean) {

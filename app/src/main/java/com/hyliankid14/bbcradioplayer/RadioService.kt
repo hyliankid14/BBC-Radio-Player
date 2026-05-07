@@ -684,6 +684,10 @@ class RadioService : MediaBrowserServiceCompat() {
                 pendingAndroidAutoAutoResume = true
             }
             handler.post {
+                // Restore playlist context: stopPlayback() (called on disconnect) clears currentPlaylistId,
+                // so we read it back from persistent storage so the playlist autoplay path is correctly
+                // used when the resumed episode finishes.
+                val restoredPlaylistId = PlaybackPreference.getLastPlaylistId(this@RadioService)
                 lastMediaId?.let { id ->
                     when {
                         id.startsWith("podcast_episode_") -> {
@@ -712,6 +716,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                     if (foundEp != null) {
                                         val playIntent = Intent().apply {
                                             parentPodcast?.let { putExtra(EXTRA_PODCAST_TITLE, it.title); putExtra(EXTRA_PODCAST_IMAGE, it.imageUrl) }
+                                            restoredPlaylistId?.let { putExtra(EXTRA_PLAYLIST_ID, it) }
                                         }
                                         playPodcastEpisode(foundEp, playIntent)
                                     } else {
@@ -733,6 +738,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                                 val playIntent = Intent().apply {
                                                     putExtra(EXTRA_PODCAST_TITLE, s.podcastTitle)
                                                     putExtra(EXTRA_PODCAST_IMAGE, s.imageUrl)
+                                                    restoredPlaylistId?.let { putExtra(EXTRA_PLAYLIST_ID, it) }
                                                 }
                                                 playPodcastEpisode(savedEp, playIntent)
                                             } else {
@@ -742,6 +748,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                                     val playIntent = Intent().apply {
                                                         putExtra(EXTRA_PODCAST_TITLE, d.podcastTitle)
                                                         putExtra(EXTRA_PODCAST_IMAGE, d.imageUrl)
+                                                        restoredPlaylistId?.let { putExtra(EXTRA_PLAYLIST_ID, it) }
                                                     }
                                                     playPodcastEpisode(downloadedEntryToEpisode(d), playIntent)
                                                 } else {
@@ -763,6 +770,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                                                     val playIntent = Intent().apply {
                                                                         putExtra(EXTRA_PODCAST_TITLE, parent.title)
                                                                         putExtra(EXTRA_PODCAST_IMAGE, parent.imageUrl)
+                                                                        restoredPlaylistId?.let { putExtra(EXTRA_PLAYLIST_ID, it) }
                                                                     }
                                                                     playPodcastEpisode(ep, playIntent)
                                                                 } else {
@@ -1245,6 +1253,10 @@ class RadioService : MediaBrowserServiceCompat() {
      * to reliably resume podcast playback after the player has been stopped or has errored.
      */
     private fun replayEpisodeById(episodeId: String) {
+        // Capture the playlist context before launching the coroutine.  currentPlaylistId may be
+        // null if stopPlayback() was called (e.g. on Android Auto disconnect), so fall back to the
+        // persisted value so that the playlist autoplay path is restored after a reconnect.
+        val restoredPlaylistId = currentPlaylistId ?: PlaybackPreference.getLastPlaylistId(this)
         serviceScope.launch {
             try {
                 // 1. Try saved episodes (no network required)
@@ -1264,6 +1276,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     val playIntent = Intent().apply {
                         putExtra(EXTRA_PODCAST_TITLE, s.podcastTitle)
                         putExtra(EXTRA_PODCAST_IMAGE, s.imageUrl)
+                        restoredPlaylistId?.let { putExtra(EXTRA_PLAYLIST_ID, it) }
                     }
                     playPodcastEpisode(ep, playIntent)
                     return@launch
@@ -1275,6 +1288,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     val playIntent = Intent().apply {
                         putExtra(EXTRA_PODCAST_TITLE, d.podcastTitle)
                         putExtra(EXTRA_PODCAST_IMAGE, d.imageUrl)
+                        restoredPlaylistId?.let { putExtra(EXTRA_PLAYLIST_ID, it) }
                     }
                     playPodcastEpisode(downloadedEntryToEpisode(d), playIntent)
                     return@launch
@@ -1297,6 +1311,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     val playIntent = Intent().apply {
                         putExtra(EXTRA_PODCAST_TITLE, h.podcastTitle)
                         putExtra(EXTRA_PODCAST_IMAGE, h.imageUrl)
+                        restoredPlaylistId?.let { putExtra(EXTRA_PLAYLIST_ID, it) }
                     }
                     playPodcastEpisode(ep, playIntent)
                     return@launch
@@ -1352,6 +1367,7 @@ class RadioService : MediaBrowserServiceCompat() {
                     if (foundEp != null) {
                         val playIntent = Intent().apply {
                             parentPodcast?.let { putExtra(EXTRA_PODCAST_TITLE, it.title); putExtra(EXTRA_PODCAST_IMAGE, it.imageUrl) }
+                            restoredPlaylistId?.let { putExtra(EXTRA_PLAYLIST_ID, it) }
                         }
                         playPodcastEpisode(foundEp, playIntent)
                     } else {
@@ -3640,8 +3656,14 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
             applyShowInfoRunnable?.let { handler.removeCallbacks(it); applyShowInfoRunnable = null }
             pendingShowInfo = null
 
-            // Remember this as the last played media so Android Auto can resume stations or podcasts
+            // Remember this as the last played media so Android Auto can resume stations or podcasts.
+            // Also persist the playlist context so it can be restored after a reconnect (e.g. when
+            // Android Auto disconnects and reconnects between episodes, stopPlayback() clears
+            // currentPlaylistId; without persisting it here the auto-resume path would fall through
+            // to podcast-feed autoplay which is sorted newest-first, causing an older "previous"
+            // episode to play instead of the correct next playlist entry).
             PlaybackPreference.setLastMediaId(this, "podcast_episode_${episode.id}")
+            PlaybackPreference.setLastPlaylistId(this, currentPlaylistId)
 
             // Record this episode in the recent-played history and notify UI
             try {
