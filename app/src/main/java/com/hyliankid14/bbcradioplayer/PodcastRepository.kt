@@ -671,6 +671,43 @@ class PodcastRepository(private val context: Context) {
         }
     }
 
+    suspend fun fetchPodcastRatings(podcastIds: List<String>): Map<String, PodcastRatingSummary> = withContext(Dispatchers.IO) {
+        try {
+            if (podcastIds.isEmpty()) return@withContext emptyMap()
+            RemoteIndexClient(context).fetchPodcastRatings(podcastIds)
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Error fetching podcast ratings", e)
+            emptyMap()
+        }
+    }
+
+    suspend fun fetchPodcastRating(podcastId: String): PodcastRatingSummary? = withContext(Dispatchers.IO) {
+        try {
+            if (podcastId.isBlank()) return@withContext null
+            RemoteIndexClient(context).fetchPodcastRating(podcastId)
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Error fetching podcast rating", e)
+            null
+        }
+    }
+
+    suspend fun submitPodcastRating(
+        podcastId: String,
+        rating: Float,
+        podcastTitle: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            PrivacyAnalytics(context).submitPodcastRating(
+                podcastId = podcastId,
+                rating = rating,
+                podcastTitle = podcastTitle
+            )
+        } catch (e: Exception) {
+            Log.w("PodcastRepository", "Error submitting podcast rating", e)
+            false
+        }
+    }
+
     suspend fun fetchNewlyAddedPodcastEpochs(
         podcasts: List<Podcast>,
         forceRefresh: Boolean = false

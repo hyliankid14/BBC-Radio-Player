@@ -32,6 +32,7 @@ import re
 import unicodedata
 import json
 import os
+import time
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 from pathlib import Path
@@ -54,6 +55,14 @@ def add_cors_headers(response):
 DB_PATH = Path(__file__).parent / 'analytics.db'
 PODCAST_INDEX_DB_PATH = Path(__file__).parent / 'podcast_index.db'
 DEFAULT_GCS_BUCKET = 'bbc-radio-player-index-20260317-bc149e38'
+
+# Anonymous rating endpoint safeguards.
+RATING_MIN_VALUE = 1.0
+RATING_MAX_VALUE = 5.0
+RATING_MAX_IDS_PER_QUERY = 250
+RATING_SUBMIT_MIN_INTERVAL_SECONDS = 2.0
+RATING_ID_RE = re.compile(r'^[a-zA-Z0-9_-]{3,128}$')
+_last_rating_submit_at = {}
 
 
 def _resolve_cloud_meta_url():
@@ -327,6 +336,36 @@ def _is_truthy_query_flag(value):
     return str(value or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
+def _is_valid_rating_identifier(value):
+    """Validate anonymous identifiers used by ratings endpoints."""
+    if not isinstance(value, str):
+        return False
+    candidate = value.strip()
+    if not candidate:
+        return False
+    return bool(RATING_ID_RE.match(candidate))
+
+
+def _is_rate_limited(install_id, podcast_id):
+    """Simple in-memory throttle per install/podcast pair."""
+    key = f"{install_id}:{podcast_id}"
+    now = time.monotonic()
+    previous = _last_rating_submit_at.get(key)
+    if previous is not None and (now - previous) < RATING_SUBMIT_MIN_INTERVAL_SECONDS:
+        return True
+
+    _last_rating_submit_at[key] = now
+
+    # Prevent unbounded growth for long-running processes.
+    if len(_last_rating_submit_at) > 10000:
+        cutoff = now - (RATING_SUBMIT_MIN_INTERVAL_SECONDS * 10)
+        stale_keys = [k for k, v in _last_rating_submit_at.items() if v < cutoff]
+        for stale_key in stale_keys:
+            _last_rating_submit_at.pop(stale_key, None)
+
+    return False
+
+
 def _resolve_index_display_status(server_counts):
     """
     Resolve effective index status for UI/API display.
@@ -455,6 +494,19 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS podcast_ratings (
+            podcast_id TEXT NOT NULL,
+            install_id TEXT NOT NULL,
+            rating REAL NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            app_version TEXT,
+            platform TEXT,
+            PRIMARY KEY (podcast_id, install_id)
+        )
+    ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_podcast_ratings_podcast_id ON podcast_ratings (podcast_id)')
 
     # Backward-compatible migrations for existing databases
     existing_columns = {row[1] for row in c.execute("PRAGMA table_info(events)").fetchall()}
@@ -758,6 +810,153 @@ def get_stats():
         
     except Exception as e:
         print(f"Error getting stats: {e}", file=sys.stderr)
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/rating', methods=['POST'])
+def submit_podcast_rating():
+    """Submit or update an anonymous podcast rating for one install."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data'}), 400
+
+        podcast_id = str(data.get('podcast_id', '')).strip()
+        install_id = str(data.get('install_id', '')).strip()
+        rating_raw = data.get('rating')
+
+        if not _is_valid_rating_identifier(podcast_id):
+            return jsonify({'error': 'Invalid podcast_id'}), 400
+        if not _is_valid_rating_identifier(install_id):
+            return jsonify({'error': 'Invalid install_id'}), 400
+
+        try:
+            rating_value = float(rating_raw)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'rating must be a number between 1 and 5'}), 400
+
+        if rating_value < RATING_MIN_VALUE or rating_value > RATING_MAX_VALUE:
+            return jsonify({'error': 'rating must be between 1 and 5'}), 400
+
+        # Keep stored values in half-step granularity.
+        rating_value = round(rating_value * 2.0) / 2.0
+
+        if _is_rate_limited(install_id, podcast_id):
+            return jsonify({'error': 'Too many rating requests; please wait a moment'}), 429
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute(
+            '''
+            INSERT INTO podcast_ratings (podcast_id, install_id, rating, app_version, platform)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(podcast_id, install_id)
+            DO UPDATE SET
+                rating = excluded.rating,
+                updated_at = CURRENT_TIMESTAMP,
+                app_version = excluded.app_version,
+                platform = excluded.platform
+            ''',
+            (
+                podcast_id,
+                install_id,
+                rating_value,
+                data.get('app_version'),
+                data.get('platform', 'android')
+            )
+        )
+
+        c.execute(
+            '''
+            SELECT ROUND(AVG(rating), 2) AS average_rating, COUNT(*) AS rating_count
+            FROM podcast_ratings
+            WHERE podcast_id = ?
+            ''',
+            (podcast_id,)
+        )
+        row = c.fetchone()
+        conn.commit()
+        conn.close()
+
+        average_rating = float(row['average_rating']) if row and row['average_rating'] is not None else 0.0
+        rating_count = int(row['rating_count']) if row and row['rating_count'] is not None else 0
+
+        return jsonify({
+            'status': 'ok',
+            'podcast_id': podcast_id,
+            'average_rating': average_rating,
+            'rating_count': rating_count,
+            'my_rating': rating_value,
+            'generated_at': datetime.now().isoformat()
+        }), 201
+    except Exception as e:
+        print(f"Error submitting rating: {e}", file=sys.stderr)
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/ratings', methods=['GET'])
+def get_podcast_ratings():
+    """Return aggregate ratings for one or more podcast IDs."""
+    try:
+        ids_param = request.args.get('podcast_ids', '')
+        requested_ids = [item.strip() for item in ids_param.split(',') if item and item.strip()]
+        valid_ids = []
+        for podcast_id in requested_ids[:RATING_MAX_IDS_PER_QUERY]:
+            if _is_valid_rating_identifier(podcast_id):
+                valid_ids.append(podcast_id)
+
+        if not valid_ids:
+            return jsonify({'ratings': {}, 'generated_at': datetime.now().isoformat()}), 200
+
+        install_id = request.args.get('install_id', '').strip()
+        include_my_rating = _is_valid_rating_identifier(install_id)
+
+        conn = get_db()
+        c = conn.cursor()
+
+        placeholders = ','.join(['?'] * len(valid_ids))
+        c.execute(
+            f'''
+            SELECT podcast_id, ROUND(AVG(rating), 2) AS average_rating, COUNT(*) AS rating_count
+            FROM podcast_ratings
+            WHERE podcast_id IN ({placeholders})
+            GROUP BY podcast_id
+            ''',
+            valid_ids
+        )
+        aggregate_rows = c.fetchall()
+
+        my_ratings = {}
+        if include_my_rating:
+            c.execute(
+                f'''
+                SELECT podcast_id, rating
+                FROM podcast_ratings
+                WHERE install_id = ? AND podcast_id IN ({placeholders})
+                ''',
+                [install_id] + valid_ids
+            )
+            my_ratings = {row['podcast_id']: float(row['rating']) for row in c.fetchall()}
+
+        conn.close()
+
+        ratings_payload = {}
+        for row in aggregate_rows:
+            podcast_id = row['podcast_id']
+            rating_entry = {
+                'average_rating': float(row['average_rating']) if row['average_rating'] is not None else 0.0,
+                'rating_count': int(row['rating_count']) if row['rating_count'] is not None else 0,
+            }
+            if podcast_id in my_ratings:
+                rating_entry['my_rating'] = my_ratings[podcast_id]
+            ratings_payload[podcast_id] = rating_entry
+
+        return jsonify({
+            'ratings': ratings_payload,
+            'generated_at': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        print(f"Error getting podcast ratings: {e}", file=sys.stderr)
         return jsonify({'error': 'Internal server error'}), 500
 
 

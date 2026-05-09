@@ -938,6 +938,83 @@ class RemoteIndexClient(private val context: Context) {
         }
     }
 
+    fun fetchPodcastRatings(podcastIds: List<String>): Map<String, PodcastRatingSummary> {
+        val cleanIds = podcastIds
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toList()
+        if (cleanIds.isEmpty()) return emptyMap()
+
+        val installId = try {
+            PrivacyAnalytics.getAnonymousInstallId(context)
+        } catch (_: Exception) {
+            ""
+        }
+
+        val endpointBases = listOf(
+            PrivacyAnalytics.getAnalyticsBaseUrl(),
+            LIVE_SEARCH_URL
+        ).distinct()
+
+        val ratings = linkedMapOf<String, PodcastRatingSummary>()
+        val chunkSize = 120
+
+        for (chunk in cleanIds.chunked(chunkSize)) {
+            val idsParam = chunk.joinToString(",") { encode(it) }
+            val installParam = if (installId.isNotBlank()) "&install_id=${encode(installId)}" else ""
+            var chunkLoaded = false
+
+            for (base in endpointBases) {
+                val url = "$base/ratings?podcast_ids=$idsParam$installParam"
+                try {
+                    val response = getJson(
+                        url,
+                        connectTimeoutMs = LIVE_SEARCH_CONNECT_TIMEOUT_MS,
+                        readTimeoutMs = LIVE_SEARCH_READ_TIMEOUT_MS
+                    ) ?: continue
+
+                    val ratingsObject = response.optJSONObject("ratings") ?: continue
+                    ratingsObject.keys().forEach { podcastId ->
+                        val ratingObj = ratingsObject.optJSONObject(podcastId) ?: return@forEach
+                        val avg = ratingObj.optDouble("average_rating", 0.0).toFloat()
+                        val count = ratingObj.optInt("rating_count", 0)
+                        val myRating = if (ratingObj.has("my_rating")) {
+                            ratingObj.optDouble("my_rating", 0.0).toFloat()
+                        } else {
+                            null
+                        }
+
+                        if (count > 0 && avg > 0f) {
+                            ratings[podcastId] = PodcastRatingSummary(
+                                averageRating = avg,
+                                ratingCount = count,
+                                myRating = myRating
+                            )
+                        }
+                    }
+
+                    chunkLoaded = true
+                    break
+                } catch (e: Exception) {
+                    Log.d(TAG, "fetchPodcastRatings failed for $url: ${e.message}")
+                }
+            }
+
+            if (!chunkLoaded) {
+                // Continue with remaining chunks; partial results are still useful for UI.
+                continue
+            }
+        }
+
+        return ratings
+    }
+
+    fun fetchPodcastRating(podcastId: String): PodcastRatingSummary? {
+        return fetchPodcastRatings(listOf(podcastId))[podcastId]
+    }
+
     /**
      * Read popular podcast ranks from the on-device disk cache.
      *

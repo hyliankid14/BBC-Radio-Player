@@ -27,6 +27,7 @@ class SearchResultsAdapter(
     private val onPodcastClick: (Podcast) -> Unit,
     private val onPlayEpisode: (Episode) -> Unit,
     private val onOpenEpisode: (Episode, Podcast) -> Unit,
+    private var podcastRatings: Map<String, PodcastRatingSummary> = emptyMap(),
     private val prebuiltItems: List<Item>? = null,
     private val onEpisodeLongPress: ((Episode, Podcast) -> Unit)? = null,
     private val onEpisodeSelectionClick: ((Episode, Podcast) -> Boolean)? = null
@@ -152,6 +153,11 @@ class SearchResultsAdapter(
         notifyDataSetChanged()
     }
 
+    fun updatePodcastRatings(newRatings: Map<String, PodcastRatingSummary>) {
+        podcastRatings = newRatings
+        notifyDataSetChanged()
+    }
+
     /**
      * Show an inline hint item (where episode results would appear) prompting the user to
      * download the search index.  Replaces any previously set hint.
@@ -271,6 +277,8 @@ class SearchResultsAdapter(
         private val imageView: ImageView = itemView.findViewById(R.id.podcast_image)
         private val titleView: TextView = itemView.findViewById(R.id.podcast_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.podcast_description)
+        private val genresView: TextView = itemView.findViewById(R.id.podcast_genres)
+        private val averageRatingView: TextView = itemView.findViewById(R.id.podcast_average_rating)
         private val subscribedIcon: ImageView? = itemView.findViewById(R.id.podcast_subscribed_icon)
 
         fun bind(podcast: Podcast) {
@@ -300,6 +308,18 @@ class SearchResultsAdapter(
             } else {
                 subscribedIcon?.visibility = View.GONE
             }
+
+            val ratingSummary = podcastRatings[podcast.id]
+            if (ratingSummary != null && ratingSummary.ratingCount > 0 && ratingSummary.averageRating > 0f) {
+                averageRatingView.text = "★ ${String.format(Locale.US, "%.1f", ratingSummary.averageRating)}"
+                averageRatingView.visibility = View.VISIBLE
+            } else {
+                averageRatingView.visibility = View.GONE
+            }
+
+            val genresText = podcast.genres.take(2).joinToString(", ")
+            genresView.text = genresText
+            genresView.visibility = if (genresText.isNotEmpty()) View.VISIBLE else View.GONE
 
             itemView.setOnClickListener { onPodcastClick(podcast) }
             titleView.setOnClickListener { onPodcastClick(podcast) }

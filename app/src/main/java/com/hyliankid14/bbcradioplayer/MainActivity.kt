@@ -2653,8 +2653,8 @@ class MainActivity : AppCompatActivity() {
                                         commit()
                                     }
                                 }, highlightSubscribed = true, showSubscribedIcon = false)
-                                val currentSort = SubscribedPodcastSortPreference.getSortOrder(this@MainActivity)
-                                podcastAdapter.showDragHandles = (currentSort == SubscribedPodcastSortPreference.SORT_MANUAL)
+                                val subscribedSort = SubscribedPodcastSortPreference.getSortOrder(this@MainActivity)
+                                podcastAdapter.showDragHandles = (subscribedSort == SubscribedPodcastSortPreference.SORT_MANUAL)
                                 val helper = podcastsItemTouchHelper
                                 if (helper != null) {
                                     podcastAdapter.onStartDrag = { viewHolder -> helper.startDrag(viewHolder) }

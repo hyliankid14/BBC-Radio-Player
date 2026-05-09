@@ -48,6 +48,8 @@ class PodcastsFragment : Fragment() {
     private var cachedNewlyAddedPodcastEpochs: Map<String, Long> = emptyMap()
     private var analyticsPopularRanks: Map<String, Int> = emptyMap()
     private var analyticsPopularTitleRanks: Map<String, Int> = emptyMap()
+    private var podcastRatings: Map<String, PodcastRatingSummary> = emptyMap()
+    private var ratingsLoadJob: kotlinx.coroutines.Job? = null
     private var isLoadingPopularRanks: Boolean = false
     private var searchQuery = ""
     private var searchEditText: com.google.android.material.textfield.MaterialAutoCompleteTextView? = null
@@ -633,10 +635,46 @@ class PodcastsFragment : Fragment() {
         }
     }
 
+    private val ratingChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            if (intent?.action != ACTION_PODCAST_RATING_CHANGED) return
+            val podcastId = intent.getStringExtra(EXTRA_PODCAST_ID).orEmpty()
+            if (podcastId.isNotBlank()) {
+                refreshPodcastRatings(listOf(podcastId), merge = true)
+            }
+        }
+    }
+
     private fun refreshSubscriptionIndicators() {
         podcastAdapter.refreshCache()
         searchAdapter?.notifyDataSetChanged()
         cachedSearchAdapter?.notifyDataSetChanged()
+    }
+
+    private fun applyPodcastRatingsToAdapters() {
+        podcastAdapter.updatePodcastRatings(podcastRatings)
+        searchAdapter?.updatePodcastRatings(podcastRatings)
+        cachedSearchAdapter?.updatePodcastRatings(podcastRatings)
+    }
+
+    private fun refreshPodcastRatings(podcastIds: List<String>, merge: Boolean = true) {
+        val ids = podcastIds
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toList()
+        if (ids.isEmpty()) return
+
+        ratingsLoadJob?.cancel()
+        ratingsLoadJob = viewLifecycleOwner.lifecycleScope.launch {
+            val latest = withContext(Dispatchers.IO) {
+                repository.fetchPodcastRatings(ids)
+            }
+            if (!isAdded) return@launch
+            podcastRatings = if (merge) podcastRatings + latest else latest
+            applyPodcastRatingsToAdapters()
+        }
     }
 
     override fun onCreateView(
@@ -899,6 +937,11 @@ class PodcastsFragment : Fragment() {
         requireContext().registerReceiver(
             subscriptionChangedReceiver,
             IntentFilter(PodcastSubscriptions.ACTION_SUBSCRIPTION_CHANGED),
+            android.content.Context.RECEIVER_NOT_EXPORTED
+        )
+        requireContext().registerReceiver(
+            ratingChangedReceiver,
+            IntentFilter(ACTION_PODCAST_RATING_CHANGED),
             android.content.Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -1404,9 +1447,11 @@ class PodcastsFragment : Fragment() {
         }
         viewModel.cachedPodcasts = allPodcasts
         updateGenreItems()
+        applyPodcastRatingsToAdapters()
 
         hideLoadingFeedback(loadingIndicator, emptyState)
         applyFilters(emptyState, recyclerView)
+        refreshPodcastRatings(podcasts.map { it.id }, merge = false)
     }
 
     private fun applyFilters(
@@ -1612,6 +1657,12 @@ class PodcastsFragment : Fragment() {
         } catch (_: Exception) {
             // Receiver may already be unregistered if view teardown races with host lifecycle.
         }
+        try {
+            requireContext().unregisterReceiver(ratingChangedReceiver)
+        } catch (_: Exception) {
+            // Receiver may already be unregistered if view teardown races with host lifecycle.
+        }
+        ratingsLoadJob?.cancel()
         sensorManager?.unregisterListener(shakeListener)
         filterDebounceJob?.cancel()
         searchJob?.cancel()
@@ -1867,6 +1918,7 @@ class PodcastsFragment : Fragment() {
                         titleMatches = cached.titleMatches,
                         descMatches = cached.descMatches,
                         episodeMatches = resolvedEpisodeMatches,
+                        podcastRatings = podcastRatings,
                         onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                         onPlayEpisode = { ep -> playEpisode(ep) },
                         onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
@@ -2172,6 +2224,7 @@ class PodcastsFragment : Fragment() {
         episodes: List<Pair<Episode, Podcast>>
     ): SearchResultsAdapter {
         return SearchResultsAdapter(requireContext(), titles, descs, episodes,
+            podcastRatings = podcastRatings,
             onPodcastClick = { onPodcastClicked(it) },
             onPlayEpisode = { playEpisode(it) },
             onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
@@ -2472,6 +2525,7 @@ class PodcastsFragment : Fragment() {
                     isLoadingPage = false
                     val initialPage = if (filteredList.size <= pageSize) filteredList else filteredList.take(pageSize)
                     podcastAdapter.updatePodcasts(initialPage)
+                    refreshPodcastRatings(initialPage.map { it.id }, merge = true)
 
                     android.util.Log.d("PodcastsFragment", "simplifiedApplyFilters: About to call showResultsSafely with ${initialPage.size} podcasts")
                     showResultsSafely(recyclerView, podcastAdapter, isSearchAdapter = false, hasContent = filteredList.isNotEmpty(), emptyState)
@@ -2631,6 +2685,7 @@ class PodcastsFragment : Fragment() {
                             titleMatches = sortedTitleMatches,
                             descMatches = sortedDescMatches,
                             episodeMatches = emptyList(),
+                            podcastRatings = podcastRatings,
                             onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                             onPlayEpisode = { ep -> playEpisode(ep) },
                             onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
@@ -2639,6 +2694,7 @@ class PodcastsFragment : Fragment() {
                         )
                         viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
                     }
+                    refreshPodcastRatings(podcastMatches.map { it.id }, merge = true)
                     showResultsSafely(recyclerView, searchAdapter, isSearchAdapter = true, hasContent = true, emptyState)
                     rebuildFilterSpinners(emptyState, recyclerView)
                 }
@@ -2686,6 +2742,7 @@ class PodcastsFragment : Fragment() {
                                     titleMatches = emptyList(),
                                     descMatches = emptyList(),
                                     episodeMatches = emptyList(),
+                                    podcastRatings = podcastRatings,
                                     onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                                     onPlayEpisode = { ep -> playEpisode(ep) },
                                     onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
@@ -2787,6 +2844,7 @@ class PodcastsFragment : Fragment() {
                             titleMatches = sortedTitleMatches,
                             descMatches = sortedDescMatches,
                             episodeMatches = quickEps,
+                            podcastRatings = podcastRatings,
                             onPodcastClick = { podcast -> onPodcastClicked(podcast) },
                             onPlayEpisode = { ep -> playEpisode(ep) },
                             onOpenEpisode = { ep, pod -> openEpisodePreview(ep, pod) },
@@ -2810,6 +2868,10 @@ class PodcastsFragment : Fragment() {
 
                     resolvedEpisodeMatches = quickEps.toMutableList()
                     displayedEpisodeCount = resolvedEpisodeMatches.size
+                    refreshPodcastRatings(
+                        (podcastMatches.map { it.id } + quickEps.map { it.second.id }).distinct(),
+                        merge = true
+                    )
                     viewModel.cachedSearchItems = searchAdapter?.snapshotItems()
                     loadingView?.visibility = View.GONE
                     showLoadingMoreSearchResultsIndicator()
@@ -3254,6 +3316,8 @@ class PodcastsFragment : Fragment() {
     companion object {
         private const val ARG_SEARCH_CONTEXT = "search_context"
         private const val ARG_INITIAL_QUERY = "initial_query"
+        const val ACTION_PODCAST_RATING_CHANGED = "com.hyliankid14.bbcradioplayer.ACTION_PODCAST_RATING_CHANGED"
+        const val EXTRA_PODCAST_ID = "extra_podcast_id"
         private const val REMOTE_EPISODE_SEARCH_PAGE_SIZE = 500
         private const val REMOTE_EPISODE_SEARCH_MAX_PAGES = 300
         private const val SHAKE_THRESHOLD_GRAVITY = 2.7f

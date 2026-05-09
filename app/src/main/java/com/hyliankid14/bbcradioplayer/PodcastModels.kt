@@ -38,3 +38,9 @@ data class ParsedPodcast(
     val podcast: Podcast,
     val episodes: List<Episode>
 )
+
+data class PodcastRatingSummary(
+    val averageRating: Float,
+    val ratingCount: Int,
+    val myRating: Float? = null
+)

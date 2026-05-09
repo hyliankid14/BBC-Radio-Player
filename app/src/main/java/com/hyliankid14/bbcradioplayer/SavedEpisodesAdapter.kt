@@ -149,7 +149,7 @@ open class SavedEpisodesAdapter(
             view.setOnClickListener { togglePlayedSection() }
         }
 
-        fun bind(expanded: Boolean, count: Int) {
+        fun bind(expanded: Boolean) {
             titleView.text = itemView.context.getString(R.string.podcast_detail_played_section_title)
             val icon = if (expanded) R.drawable.ic_expand_less else R.drawable.ic_expand_more
             val drawable = AppCompatResources.getDrawable(itemView.context, icon)?.mutate()
@@ -180,8 +180,7 @@ open class SavedEpisodesAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (holder is PlayedSectionHeaderViewHolder) {
-            val playedCount = entries.count { PlayedEpisodesPreference.isPlayed(context, it.id) }
-            holder.bind(playedSectionExpanded, playedCount)
+            holder.bind(playedSectionExpanded)
             return
         }
         val episodeHolder = holder as ViewHolder

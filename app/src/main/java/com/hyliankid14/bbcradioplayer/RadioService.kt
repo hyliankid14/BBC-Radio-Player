@@ -499,7 +499,8 @@ class RadioService : MediaBrowserServiceCompat() {
         
         @Suppress("DEPRECATION")
         mediaSession.setFlags(
-            MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS or
+            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS
         )
         mediaSession.isActive = true
         
@@ -580,6 +581,7 @@ class RadioService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_PAUSE or
                 PlaybackStateCompat.ACTION_STOP or
                 PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
+                PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH or
                 PlaybackStateCompat.ACTION_PLAY_PAUSE
 
         if (isPodcast) {
@@ -648,6 +650,8 @@ class RadioService : MediaBrowserServiceCompat() {
             putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
             putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1) // 1 = LIST
             putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", 1) // 1 = LIST
+            // Tell Gemini/Google Assistant that this app supports voice search (onPlayFromSearch)
+            putBoolean("android.media.browse.SEARCH_SUPPORTED", true)
         }
         
         Log.d(TAG, "onGetRoot returning root with extras")
@@ -1150,7 +1154,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                 )
                                 val updates = withContext(Dispatchers.IO) { repo.fetchLatestUpdates(taggedPodcasts) }
                                 val sorted = SubscribedPodcastSortPreference.applySortOrder(this@RadioService, taggedPodcasts, updates)
-                                val items = sorted.map { p ->
+                                val taggedPodcastItems = sorted.map { p ->
                                     val subtitle = if ((updates[p.id] ?: 0L) > PlayedEpisodesPreference.getLastPlayedEpoch(this@RadioService, p.id)) "New" else ""
                                     MediaItem(
                                         MediaDescriptionCompat.Builder()
@@ -1162,7 +1166,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                         MediaItem.FLAG_BROWSABLE
                                     )
                                 }
-                                result.sendResult(items)
+                                result.sendResult(taggedPodcastItems)
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error loading podcasts for tag '$tag' in Android Auto", e)
                                 result.sendResult(emptyList())

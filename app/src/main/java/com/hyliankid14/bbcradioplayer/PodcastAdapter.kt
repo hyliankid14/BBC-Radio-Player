@@ -33,6 +33,7 @@ class PodcastAdapter(
 ) : RecyclerView.Adapter<PodcastAdapter.PodcastViewHolder>() {
 
     private var newEpisodeIds: Set<String> = emptySet()
+    private var podcastRatings: Map<String, PodcastRatingSummary> = emptyMap()
     
     // Cache subscription status to avoid repeated SharedPreferences reads
     private var subscribedIds: Set<String> = emptySet()
@@ -85,6 +86,11 @@ class PodcastAdapter(
 
     fun updateNewEpisodes(newSet: Set<String>) {
         newEpisodeIds = newSet
+        notifyDataSetChanged()
+    }
+
+    fun updatePodcastRatings(newRatings: Map<String, PodcastRatingSummary>) {
+        podcastRatings = newRatings
         notifyDataSetChanged()
     }
     
@@ -152,6 +158,7 @@ class PodcastAdapter(
         private val titleView: TextView = itemView.findViewById(R.id.podcast_title)
         private val descriptionView: TextView = itemView.findViewById(R.id.podcast_description)
         private val genresView: TextView = itemView.findViewById(R.id.podcast_genres)
+        private val averageRatingView: TextView = itemView.findViewById(R.id.podcast_average_rating)
         private val tagsScroll: HorizontalScrollView? = itemView.findViewById(R.id.podcast_tags_scroll)
         private val tagsGroup: ChipGroup? = itemView.findViewById(R.id.podcast_tags_group)
         private val dragHandle: ImageView? = itemView.findViewById(R.id.podcast_drag_handle)
@@ -312,6 +319,13 @@ class PodcastAdapter(
                 }
             } else {
                 tagsScroll?.visibility = View.GONE
+                val ratingSummary = podcastRatings[podcast.id]
+                if (ratingSummary != null && ratingSummary.ratingCount > 0 && ratingSummary.averageRating > 0f) {
+                    averageRatingView.text = "★ ${String.format(Locale.US, "%.1f", ratingSummary.averageRating)}"
+                    averageRatingView.visibility = View.VISIBLE
+                } else {
+                    averageRatingView.visibility = View.GONE
+                }
                 val genresText = podcast.genres.take(2).joinToString(", ")
                 genresView.text = genresText
                 genresView.visibility = if (genresText.isNotEmpty()) View.VISIBLE else View.GONE

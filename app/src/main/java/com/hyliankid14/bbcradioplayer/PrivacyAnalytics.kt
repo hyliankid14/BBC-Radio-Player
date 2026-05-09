@@ -9,6 +9,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.TimeZone
+import java.util.UUID
 
 class PrivacyAnalytics(private val context: Context) {
     
@@ -16,6 +17,7 @@ class PrivacyAnalytics(private val context: Context) {
         private const val PREFS_NAME = "privacy_analytics"
         private const val KEY_ENABLED = "analytics_enabled"
         private const val KEY_FIRST_RUN = "analytics_first_run"
+        private const val KEY_ANON_INSTALL_ID = "anon_install_id"
         private const val TAG = "PrivacyAnalytics"
 
         // Self-hosted analytics endpoint on your Raspberry Pi.
@@ -25,6 +27,16 @@ class PrivacyAnalytics(private val context: Context) {
         fun getAnalyticsBaseUrl(): String {
             val endpoint = ANALYTICS_ENDPOINT.trim()
             return if (endpoint.endsWith("/event")) endpoint.removeSuffix("/event") else endpoint
+        }
+
+        fun getAnonymousInstallId(context: Context): String {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val existing = prefs.getString(KEY_ANON_INSTALL_ID, null)?.trim()
+            if (!existing.isNullOrBlank()) return existing
+
+            val generated = UUID.randomUUID().toString().replace("-", "")
+            prefs.edit().putString(KEY_ANON_INSTALL_ID, generated).apply()
+            return generated
         }
     }
     
@@ -98,6 +110,54 @@ class PrivacyAnalytics(private val context: Context) {
                 Log.d(TAG, "Tracked episode play: $episodeId from podcast $podcastId")
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to send episode_play event", e)
+            }
+        }
+    }
+
+    suspend fun submitPodcastRating(
+        podcastId: String,
+        rating: Float,
+        podcastTitle: String? = null
+    ): Boolean {
+        if (!isEnabled()) return false
+        if (podcastId.isBlank()) return false
+        val clampedRating = rating.coerceIn(1f, 5f)
+
+        return withContext(Dispatchers.IO) {
+            try {
+                val payload = JSONObject().apply {
+                    put("podcast_id", podcastId)
+                    put("rating", clampedRating)
+                    put("install_id", getAnonymousInstallId(context))
+                    put("date", getCurrentDate())
+                    put("app_version", getAppVersion())
+                    put("platform", "android")
+                    if (!podcastTitle.isNullOrBlank()) {
+                        put("podcast_title", podcastTitle)
+                    }
+                }
+
+                val endpoint = "${getAnalyticsBaseUrl()}/rating"
+                val connection = URL(endpoint).openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("User-Agent", "British-Radio-Player/${getAppVersion()}")
+                    connectTimeout = 5000
+                    readTimeout = 5000
+                }
+
+                connection.outputStream.use { os ->
+                    os.write(payload.toString().toByteArray())
+                }
+
+                val responseCode = connection.responseCode
+                connection.disconnect()
+                responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_CREATED
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to submit podcast rating", e)
+                false
             }
         }
     }

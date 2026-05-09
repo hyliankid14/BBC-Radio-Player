@@ -11,8 +11,10 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.ImageButton
+import android.widget.RatingBar
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.text.HtmlCompat
 import androidx.core.view.MenuHost
@@ -27,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class PodcastDetailFragment : Fragment() {
     private lateinit var repository: PodcastRepository
@@ -89,6 +92,9 @@ class PodcastDetailFragment : Fragment() {
             val subscribeButton: Button = view.findViewById(R.id.subscribe_button)
             val shareButton: ImageButton = view.findViewById(R.id.share_button)
             val notificationBell: ImageView = view.findViewById(R.id.notification_bell_button)
+            val ratingContainer: View = view.findViewById(R.id.podcast_rating_container)
+            val inlineRatingBar: RatingBar = view.findViewById(R.id.podcast_rating_inline)
+            val ratingSummaryView: TextView = view.findViewById(R.id.podcast_rating_summary)
             val episodesRecycler: RecyclerView = view.findViewById(R.id.episodes_recycler)
             val loadingIndicator: CircularProgressIndicator = view.findViewById(R.id.loading_progress)
             val emptyState: TextView = view.findViewById(R.id.empty_state_text)
@@ -180,6 +186,140 @@ class PodcastDetailFragment : Fragment() {
 
             val isSubscribed = PodcastSubscriptions.isSubscribed(requireContext(), podcast.id)
             updateSubscribeButton(isSubscribed)
+
+            fun renderRatingSummary(summary: PodcastRatingSummary?) {
+                if (summary == null || summary.ratingCount <= 0 || summary.averageRating <= 0f) {
+                    ratingSummaryView.text = "No ratings yet"
+                } else {
+                    val averageText = String.format(Locale.UK, "%.1f", summary.averageRating)
+                    ratingSummaryView.text = "$averageText/5 (${summary.ratingCount})"
+                }
+            }
+
+            fun updateInlineRating(summary: PodcastRatingSummary?) {
+                val myRating = summary?.myRating ?: 0f
+                val averageRating = summary?.averageRating ?: 0f
+                val displayRating = if (myRating > 0f) {
+                    myRating.coerceIn(0f, 5f)
+                } else {
+                    averageRating.coerceIn(0f, 5f)
+                }
+                inlineRatingBar.rating = displayRating
+            }
+
+            fun submitRating(newRating: Float) {
+                val analytics = PrivacyAnalytics(requireContext())
+                if (!analytics.isEnabled()) {
+                    com.google.android.material.snackbar.Snackbar.make(
+                        requireView(),
+                        "Enable analytics in Settings to submit ratings",
+                        com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                    ).setAnchorView(requireActivity().findViewById(R.id.playback_controls)).show()
+                    return
+                }
+
+                fragmentScope.launch {
+                    val saved = withContext(Dispatchers.IO) {
+                        repository.submitPodcastRating(
+                            podcastId = podcast.id,
+                            rating = newRating,
+                            podcastTitle = podcast.title
+                        )
+                    }
+
+                    if (!isAdded) return@launch
+                    if (!saved) {
+                        com.google.android.material.snackbar.Snackbar.make(
+                            requireView(),
+                            "Could not submit rating. Please try again.",
+                            com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
+                        ).setAnchorView(requireActivity().findViewById(R.id.playback_controls)).show()
+                    }
+
+                    val refreshed = withContext(Dispatchers.IO) {
+                        repository.fetchPodcastRating(podcast.id)
+                    }
+                    if (!isAdded) return@launch
+                    renderRatingSummary(refreshed)
+                    updateInlineRating(refreshed)
+
+                    if (saved) {
+                        val intent = Intent(PodcastsFragment.ACTION_PODCAST_RATING_CHANGED).apply {
+                            putExtra(PodcastsFragment.EXTRA_PODCAST_ID, podcast.id)
+                        }
+                        requireContext().sendBroadcast(intent)
+                    }
+                }
+            }
+
+            fun showRatingDialog(summary: PodcastRatingSummary?) {
+                val myRating = summary?.myRating ?: 0f
+                val dialogView = layoutInflater.inflate(R.layout.dialog_podcast_rating, null)
+                val dialogRatingBar: RatingBar = dialogView.findViewById(R.id.dialog_rating_bar)
+                dialogRatingBar.apply {
+                    numStars = 5
+                    max = 5
+                    stepSize = 1f
+                    rating = myRating.coerceIn(0f, 5f)
+                    setOnRatingBarChangeListener { ratingBar, value, _ ->
+                        if (value > 5f) {
+                            ratingBar.rating = 5f
+                        }
+                    }
+                }
+
+                val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Rate this podcast")
+                    .setView(dialogView)
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Submit") { _, _ ->
+                        val selected = dialogRatingBar.rating.coerceIn(0f, 5f)
+                        if (selected <= 0f) {
+                            Toast.makeText(requireContext(), "Please select a star rating", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
+                        submitRating(selected)
+                    }
+                    .create()
+
+                dialog.setOnShowListener {
+                    // Keep larger stars where possible, but scale down so all 5 stars fit on narrow screens.
+                    val density = resources.displayMetrics.density
+                    val screenWidthPx = resources.displayMetrics.widthPixels
+                    val estimatedDialogInsetsPx = (56 * density).toInt()
+                    val availableWidthPx = (screenWidthPx - estimatedDialogInsetsPx).coerceAtLeast(1)
+                    val desiredScale = 1.2f
+
+                    dialogRatingBar.post {
+                        val baseWidth = dialogRatingBar.width.toFloat().coerceAtLeast(1f)
+                        val maxScale = availableWidthPx / baseWidth
+                        val scale = minOf(desiredScale, maxScale)
+                        dialogRatingBar.scaleX = scale
+                        dialogRatingBar.scaleY = scale
+                    }
+                }
+
+                dialog.show()
+            }
+
+            fragmentScope.launch {
+                val summary = withContext(Dispatchers.IO) {
+                    repository.fetchPodcastRating(podcast.id)
+                }
+                if (!isAdded) return@launch
+                renderRatingSummary(summary)
+                updateInlineRating(summary)
+            }
+
+            ratingContainer.setOnClickListener {
+                fragmentScope.launch {
+                    val latest = withContext(Dispatchers.IO) {
+                        repository.fetchPodcastRating(podcast.id)
+                    }
+                    if (!isAdded) return@launch
+                    showRatingDialog(latest)
+                }
+            }
             
             subscribeButton.setOnClickListener {
                 PodcastSubscriptions.toggleSubscription(requireContext(), podcast.id)
