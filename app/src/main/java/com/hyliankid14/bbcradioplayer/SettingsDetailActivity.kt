@@ -319,6 +319,13 @@ class SettingsDetailActivity : AppCompatActivity() {
             PlaybackPreference.setShakeRandomPodcastEnabled(this, isChecked)
         }
 
+        val stopOnBluetoothDisconnectCheckbox: android.widget.CheckBox =
+            findViewById(R.id.stop_on_bluetooth_disconnect_checkbox)
+        stopOnBluetoothDisconnectCheckbox.isChecked = PlaybackPreference.isStopOnBluetoothDisconnectEnabled(this)
+        stopOnBluetoothDisconnectCheckbox.setOnCheckedChangeListener { _, isChecked ->
+            PlaybackPreference.setStopOnBluetoothDisconnect(this, isChecked)
+        }
+
         val autoplayNextGroup: RadioGroup = findViewById(R.id.autoplay_next_episode_radio_group)
         when (PlaybackPreference.getAutoplayNextEpisode(this)) {
             PlaybackPreference.AUTOPLAY_NEXT_ALL -> autoplayNextGroup.check(R.id.radio_autoplay_all)

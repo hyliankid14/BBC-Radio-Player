@@ -106,6 +106,7 @@
     <string name="backup_last_date_never">Last backup: Never</string>
     <string name="backup_last_date_value">Last backup: %1$s</string>
     <string name="shake_random_podcast_label">Shake to select a random podcast</string>
+    <string name="stop_on_bluetooth_disconnect_label">Stop playback when Bluetooth device disconnects</string>
     <string name="podcast_episode_sort_switch_to_oldest">Listen from oldest first</string>
     <string name="podcast_episode_sort_switch_to_newest">Listen from newest first</string>
     <string name="podcast_episode_sort_changed_oldest">Episode order set to oldest first</string>

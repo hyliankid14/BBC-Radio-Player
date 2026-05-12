@@ -6,6 +6,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.net.Uri
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -158,6 +160,7 @@ class RadioService : MediaBrowserServiceCompat() {
     // Receiver to react to history/import changes so Android Auto clients can refresh
     private var historyChangeReceiver: android.content.BroadcastReceiver? = null
     private var playlistChangeReceiver: android.content.BroadcastReceiver? = null
+    private var audioDeviceCallback: AudioDeviceCallback? = null
 
     private val placeholderBitmap by lazy {
         android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
@@ -252,6 +255,7 @@ class RadioService : MediaBrowserServiceCompat() {
             }
             registerReceiver(playlistChangeReceiver, android.content.IntentFilter(PodcastPlaylists.ACTION_PLAYLISTS_CHANGED))
         } catch (_: Exception) { }
+        registerBluetoothDisconnectCallback()
         
         // Create and configure media session FIRST
         mediaSession = MediaSessionCompat(this, "RadioService")
@@ -2105,6 +2109,41 @@ class RadioService : MediaBrowserServiceCompat() {
         // here can race and trigger immediate focus-loss callbacks on resume.
         // Keep this method as a no-op so existing call sites remain simple.
         return
+    }
+
+    private fun registerBluetoothDisconnectCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || audioDeviceCallback != null) return
+        val callback = object : AudioDeviceCallback() {
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+                if (player?.isPlaying != true) return
+                if (!PlaybackPreference.isStopOnBluetoothDisconnectEnabled(this@RadioService)) return
+                if (!removedDevices.any { it.isBluetoothOutputDevice() }) return
+                if (hasConnectedBluetoothOutputDevice()) return
+
+                Log.d(TAG, "Bluetooth audio device disconnected — stopping playback by user preference")
+                try {
+                    stopPlayback()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error stopping playback after Bluetooth disconnect: ${e.message}")
+                }
+            }
+        }
+        audioManager.registerAudioDeviceCallback(callback, handler)
+        audioDeviceCallback = callback
+    }
+
+    private fun hasConnectedBluetoothOutputDevice(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+        return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.isBluetoothOutputDevice() }
+    }
+
+    private fun AudioDeviceInfo.isBluetoothOutputDevice(): Boolean {
+        if (!isSink) return false
+        return when (type) {
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> true
+            else -> false
+        }
     }
 
     private fun persistCurrentPodcastProgress() {
@@ -4397,6 +4436,12 @@ val pbShow = PlaybackStateHelper.getCurrentShow()
         try {
             playlistChangeReceiver?.let { unregisterReceiver(it) }
         } catch (_: Exception) { }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                audioDeviceCallback?.let { audioManager.unregisterAudioDeviceCallback(it) }
+            } catch (_: Exception) { }
+        }
+        audioDeviceCallback = null
         
         // Abandon audio focus (only needed for Android O+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
