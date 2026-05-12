@@ -14,6 +14,7 @@ object PlaybackPreference {
     private const val KEY_SHAKE_RANDOM_PODCAST = "shake_random_podcast"
     private const val KEY_PODCAST_ARTWORK_SOURCE = "podcast_artwork_source"
     private const val KEY_AUTOPLAY_NEXT_EPISODE = "autoplay_next_episode"
+    private const val KEY_STOP_ON_BLUETOOTH_DISCONNECT = "stop_on_bluetooth_disconnect"
     private const val KEY_LAST_TRACKED_ANALYTICS_EPISODE_ID = "last_tracked_analytics_episode_id"
 
     const val ARTWORK_SOURCE_EPISODE = "episode"
@@ -135,6 +136,16 @@ object PlaybackPreference {
     fun getAutoplayNextEpisode(context: Context): String {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_AUTOPLAY_NEXT_EPISODE, AUTOPLAY_NEXT_NONE) ?: AUTOPLAY_NEXT_NONE
+    }
+
+    fun setStopOnBluetoothDisconnect(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_STOP_ON_BLUETOOTH_DISCONNECT, enabled).apply()
+    }
+
+    fun isStopOnBluetoothDisconnectEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_STOP_ON_BLUETOOTH_DISCONNECT, false)
     }
 
     fun setLastTrackedAnalyticsEpisodeId(context: Context, episodeId: String?) {
