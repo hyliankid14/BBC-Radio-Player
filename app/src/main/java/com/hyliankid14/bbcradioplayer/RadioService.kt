@@ -307,8 +307,10 @@ class RadioService : MediaBrowserServiceCompat() {
                         if (separatorIdx >= 0) {
                             val playlistId = rest.substring(0, separatorIdx)
                             val episodeId = rest.substring(separatorIdx + 1)
+                            val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
                             // Suppress automatic re-play of the episode that just ended naturally.
-                            if (episodeId == PlaybackStateHelper.getCurrentEpisodeId() && podcastEpisodeEndedNoRestart) {
+                            val isEnded = player?.playbackState == Player.STATE_ENDED
+                            if (episodeId == currentEpisodeId && (podcastEpisodeEndedNoRestart || isEnded)) {
                                 Log.d(TAG, "onPlayFromMediaId: suppressing automatic replay of just-ended playlist episode $episodeId")
                                 return
                             }
@@ -346,11 +348,13 @@ class RadioService : MediaBrowserServiceCompat() {
                         }
                     } else if (id.startsWith("podcast_episode_")) {
                         val episodeId = id.removePrefix("podcast_episode_")
+                        val currentEpisodeId = PlaybackStateHelper.getCurrentEpisodeId()
                         // Suppress automatic re-play of the episode that just ended naturally.
                         // Some Android Auto head units call onPlayFromMediaId with the current
                         // media ID when they see STATE_STOPPED/STATE_PAUSED after an episode ends,
                         // which would restart the same episode instead of advancing to the next one.
-                        if (episodeId == PlaybackStateHelper.getCurrentEpisodeId() && podcastEpisodeEndedNoRestart) {
+                        val isEnded = player?.playbackState == Player.STATE_ENDED
+                        if (episodeId == currentEpisodeId && (podcastEpisodeEndedNoRestart || isEnded)) {
                             Log.d(TAG, "onPlayFromMediaId: suppressing automatic replay of just-ended episode $episodeId")
                             return
                         }
@@ -1817,6 +1821,18 @@ class RadioService : MediaBrowserServiceCompat() {
                 
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
+                        val podcastEpisodeJustEnded =
+                            playbackState == Player.STATE_ENDED && currentStationId.startsWith("podcast_")
+                        if (podcastEpisodeJustEnded) {
+                            // Set the no-restart guard before publishing STATE_STOPPED so that
+                            // Android Auto callbacks triggered by that state cannot race and
+                            // restart the just-finished episode from the beginning.
+                            podcastEpisodeEndedNoRestart = true
+                            // Stop progress writes immediately on natural episode end so no
+                            // follow-up STATE_PAUSED update is emitted for the ended episode.
+                            podcastProgressRunnable?.let { handler.removeCallbacks(it) }
+                        }
+
                         val state = when (playbackState) {
                             Player.STATE_READY -> if (playWhenReady) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
                             Player.STATE_BUFFERING -> PlaybackStateCompat.STATE_BUFFERING
@@ -1853,16 +1869,8 @@ class RadioService : MediaBrowserServiceCompat() {
 
                         // If playback ended for a podcast episode, attempt to autoplay next episode in the same podcast
                         if (playbackState == Player.STATE_ENDED && currentStationId.startsWith("podcast_")) {
-                            // Set the no-restart guard immediately when the episode ends so that
-                            // Android Auto's automatic onPlay() (triggered by STATE_STOPPED) cannot
-                            // restart the same episode via handlePlayRequest's STATE_ENDED path.
-                            // Cleared by playPodcastEpisode() when a new episode actually starts.
-                            podcastEpisodeEndedNoRestart = true
-                            // Stop the progress runnable so it no longer writes STATE_PAUSED to the
-                            // MediaSession after a natural episode end. Without this, some Android
-                            // Auto head units see STATE_PAUSED and call onPlayFromMediaId with the
-                            // current episode ID, causing the same episode to restart automatically.
-                            podcastProgressRunnable?.let { handler.removeCallbacks(it) }
+                            // Guard + progress runnable cleanup are applied at the top of this
+                            // callback before STATE_STOPPED is published.
                             val currentEpisode = PlaybackStateHelper.getCurrentEpisodeId()
                             val podcastId = currentPodcastId
                             val playlistId = currentPlaylistId
@@ -1920,17 +1928,18 @@ class RadioService : MediaBrowserServiceCompat() {
                                                 playPodcastEpisode(nextEp, playIntent)
                                             } else {
                                                 Log.d(TAG, "No next episode in playlist: $playlistId")
-                                                updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                                stopPlayback()
                                             }
                                         } catch (e: Exception) {
                                             Log.w(TAG, "Failed to autoplay next playlist episode: ${e.message}")
-                                            updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                            stopPlayback()
                                         } finally {
                                             pendingAutoplayNextEpisode = false
                                         }
                                     }
                                 } else if (autoplayPref == PlaybackPreference.AUTOPLAY_NEXT_NONE) {
                                     Log.d(TAG, "Autoplay disabled by user preference")
+                                    stopPlayback()
                                 } else if (!podcastId.isNullOrEmpty()) {
                                     // Podcast autoplay: advance to next episode in podcast feed order
                                     // Signal buffering before launching the coroutine. Some Android Auto
@@ -1956,7 +1965,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                                     val subscribed = PodcastSubscriptions.getSubscribedIds(this@RadioService)
                                                     if (!subscribed.contains(podcastId)) {
                                                         Log.d(TAG, "Autoplay skipped: podcast not subscribed (preference=subscriptions_only)")
-                                                        updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                                        stopPlayback()
                                                         return@launch
                                                     }
                                                 }
@@ -1975,7 +1984,7 @@ class RadioService : MediaBrowserServiceCompat() {
                                                 val currentIndex = sortedEpisodes.indexOfFirst { it.id == currentEpisode }
                                                 if (currentIndex < 0) {
                                                     Log.w(TAG, "Current episode not found in feed for autoplay: $currentEpisode")
-                                                    updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                                    stopPlayback()
                                                 } else {
                                                     val next = sortedEpisodes.drop(currentIndex + 1).firstOrNull()
                                                     if (next != null) {
@@ -1994,16 +2003,16 @@ class RadioService : MediaBrowserServiceCompat() {
                                                         playPodcastEpisode(next, playIntent)
                                                     } else {
                                                         Log.d(TAG, "No next episode found to autoplay for podcast: $podcastId")
-                                                        updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                                        stopPlayback()
                                                     }
                                                 }
                                             } else {
                                                 Log.w(TAG, "Podcast not found while attempting to autoplay: $podcastId")
-                                                updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                                stopPlayback()
                                             }
                                         } catch (e: Exception) {
                                             Log.w(TAG, "Failed to autoplay next episode: ${e.message}")
-                                            updatePlaybackState(PlaybackStateCompat.STATE_STOPPED)
+                                            stopPlayback()
                                         } finally {
                                             // Clear the in-flight flag for all non-success paths.
                                             // playPodcastEpisode() clears it on the success path.
@@ -2205,8 +2214,9 @@ class RadioService : MediaBrowserServiceCompat() {
                     return
                 }
                 Player.STATE_ENDED -> {
-                    if (pendingAutoplayNextEpisode || podcastEpisodeEndedNoRestart) {
-                        Log.d(TAG, "handlePlayRequest: suppressing restart of ended episode (pendingAutoplay=$pendingAutoplayNextEpisode, noRestart=$podcastEpisodeEndedNoRestart, source=$source)")
+                    if (currentStationId.startsWith("podcast_")) {
+                        Log.d(TAG, "handlePlayRequest: suppressing ended podcast replay and stopping playback (source=$source)")
+                        stopPlayback()
                         return
                     }
                     Log.d(TAG, "handlePlayRequest: restarting ENDED media item from start (source=$source)")
